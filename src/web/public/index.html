@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>飞虹 Code · Web 控制台</title>
+    <style>
+      :root { --brand: #c0392b; --ink: #1f2937; --muted: #6b7280; --bg: #f7f8fa; }
+      * { box-sizing: border-box; }
+      body { margin: 0; font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+             background: var(--bg); color: var(--ink); }
+      header { background: var(--brand); color: #fff; padding: 14px 20px; font-weight: 600; letter-spacing: .5px; }
+      main { max-width: 760px; margin: 40px auto; padding: 0 20px; }
+      .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 24px; }
+      h1 { font-size: 20px; margin: 0 0 12px; }
+      p { color: var(--muted); line-height: 1.7; }
+      code { background: #f1f3f5; padding: 2px 6px; border-radius: 4px; color: var(--brand); }
+      .sig { margin-top: 28px; font-size: 12px; color: #9ca3af; border-top: 1px dashed #e5e7eb; padding-top: 14px; }
+      .badge { display: inline-block; background: #e8f5e9; color: #2e7d32; border-radius: 999px;
+               padding: 2px 10px; font-size: 12px; margin-bottom: 12px; }
+    </style>
+  </head>
+  <body>
+    <header>飞虹 Code · Web 控制台</header>
+    <main>
+      <div class="card">
+        <span class="badge">M5 骨架就绪</span>
+        <h1>飞虹 Code Web 控制台（M5 建设中）</h1>
+        <p>
+          S1 服务骨架 + Bearer 令牌鉴权 + <code>GET /api/health</code> 已打通。
+          观测 API（租户 / 策略 / 审计链 / 会话 / 配额）将在 <strong>S2</strong> 接入，
+          可视化仪表盘将在 <strong>S3</strong> 填充。
+        </p>
+        <p>本页为占位页，S3 上线后由完整仪表盘替换。</p>
+        <p class="sig">晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹</p>
+      </div>
+    </main>
+  </body>
+</html>

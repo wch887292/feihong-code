@@ -1,10 +1,15 @@
+# 构建上下文排除项（不要让这些进入 docker build context）
 node_modules
-dist
 .git
+.workbuddy
 .env
 .env.example
-.workbuddy
-npm-debug.log
+dist
+tests
+scripts
 *.log
 coverage
-scripts
+npm-debug.log*
+Dockerfile
+docker-compose.yml
+.dockerignore

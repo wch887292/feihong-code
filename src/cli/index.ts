@@ -27,6 +27,7 @@ import {
   runAudit,
   runAuditVerify,
   runTenants,
+  runServe,
 } from './run';
 import { VERSION, PRODUCT, TAGLINE, SIGNATURE } from './version';
 
@@ -57,6 +58,10 @@ function printHelp(): void {
   fhcode audit [--limit N]           查看审计记录（默认最近 20 条）
   fhcode audit verify                校验审计哈希链是否被篡改
   fhcode tenants                     列出全部租户与用量汇总
+
+Web 控制台 (M5):
+  fhcode serve [--port 8080]         启动 Web 管理控制台（默认 http://localhost:8080）
+                                    令牌由 FH_WEB_TOKEN 或自动生成（控制台仅观测，不执行）
 
   fhcode --version                   显示版本 (-v)
   fhcode --help                      显示帮助 (-h)
@@ -110,6 +115,8 @@ async function main(): Promise<void> {
       else runAudit(m.limit);
     } else if (m.kind === 'tenants') {
       runTenants();
+    } else if (m.kind === 'serve') {
+      runServe(m.port);
     }
     return;
   }

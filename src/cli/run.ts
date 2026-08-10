@@ -40,6 +40,7 @@ import {
   listTenants,
   type EnterpriseRuntime,
 } from '../enterprise';
+import { startWebServer } from '../web/server';
 import { Orchestrator, type OrchestratorSecurity } from '../agent/orchestrator';
 import { runParallel, defaultParallelMock } from '../agent/parallel-orchestrator';
 import { runPlan } from '../skills/plan';
@@ -525,6 +526,17 @@ export function runTenants(): void {
       `  ${t.tenantId.padEnd(20)} ${String(t.sessions).padStart(5)}   $${t.costUsd.toFixed(6).padStart(10)}   ${String(t.auditRecords).padStart(7)}   ${t.lastActiveAt}`,
     );
   }
+}
+
+/* ===================== M5：Web 控制台（serve） ===================== */
+
+/** fhcode serve：启动 Web 管理控制台。无 FH_WEB_PORT 用 8080；无 FH_WEB_TOKEN 自动生成。 */
+export function runServe(port?: number): void {
+  const handle = startWebServer({ port });
+  console.log(`[飞虹 Code] Web 控制台: ${handle.url}`);
+  console.log(`[飞虹 Code] 访问令牌 (FH_WEB_TOKEN): ${handle.token}`);
+  console.log(`[飞虹 Code] 按 Ctrl+C 停止`);
+  // 注意：app.listen 保持事件循环运行，进程持续存活直到收到 SIGINT；本函数返回后 main() 结束不影响服务。
 }
 
 /* ===================== 审批器 ===================== */

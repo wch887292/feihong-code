@@ -18,6 +18,7 @@
  *  - policy           查看生效权限策略（M4）
  *  - audit [verify]   审计记录 / 哈希链校验（M4）
  *  - tenants          租户用量汇总（M4）
+ *  - serve [--port N] 启动 Web 管理控制台（M5）
  *  - 其余文本          单命令需求
  */
 export type SkillCommand = 'plan' | 'grill' | 'goal';
@@ -30,7 +31,8 @@ export type ManagementCommand =
   | { kind: 'whoami' }
   | { kind: 'policy' }
   | { kind: 'audit'; verify: boolean; limit: number }
-  | { kind: 'tenants' };
+  | { kind: 'tenants' }
+  | { kind: 'serve'; port?: number };
 
 export interface ParsedArgs {
   flags: {
@@ -39,6 +41,7 @@ export interface ParsedArgs {
     parallel?: boolean;
     yes?: boolean;
     limit?: number;
+    port?: number;
   };
   /** 单命令模式下的需求文本（首个非 flag 参数） */
   command?: string;
@@ -58,6 +61,13 @@ export function parseArgs(argv: string[]): ParsedArgs {
     else if (arg === '--help' || arg === '-h') flags.help = true;
     else if (arg === '--parallel') flags.parallel = true;
     else if (arg === '--yes') flags.yes = true;
+    else if (arg === '--port') {
+      const n = Number(argv[++i]);
+      if (Number.isFinite(n) && n > 0) flags.port = Math.floor(n);
+    } else if (arg.startsWith('--port=')) {
+      const n = Number(arg.slice('--port='.length));
+      if (Number.isFinite(n) && n > 0) flags.port = Math.floor(n);
+    }
     else if (arg === '--limit') {
       const n = Number(argv[++i]);
       if (Number.isFinite(n) && n > 0) flags.limit = Math.floor(n);
@@ -88,6 +98,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
   if (head === 'whoami') return { flags, manage: { kind: 'whoami' } };
   if (head === 'policy') return { flags, manage: { kind: 'policy' } };
   if (head === 'tenants') return { flags, manage: { kind: 'tenants' } };
+  if (head === 'serve') return { flags, manage: { kind: 'serve', port: flags.port } };
   if (head === 'audit') {
     return {
       flags,

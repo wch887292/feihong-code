@@ -111,3 +111,30 @@ jobs:
           echo "密钥扫描通过"
       - run: npm audit --omit=dev --audit-level=high
         continue-on-error: true
+
+  # ---------- 4. 容器镜像构建校验（稳定部署） ----------
+  docker:
+    name: Docker 镜像构建校验
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 构建镜像（不推送）
+        run: docker build -t feihong-code:ci .
+      - name: 冒烟：容器内企业命令可用
+        run: |
+          docker run --rm \
+            -e FH_ENTERPRISE=true -e FH_TENANT=ci -e FH_USER=ci -e FH_ROLE=developer \
+            feihong-code:ci whoami
+      - name: 冒烟：Web 控制台可启动
+        run: |
+          docker run --rm -d --name fhcode-smoke -p 8099:8080 \
+            -e FH_ENTERPRISE=true -e FH_WEB_TOKEN=ci-token -e FH_WEB_PORT=8080 \
+            feihong-code:ci serve --port 8080
+          sleep 3
+          code=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer ci-token" http://localhost:8099/api/health)
+          docker rm -f fhcode-smoke
+          if [ "$code" != "200" ]; then
+            echo "::error::Web 控制台健康检查失败，HTTP=$code"
+            exit 1
+          fi
+          echo "Web 控制台健康检查通过 (HTTP 200)"

@@ -1,19 +1,24 @@
 #!/usr/bin/env bash
-# 飞虹 Code 一键安装（从源码构建并全局安装）
-# 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
-set -e
+# 飞虹 Code (fhcode) — 安装脚本
+# 用途：从 npm 安装稳定版 fhcode 全局命令。
+# 前提：已安装 Node.js >= 18 与 npm。
+set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
+echo "== 飞虹 Code (fhcode) 安装 =="
 
-echo "==> 安装依赖并构建 feihong-code ..."
-npm install
-npm run build
+if ! command -v node >/dev/null 2>&1; then
+  echo "错误：未检测到 node，请先安装 Node.js >= 18（https://nodejs.org）。" >&2
+  exit 1
+fi
 
-echo "==> 全局安装 (npm install -g .) ..."
-npm install -g .
+echo "检测到 node $(node -v)"
+echo "正在从 npm 安装 feihong-code（稳定版）..."
+npm install -g feihong-code
 
-echo "✅ 安装完成。验证："
-fhcode --version
 echo ""
-echo "下一步：cp .env.example .env 并填入 FH_PROVIDERS 后，运行 fhcode \"<需求>\""
+echo "安装完成。可执行："
+echo "  fhcode --help                  # 查看全部命令"
+echo "  fhcode serve --port 8080       # 启动 Web 管理控制台（企业版）"
+echo "  fhcode \"你的第一条目标\"        # 以离线/社区模式运行"
+echo ""
+echo "晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹"
