@@ -59,8 +59,10 @@ export class Orchestrator {
     let finalAnswer = '';
     let cost = 0;
     let iter = 0;
+    let calls = 0;
 
     for (; iter < maxIter; iter++) {
+      calls++;
       const resp: ChatResponse = await router.chat(
         { messages, tools: tools.definitions(), temperature: 0, timeoutMs: 180000 },
         ['code-gen'],
@@ -102,17 +104,17 @@ export class Orchestrator {
       }
     }
 
-    if (iter >= maxIter && !finalAnswer) {
+    if (calls >= maxIter && !finalAnswer) {
       finalAnswer = '已达到最大迭代次数，任务可能未完全完成，请检查工作区与日志。';
       await eventLog.append('error', { reason: 'max-iterations-reached' });
       logger.warn('orchestrator reached max iterations', { runId: session.runId });
     }
 
-    await eventLog.append('session.end', { iterations: iter, costUsd: cost });
+    await eventLog.append('session.end', { iterations: calls, costUsd: cost });
     return {
       ok: finalAnswer.length > 0,
       finalAnswer,
-      iterations: iter,
+      iterations: calls,
       costUsd: cost,
       logFile: eventLog.filePath,
     };

@@ -7,6 +7,7 @@
  */
 import { randomUUID } from 'crypto';
 import { setRunId } from '../shared/logger';
+import { loadDotEnv } from '../shared/config';
 import { parseArgs } from './commands';
 import { startRepl } from './repl';
 import { runGoal, isOfflineByDefault, runPlanSkill, runGrillSkill, runGoalSkill, runParallelGoal } from './run';
@@ -38,6 +39,7 @@ function printHelp(): void {
 
 async function main(): Promise<void> {
   setRunId(randomUUID());
+  loadDotEnv(); // 尽早加载 .env（须在 isOfflineByDefault / loadConfig 之前）
 
   const args = parseArgs(process.argv.slice(2));
 
