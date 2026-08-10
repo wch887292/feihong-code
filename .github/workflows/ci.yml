@@ -1,0 +1,25 @@
+# 飞虹 Code CI
+# 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      - run: npm install
+      - run: npm run typecheck
+      - run: npm run build
+      # 离线冒烟：不依赖任何 API key，验证 CLI 与编排闭环
+      - run: node dist/cli/index.js --version
+      - run: FH_OFFLINE=true node dist/cli/index.js "离线冒烟：创建一个说明文件"
+      - run: node dist/cli/index.js /plan "实现登录并且添加支付"
+      - run: node dist/cli/index.js /grill src

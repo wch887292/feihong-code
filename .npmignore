@@ -1,0 +1,10 @@
+# 冗余保险：即便 package.json 的 files 白名单被改动，也确保以下不随 npm publish 泄露
+.env
+.env.example
+src
+.workbuddy
+.git
+tests
+scripts
+*.log
+coverage

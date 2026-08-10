@@ -1,0 +1,10 @@
+node_modules
+dist
+.git
+.env
+.env.example
+.workbuddy
+npm-debug.log
+*.log
+coverage
+scripts
