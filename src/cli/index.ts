@@ -59,6 +59,10 @@ function printHelp(): void {
   fhcode audit verify                校验审计哈希链是否被篡改
   fhcode tenants                     列出全部租户与用量汇总
 
+自我进化 (M6):
+  fhcode model-stats                 查看各模型性能统计
+  fhcode experiences [路径]          列出经验库
+
 Web 控制台 (M5):
   fhcode serve [--port 8080]         启动 Web 管理控制台（默认 http://localhost:8080）
                                     令牌由 FH_WEB_TOKEN 或自动生成（控制台仅观测，不执行）

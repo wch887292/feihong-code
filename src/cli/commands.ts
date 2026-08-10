@@ -32,7 +32,9 @@ export type ManagementCommand =
   | { kind: 'policy' }
   | { kind: 'audit'; verify: boolean; limit: number }
   | { kind: 'tenants' }
-  | { kind: 'serve'; port?: number };
+  | { kind: 'serve'; port?: number }
+  | { kind: 'model-stats' }
+  | { kind: 'experiences'; path?: string };
 
 export interface ParsedArgs {
   flags: {
@@ -105,6 +107,10 @@ export function parseArgs(argv: string[]): ParsedArgs {
       manage: { kind: 'audit', verify: rest[0] === 'verify', limit: flags.limit ?? 20 },
     };
   }
+
+  // M6 自我进化命令
+  if (head === 'model-stats') return { flags, manage: { kind: 'model-stats' } };
+  if (head === 'experiences') return { flags, manage: { kind: 'experiences', path: rest[0] } };
 
   // 斜杠技能
   if (head?.startsWith('/')) {

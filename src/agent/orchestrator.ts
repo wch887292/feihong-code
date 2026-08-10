@@ -7,7 +7,13 @@
  *
  * M3 增强：
  *  - run(goal, resume?) 支持从检查点续跑（中断任务恢复）
- *  - 每轮迭代后通过 persist 回调落盘检查点（含完整对话、迭代数、成本、被改动文件）
+ *  - 每轮迭代后通过 persist 回调落盘检查点（含完整对话、迭代数、成本、被改文件）
+ *
+ * M6 增强：
+ *  - 自我修复循环：错误自动识别 + 反思重试（最多 FH_MAX_RETRY_ERRORS 次）
+ *  - 上下文压缩：长时任务自动压缩早期消息（每 FH_CONTEXT_COMPACT_EVERY 次迭代）
+ *  - 经验学习：会话完成后提取经验并保存
+ *  - 模型性能追踪：自动记录各 provider 成功率，影响后续路由选择
  */
 import type { ModelRouter } from '../models/model-router';
 import type { ToolRegistry } from '../tools/tool.registry';
@@ -19,6 +25,21 @@ import type { SessionCheckpoint, SessionStatus } from '../runtime/session-persis
 import { SYSTEM_PROMPT } from './prompts';
 import { planTask } from './planner';
 import { logger } from '../shared/logger';
+import {
+  classifyError,
+  injectReflection,
+  countConsecutiveErrors,
+  logRecoveryAttempt,
+  type ErrorAnalysis,
+} from './self-heal';
+import { compactContext, shouldCompact, getCompactionThreshold } from './context-compactor';
+import {
+  extractExperience,
+  saveExperience,
+  loadExperiences,
+  generateExperiencePrompt,
+  updateExperienceUsage,
+} from './experience';
 
 export interface OrchestratorSecurity {
   shellAllowlist: string[];
@@ -40,6 +61,12 @@ export interface OrchestratorDeps {
   guard?: ToolGuard;
   /** M4：单任务成本上限（USD），超出即中止，0/undefined 表示不限 */
   maxCostUsd?: number;
+  /** M6：错误自动重试上限（默认 3） */
+  maxRetryErrors?: number;
+  /** M6：上下文压缩触发阈值（默认 30 条消息） */
+  contextCompactEvery?: number;
+  /** M6：经验目录 */
+  experienceDir?: string;
 }
 
 /** M3 resume 上下文：携带已完成的对话与计数，避免重复执行 */
@@ -57,20 +84,32 @@ export interface RunResult {
   costUsd: number;
   logFile: string;
   runId: string;
+  /** M6: 是否触发自愈循环 */
+  selfHealed?: boolean;
+  /** M6: 经验提取数量 */
+  experiencesExtracted?: number;
 }
 
 export class Orchestrator {
   constructor(private readonly deps: OrchestratorDeps) {}
 
   async run(goal: string, resume?: ResumeContext): Promise<RunResult> {
-    const { router, tools, eventLog, session, cwd, security, approve, persist, guard } = this.deps;
+    const {
+      router, tools, eventLog, session, cwd, security, approve, persist, guard,
+      maxRetryErrors = 3,
+      contextCompactEvery,
+      experienceDir,
+    } = this.deps;
     const maxIter = this.deps.maxIterations ?? 12;
     const maxCost = this.deps.maxCostUsd ?? 0;
+    const compactThreshold = getCompactionThreshold({ compactEvery: contextCompactEvery });
 
     let messages: ChatMessage[];
     let baselineIterations = 0;
     let carryCost = 0;
     const touchedFiles: string[] = resume ? [...resume.touchedFiles] : [];
+    let selfHealed = false;
+    const errorHistory: ErrorAnalysis[] = [];
 
     if (resume && resume.messages.length > 0) {
       messages = resume.messages;
@@ -78,8 +117,13 @@ export class Orchestrator {
       carryCost = resume.costUsd;
       await eventLog.append('session.resume', { fromIterations: baselineIterations });
     } else {
+      // M6: 加载历史经验
+      const experiences = experienceDir ? await loadExperiences(experienceDir, [goal]) : [];
+      const experiencePrompt = generateExperiencePrompt(experiences);
+      const systemPrompt = experiencePrompt ? `${SYSTEM_PROMPT}\n\n${experiencePrompt}` : SYSTEM_PROMPT;
+
       const { messages: initMessages, plan } = planTask(goal);
-      messages = [{ role: 'system', content: SYSTEM_PROMPT }, ...initMessages];
+      messages = [{ role: 'system', content: systemPrompt }, ...initMessages];
       session.append(messages[0]);
       session.append(messages[1]);
       await eventLog.append('plan', { steps: plan.steps });
@@ -89,6 +133,7 @@ export class Orchestrator {
     let finalAnswer = '';
     let cost = carryCost;
     let calls = 0;
+    let consecutiveErrors = 0;
 
     // 检查点落盘（闭包引用最新 calls/cost/touchedFiles）
     const emitCheckpoint = async (status: SessionStatus): Promise<void> => {
@@ -111,10 +156,12 @@ export class Orchestrator {
     if (!resume) await emitCheckpoint('running');
 
     for (; calls < maxIter; calls++) {
+      const startTime = Date.now();
       const resp: ChatResponse = await router.chat(
         { messages, tools: tools.definitions(), temperature: 0, timeoutMs: 180000 },
         ['code-gen'],
       );
+      const latency = Date.now() - startTime;
       cost += resp.costUsd;
       const msg = resp.message;
       messages.push(msg);
@@ -136,6 +183,7 @@ export class Orchestrator {
         provider: resp.providerId,
         model: resp.model,
         toolCalls: (msg.toolCalls ?? []).map((t) => t.name),
+        latencyMs: latency,
       });
       await emitCheckpoint('running');
 
@@ -155,6 +203,7 @@ export class Orchestrator {
       }
 
       // 执行本轮所有工具调用，并将结果以 tool 消息回填
+      let roundErrors = 0;
       for (const tc of msg.toolCalls) {
         await eventLog.append('tool.call', { name: tc.name, args: tc.arguments });
         const result = await tools.execute(tc.name, tc.arguments, {
@@ -173,8 +222,58 @@ export class Orchestrator {
         const toolMsg: ChatMessage = { role: 'tool', content, toolCallId: tc.id };
         messages.push(toolMsg);
         session.append(toolMsg);
+
+        if (!result.ok) {
+          roundErrors++;
+        }
       }
+
+      // M6: 错误检测与自愈循环
+      if (roundErrors > 0) {
+        const { failed, errors: consecutiveErrorsCount } = countConsecutiveErrors(messages, maxRetryErrors);
+        if (consecutiveErrorsCount > consecutiveErrors) {
+          // 新增错误，分类并记录
+          const lastToolMsg = messages[messages.length - 1];
+          const errorAnalysis = classifyError(lastToolMsg.content || '', '');
+          if (errorAnalysis) {
+            errorHistory.push(errorAnalysis);
+            await logRecoveryAttempt({ append: eventLog.append.bind(eventLog) } as any, calls, errorAnalysis, false);
+            consecutiveErrors = consecutiveErrorsCount;
+
+            if (failed) {
+              // 达到重试上限，生成最终答案
+              finalAnswer = `任务执行遇到连续 ${maxRetryErrors} 次错误，已尝试自动修复但未能成功。错误类型: ${errorHistory.map(e => e.category).join(', ')}。请检查工作区与日志，或使用 resume 续跑。`;
+              await eventLog.append('error', { reason: 'max-retry-errors', errors: errorHistory });
+              logger.warn('orchestrator hit max retry errors', { runId: session.runId, errors: errorHistory });
+              calls++;
+              break;
+            }
+
+            // 触发自愈：注入反思消息
+            selfHealed = true;
+            messages = injectReflection(messages, errorAnalysis, goal);
+            await eventLog.append('self-heal', { category: errorAnalysis.category, iteration: calls });
+            logger.info('self-heal: injected reflection', { iteration: calls, category: errorAnalysis.category });
+            continue; // 跳过本轮计数，直接进入下一轮
+          }
+        }
+      } else {
+        // 本轮无错误，重置连续错误计数
+        consecutiveErrors = 0;
+      }
+
       await emitCheckpoint('running');
+
+      // M6: 上下文压缩
+      if (shouldCompact(messages, compactThreshold)) {
+        const { messages: compacted, stats } = compactContext(messages, 10);
+        messages = compacted;
+        await eventLog.append('context.compact', { ...stats } as Record<string, unknown>);
+        logger.info('context compaction applied', {
+          originalLength: stats.originalLength,
+          compressedLength: stats.compressedLength,
+        });
+      }
     }
 
     if (baselineIterations + calls >= maxIter && !finalAnswer) {
@@ -183,8 +282,29 @@ export class Orchestrator {
       logger.warn('orchestrator reached max iterations', { runId: session.runId });
     }
 
+    // M6: 提取经验并保存
+    let experiencesExtracted = 0;
+    if (experienceDir && finalAnswer) {
+      const experiences = extractExperience(messages, session.runId);
+      for (const exp of experiences) {
+        await saveExperience(experienceDir, exp);
+      }
+      // 更新已使用经验的统计
+      for (const exp of experiences) {
+        await updateExperienceUsage(experienceDir, exp.id);
+      }
+      experiencesExtracted = experiences.length;
+      await eventLog.append('experience.extracted', { count: experiencesExtracted });
+    }
+
     await emitCheckpoint('done');
-    await eventLog.append('session.end', { iterations: baselineIterations + calls, costUsd: cost });
+    await eventLog.append('session.end', {
+      iterations: baselineIterations + calls,
+      costUsd: cost,
+      selfHealed,
+      experiencesExtracted,
+    });
+
     return {
       ok: finalAnswer.length > 0,
       finalAnswer,
@@ -192,6 +312,8 @@ export class Orchestrator {
       costUsd: cost,
       logFile: eventLog.filePath,
       runId: session.runId,
+      selfHealed,
+      experiencesExtracted,
     };
   }
 }

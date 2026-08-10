@@ -46,6 +46,7 @@ import { runParallel, defaultParallelMock } from '../agent/parallel-orchestrator
 import { runPlan } from '../skills/plan';
 import { runGrill } from '../skills/grill';
 import { decomposeGoalToGoal, saveGoal, renderGoal } from '../skills/goal';
+import { listExperiences, type Experience } from '../agent/experience';
 
 export interface RunOptions {
   offline?: boolean;
@@ -526,6 +527,55 @@ export function runTenants(): void {
       `  ${t.tenantId.padEnd(20)} ${String(t.sessions).padStart(5)}   $${t.costUsd.toFixed(6).padStart(10)}   ${String(t.auditRecords).padStart(7)}   ${t.lastActiveAt}`,
     );
   }
+}
+
+/* ===================== M6：自我进化 ===================== */
+
+/** fhcode model-stats：显示各模型性能统计 */
+export function runModelStats(): void {
+  const homeDir = join(homedir(), '.feihong-code');
+  const statsFile = join(homeDir, 'model-stats.jsonl');
+  if (!existsSync(statsFile)) {
+    console.log('（暂无模型性能数据，执行任务后自动生成）');
+    return;
+  }
+  const { ModelRouter } = require('../dist/models/model-router');
+  const router = new ModelRouter([], 'cost', 0, statsFile);
+  router.loadStats(homeDir).then(() => {
+    const stats = router.getStats();
+    if (stats.length === 0) {
+      console.log('（无模型统计记录）');
+      return;
+    }
+    console.log('模型性能统计（M6）:');
+    console.log('  提供者ID          模型               总调用  成功  失败  成功率  平均延迟  总成本');
+    for (const s of stats) {
+      console.log(
+        `  ${s.providerId.padEnd(16)} ${s.model.padEnd(18)} ${String(s.totalCalls).padStart(5)} ${String(s.successfulCalls).padStart(5)} ${String(s.failedCalls).padStart(5)} ${s.successRate.toFixed(2).padStart(6)} ${s.avgLatencyMs.toFixed(0).padStart(8)}ms $${s.totalCostUsd.toFixed(6)}`,
+      );
+    }
+  });
+}
+
+/** fhcode experiences [路径]：列出经验库 */
+export function runExperiences(path?: string): void {
+  const experienceDir = path || join(require('os').homedir(), '.feihong-code', 'experiences');
+  listExperiences(experienceDir).then((experiences: Experience[]) => {
+    if (experiences.length === 0) {
+      console.log('（暂无经验记录，完成任务后自动积累）');
+      return;
+    }
+    console.log(`经验库 (${experiences.length} 条，来源: ${experienceDir}):`);
+    console.log('  ID                              类型                 标题                    成功率  使用次数');
+    for (const exp of experiences.slice(0, 10)) {
+      console.log(
+        `  ${exp.id.padEnd(30)} ${exp.type.padEnd(16)} ${exp.title.slice(0, 25).padEnd(25)} ${(exp.metadata.successRate * 100).toFixed(0).padStart(4)}%    ${String(exp.metadata.sessionCount).padStart(4)}`,
+      );
+    }
+    if (experiences.length > 10) {
+      console.log(`  ... 共 ${experiences.length} 条，显示前 10 条`);
+    }
+  });
 }
 
 /* ===================== M5：Web 控制台（serve） ===================== */

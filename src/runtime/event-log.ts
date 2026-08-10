@@ -20,7 +20,10 @@ export type EventType =
   | 'tool.call'
   | 'tool.result'
   | 'plan'
-  | 'error';
+  | 'error'
+  | 'self-heal'
+  | 'context.compact'
+  | 'experience.extracted';
 
 export interface AgentEvent {
   ts: string;
