@@ -46,8 +46,30 @@ export class ToolRegistry {
     if (!parsed.success) {
       return { ok: false, output: '', error: `参数校验失败: ${parsed.error.message}` };
     }
+    const args = parsed.data as Record<string, unknown>;
+
+    // M4：企业守卫前置（策略 → 审批 → 审计）。未注入 guard 时行为不变。
+    if (ctx.guard) {
+      let verdict;
+      try {
+        verdict = await ctx.guard.check(name, args);
+      } catch (e) {
+        // 审计写入失败等异常一律按拒绝处理：宁可不做，不可无痕
+        const msg = e instanceof Error ? e.message : String(e);
+        logger.error('工具守卫校验异常，已拒绝执行', { tool: name, error: msg });
+        return { ok: false, output: '', error: `守卫校验失败，操作被拒绝: ${msg}` };
+      }
+      if (!verdict.allowed) {
+        logger.warn('工具调用被守卫拒绝', { tool: name, reason: verdict.reason });
+        return { ok: false, output: '', error: verdict.reason };
+      }
+      // 守卫已是唯一权威闸门（策略 + 审批 + 审计都已完成），
+      // 此处关闭工具内的二次审批与白名单硬拦截，避免重复弹审批 / 决策打架。
+      ctx = { ...ctx, security: { shellAllowlist: [], requireApproval: false } };
+    }
+
     try {
-      return await tool.execute(parsed.data as Record<string, unknown>, ctx);
+      return await tool.execute(args, ctx);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       logger.error('tool execution failed', { tool: name, error: msg });

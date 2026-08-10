@@ -13,6 +13,7 @@ import type { ModelRouter } from '../models/model-router';
 import type { ToolRegistry } from '../tools/tool.registry';
 import type { ChatMessage, ChatResponse } from '../models/model.interface';
 import type { EventLog } from '../runtime/event-log';
+import type { ToolGuard } from '../tools/tool.interface';
 import type { SessionStore } from '../runtime/session-store';
 import type { SessionCheckpoint, SessionStatus } from '../runtime/session-persist';
 import { SYSTEM_PROMPT } from './prompts';
@@ -35,6 +36,10 @@ export interface OrchestratorDeps {
   maxIterations?: number;
   /** M3：每轮迭代后落盘检查点（resume/diff/rollback 依赖） */
   persist?: (cp: SessionCheckpoint) => Promise<void>;
+  /** M4：企业守卫（RBAC 策略 + 审批 + 审计），未注入时行为同 M3 */
+  guard?: ToolGuard;
+  /** M4：单任务成本上限（USD），超出即中止，0/undefined 表示不限 */
+  maxCostUsd?: number;
 }
 
 /** M3 resume 上下文：携带已完成的对话与计数，避免重复执行 */
@@ -58,8 +63,9 @@ export class Orchestrator {
   constructor(private readonly deps: OrchestratorDeps) {}
 
   async run(goal: string, resume?: ResumeContext): Promise<RunResult> {
-    const { router, tools, eventLog, session, cwd, security, approve, persist } = this.deps;
+    const { router, tools, eventLog, session, cwd, security, approve, persist, guard } = this.deps;
     const maxIter = this.deps.maxIterations ?? 12;
+    const maxCost = this.deps.maxCostUsd ?? 0;
 
     let messages: ChatMessage[];
     let baselineIterations = 0;
@@ -139,6 +145,15 @@ export class Orchestrator {
         break;
       }
 
+      // M4：单任务成本熔断（超预算立即停手，避免失控烧钱）
+      if (maxCost > 0 && cost >= maxCost) {
+        finalAnswer = `已达单任务成本上限 $${maxCost}（当前 $${cost.toFixed(6)}），任务中止。可调高角色策略 maxCostUsd 后用 resume 续跑。`;
+        await eventLog.append('error', { reason: 'cost-limit-reached', costUsd: cost, maxCost });
+        logger.warn('orchestrator hit cost limit', { runId: session.runId, cost, maxCost });
+        calls++;
+        break;
+      }
+
       // 执行本轮所有工具调用，并将结果以 tool 消息回填
       for (const tc of msg.toolCalls) {
         await eventLog.append('tool.call', { name: tc.name, args: tc.arguments });
@@ -147,6 +162,7 @@ export class Orchestrator {
           cwd,
           security,
           approve,
+          guard,
         });
         await eventLog.append('tool.result', {
           name: tc.name,

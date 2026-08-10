@@ -22,6 +22,11 @@ import {
   runResume,
   runDiff,
   runRollback,
+  runWhoami,
+  runPolicyCmd,
+  runAudit,
+  runAuditVerify,
+  runTenants,
 } from './run';
 import { VERSION, PRODUCT, TAGLINE, SIGNATURE } from './version';
 
@@ -45,11 +50,20 @@ function printHelp(): void {
   fhcode resume <id>                 从检查点恢复中断的会话（M3）
   fhcode diff [<id>]                 展示会话/工作区变更（M3）
   fhcode rollback <id> [--yes]       回滚会话改动（M3，危险操作需 --yes）
+
+企业能力 (M4):
+  fhcode whoami                      当前租户 / 用户 / 角色 / 隔离目录 / 配额
+  fhcode policy                      查看生效的 RBAC 策略与角色矩阵
+  fhcode audit [--limit N]           查看审计记录（默认最近 20 条）
+  fhcode audit verify                校验审计哈希链是否被篡改
+  fhcode tenants                     列出全部租户与用量汇总
+
   fhcode --version                   显示版本 (-v)
   fhcode --help                      显示帮助 (-h)
 
 说明: 未配置 FH_PROVIDERS 时自动进入离线模式（脚本化 Mock 驱动闭环验证）。
 配置 FH_PROVIDERS（OpenAI 兼容 / Ollama）后，将调用真实大模型执行任务。
+企业模式默认开启（租户隔离 + RBAC + 审计链 + 配额），可用 FH_ENTERPRISE=false 关闭。
 署名: ${SIGNATURE}`);
 }
 
@@ -87,6 +101,15 @@ async function main(): Promise<void> {
       await runDiff(m.id);
     } else if (m.kind === 'rollback') {
       await runRollback(m.id, m.yes);
+    } else if (m.kind === 'whoami') {
+      runWhoami();
+    } else if (m.kind === 'policy') {
+      runPolicyCmd();
+    } else if (m.kind === 'audit') {
+      if (m.verify) runAuditVerify();
+      else runAudit(m.limit);
+    } else if (m.kind === 'tenants') {
+      runTenants();
     }
     return;
   }

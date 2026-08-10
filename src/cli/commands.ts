@@ -14,6 +14,10 @@
  *  - resume <id>      从检查点恢复会话（M3）
  *  - diff [id]        展示会话/工作区变更（M3）
  *  - rollback <id>    回滚会话改动（M3，需 --yes）
+ *  - whoami           当前租户/用户/角色（M4）
+ *  - policy           查看生效权限策略（M4）
+ *  - audit [verify]   审计记录 / 哈希链校验（M4）
+ *  - tenants          租户用量汇总（M4）
  *  - 其余文本          单命令需求
  */
 export type SkillCommand = 'plan' | 'grill' | 'goal';
@@ -22,10 +26,20 @@ export type ManagementCommand =
   | { kind: 'sessions' }
   | { kind: 'resume'; id: string }
   | { kind: 'diff'; id?: string }
-  | { kind: 'rollback'; id: string; yes: boolean };
+  | { kind: 'rollback'; id: string; yes: boolean }
+  | { kind: 'whoami' }
+  | { kind: 'policy' }
+  | { kind: 'audit'; verify: boolean; limit: number }
+  | { kind: 'tenants' };
 
 export interface ParsedArgs {
-  flags: { version?: boolean; help?: boolean; parallel?: boolean; yes?: boolean };
+  flags: {
+    version?: boolean;
+    help?: boolean;
+    parallel?: boolean;
+    yes?: boolean;
+    limit?: number;
+  };
   /** 单命令模式下的需求文本（首个非 flag 参数） */
   command?: string;
   /** 斜杠技能命令：/plan /grill /goal */
@@ -38,12 +52,19 @@ export function parseArgs(argv: string[]): ParsedArgs {
   const flags: ParsedArgs['flags'] = {};
   const positional: string[] = [];
 
-  for (const arg of argv) {
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
     if (arg === '--version' || arg === '-v') flags.version = true;
     else if (arg === '--help' || arg === '-h') flags.help = true;
     else if (arg === '--parallel') flags.parallel = true;
     else if (arg === '--yes') flags.yes = true;
-    else positional.push(arg);
+    else if (arg === '--limit') {
+      const n = Number(argv[++i]);
+      if (Number.isFinite(n) && n > 0) flags.limit = Math.floor(n);
+    } else if (arg.startsWith('--limit=')) {
+      const n = Number(arg.slice('--limit='.length));
+      if (Number.isFinite(n) && n > 0) flags.limit = Math.floor(n);
+    } else positional.push(arg);
   }
 
   const head = positional[0];
@@ -61,6 +82,17 @@ export function parseArgs(argv: string[]): ParsedArgs {
   }
   if (head === 'rollback') {
     return { flags, manage: { kind: 'rollback', id: rest[0] ?? '', yes: !!flags.yes } };
+  }
+
+  // M4 企业管理命令
+  if (head === 'whoami') return { flags, manage: { kind: 'whoami' } };
+  if (head === 'policy') return { flags, manage: { kind: 'policy' } };
+  if (head === 'tenants') return { flags, manage: { kind: 'tenants' } };
+  if (head === 'audit') {
+    return {
+      flags,
+      manage: { kind: 'audit', verify: rest[0] === 'verify', limit: flags.limit ?? 20 },
+    };
   }
 
   // 斜杠技能

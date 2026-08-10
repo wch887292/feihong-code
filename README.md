@@ -145,6 +145,71 @@ fhcode rollback <id> --yes                      # 回滚该会话产生的改动
 fhcode "删除临时缓存并重建"      # TTY 下每条 shell 命令会询问；非 TTY 仅白名单命令可过
 ```
 
+### 4.8 企业能力：权限 / 审计 / 多租户 / 配额（M4）
+
+企业模式**默认开启**（`FH_ENTERPRISE=false` 可关闭并退化为 M3 行为），身份由环境变量注入，便于容器与网关下发：
+
+```bash
+export FH_TENANT=acme        # 租户 ID（缺省 default）
+export FH_USER=wuchihong     # 用户标识（缺省系统用户名）
+export FH_ROLE=developer     # viewer | developer | operator | admin
+
+fhcode whoami                # 当前租户/用户/角色/隔离目录/今日用量
+fhcode policy                # 生效的 RBAC 策略与四角色矩阵
+fhcode audit --limit 20      # 审计记录（默认最近 20 条）
+fhcode audit verify          # 校验审计哈希链是否被篡改
+fhcode tenants               # 全部租户用量汇总（会话数/成本/审计条数）
+```
+
+**① 权限（RBAC + deny 优先）**
+
+| 角色 | 直接允许 | 需审批 | 单任务上限 |
+| --- | --- | --- | --- |
+| `viewer` | `read_file` `list_dir` `grep` | — | $0.1 |
+| `developer` | 上述 + `write_file` `edit_file` `run_tests` `build_check` | `run_shell` | $1 |
+| `operator` | 全部 | `run_shell` | $5 |
+| `admin` | 全部 | `run_shell` | 不限 |
+
+判定顺序为 **危险命令黑名单 → 敏感路径黑名单 → 沙箱越界 → 角色矩阵 → shell 白名单**。前三条 **deny 优先，admin 也无法绕过**：`rm -rf /`、`mkfs`、`curl | sh` 等 23 条危险命令，`.env`、`.ssh/id_rsa`、`.npmrc`、`.kube/config` 等 11 类敏感路径一律拒绝并留痕。
+
+策略可用 `policy.json` 覆盖（全局 `<FH_HOME>/policy.json` → 租户 `<租户目录>/policy.json` → `FH_POLICY` 内联 JSON），**黑名单取并集，只能加严不能放松**。
+
+**② 审计（防篡改哈希链）**
+
+每条审计记录携带 `prevHash` 与自身 `sha256`，形成链式结构；任何改写、删除、插入都会导致链断裂：
+
+```bash
+$ fhcode audit verify
+✅ 审计链完整：3 条记录，哈希链自洽未被篡改。
+# 若被篡改：
+❌ 审计链校验失败：共 5 条，断点在第 3 条
+   记录内容被篡改：hash 不自洽（期望 8b3a6990664e…）
+```
+
+记录内容自动脱敏（`apiKey=` / `Bearer` / `sk-xxx` → `***`），审计写入失败时**工具执行一律拒绝**——宁可不做，不可无痕。
+
+**③ 多租户（物理目录隔离）**
+
+```
+<FH_HOME>/tenants/<tenantId>/
+├── sessions/     会话检查点与事件日志
+├── audit/        审计链（按月切分 audit-YYYY-MM.jsonl）
+├── goals/        /goal 产物
+└── policy.json   租户级策略覆盖（可选）
+```
+
+租户 ID 经 `^[A-Za-z0-9._-]{1,64}$` 校验，杜绝 `../` 穿越；租户之间 `sessions` / `audit` / `goals` 完全互不可见。默认租户在旧版目录存在时自动沿用，升级不丢历史会话。
+
+**④ 配额（成本熔断）**
+
+- **单任务**：超过角色 `maxCostUsd` 立即中止，可调高后 `resume` 续跑。
+- **租户日预算**：`FH_TENANT_BUDGET_USD`（或策略 `tenantDailyBudgetUsd`）在任务启动前 fail-fast，**不产生任何模型费用**：
+
+```bash
+$ FH_TENANT_BUDGET_USD=0.30 fhcode "超预算任务"
+[飞虹 Code] 运行失败 (QUOTA_EXCEEDED): 租户 acme 今日成本 $0.420000 已达上限 $0.3，任务被拒绝。
+```
+
 ---
 
 ## 五、命令参考
@@ -161,6 +226,11 @@ fhcode "删除临时缓存并重建"      # TTY 下每条 shell 命令会询问�
 | `fhcode resume <id>` | 从检查点恢复并续跑中断的任务 |
 | `fhcode diff [<id>]` | 展示会话作用域（或当前工作区）变更 |
 | `fhcode rollback <id> [--yes]` | 回滚会话改动（危险操作，需 `--yes` 确认） |
+| `fhcode whoami` | 当前租户 / 用户 / 角色 / 隔离目录 / 今日用量（M4） |
+| `fhcode policy` | 查看生效 RBAC 策略与角色矩阵（M4） |
+| `fhcode audit [--limit N]` | 查看审计记录，默认最近 20 条（M4） |
+| `fhcode audit verify` | 校验审计哈希链完整性（M4） |
+| `fhcode tenants` | 列出全部租户与用量汇总（M4） |
 | `fhcode --version` / `-v` | 显示版本与署名 |
 | `fhcode --help` / `-h` | 显示帮助 |
 
@@ -188,6 +258,11 @@ fhcode "删除临时缓存并重建"      # TTY 下每条 shell 命令会询问�
 3. **密钥脱敏**：日志按 key 名（`apikey|secret|token|...`）将值替换为 `[REDACTED]`，且不回显完整 API key。
 4. **审批拦截**：`FH_REQUIRE_APPROVAL=true`（默认）时，危险操作需审批通道；**TTY 交互终端逐条弹 `y/n` 确认**，非交互（CI/管道）则回退白名单审批器——命中 `FH_SHELL_ALLOW` 自动通过、其余拒绝并留痕。
 5. **`.env` 不入库**：已被 `.gitignore` 排除；`package.json` 的 `files` 白名单确保 `npm publish` 不会携带 `.env`。
+6. **RBAC 策略引擎（M4）**：角色-工具矩阵 + **deny 优先**的危险命令 / 敏感路径黑名单，`admin` 亦不可绕过；策略只能被下级配置**加严**。
+7. **防篡改审计（M4）**：全量动作（allow/deny/approved/rejected）写入 sha256 哈希链，`fhcode audit verify` 可定位篡改位置；**审计写失败即拒绝执行**。
+8. **租户隔离与配额（M4）**：会话 / 审计 / 目标物理分目录，租户 ID 严格校验；单任务成本熔断 + 租户日预算 fail-fast。
+
+> M4 起守卫（guard）是**唯一权威闸门**：策略判定、人工审批、审计留痕都在工具执行前一次性完成，工具层不再重复弹审批，避免"审批打架"与重复询问。
 
 ---
 
@@ -200,8 +275,14 @@ fhcode "删除临时缓存并重建"      # TTY 下每条 shell 命令会询问�
 | `FH_PROVIDERS` | 模型供应商 JSON 数组 | 见 `docs/配置参考.md` |
 | `FH_MODEL_STRATEGY` | 路由策略：`cost`/`capability`/`latency` | `cost` |
 | `FH_BUDGET_USD` | 单任务预算上限（美元，仅告警不阻断） | `0.5` |
-| `FH_SHELL_ALLOW` | shell 白名单（逗号分隔） | `git,npm,node,ls,cat` |
+| `FH_SHELL_ALLOW` | shell 白名单（逗号分隔，命中即免审批） | `git,npm,node,ls,cat` |
 | `FH_REQUIRE_APPROVAL` | 危险操作是否需审批 | `true` |
+| `FH_ENTERPRISE` | 企业模式开关（权限/审计/多租户/配额） | `true` |
+| `FH_TENANT` | 租户 ID（决定隔离目录） | `default` |
+| `FH_USER` | 用户标识（写入审计 actor） | 系统用户名 |
+| `FH_ROLE` | 角色：`viewer`/`developer`/`operator`/`admin` | `developer` |
+| `FH_TENANT_BUDGET_USD` | 租户日成本上限（0 = 不限） | `0` |
+| `FH_POLICY` | 内联策略 JSON（优先级最高） | 未设置 |
 
 > 完整配置说明见 [`docs/配置参考.md`](./docs/配置参考.md)。`.env` 含密钥，切勿提交。
 
@@ -217,6 +298,7 @@ src/
 ├── tools/        工具实现（file / shell / search / verify）+ registry + 安全沙箱
 ├── models/       模型路由 ModelRouter + providers（openai-compatible / ollama / mock）
 ├── runtime/      事件日志 EventLog、会话状态 SessionStore、会话检查点持久化、git diff/rollback、git worktree 隔离
+├── enterprise/   M4 企业能力：tenant（多租户）/ policy（RBAC）/ audit（哈希链）/ quota（配额）/ guard（守卫）
 └── skills/       高级技能：/plan /grill /goal
 ```
 
@@ -225,6 +307,8 @@ src/
 **并行执行流**：`CLI --parallel → 分解目标 → 为每子任务创建 git worktree（独立分支）→ Promise.allSettled 并发子代理 → 收集结果 → 强制清理 worktree`。
 
 **恢复执行流（M3）**：`sessions 列出检查点 → resume <id> 加载检查点重建对话 → 续跑 ReAct 循环 → 产出最终结果`；`diff/rollback` 基于检查点的 touchedFiles 做会话作用域的 git 比对与回退。
+
+**企业管控流（M4）**：`环境注入身份（tenant/user/role）→ 加载策略（默认→全局→租户→内联）→ 配额前置校验 → 每次工具调用经 guard：策略判定 → 必要时人工审批 → 写入哈希链审计 → 放行/拒绝`。
 
 > 架构详解见 [`docs/架构与API.md`](./docs/架构与API.md)。
 
@@ -237,6 +321,8 @@ npm install
 npm run build      # tsc 编译到 dist/
 npm run dev        # tsx 直接跑源码（免构建）
 npm run typecheck  # 仅类型检查
+npm run verify:m4  # M4 企业能力断言套件（41 项，全离线）
+npm run verify     # typecheck + build + M4 断言，一条命令过全链路
 node dist/cli/index.js --version
 ```
 
@@ -254,9 +340,12 @@ node dist/cli/index.js --version
 
 - **npm 全局**：`npm install -g .` 或发布后 `npm install -g feihong-code`。
 - **Docker**：见 `Dockerfile`（多阶段，已含 `git` 以支持 `--parallel`）。
-- **CI**：见 `.github/workflows/ci.yml`（push/PR 触发，离线冒烟，不触碰密钥）。
+- **CI**：见 `.github/workflows/ci.yml`，三条流水线全离线、零 Secrets：
+  - `build`：Node 18/20/22 矩阵 → typecheck → 编译 → 离线端到端 → 只读技能；
+  - `enterprise`：M4 断言套件（41 项）+ CLI 企业命令冒烟 + **租户隔离断言**（beta 租户不得读到其它租户会话）；
+  - `security`：`npm pack` 白名单校验（禁止 `.env`/`src`/`policy.json` 入包）+ 仓库明文密钥扫描 + `npm audit`。
 - **发布**：`npm publish` 仅携带 `files` 白名单（dist + 文档），密钥安全。
-- 部署细节见 [`docs/部署指南.md`](./docs/部署指南.md)。
+- 部署细节见 [`docs/部署指南.md`](./docs/部署指南.md)，企业落地见 [`docs/企业部署与合规.md`](./docs/企业部署与合规.md)。
 
 ---
 
@@ -269,7 +358,7 @@ node dist/cli/index.js --version
 | **M2 多子代理** | `git worktree` 隔离、并行子代理、`/plan` `/grill` `/goal` 技能 | ✅ 完成 |
 | **M2 真实联调（B）** | 接入 OpenAI 兼容真实模型（Agnes），ReAct 闭环跑通 | ✅ 完成 |
 | **M3 恢复与审计** | `sessions`/`resume` 断点续跑、`diff`/`rollback` 会话作用域变更管理、交互式审批流 | ✅ 完成 |
-| **M4 企业级** | 权限/审计/多租户/CI 集成 | ⏳ 待启动 |
+| **M4 企业级** | RBAC 策略引擎、防篡改审计链、多租户隔离与配额、三流水线 CI | ✅ 完成 |
 
 ---
 
@@ -279,6 +368,7 @@ node dist/cli/index.js --version
 - [配置参考](./docs/配置参考.md) — 全部 `FH_*` 环境变量与 `FH_PROVIDERS` 详解
 - [架构与 API](./docs/架构与API.md) — 分层、编排循环、模型路由、工具协议、事件日志
 - [部署指南](./docs/部署指南.md) — npm / Docker / CI / 发布 / 密钥安全
+- [企业部署与合规](./docs/企业部署与合规.md) — RBAC 角色设计、审计取证、多租户方案、配额治理（M4）
 - [常见问题与故障排查](./docs/常见问题与故障排查.md) — FAQ 与排错
 - [产品开发文档](./docs/产品开发文档.md) — 需求/里程碑/设计决策（演进稿）
 

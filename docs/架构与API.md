@@ -188,7 +188,44 @@ resume <id>:
 
 ---
 
-## 8. 类型速查
+## 8. 企业级架构（M4）
+
+`src/enterprise/` 提供企业能力，由 `cli/run.ts` 在装配期惰性注入；**未注入时全链路行为与社区版一致**（向后兼容）。
+
+### 8.1 模块划分
+
+| 模块 | 职责 |
+| --- | --- |
+| `tenant.ts` | 多租户身份解析与目录隔离（`<FH_HOME>/tenants/<tenantId>/{sessions,audit,goals}`）；`ID_RE` 正则防穿越；默认租户兼容旧 `sessions` |
+| `policy.ts` | RBAC 策略引擎：`evaluate()` 判定顺序 deny 优先；`loadPolicy()` 合并 `DEFAULT_POLICY → <FH_HOME>/policy.json → <租户>/policy.json → FH_POLICY`，黑名单取并集 |
+| `audit.ts` | 防篡改哈希链：`computeHash = sha256([seq,ts,tenant,user,role,runId,action,resource,decision,reason,prevHash])`；按月切分 `audit-YYYY-MM.jsonl`；`verifyAudit()` 定位篡改断点；`redact()` 脱敏 |
+| `quota.ts` | 成本治理：`tenantSpendToday()` / `resolveDailyLimit()`（`FH_TENANT_BUDGET_USD` 优先）/ `checkQuota()` |
+| `guard.ts` | `createEnterpriseGuard(deps)` 返回 `ToolGuard`，作为**唯一权威闸门**：策略判定→人工审批→审计留痕在工具执行前一次性完成；命中允许时清空 `security` 去重，避免工具层二次弹审批 |
+| `index.ts` | 聚合装配：`createEnterpriseRuntime()` / `isEnterpriseEnabled()`（`FH_ENTERPRISE!=='false'`）/ `assertQuota()`（超限抛 `QUOTA_EXCEEDED`）/ `renderWhoami()` |
+
+### 8.2 守卫注入点
+
+`tools/tool.registry.ts` 的 `execute` 在 zod 校验后、执行前插入 guard 检查；`agent/orchestrator.ts` 透传 `guard` 并在循环中插入单任务 `maxCostUsd` 熔断。审计写入失败 = 拒绝执行（fail-closed）。
+
+### 8.3 判定顺序（deny 优先）
+
+1. `run_shell` 命中危险命令（23 条 `denyShell`）→ deny；
+2. 敏感路径（`denyPaths` 11 类）或沙箱越界 → deny（**admin 也拦**）；
+3. 角色矩阵 `deny / approval / allow`；
+4. shell 白名单命中 → 免审批。
+
+### 8.4 角色矩阵（内置）
+
+| 角色 | 允许工具 | 审批要求 | 单任务上限 |
+| --- | --- | --- | --- |
+| `viewer` | 只读（read/list/grep） | — | $0.1 |
+| `developer` | 读写 + 测试/构建 | `run_shell` 需审批 | $1 |
+| `operator` | 全部 | `run_shell` 需审批 | $5 |
+| `admin` | 全部 | `run_shell` 需审批 | 无限制 |
+
+---
+
+## 9. 类型速查
 
 - `ChatMessage`：`{ role, content, toolCalls?, toolCallId? }`
 - `ToolCall`：`{ id, name, arguments }`

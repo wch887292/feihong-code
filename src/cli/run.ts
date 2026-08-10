@@ -8,9 +8,9 @@
  * M3 增强：会话检查点持久化 + resume/diff/rollback 管理命令 + 交互式审批。
  */
 import { randomUUID } from 'crypto';
-import { mkdtempSync } from 'fs';
+import { mkdtempSync, existsSync } from 'fs';
 import { tmpdir, homedir } from 'os';
-import { join } from 'path';
+import { join, dirname } from 'path';
 import { createInterface } from 'readline';
 import { setRunId, logger } from '../shared/logger';
 import { loadConfig } from '../shared/config';
@@ -29,6 +29,17 @@ import {
   type SessionCheckpoint,
 } from '../runtime/session-persist';
 import { gitDiff, gitRollback } from '../runtime/git';
+import {
+  createEnterpriseRuntime,
+  isEnterpriseEnabled,
+  assertQuota,
+  renderWhoami,
+  renderPolicy,
+  readAudit,
+  verifyAudit,
+  listTenants,
+  type EnterpriseRuntime,
+} from '../enterprise';
 import { Orchestrator, type OrchestratorSecurity } from '../agent/orchestrator';
 import { runParallel, defaultParallelMock } from '../agent/parallel-orchestrator';
 import { runPlan } from '../skills/plan';
@@ -72,9 +83,25 @@ function buildDemoSteps(): MockStep[] {
   ];
 }
 
-/** 会话家目录：与 EventLog 同目录，便于 list/load/resume 统一定位 */
+/* ===================== M4：企业运行时（惰性单例） ===================== */
+
+let enterpriseRt: EnterpriseRuntime | null = null;
+
+/** 获取企业运行时（租户/策略/审计/配额）。FH_ENTERPRISE=false 时返回 null（退化为 M3 行为） */
+export function getEnterprise(): EnterpriseRuntime | null {
+  if (!isEnterpriseEnabled()) return null;
+  if (!enterpriseRt) enterpriseRt = createEnterpriseRuntime();
+  return enterpriseRt;
+}
+
+/**
+ * 会话家目录：与 EventLog 同目录，便于 list/load/resume 统一定位。
+ * M4 起按租户隔离；离线且未显式设置 FH_HOME 时仍走临时目录，避免污染用户环境。
+ */
 function getSessionHome(offline: boolean): string {
-  if (offline) return join(tmpdir(), 'fhcode-demo-logs');
+  if (offline && !process.env.FH_HOME) return join(tmpdir(), 'fhcode-demo-logs');
+  const rt = getEnterprise();
+  if (rt) return rt.tenant.sessionDir;
   const home = process.env.FH_HOME ? expandHome(process.env.FH_HOME) : joinHome();
   return join(home, 'sessions');
 }
@@ -85,6 +112,10 @@ export async function runGoal(goal: string, opts: RunOptions = {}): Promise<void
 
   const security: OrchestratorSecurity = { shellAllowlist: [], requireApproval: true };
   const offline = opts.offline ?? isOfflineByDefault();
+
+  // M4：企业上下文（租户隔离 / RBAC / 审计 / 配额），配额超限在此 fail-fast
+  const rt = getEnterprise();
+  if (rt) assertQuota(rt);
 
   // 离线模式用临时工作区，避免污染用户目录；并 git init 以支持 diff/rollback 演示
   const cwd = offline ? mkdtempSync(join(tmpdir(), 'fhcode-demo-')) : process.cwd();
@@ -107,7 +138,13 @@ export async function runGoal(goal: string, opts: RunOptions = {}): Promise<void
   const eventLog = new EventLog(runId, logDir);
   const session = new SessionStore(runId, cwd);
 
-  const approve = opts.approve ?? (offline ? undefined : process.stdin.isTTY ? interactiveApprover() : defaultApproverFor(security));
+  const approve =
+    opts.approve ??
+    (process.stdin.isTTY ? interactiveApprover() : defaultApproverFor(security));
+
+  const guard = rt
+    ? rt.makeGuard({ runId, cwd, shellAllowlist: security.shellAllowlist, approve })
+    : undefined;
 
   const orchestrator = new Orchestrator({
     router,
@@ -117,11 +154,42 @@ export async function runGoal(goal: string, opts: RunOptions = {}): Promise<void
     cwd,
     security,
     approve,
+    guard,
+    maxCostUsd: rt?.maxCostUsd ?? 0,
     persist: (cp: SessionCheckpoint) => saveCheckpoint(logDir, cp),
   });
 
+  if (rt) {
+    console.log(
+      `[飞虹 Code] 身份 tenant=${rt.tenant.tenantId} user=${rt.tenant.userId} role=${rt.tenant.role}`,
+    );
+    rt.audit.record({
+      tenantId: rt.tenant.tenantId,
+      userId: rt.tenant.userId,
+      role: rt.tenant.role,
+      runId,
+      action: 'session:start',
+      resource: goal,
+      decision: 'info',
+      reason: offline ? '离线模式' : '真实模式',
+    });
+  }
+
   console.log(`[飞虹 Code] 开始任务 (runId=${runId.slice(0, 8)}${offline ? ', 离线模式' : ''})`);
   const result = await orchestrator.run(goal);
+
+  if (rt) {
+    rt.audit.record({
+      tenantId: rt.tenant.tenantId,
+      userId: rt.tenant.userId,
+      role: rt.tenant.role,
+      runId,
+      action: 'session:end',
+      resource: `iterations=${result.iterations}`,
+      decision: 'info',
+      reason: `cost=$${result.costUsd.toFixed(6)}`,
+    });
+  }
 
   console.log('\n===== 执行结果 =====');
   console.log(result.finalAnswer);
@@ -130,8 +198,14 @@ export async function runGoal(goal: string, opts: RunOptions = {}): Promise<void
   );
   console.log(`会话检查点: ${join(logDir, `${runId}.session.json`)}（可用 fhcode sessions / resume / diff 管理）`);
   if (offline) {
-    logger.info('offline-run done', { cwd, demoFile: join(cwd, 'demo-output.txt') });
-    console.log(`(离线模式演示文件已写入: ${join(cwd, 'demo-output.txt')})`);
+    // 演示文件可能因策略拒绝而未生成，据实播报，避免误导
+    const demoFile = join(cwd, 'demo-output.txt');
+    logger.info('offline-run done', { cwd, demoFile });
+    console.log(
+      existsSync(demoFile)
+        ? `(离线模式演示文件已写入: ${demoFile})`
+        : `(离线模式未产生演示文件，工作区: ${cwd}；如为策略拒绝可用 fhcode audit 查看原因)`,
+    );
   }
 }
 
@@ -175,11 +249,29 @@ export function runGrillSkill(target: string): string {
   return lines.filter(Boolean).join('\n');
 }
 
-/** /goal 技能：分解并保存高层目标（只读，写入 ~/.feihong-code/goals） */
+/** /goal 技能：分解并保存高层目标（M4 起写入租户隔离目录 tenants/<id>/goals） */
 export function runGoalSkill(title: string): string {
   const goal = decomposeGoalToGoal(title);
-  const home = process.env.FH_HOME ? expandHome(process.env.FH_HOME) : joinHome();
+  const rt = getEnterprise();
+  // saveGoal 内部会拼接 goals 子目录，这里给它租户根目录
+  const home = rt
+    ? dirname(rt.tenant.goalDir)
+    : process.env.FH_HOME
+      ? expandHome(process.env.FH_HOME)
+      : joinHome();
   const file = saveGoal(goal, home);
+  if (rt) {
+    rt.audit.record({
+      tenantId: rt.tenant.tenantId,
+      userId: rt.tenant.userId,
+      role: rt.tenant.role,
+      runId: goal.id,
+      action: 'skill:goal',
+      resource: title,
+      decision: 'info',
+      reason: `保存至 ${file}`,
+    });
+  }
   return `【/goal】已保存\n${renderGoal(goal)}\n文件: ${file}`;
 }
 
@@ -271,9 +363,21 @@ export async function runResume(runId: string): Promise<void> {
   }
 
   const tools = createDefaultRegistry();
-  const eventLog = new EventLog(runId, home);
+  // 用完整 runId 建日志（入参可能只是 8 位前缀），保证事件与检查点同名可对齐
+  const eventLog = new EventLog(cp.runId, home);
   const session = SessionStore.restore(cp);
-  const approve = offline ? undefined : defaultApproverFor(security);
+  const approve = process.stdin.isTTY ? interactiveApprover() : defaultApproverFor(security);
+
+  const rt = getEnterprise();
+  if (rt) assertQuota(rt);
+  const guard = rt
+    ? rt.makeGuard({
+        runId: cp.runId,
+        cwd: cp.cwd,
+        shellAllowlist: security.shellAllowlist,
+        approve,
+      })
+    : undefined;
 
   const orchestrator = new Orchestrator({
     router,
@@ -283,6 +387,8 @@ export async function runResume(runId: string): Promise<void> {
     cwd: cp.cwd,
     security,
     approve,
+    guard,
+    maxCostUsd: rt?.maxCostUsd ?? 0,
     persist: (c: SessionCheckpoint) => saveCheckpoint(home, c),
   });
 
@@ -317,12 +423,108 @@ export async function runRollback(id: string, yes: boolean): Promise<void> {
   const offline = isOfflineByDefault();
   const home = getSessionHome(offline);
   const cp = await resolveCheckpoint(home, id);
+
+  // M4：回滚是破坏性动作，viewer 角色一律禁止，且无论成败都留痕
+  const rt = getEnterprise();
+  if (rt) {
+    const allowed = rt.tenant.role !== 'viewer';
+    rt.audit.record({
+      tenantId: rt.tenant.tenantId,
+      userId: rt.tenant.userId,
+      role: rt.tenant.role,
+      runId: cp.runId,
+      action: 'session:rollback',
+      resource: cp.touchedFiles.join(', ') || '(无文件)',
+      decision: allowed ? (yes ? 'allow' : 'rejected') : 'deny',
+      reason: allowed ? (yes ? '已确认 --yes' : '缺少 --yes 确认') : '角色 viewer 无回滚权限',
+    });
+    if (!allowed) {
+      throw new AppError('角色 viewer 无权执行回滚操作', 'RBAC_DENIED', 403);
+    }
+  }
+
   console.log(`[飞虹 Code] 回滚会话 ${id.slice(0, 8)} 的 ${cp.touchedFiles.length} 个文件 (cwd=${cp.cwd})`);
   const res = await gitRollback(cp.cwd, cp.touchedFiles, { yes });
   if (res.reverted.length) console.log(`已还原(已跟踪): ${res.reverted.join(', ')}`);
   if (res.removed.length) console.log(`已删除(未跟踪): ${res.removed.join(', ')}`);
   if (res.errors.length) console.log(`注意: ${res.errors.join('; ')}`);
   if (yes) await updateStatus(home, id, 'done');
+}
+
+/* ===================== M4：企业管理命令 ===================== */
+
+function requireEnterprise(): EnterpriseRuntime {
+  const rt = getEnterprise();
+  if (!rt) {
+    throw new AppError(
+      '企业模式已关闭（FH_ENTERPRISE=false），该命令不可用。',
+      'ENTERPRISE_DISABLED',
+      400,
+    );
+  }
+  return rt;
+}
+
+/** fhcode whoami：展示当前租户/用户/角色/隔离目录/配额 */
+export function runWhoami(): void {
+  console.log(renderWhoami(requireEnterprise()));
+}
+
+/** fhcode policy：展示生效策略与角色矩阵 */
+export function runPolicyCmd(): void {
+  const rt = requireEnterprise();
+  console.log(renderPolicy(rt.policy, rt.tenant.role));
+}
+
+/** fhcode audit [--limit N]：查看审计记录（默认最近 20 条） */
+export function runAudit(limit = 20): void {
+  const rt = requireEnterprise();
+  const all = readAudit(rt.tenant.auditDir);
+  if (all.length === 0) {
+    console.log(`（租户 ${rt.tenant.tenantId} 暂无审计记录，目录 ${rt.tenant.auditDir}）`);
+    return;
+  }
+  const rows = all.slice(-limit);
+  console.log(`审计记录 ${rows.length}/${all.length} 条（租户 ${rt.tenant.tenantId}）:`);
+  for (const r of rows) {
+    console.log(
+      `#${String(r.seq).padStart(4, '0')} ${r.ts} [${r.decision.toUpperCase()}] ${r.action}` +
+        ` by ${r.userId}(${r.role}) run=${String(r.runId).slice(0, 8)}`,
+    );
+    console.log(`      资源: ${r.resource}`);
+    if (r.reason) console.log(`      理由: ${r.reason}`);
+  }
+  console.log(`链尾哈希: ${all[all.length - 1].hash.slice(0, 16)}…`);
+}
+
+/** fhcode audit verify：校验哈希链完整性 */
+export function runAuditVerify(): void {
+  const rt = requireEnterprise();
+  const res = verifyAudit(rt.tenant.auditDir);
+  if (res.ok) {
+    console.log(`✅ 审计链完整：${res.total} 条记录，哈希链自洽未被篡改。`);
+    return;
+  }
+  console.log(`❌ 审计链校验失败：共 ${res.total} 条，断点在第 ${res.brokenAt} 条`);
+  console.log(`   ${res.detail}`);
+  process.exitCode = 2;
+}
+
+/** fhcode tenants：列出全部租户与用量 */
+export function runTenants(): void {
+  requireEnterprise();
+  const list = listTenants();
+  if (list.length === 0) {
+    console.log('（暂无租户数据，执行一次任务后自动创建）');
+    return;
+  }
+  console.log('租户用量汇总:');
+  console.log('  租户ID                会话数   累计成本      审计条数   最近活跃');
+  for (const t of list) {
+    console.log(
+      `  ${t.tenantId.padEnd(20)} ${String(t.sessions).padStart(5)}   $${t.costUsd.toFixed(6).padStart(10)}   ${String(t.auditRecords).padStart(7)}   ${t.lastActiveAt}`,
+    );
+  }
 }
 
 /* ===================== 审批器 ===================== */

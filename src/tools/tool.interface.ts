@@ -13,6 +13,20 @@ export interface ToolSecurityConfig {
   requireApproval: boolean;
 }
 
+/** M4 守卫判定结果 */
+export interface ToolGuardVerdict {
+  allowed: boolean;
+  reason: string;
+}
+
+/**
+ * M4 工具守卫：在工具真正执行前做「RBAC 策略 → 人工审批 → 审计留痕」。
+ * 可选注入；不注入时工具链行为与 M3 一致（社区版无感）。
+ */
+export interface ToolGuard {
+  check(tool: string, args: Record<string, unknown>): Promise<ToolGuardVerdict>;
+}
+
 export interface ToolContext {
   runId: RunId;
   /** 工作区根目录（工具只能在此范围内操作，安全沙箱） */
@@ -20,6 +34,8 @@ export interface ToolContext {
   security: ToolSecurityConfig;
   /** 需要人工审批时回调，返回 true 表示批准 */
   approve?: (action: string) => Promise<boolean>;
+  /** M4：企业级权限/审计守卫 */
+  guard?: ToolGuard;
 }
 
 export interface ToolResult {

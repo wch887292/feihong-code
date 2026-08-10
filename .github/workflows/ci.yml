@@ -1,25 +1,113 @@
 # 飞虹 Code CI
 # 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
+#
+# 全流程离线：不使用任何 API key / Secrets，PR 来自 fork 也能安全跑完。
 name: CI
 
 on:
   push:
     branches: [master, main]
   pull_request:
+  workflow_dispatch:
+
+env:
+  FH_OFFLINE: 'true'
+  FH_PROVIDERS: '[]'
 
 jobs:
+  # ---------- 1. 构建与离线闭环冒烟（多 Node 版本矩阵） ----------
   build:
+    name: 构建 · Node ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [18, 20, 22]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm install
+      - name: 类型检查
+        run: npm run typecheck
+      - name: 编译
+        run: npm run build
+      - name: CLI 可用性
+        run: node dist/cli/index.js --version
+      - name: 离线端到端闭环
+        run: node dist/cli/index.js "离线冒烟：创建一个说明文件"
+      - name: 只读技能
+        run: |
+          node dist/cli/index.js /plan "实现登录并且添加支付"
+          node dist/cli/index.js /grill src
+
+  # ---------- 2. M4 企业能力（权限 / 审计 / 多租户 / 配额） ----------
+  enterprise:
+    name: 企业能力冒烟 (M4)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
       - run: npm install
-      - run: npm run typecheck
       - run: npm run build
-      # 离线冒烟：不依赖任何 API key，验证 CLI 与编排闭环
-      - run: node dist/cli/index.js --version
-      - run: FH_OFFLINE=true node dist/cli/index.js "离线冒烟：创建一个说明文件"
-      - run: node dist/cli/index.js /plan "实现登录并且添加支付"
-      - run: node dist/cli/index.js /grill src
+      - name: M4 断言套件（RBAC / 审计链 / 多租户 / 配额）
+        run: node scripts/verify-m4.mjs
+      - name: CLI 企业命令冒烟
+        env:
+          FH_HOME: ${{ runner.temp }}/fhhome
+          FH_TENANT: ci-tenant
+          FH_USER: ci-bot
+          FH_ROLE: developer
+        run: |
+          node dist/cli/index.js whoami
+          node dist/cli/index.js policy
+          node dist/cli/index.js "CI 离线任务"
+          node dist/cli/index.js audit --limit 10
+          node dist/cli/index.js audit verify
+          node dist/cli/index.js tenants
+      - name: 租户隔离断言（beta 不得看到 ci-tenant 的会话）
+        env:
+          FH_HOME: ${{ runner.temp }}/fhhome
+          FH_TENANT: beta-tenant
+          FH_ROLE: viewer
+        run: |
+          out=$(node dist/cli/index.js sessions)
+          echo "$out"
+          if echo "$out" | grep -q "CI 离线任务"; then
+            echo "::error::租户隔离失效：beta-tenant 读到了 ci-tenant 的会话"
+            exit 1
+          fi
+
+  # ---------- 3. 供应链与密钥安全 ----------
+  security:
+    name: 发布包安全检查
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install
+      - run: npm run build
+      - name: 发布包不得包含密钥或源码
+        run: |
+          npm pack --dry-run 2>&1 | tee pack.txt
+          for bad in ".env" "src/" ".workbuddy" "policy.json" "id_rsa"; do
+            if grep -q "$bad" pack.txt; then
+              echo "::error::发布包中检出敏感条目: $bad"
+              exit 1
+            fi
+          done
+          echo "发布包白名单校验通过"
+      - name: 仓库内不得提交明文密钥
+        run: |
+          if git grep -nIE "sk-[A-Za-z0-9_-]{16,}" -- . ':!*.md' ':!scripts/verify-m4.mjs'; then
+            echo "::error::检出疑似明文 API Key"
+            exit 1
+          fi
+          echo "密钥扫描通过"
+      - run: npm audit --omit=dev --audit-level=high
+        continue-on-error: true
