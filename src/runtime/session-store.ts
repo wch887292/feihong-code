@@ -37,6 +37,6 @@ export class SessionStore {
   }
 
   snapshot(): SessionState {
-    return JSON.parse(JSON.stringify(this.state)) as SessionState;
+    return structuredClone(this.state) as SessionState;
   }
 }

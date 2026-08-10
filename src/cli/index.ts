@@ -9,7 +9,7 @@ import { randomUUID } from 'crypto';
 import { setRunId } from '../shared/logger';
 import { parseArgs } from './commands';
 import { startRepl } from './repl';
-import { runGoal, isOfflineByDefault } from './run';
+import { runGoal, isOfflineByDefault, runPlanSkill, runGrillSkill, runGoalSkill, runParallelGoal } from './run';
 import { VERSION, PRODUCT, TAGLINE, SIGNATURE } from './version';
 
 function printVersion(): void {
@@ -22,10 +22,14 @@ function printHelp(): void {
   console.log(`飞虹 Code (fhcode) v${VERSION}
 
 用法:
-  fhcode                 进入交互 REPL
-  fhcode "<需求>"       以单命令模式执行一条需求
-  fhcode --version      显示版本 (-v)
-  fhcode --help         显示帮助 (-h)
+  fhcode                         进入交互 REPL
+  fhcode "<需求>"               单命令模式执行一条需求
+  fhcode --parallel "<需求>"     多子代理并行（M2：git worktree 隔离）
+  fhcode /plan "<目标>"          生成实现计划（只读）
+  fhcode /grill [路径]           红队式代码审查（只读）
+  fhcode /goal "<目标>"          分解并保存高层目标
+  fhcode --version               显示版本 (-v)
+  fhcode --help                  显示帮助 (-h)
 
 说明: 未配置 FH_PROVIDERS 时自动进入离线模式（脚本化 Mock 驱动闭环验证）。
 配置 FH_PROVIDERS（OpenAI 兼容 / Ollama）后，将调用真实大模型执行任务。
@@ -43,6 +47,20 @@ async function main(): Promise<void> {
   }
   if (args.flags.help) {
     printHelp();
+    return;
+  }
+  if (args.skill) {
+    if (args.skill.kind === 'plan') {
+      console.log(runPlanSkill(args.skill.arg || ''));
+    } else if (args.skill.kind === 'grill') {
+      console.log(runGrillSkill(args.skill.arg || '.'));
+    } else if (args.skill.kind === 'goal') {
+      console.log(runGoalSkill(args.skill.arg || ''));
+    }
+    return;
+  }
+  if (args.flags.parallel && args.command) {
+    await runParallelGoal(args.command);
     return;
   }
   if (args.command) {

@@ -7,7 +7,7 @@
  */
 import { randomUUID } from 'crypto';
 import { mkdtempSync } from 'fs';
-import { tmpdir } from 'os';
+import { tmpdir, homedir } from 'os';
 import { join } from 'path';
 import { setRunId, logger } from '../shared/logger';
 import { loadConfig } from '../shared/config';
@@ -17,6 +17,10 @@ import { createDefaultRegistry } from '../tools';
 import { EventLog } from '../runtime/event-log';
 import { SessionStore } from '../runtime/session-store';
 import { Orchestrator, type OrchestratorSecurity } from '../agent/orchestrator';
+import { runParallel, defaultParallelMock } from '../agent/parallel-orchestrator';
+import { runPlan } from '../skills/plan';
+import { runGrill } from '../skills/grill';
+import { decomposeGoalToGoal, saveGoal, renderGoal } from '../skills/goal';
 
 export interface RunOptions {
   offline?: boolean;
@@ -113,4 +117,62 @@ export function isOfflineByDefault(): boolean {
   } catch {
     return true;
   }
+}
+
+/* ===================== M2：技能与并行入口 ===================== */
+
+/** /plan 技能：生成结构化实现计划（只读，不修改代码） */
+export function runPlanSkill(goal: string): string {
+  const out = runPlan(goal);
+  const lines = [
+    `【/plan】目标: ${out.goal}`,
+    `预计并行工作树: ${out.estimatedWorktrees}`,
+    `步骤:`,
+    ...out.items.map((it) => `  ${it.step}. ${it.action}\n     目标: ${it.target} | 风险: ${it.risk}`),
+    `备注: ${out.note}`,
+  ];
+  return lines.join('\n');
+}
+
+/** /grill 技能：红队式代码审查（只读） */
+export function runGrillSkill(target: string): string {
+  const result = runGrill(process.cwd(), target || '.');
+  const lines = [
+    `【/grill】${result.summary}`,
+    ...result.findings.map(
+      (f) => `  [${f.severity.toUpperCase()}] ${f.file}:${f.line} (${f.rule}) ${f.detail}`,
+    ),
+    result.findings.length === 0 ? '  未发现明显问题。' : '',
+  ];
+  return lines.filter(Boolean).join('\n');
+}
+
+/** /goal 技能：分解并保存高层目标（只读，写入 ~/.feihong-code/goals） */
+export function runGoalSkill(title: string): string {
+  const goal = decomposeGoalToGoal(title);
+  const home = process.env.FH_HOME ? expandHome(process.env.FH_HOME) : joinHome();
+  const file = saveGoal(goal, home);
+  return `【/goal】已保存\n${renderGoal(goal)}\n文件: ${file}`;
+}
+
+/** --parallel 并行多子代理执行 */
+export async function runParallelGoal(goal: string): Promise<void> {
+  const offline = isOfflineByDefault();
+  console.log(`[飞虹 Code] 并行模式 (offline=${offline})`);
+  const result = await runParallel(goal, {
+    offline,
+    mockFor: (task) => defaultParallelMock(task),
+  });
+  console.log('\n===== 并行执行结果 =====');
+  console.log(result.summary);
+  console.log(`仓库根: ${result.repoRoot} · 工作树已清理: ${result.worktrees.length}`);
+}
+
+function expandHome(p: string): string {
+  if (p.startsWith('~')) return join(process.env.HOME || process.cwd(), p.slice(1));
+  return p;
+}
+
+function joinHome(): string {
+  return join(homedir(), '.feihong-code');
 }
