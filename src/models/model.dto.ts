@@ -1,0 +1,60 @@
+/**
+ * 飞虹 Code (Muse Code 参照复刻)
+ * 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
+ *
+ * 模型响应 zod 校验 + 工具参数归一化（供应商返回结构不可信，必须校验）
+ */
+import { z } from 'zod';
+
+export const openAIMessageSchema = z.object({
+  role: z.string(),
+  content: z.string().nullable().optional(),
+  tool_calls: z
+    .array(
+      z.object({
+        id: z.string(),
+        type: z.literal('function'),
+        function: z.object({
+          name: z.string(),
+          arguments: z.union([z.string(), z.record(z.string(), z.unknown())]),
+        }),
+      }),
+    )
+    .optional(),
+  tool_call_id: z.string().optional(),
+});
+
+export const openAIChatResponseSchema = z.object({
+  model: z.string(),
+  choices: z
+    .array(z.object({ message: openAIMessageSchema, finish_reason: z.string().optional() }))
+    .min(1),
+  usage: z
+    .object({
+      prompt_tokens: z.number(),
+      completion_tokens: z.number(),
+      total_tokens: z.number(),
+    })
+    .optional(),
+});
+
+export const ollamaChatResponseSchema = z.object({
+  model: z.string(),
+  message: openAIMessageSchema,
+  done: z.boolean().optional(),
+  prompt_eval_count: z.number().optional(),
+  eval_count: z.number().optional(),
+});
+
+/** 将模型返回的工具参数（可能是 JSON 字符串或对象）归一为对象 */
+export function parseToolArgs(raw: unknown): Record<string, unknown> {
+  if (typeof raw === 'string') {
+    try {
+      return JSON.parse(raw) as Record<string, unknown>;
+    } catch {
+      return {};
+    }
+  }
+  if (raw && typeof raw === 'object') return raw as Record<string, unknown>;
+  return {};
+}
