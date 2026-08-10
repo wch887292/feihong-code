@@ -13,6 +13,7 @@ import { logger } from '../shared/logger';
 
 export type EventType =
   | 'session.start'
+  | 'session.resume'
   | 'session.end'
   | 'model.request'
   | 'model.response'

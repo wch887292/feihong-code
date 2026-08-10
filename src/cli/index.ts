@@ -3,7 +3,7 @@
  * 飞虹 Code (Muse Code 参照复刻)
  * 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
  *
- * CLI 入口：参数解析 → 版本/帮助/单命令/REPL 分发
+ * CLI 入口：参数解析 → 版本/帮助/单命令/REPL/管理命令 分发
  */
 import { randomUUID } from 'crypto';
 import { setRunId } from '../shared/logger';
@@ -11,7 +11,18 @@ import { AppError } from '../shared/errors';
 import { loadDotEnv } from '../shared/config';
 import { parseArgs } from './commands';
 import { startRepl } from './repl';
-import { runGoal, isOfflineByDefault, runPlanSkill, runGrillSkill, runGoalSkill, runParallelGoal } from './run';
+import {
+  runGoal,
+  isOfflineByDefault,
+  runPlanSkill,
+  runGrillSkill,
+  runGoalSkill,
+  runParallelGoal,
+  runSessions,
+  runResume,
+  runDiff,
+  runRollback,
+} from './run';
 import { VERSION, PRODUCT, TAGLINE, SIGNATURE } from './version';
 
 function printVersion(): void {
@@ -24,14 +35,18 @@ function printHelp(): void {
   console.log(`飞虹 Code (fhcode) v${VERSION}
 
 用法:
-  fhcode                         进入交互 REPL
-  fhcode "<需求>"               单命令模式执行一条需求
-  fhcode --parallel "<需求>"     多子代理并行（M2：git worktree 隔离）
-  fhcode /plan "<目标>"          生成实现计划（只读）
-  fhcode /grill [路径]           红队式代码审查（只读）
-  fhcode /goal "<目标>"          分解并保存高层目标
-  fhcode --version               显示版本 (-v)
-  fhcode --help                  显示帮助 (-h)
+  fhcode                             进入交互 REPL
+  fhcode "<需求>"                   单命令模式执行一条需求
+  fhcode --parallel "<需求>"         多子代理并行（M2：git worktree 隔离）
+  fhcode /plan "<目标>"              生成实现计划（只读）
+  fhcode /grill [路径]               红队式代码审查（只读）
+  fhcode /goal "<目标>"              分解并保存高层目标
+  fhcode sessions                    列出历史会话（M3 恢复与审计）
+  fhcode resume <id>                 从检查点恢复中断的会话（M3）
+  fhcode diff [<id>]                 展示会话/工作区变更（M3）
+  fhcode rollback <id> [--yes]       回滚会话改动（M3，危险操作需 --yes）
+  fhcode --version                   显示版本 (-v)
+  fhcode --help                      显示帮助 (-h)
 
 说明: 未配置 FH_PROVIDERS 时自动进入离线模式（脚本化 Mock 驱动闭环验证）。
 配置 FH_PROVIDERS（OpenAI 兼容 / Ollama）后，将调用真实大模型执行任务。
@@ -59,6 +74,19 @@ async function main(): Promise<void> {
       console.log(runGrillSkill(args.skill.arg || '.'));
     } else if (args.skill.kind === 'goal') {
       console.log(runGoalSkill(args.skill.arg || ''));
+    }
+    return;
+  }
+  if (args.manage) {
+    const m = args.manage;
+    if (m.kind === 'sessions') {
+      await runSessions();
+    } else if (m.kind === 'resume') {
+      await runResume(m.id);
+    } else if (m.kind === 'diff') {
+      await runDiff(m.id);
+    } else if (m.kind === 'rollback') {
+      await runRollback(m.id, m.yes);
     }
     return;
   }

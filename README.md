@@ -26,6 +26,7 @@
 - ✅ **高级技能（M2）**：`/plan` 实现计划、`/grill` 红队审查、`/goal` 目标跟踪，均为只读。
 - ✅ **完全可审计**：每次运行生成结构化事件日志（JSONL），含 `runId`。
 - ✅ **安全优先**：路径沙箱、shell 白名单、密钥脱敏、审批拦截。
+- ✅ **恢复与审计（M3）**：`sessions` 列会话、`resume` 断点续跑、`diff`/`rollback` 会话作用域变更管理、交互式审批流。
 
 ---
 
@@ -115,6 +116,35 @@ fhcode /grill src                              # 红队式代码审查
 fhcode /goal  "搭建多子代理体系并且完善文档"      # 分解并保存目标
 ```
 
+### 4.6 恢复与审计（M3）
+
+每次任务都会把**完整对话、迭代计数、成本、被改动文件**落盘为会话检查点（`<runId>.session.json`），可随时恢复与审计：
+
+```bash
+fhcode sessions                                  # 列出历史会话（状态/迭代/成本/文件数）
+fhcode resume <id>                              # 从检查点续跑中断的任务（离线/真实皆可）
+fhcode diff <id>                                # 展示该会话相对基线的变更（会话作用域）
+fhcode rollback <id> --yes                      # 回滚该会话产生的改动（危险，需 --yes 确认）
+```
+
+- `resume`：任务被中断（进程崩溃 / 达到最大迭代）后，加载检查点重建对话并继续 ReAct 循环，直到产出最终结果。
+- `diff`：仅对**本会话 touchedFiles** 生成 git diff（未跟踪文件用 `--no-index` 展示新增内容），绝不整仓比对。
+- `rollback`：已跟踪文件 `git checkout --`，未跟踪文件直接删除；**未确认（--yes）或非 git 仓库时拒绝执行**，避免误删。
+
+> 会话 id 支持 8 位前缀（即 `sessions` 列表所展示的前缀），无需完整 uuid。
+> 离线模式下会话落在临时目录、工作区为独立 git 仓库，同样支持完整的 diff / rollback 演示。
+
+### 4.7 交互式审批（M3）
+
+`FH_REQUIRE_APPROVAL=true`（默认）时，危险操作需审批：
+
+- **TTY 交互终端**：运行期逐条弹出 `y/n` 确认（`run_shell`、写文件等高危动作须显式批准）。
+- **非交互（CI / 管道）**：无 TTY 时回退到白名单审批器——命中 `FH_SHELL_ALLOW` 的命令自动通过，其余拒绝并留痕。
+
+```bash
+fhcode "删除临时缓存并重建"      # TTY 下每条 shell 命令会询问；非 TTY 仅白名单命令可过
+```
+
 ---
 
 ## 五、命令参考
@@ -127,6 +157,10 @@ fhcode /goal  "搭建多子代理体系并且完善文档"      # 分解并保�
 | `fhcode /plan "<目标>"` | 生成结构化实现计划（只读） |
 | `fhcode /grill [路径]` | 红队式代码审查（只读，默认当前目录） |
 | `fhcode /goal "<目标>"` | 分解并保存高层目标到 `~/.feihong-code/goals` |
+| `fhcode sessions` | 列出历史会话检查点（状态/迭代/成本/文件数） |
+| `fhcode resume <id>` | 从检查点恢复并续跑中断的任务 |
+| `fhcode diff [<id>]` | 展示会话作用域（或当前工作区）变更 |
+| `fhcode rollback <id> [--yes]` | 回滚会话改动（危险操作，需 `--yes` 确认） |
 | `fhcode --version` / `-v` | 显示版本与署名 |
 | `fhcode --help` / `-h` | 显示帮助 |
 
@@ -152,7 +186,7 @@ fhcode /goal  "搭建多子代理体系并且完善文档"      # 分解并保�
 1. **路径沙箱**：`safeJoin` 校验每个文件路径不得超出 `cwd`，杜绝 `../` 越权。
 2. **Shell 白名单**：`run_shell` 仅在命令首词命中 `FH_SHELL_ALLOW` 时放行；非交互 CLI 下，命中白名单者由默认审批器自动通过，其余拒绝并留痕。
 3. **密钥脱敏**：日志按 key 名（`apikey|secret|token|...`）将值替换为 `[REDACTED]`，且不回显完整 API key。
-4. **审批拦截**：`FH_REQUIRE_APPROVAL=true`（默认）时，危险操作需审批通道；CLI 无交互通道，由白名单机制兜底。
+4. **审批拦截**：`FH_REQUIRE_APPROVAL=true`（默认）时，危险操作需审批通道；**TTY 交互终端逐条弹 `y/n` 确认**，非交互（CI/管道）则回退白名单审批器——命中 `FH_SHELL_ALLOW` 自动通过、其余拒绝并留痕。
 5. **`.env` 不入库**：已被 `.gitignore` 排除；`package.json` 的 `files` 白名单确保 `npm publish` 不会携带 `.env`。
 
 ---
@@ -182,13 +216,15 @@ src/
 ├── agent/        Orchestrator（ReAct 循环）/ Planner / Prompts / 并行编排 / 子代理
 ├── tools/        工具实现（file / shell / search / verify）+ registry + 安全沙箱
 ├── models/       模型路由 ModelRouter + providers（openai-compatible / ollama / mock）
-├── runtime/      事件日志 EventLog、会话状态 SessionStore、git worktree 隔离
+├── runtime/      事件日志 EventLog、会话状态 SessionStore、会话检查点持久化、git diff/rollback、git worktree 隔离
 └── skills/       高级技能：/plan /grill /goal
 ```
 
-**单命令执行流**：`CLI → Orchestrator → ModelRouter（选模型）→ 模型返回工具调用 → ToolRegistry（校验+执行）→ 结果回填模型 → 循环至完成 → 事件日志归档`。
+**单命令执行流**：`CLI → Orchestrator → ModelRouter（选模型）→ 模型返回工具调用 → ToolRegistry（校验+执行）→ 结果回填模型 → 循环至完成 → 每轮落盘检查点 + 事件日志归档`。
 
 **并行执行流**：`CLI --parallel → 分解目标 → 为每子任务创建 git worktree（独立分支）→ Promise.allSettled 并发子代理 → 收集结果 → 强制清理 worktree`。
+
+**恢复执行流（M3）**：`sessions 列出检查点 → resume <id> 加载检查点重建对话 → 续跑 ReAct 循环 → 产出最终结果`；`diff/rollback` 基于检查点的 touchedFiles 做会话作用域的 git 比对与回退。
 
 > 架构详解见 [`docs/架构与API.md`](./docs/架构与API.md)。
 
@@ -232,7 +268,7 @@ node dist/cli/index.js --version
 | **M1 P0 闭环** | 模型路由、文件/shell 工具、REPL、事件日志、离线闭环验证 | ✅ 完成 |
 | **M2 多子代理** | `git worktree` 隔离、并行子代理、`/plan` `/grill` `/goal` 技能 | ✅ 完成 |
 | **M2 真实联调（B）** | 接入 OpenAI 兼容真实模型（Agnes），ReAct 闭环跑通 | ✅ 完成 |
-| **M3 长时任务恢复** | 基于事件日志的断点续跑 / diff 展示与回滚 / 审批流 | ⏳ 待启动 |
+| **M3 恢复与审计** | `sessions`/`resume` 断点续跑、`diff`/`rollback` 会话作用域变更管理、交互式审批流 | ✅ 完成 |
 | **M4 企业级** | 权限/审计/多租户/CI 集成 | ⏳ 待启动 |
 
 ---

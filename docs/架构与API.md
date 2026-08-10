@@ -141,7 +141,54 @@ runParallel(goal):
 
 ---
 
-## 7. 类型速查
+## 7. 恢复与审计架构（M3）
+
+### 7.1 会话检查点持久化
+
+`runtime/session-persist.ts`：
+
+```
+saveCheckpoint(logDir, cp):  写 <runId>.session.json（含 messages / iterations / costUsd / touchedFiles / status）
+loadCheckpoint(logDir, id):  精确或前缀匹配读取
+listCheckpoints(logDir):     按 updatedAt 倒序列出
+updateStatus(logDir, id, s): 标记 running / done / crashed
+```
+
+`Orchestrator.run(goal, resume?)` 在**每一轮迭代后**通过注入的 `persist` 回调落盘检查点（见 `cli/run.ts` 装配）。`ChatMessage` 完全可 JSON 序列化，因此检查点可直接重建对话。
+
+### 7.2 断点续跑（resume）
+
+```
+resume <id>:
+  1. loadCheckpoint → 校验存在且 status != done
+  2. SessionStore.restore(cp) 重建会话（保留 runId / 对话历史）
+  3. Orchestrator.run(cp.goal, { messages: cp.messages, iterations, costUsd, touchedFiles })
+     - 跳过 planTask，直接以检查点对话作为起始上下文
+     - 继续 ReAct 循环，直到产出最终答案
+  4. 续跑过程仍写入同一 runId 的事件日志，审计连续
+```
+
+### 7.3 diff / rollback（会话作用域）
+
+`runtime/git.ts` 仅对会话 `touchedFiles` 操作，绝不整仓回滚：
+
+- `gitDiff(cwd, files?)`：已跟踪文件走 `git diff`；未跟踪文件走 `git diff --no-index /dev/null <file>` 展示新增内容。非 git 仓库安全退出并提示。
+- `gitRollback(cwd, files, { yes })`：已跟踪文件 `git checkout --`；未跟踪文件删除。`--yes` 缺失或非 git 仓库时**拒绝执行**，避免误删。
+
+### 7.4 交互式审批流
+
+`cli/run.ts` 的审批解析优先级：
+
+1. 显式传入 `opts.approve`（测试/REPL 注入）。
+2. 真实模式 + TTY：交互式审批器 `interactiveApprover()`，逐条 `y/n` 确认高危操作。
+3. 真实模式 + 非 TTY（CI/管道）：白名单审批器 `defaultApproverFor()`，命中 `FH_SHELL_ALLOW` 自动通过，其余拒绝留痕。
+4. 离线模式：不注入审批（`requireApproval` 仍为真，但 `run_shell` 缺乏 approve 通道时按安全默认拒绝）。
+
+`run_shell` 工具在 `tools/shell/run-shell.tool.ts` 中统一通过 `ctx.approve?.(action)` 发起审批，结果决定放行或拒绝。
+
+---
+
+## 8. 类型速查
 
 - `ChatMessage`：`{ role, content, toolCalls?, toolCallId? }`
 - `ToolCall`：`{ id, name, arguments }`

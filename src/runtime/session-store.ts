@@ -39,4 +39,14 @@ export class SessionStore {
   snapshot(): SessionState {
     return structuredClone(this.state) as SessionState;
   }
+
+  /** 从持久化检查点恢复会话（M3 resume 用） */
+  static restore(state: SessionState): SessionStore {
+    const inst = new SessionStore(state.runId, state.cwd);
+    (inst as unknown as { state: SessionState }).state = {
+      ...structuredClone(state),
+      messages: structuredClone(state.messages),
+    };
+    return inst;
+  }
 }
