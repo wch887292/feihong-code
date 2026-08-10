@@ -6,11 +6,19 @@
     "fhcode": "dist/cli/index.js"
   },
   "main": "dist/cli/index.js",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CONTRIBUTING.md",
+    "docs"
+  ],
   "scripts": {
     "build": "tsc",
     "start": "node dist/cli/index.js",
     "dev": "tsx src/cli/index.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
   },
   "keywords": [
     "ai",

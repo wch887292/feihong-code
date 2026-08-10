@@ -83,6 +83,8 @@ export async function runGoal(goal: string, opts: RunOptions = {}): Promise<void
   const eventLog = new EventLog(runId, logDir);
   const session = new SessionStore(runId, cwd);
 
+  const approve = opts.approve ?? (offline ? undefined : defaultApprover(security));
+
   const orchestrator = new Orchestrator({
     router,
     tools,
@@ -90,7 +92,7 @@ export async function runGoal(goal: string, opts: RunOptions = {}): Promise<void
     session,
     cwd,
     security,
-    approve: opts.approve,
+    approve,
   });
 
   console.log(`[飞虹 Code] 开始任务 (runId=${runId}${offline ? ', 离线模式' : ''})`);
@@ -155,12 +157,31 @@ export function runGoalSkill(title: string): string {
   return `【/goal】已保存\n${renderGoal(goal)}\n文件: ${file}`;
 }
 
-/** --parallel 并行多子代理执行 */
+/** --parallel 并行多子代理执行（离线用 Mock；真实模式接入 FH_PROVIDERS 路由） */
 export async function runParallelGoal(goal: string): Promise<void> {
   const offline = isOfflineByDefault();
   console.log(`[飞虹 Code] 并行模式 (offline=${offline})`);
+
+  if (!offline) {
+    const cfg = loadConfig();
+    const router = ModelRouter.fromConfig(cfg);
+    const security: OrchestratorSecurity = {
+      shellAllowlist: cfg.security.shellAllowlist,
+      requireApproval: cfg.security.requireApproval,
+    };
+    const result = await runParallel(goal, {
+      offline: false,
+      router,
+      approve: defaultApprover(security),
+    });
+    console.log('\n===== 并行执行结果 =====');
+    console.log(result.summary);
+    console.log(`仓库根: ${result.repoRoot} · 工作树已清理: ${result.worktrees.length}`);
+    return;
+  }
+
   const result = await runParallel(goal, {
-    offline,
+    offline: true,
     mockFor: (task) => defaultParallelMock(task),
   });
   console.log('\n===== 并行执行结果 =====');
@@ -175,4 +196,25 @@ function expandHome(p: string): string {
 
 function joinHome(): string {
   return join(homedir(), '.feihong-code');
+}
+
+/**
+ * 非交互默认审批器：CLI 无交互审批通道时，命中 shell 白名单的命令自动通过，
+ * 其余一律拒绝（安全优先，由日志留痕）。配合 FH_SHELL_ALLOW 使用。
+ */
+function defaultApprover(security: {
+  shellAllowlist: string[];
+  requireApproval: boolean;
+}): (action: string) => Promise<boolean> {
+  return async (action: string): Promise<boolean> => {
+    if (!security.requireApproval) return true;
+    const cmd = action.replace(/^run_shell:\s*/, '').trim();
+    const head = cmd.split(/\s+/)[0] || '';
+    if (security.shellAllowlist.includes(head)) {
+      logger.info('审批自动通过（命中白名单）', { action });
+      return true;
+    }
+    logger.warn('审批拒绝（无交互审批通道且未命中白名单）', { action });
+    return false;
+  };
 }

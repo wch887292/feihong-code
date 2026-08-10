@@ -7,6 +7,7 @@
 import { ConfigError } from './errors';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
+import { homedir } from 'os';
 import type { CapabilityTag, ModelStrategy } from './types';
 
 /**
@@ -60,10 +61,13 @@ export interface AppConfig {
 
 const APP_VERSION = '0.1.0';
 
-function required(name: string): string {
-  const v = process.env[name];
-  if (!v) throw new ConfigError(name);
-  return v;
+/**
+ * 解析主目录：优先 FH_HOME，缺省 ~/.feihong-code（避免缺环境变量即崩溃）。
+ */
+export function resolveHomeDir(): string {
+  const h = process.env.FH_HOME?.trim();
+  if (h) return h.startsWith('~') ? h.replace(/^~/, homedir()) : h;
+  return join(homedir(), '.feihong-code');
 }
 
 let cached: AppConfig | null = null;
@@ -86,7 +90,7 @@ export function loadConfig(): AppConfig {
     app: {
       name: 'feihong-code',
       version: APP_VERSION,
-      homeDir: required('FH_HOME'),
+      homeDir: resolveHomeDir(),
     },
     models: {
       providers,
@@ -94,7 +98,7 @@ export function loadConfig(): AppConfig {
       budgetPerTaskUsd: Number(process.env.FH_BUDGET_USD || '0.5'),
     },
     runtime: {
-      logDir: process.env.FH_LOG_DIR || '~/.feihong-code/sessions',
+      logDir: process.env.FH_LOG_DIR || join(resolveHomeDir(), 'sessions'),
       maxRetries: 3,
     },
     security: {

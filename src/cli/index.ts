@@ -7,6 +7,7 @@
  */
 import { randomUUID } from 'crypto';
 import { setRunId } from '../shared/logger';
+import { AppError } from '../shared/errors';
 import { loadDotEnv } from '../shared/config';
 import { parseArgs } from './commands';
 import { startRepl } from './repl';
@@ -76,7 +77,11 @@ async function main(): Promise<void> {
 
 main().catch((err: unknown) => {
   setRunId(randomUUID());
-  // 结构化错误日志
-  console.error('运行出错:', err instanceof Error ? err.message : String(err));
+  if (err instanceof AppError) {
+    console.error(`[飞虹 Code] 运行失败 (${err.code}): ${err.message}`);
+  } else {
+    console.error('运行出错:', err instanceof Error ? err.message : String(err));
+  }
+  console.error('（详细日志见结构化 JSON 输出；配置类错误请检查 FH_PROVIDERS / .env）');
   process.exit(1);
 });
