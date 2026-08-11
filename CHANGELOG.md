@@ -2,6 +2,20 @@
 
 本文件遵循 [Keep a Changelog](https://keepachangelog.com/) 约定，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.2.1] — 2026-08-11（M9.1 真实模型接入与实测调优）
+
+> 让 `swe` 与常规命令可一键接入真实模型，并以 mock HTTP 服务实测"真实 provider 全链路"。
+
+### 新增（Added）
+- **三级供应商解析**：`loadConfig` 现依次支持 `FH_PROVIDERS`（JSON 数组）、`fhcode.config.json`（`models.providers`）、单环境变量快速接入（`FH_MODEL_NAME`/`FH_MODEL_TYPE`/`FH_MODEL_BASE_URL`/`FH_MODEL_API_KEY`/`FH_MODEL_TAGS`）。
+- **`swe` 新增 `--max-iterations`**：控制每个子任务的模型推理轮数（真实模型建议 4~8，控成本/耗时）。
+- **真实模型执行纪律强化**：`swe-planner` 增加"必须通过工具落地、必须真跑验证、禁谎报、只改相关文件"等约束；`swe-agent` 自愈注入改为携带验证命令的**真实输出**，更具可操作性。
+- **真实接入就绪检查**：`fhcode swe` 在真实模式未配置任何供应商时给出明确的三种接入指引，避免盲目失败。
+- **接入实测脚本** `scripts/verify-m9-real.mjs`：以本地 mock HTTP 服务（兼容 OpenAI / Ollama 协议）驱动 `swe` 走完整的"真实 HTTP provider → 编排器工具循环 → 验证器"链路，11 项断言全通过，无需任何外部模型。
+
+### 校验（Verified）
+- TypeScript 零错误；M4 企业能力验证 41/41 通过；M9 验证 25/25 通过；M9 真实接入实测 11/11 通过。
+
 ## [0.2.0] — 2026-08-11（M9 全自动软件工程 Agent）
 
 > 新增全自动软件工程 Agent（M9），对标业界"读取仓库→拆解→改码→跑测试→验证"长链路自主开发范式。

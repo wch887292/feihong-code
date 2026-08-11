@@ -126,9 +126,11 @@ export async function runSweAgent(goal: string, deps: SweAgentDeps): Promise<Swe
       // 构建聚焦目标：仓库上下文 + 计划 + 当前子任务 + (失败时的错误反馈)
       let focusedGoal = buildFocusedGoal(plan, task, snapshot);
       if (attempt > 0 && verify.overall === 'fail') {
+        const tail = (verify.log || verify.errorSummary).slice(-1500);
         focusedGoal +=
-          `\n\n# 上一轮验证失败，请自我修复\n错误信息:\n${verify.errorSummary.slice(0, 1500)}` +
-          `\n请分析根因并修改代码，然后再次验证。`;
+          `\n\n# 上一轮验证失败，请自我修复\n` +
+          `以下是验证命令的真实输出（请据此定位根因）：\n\`\`\`\n${tail}\n\`\`\`\n` +
+          `请分析根因、就地修改代码，然后重新运行验证命令确认通过。不要编造成功。`;
         phase('task.selfheal', { id: task.id, attempt });
       }
 
@@ -160,20 +162,24 @@ export async function runSweAgent(goal: string, deps: SweAgentDeps): Promise<Swe
 }
 
 function buildFocusedGoal(plan: SwePlan, task: SweSubTask, snapshot: RepoSnapshot): string {
-  return [
+  const lines = [
     plan.modelPrompt,
     '',
     `# 当前执行子任务 [${task.id}] ${task.title}`,
     `描述: ${task.description}`,
     `验收标准: ${task.acceptance}`,
     `目标文件: ${task.targetFiles.join(', ') || '（自动定位）'}`,
-    snapshot.buildCommand ? `构建命令: ${snapshot.buildCommand}` : '',
-    snapshot.testCommand ? `测试命令: ${snapshot.testCommand}` : '',
+    snapshot.buildCommand ? `仓库构建命令: ${snapshot.buildCommand}` : '',
+    snapshot.testCommand ? `仓库测试命令: ${snapshot.testCommand}` : '',
+    task.verifyCommand ? `本任务专属验证命令: ${task.verifyCommand}` : '',
     '',
-    '请现在执行该子任务，完成后继续下一个（或汇总）。',
-  ]
-    .filter(Boolean)
-    .join('\n');
+    '## 本轮聚焦纪律',
+    `- 本轮回合只专注完成上方子任务 [${task.id}]，不要提前做其他子任务。`,
+    '- 必须通过工具实际修改/创建文件；描述代码不算完成。',
+    '- 完成后务必运行对应验证命令，并依据真实输出判断，禁止谎报通过。',
+    '- 完成后用一句话说明：做了什么、验证了什么、结果如何。',
+  ];
+  return lines.filter(Boolean).join('\n');
 }
 
 function computeOverall(results: SweTaskResult[]): SweOverall {

@@ -33,6 +33,7 @@
 - ✅ **编程能力增强（M7）**：静态代码分析、模板化代码生成、AI 代码审查、仓库理解、测试生成。
 - ✅ **自主编程迭代（M8）**：CodeWriter 六步闭环、QualityGate 质量门禁、SelfImprover 自我改进。
 - ✅ **全自动软件工程 Agent（M9）**：`fhcode swe "<目标>"` 读取整个（大型）仓库 → 任务拆解规划 → 逐任务（实现 + 构建/测试验证 + 自愈重试）→ 产出结构化报告，自主完成长链路开发。
+- ✅ **真实模型接入与实测调优（M9.1）**：`loadConfig` 支持 `FH_PROVIDERS` / `fhcode.config.json` / 单环境变量 `FH_MODEL_*` 三级接入；`swe` 支持 `--max-iterations`；针对真实模型强化执行纪律与自愈注入；`scripts/verify-m9-real.mjs` 以 mock HTTP 服务实测真实 provider 全链路（11/11 通过）。
 
 ---
 
@@ -242,7 +243,7 @@ $ FH_TENANT_BUDGET_USD=0.30 fhcode "超预算任务"
 | `fhcode code-write "<目标>"` | 自主编写代码：规划→编写→测试→审查→修复（M8） |
 | `fhcode quality-gate [路径]` | 质量门禁审查：安全+质量+测试覆盖（M8） |
 | `fhcode self-improve` | 自我改进统计与历史（M8） |
-| `fhcode swe "<目标>"` | 全自动软件工程 Agent：读仓库→拆解→实现+验证+自愈→报告（M9） |
+| `fhcode swe "<目标>"` | 全自动软件工程 Agent：读仓库→拆解→实现+验证+自愈→报告（M9，支持 `--max-iterations` 等） |
 | `fhcode --version` / `-v` | 显示版本与署名 |
 | `fhcode --help` / `-h` | 显示帮助 |
 

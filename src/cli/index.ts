@@ -149,6 +149,7 @@ async function main(): Promise<void> {
         repo: m.repo,
         maxTasks: m.maxTasks,
         maxRetries: m.maxRetries,
+        maxIterations: m.maxIterations,
         verifyOnly: m.verifyOnly,
         planOnly: m.planOnly,
       });

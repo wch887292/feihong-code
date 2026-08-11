@@ -680,6 +680,7 @@ export interface SweOptions {
   repo?: string;
   maxTasks?: number;
   maxRetries?: number;
+  maxIterations?: number;
   verifyOnly?: boolean;
   planOnly?: boolean;
   offline?: boolean;
@@ -701,6 +702,21 @@ export async function runSwe(goal: string, opts: SweOptions = {}): Promise<void>
   const rt = getEnterprise();
   if (rt) assertQuota(rt);
   const security: OrchestratorSecurity = { shellAllowlist: [], requireApproval: true };
+
+  // 真实模式就绪检查：未配置任何模型供应商时给出明确接入指引，避免盲目失败
+  if (!offline) {
+    const cfg = loadConfig();
+    if (!cfg.models.providers.length) {
+      console.error(
+        '[飞虹 Code] 未配置真实模型供应商，无法进入真实模式。请通过以下任一方式接入：\n' +
+          '  1) 环境变量: FH_MODEL_NAME=<模型> FH_MODEL_TYPE=ollama|openai-compatible FH_MODEL_BASE_URL=<地址> [FH_MODEL_API_KEY=<令牌>]\n' +
+          '  2) 配置文件: ./fhcode.config.json 的 models.providers 数组\n' +
+          '  3) FH_PROVIDERS 环境变量(JSON 数组)\n' +
+          '本地 Ollama 示例: FH_MODEL_NAME=qwen2.5-coder:1.5b FH_MODEL_TYPE=ollama fhcode swe "..."',
+      );
+      return;
+    }
+  }
 
   /** 实现单个子任务的回调：内部装配一个 Orchestrator 实例并运行 */
   const runSubTask = async (focusedGoal: string): Promise<SubTaskOutcome> => {
@@ -732,6 +748,7 @@ export async function runSwe(goal: string, opts: SweOptions = {}): Promise<void>
       security,
       approve,
       guard,
+      maxIterations: opts.maxIterations ?? 6,
       maxCostUsd: rt?.maxCostUsd ?? 0,
       persist: (cp: import('../runtime/session-persist').SessionCheckpoint) =>
         saveCheckpoint(logDir, cp),

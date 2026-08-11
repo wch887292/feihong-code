@@ -47,6 +47,7 @@ export type ManagementCommand =
       repo?: string;
       maxTasks: number;
       maxRetries: number;
+      maxIterations: number;
       verifyOnly: boolean;
       planOnly: boolean;
     };
@@ -62,6 +63,7 @@ export interface ParsedArgs {
     repo?: string;
     maxTasks?: number;
     maxRetries?: number;
+    maxIterations?: number;
     verifyOnly?: boolean;
     planOnly?: boolean;
   };
@@ -114,6 +116,12 @@ export function parseArgs(argv: string[]): ParsedArgs {
     } else if (arg.startsWith('--max-retries=')) {
       const n = Number(arg.slice('--max-retries='.length));
       if (Number.isFinite(n) && n >= 0) flags.maxRetries = Math.floor(n);
+    } else if (arg === '--max-iterations') {
+      const n = Number(positional[++i]);
+      if (Number.isFinite(n) && n > 0) flags.maxIterations = Math.floor(n);
+    } else if (arg.startsWith('--max-iterations=')) {
+      const n = Number(arg.slice('--max-iterations='.length));
+      if (Number.isFinite(n) && n > 0) flags.maxIterations = Math.floor(n);
     } else if (arg === '--verify-only') {
       flags.verifyOnly = true;
     } else if (arg === '--plan-only') {
@@ -182,6 +190,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
         repo: flags.repo,
         maxTasks: flags.maxTasks ?? 8,
         maxRetries: flags.maxRetries ?? 2,
+        maxIterations: flags.maxIterations ?? 6,
         verifyOnly: !!flags.verifyOnly,
         planOnly: !!flags.planOnly,
       },
