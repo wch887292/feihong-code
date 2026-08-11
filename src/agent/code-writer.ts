@@ -179,10 +179,12 @@ export class CodeWriter {
 
   /** 总结 */
   summary(): CodeWriterStep {
-    return {
+    const step: CodeWriterStep = {
       type: 'summary',
       content: this.buildSummary(),
     };
+    this.steps.push(step);
+    return step;
   }
 
   /** 完整流程：规划 → 编写 → 测试 → 审查 → 修复 → 总结 */
