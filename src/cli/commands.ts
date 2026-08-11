@@ -19,6 +19,9 @@
  *  - audit [verify]   审计记录 / 哈希链校验（M4）
  *  - tenants          租户用量汇总（M4）
  *  - serve [--port N] 启动 Web 管理控制台（M5）
+ *  - code-write <目标> 自主编写代码（M8）
+ *  - quality-gate [路径] 质量门禁审查（M8）
+ *  - self-improve     自我改进统计（M8）
  *  - 其余文本          单命令需求
  */
 export type SkillCommand = 'plan' | 'grill' | 'goal';
@@ -34,7 +37,10 @@ export type ManagementCommand =
   | { kind: 'tenants' }
   | { kind: 'serve'; port?: number }
   | { kind: 'model-stats' }
-  | { kind: 'experiences'; path?: string };
+  | { kind: 'experiences'; path?: string }
+  | { kind: 'code-write'; goal: string; filePath: string }
+  | { kind: 'quality-gate'; path: string }
+  | { kind: 'self-improve' };
 
 export interface ParsedArgs {
   flags: {
@@ -111,6 +117,24 @@ export function parseArgs(argv: string[]): ParsedArgs {
   // M6 自我进化命令
   if (head === 'model-stats') return { flags, manage: { kind: 'model-stats' } };
   if (head === 'experiences') return { flags, manage: { kind: 'experiences', path: rest[0] } };
+
+  // M8 自主编程命令
+  if (head === 'code-write') {
+    return {
+      flags,
+      manage: {
+        kind: 'code-write',
+        goal: rest.join(' ') || 'auto-generate',
+        filePath: 'output.ts',
+      },
+    };
+  }
+  if (head === 'quality-gate') {
+    return { flags, manage: { kind: 'quality-gate', path: rest[0] || '.' } };
+  }
+  if (head === 'self-improve') {
+    return { flags, manage: { kind: 'self-improve' } };
+  }
 
   // 斜杠技能
   if (head?.startsWith('/')) {

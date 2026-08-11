@@ -28,6 +28,9 @@ import {
   runAuditVerify,
   runTenants,
   runServe,
+  runCodeWrite,
+  runQualityGate,
+  runSelfImprove,
 } from './run';
 import { VERSION, PRODUCT, TAGLINE, SIGNATURE } from './version';
 
@@ -66,6 +69,11 @@ function printHelp(): void {
 Web 控制台 (M5):
   fhcode serve [--port 8080]         启动 Web 管理控制台（默认 http://localhost:8080）
                                     令牌由 FH_WEB_TOKEN 或自动生成（控制台仅观测，不执行）
+
+自主编程 (M8):
+  fhcode code-write "<目标>"         自主编写代码（规划→编写→测试→审查→修复）
+  fhcode quality-gate [路径]         质量门禁审查（安全+质量+测试覆盖）
+  fhcode self-improve                自我改进统计与历史
 
   fhcode --version                   显示版本 (-v)
   fhcode --help                      显示帮助 (-h)
@@ -121,6 +129,12 @@ async function main(): Promise<void> {
       runTenants();
     } else if (m.kind === 'serve') {
       runServe(m.port);
+    } else if (m.kind === 'code-write') {
+      runCodeWrite(m.goal);
+    } else if (m.kind === 'quality-gate') {
+      runQualityGate(m.path);
+    } else if (m.kind === 'self-improve') {
+      runSelfImprove();
     }
     return;
   }

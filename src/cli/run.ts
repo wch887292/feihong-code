@@ -47,6 +47,9 @@ import { runPlan } from '../skills/plan';
 import { runGrill } from '../skills/grill';
 import { decomposeGoalToGoal, saveGoal, renderGoal } from '../skills/goal';
 import { listExperiences, type Experience } from '../agent/experience';
+import { createCodeWriter } from '../agent/code-writer';
+import { createQualityGate } from '../agent/quality-gate';
+import { createSelfImprover } from '../agent/self-improver';
 
 export interface RunOptions {
   offline?: boolean;
@@ -587,6 +590,87 @@ export function runServe(port?: number): void {
   console.log(`[飞虹 Code] 访问令牌 (FH_WEB_TOKEN): ${handle.token}`);
   console.log(`[飞虹 Code] 按 Ctrl+C 停止`);
   // 注意：app.listen 保持事件循环运行，进程持续存活直到收到 SIGINT；本函数返回后 main() 结束不影响服务。
+}
+
+/* ===================== M8：自主编程能力 ===================== */
+
+/** fhcode code-write <目标>：自主编写代码（规划→编写→测试→审查→修复） */
+export function runCodeWrite(goal: string): void {
+  const writer = createCodeWriter(process.cwd());
+  // 离线演示：生成一个简单的工具函数
+  const sampleCode = `/**
+ * 飞虹 Code (Muse Code 参照复刻)
+ * 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
+ *
+ * 示例：M8 自主编写演示
+ */
+export function calculateCommission(base: number, rate: number): number {
+  if (rate < 0 || rate > 1) {
+    throw new Error('佣金比率必须在 0-1 之间');
+  }
+  return Math.round(base * rate * 100) / 100;
+}
+
+export interface CommissionPlan {
+  name: string;
+  baseRate: number;
+  tierRates: Array<{ min: number; rate: number }>;
+}
+
+export function calculateTieredCommission(plan: CommissionPlan, amount: number): number {
+  let total = 0;
+  let remaining = amount;
+  for (const tier of plan.tierRates.sort((a, b) => b.min - a.min)) {
+    if (remaining <= 0) break;
+    const tierAmount = Math.min(remaining, amount - tier.min);
+    if (tierAmount > 0) {
+      total += tierAmount * tier.rate;
+      remaining -= tierAmount;
+    }
+  }
+  total += Math.max(0, amount - plan.tierRates[0]?.min || 0) * plan.baseRate;
+  return Math.round(total * 100) / 100;
+}
+`;
+  writer.run(goal, sampleCode, 'generated/commission.ts');
+  const result = writer.summary();
+  console.log(`\n===== M8 自主编写结果 =====`);
+  console.log(result.content);
+  console.log(`生成文件: ${writer['filesCreated'].join(', ')}`);
+}
+
+/** fhcode quality-gate [路径]：质量门禁审查 */
+export function runQualityGate(path?: string): void {
+  const targetPath = path || process.cwd();
+  const gate = createQualityGate();
+  const results = gate.gateDirectory(targetPath, 10);
+  console.log(gate.report(results));
+  const failed = results.filter((r) => !r.passed);
+  if (failed.length > 0) {
+    console.log(`\n⚠️ ${failed.length} 个文件未通过门禁，请修复后再提交`);
+  }
+}
+
+/** fhcode self-improve：自我改进统计 */
+export function runSelfImprove(): void {
+  const improver = createSelfImprover();
+  const records = improver.loadImprovements();
+  const stats = improver.getStats();
+  console.log('===== M8 自我改进统计 =====');
+  console.log(`总反思次数: ${stats.totalReflections}`);
+  console.log(`成功率: ${(stats.successRate * 100).toFixed(1)}%`);
+  console.log(`平均耗时: ${stats.avgDurationMs.toFixed(0)}ms`);
+  if (records.length > 0) {
+    console.log(`\n最近改进记录:`);
+    for (const rec of records.slice(-5).reverse()) {
+      console.log(`  ${rec.timestamp.slice(0, 19)} | ${rec.success ? '✅' : '❌'} | 模式: ${rec.patterns.length} 条`);
+      for (const imp of rec.improvements.slice(0, 3)) {
+        console.log(`    → ${imp}`);
+      }
+    }
+  } else {
+    console.log('\n（暂无改进记录，完成任务后自动生成）');
+  }
 }
 
 /* ===================== 审批器 ===================== */
