@@ -50,6 +50,7 @@ import { listExperiences, type Experience } from '../agent/experience';
 import { createCodeWriter } from '../agent/code-writer';
 import { createQualityGate } from '../agent/quality-gate';
 import { createSelfImprover } from '../agent/self-improver';
+import { runSweAgent, type SweReport, type SubTaskOutcome } from '../agent/swe-agent';
 
 export interface RunOptions {
   offline?: boolean;
@@ -220,7 +221,8 @@ export function isOfflineByDefault(): boolean {
   if (process.env.FH_OFFLINE === 'true') return true;
   if (!raw) return true;
   try {
-    return Array.isArray(JSON.parse(raw)) && (JSON.parse(raw) as unknown[]).length === 0;
+    const providers = JSON.parse(raw);
+    return Array.isArray(providers) && (providers as unknown[]).length === 0;
   } catch {
     return true;
   }
@@ -595,7 +597,7 @@ export function runServe(port?: number): void {
 /* ===================== M8：自主编程能力 ===================== */
 
 /** fhcode code-write <目标>：自主编写代码（规划→编写→测试→审查→修复） */
-export function runCodeWrite(goal: string): void {
+export async function runCodeWrite(goal: string): Promise<void> {
   const writer = createCodeWriter(process.cwd());
   // 离线演示：生成一个简单的工具函数
   const sampleCode = `/**
@@ -632,11 +634,10 @@ export function calculateTieredCommission(plan: CommissionPlan, amount: number):
   return Math.round(total * 100) / 100;
 }
 `;
-  writer.run(goal, sampleCode, 'generated/commission.ts');
-  const result = writer.summary();
+  const result = await writer.run(goal, sampleCode, 'generated/commission.ts');
   console.log(`\n===== M8 自主编写结果 =====`);
-  console.log(result.content);
-  console.log(`生成文件: ${writer['filesCreated'].join(', ')}`);
+  console.log(result.summary);
+  console.log(`生成文件: ${result.finalFiles.join(', ')}`);
 }
 
 /** fhcode quality-gate [路径]：质量门禁审查 */
@@ -670,6 +671,104 @@ export function runSelfImprove(): void {
     }
   } else {
     console.log('\n（暂无改进记录，完成任务后自动生成）');
+  }
+}
+
+/* ===================== M9：全自动软件工程 Agent ===================== */
+
+export interface SweOptions {
+  repo?: string;
+  maxTasks?: number;
+  maxRetries?: number;
+  verifyOnly?: boolean;
+  planOnly?: boolean;
+  offline?: boolean;
+}
+
+/**
+ * fhcode swe "<目标>"：全自动软件工程 Agent
+ * 读取整个仓库 → 任务拆解 → 逐任务(实现+验证+自愈) → 产出报告。
+ * 实现阶段复用 Orchestrator（ReAct + 工具 + 自愈）；验证阶段跑构建/测试。
+ */
+export async function runSwe(goal: string, opts: SweOptions = {}): Promise<void> {
+  const offline = opts.offline ?? isOfflineByDefault();
+  const cwd = opts.repo
+    ? require('path').resolve(opts.repo)
+    : offline
+      ? mkdtempSync(join(tmpdir(), 'fhcode-swe-'))
+      : process.cwd();
+
+  const rt = getEnterprise();
+  if (rt) assertQuota(rt);
+  const security: OrchestratorSecurity = { shellAllowlist: [], requireApproval: true };
+
+  /** 实现单个子任务的回调：内部装配一个 Orchestrator 实例并运行 */
+  const runSubTask = async (focusedGoal: string): Promise<SubTaskOutcome> => {
+    const runId = randomUUID();
+    setRunId(runId);
+    let router: ModelRouter;
+    if (offline) {
+      router = new ModelRouter([new ScriptedMockProvider(buildDemoSteps())], 'cost', 0);
+    } else {
+      const cfg = loadConfig();
+      router = ModelRouter.fromConfig(cfg);
+      security.shellAllowlist = cfg.security.shellAllowlist;
+      security.requireApproval = cfg.security.requireApproval;
+    }
+    const tools = createDefaultRegistry();
+    const logDir = getSessionHome(offline);
+    const eventLog = new EventLog(runId, logDir);
+    const session = new SessionStore(runId, cwd);
+    const approve = process.stdin.isTTY ? interactiveApprover() : defaultApproverFor(security);
+    const guard = rt
+      ? rt.makeGuard({ runId, cwd, shellAllowlist: security.shellAllowlist, approve })
+      : undefined;
+    const orchestrator = new Orchestrator({
+      router,
+      tools,
+      eventLog,
+      session,
+      cwd,
+      security,
+      approve,
+      guard,
+      maxCostUsd: rt?.maxCostUsd ?? 0,
+      persist: (cp: import('../runtime/session-persist').SessionCheckpoint) =>
+        saveCheckpoint(logDir, cp),
+    });
+    const result = await orchestrator.run(focusedGoal);
+    return {
+      ok: result.ok,
+      finalAnswer: result.finalAnswer,
+      iterations: result.iterations,
+      touchedFiles: [],
+    };
+  };
+
+  console.log(`[飞虹 Code] 启动全自动软件工程 Agent (offline=${offline}, 仓库=${cwd})`);
+  const report: SweReport = await runSweAgent(goal, {
+    cwd,
+    runSubTask,
+    maxTasks: opts.maxTasks ?? 8,
+    maxRetries: opts.maxRetries ?? 2,
+    verifyOnly: !!opts.verifyOnly,
+    planOnly: !!opts.planOnly,
+  });
+
+  console.log('\n===== 全自动软件工程 Agent 报告 =====');
+  console.log(report.summary);
+
+  if (rt) {
+    rt.audit.record({
+      tenantId: rt.tenant.tenantId,
+      userId: rt.tenant.userId,
+      role: rt.tenant.role,
+      runId: 'swe',
+      action: 'swe:run',
+      resource: goal,
+      decision: report.overall === 'failed' ? 'deny' : report.overall === 'partial' ? 'info' : 'allow',
+      reason: `tasks=${report.executedTasks}/${report.plannedTasks} passed=${report.completedTasks} overall=${report.overall}`,
+    });
   }
 }
 

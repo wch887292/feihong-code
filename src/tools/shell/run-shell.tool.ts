@@ -8,6 +8,9 @@ import { z } from 'zod';
 import type { Tool, ToolContext, ToolResult } from '../tool.interface';
 import { runCommand, commandHead } from './exec';
 
+/** Shell 注入元字符 — 命中则需额外审批 */
+const SHELL_INJECTION_RE = /[;&|`$(){}<>!]|&&|\|\||\b(alias|eval|exec|source)\b/;
+
 export const runShellTool: Tool = {
   name: 'run_shell',
   description: '执行 shell 命令（受白名单约束，需审批时会被拦截）',
@@ -20,8 +23,14 @@ export const runShellTool: Tool = {
   async execute(args, ctx: ToolContext): Promise<ToolResult> {
     const { command } = args as { command: string };
     const head = commandHead(command);
-    if (ctx.security.shellAllowlist.length > 0 && !ctx.security.shellAllowlist.includes(head)) {
-      return { ok: false, output: '', error: `命令不在白名单: ${head}` };
+    if (ctx.security.shellAllowlist.length > 0) {
+      // 白名单检查：首词必须在白名单中，且含注入元字符时拒绝（防止 git; rm -rf / 绕过）
+      if (!ctx.security.shellAllowlist.includes(head)) {
+        return { ok: false, output: '', error: `命令不在白名单: ${head}` };
+      }
+      if (SHELL_INJECTION_RE.test(command)) {
+        return { ok: false, output: '', error: `命令含 shell 注入风险，已被拦截: ${command.slice(0, 100)}` };
+      }
     }
     if (ctx.security.requireApproval) {
       const approved = ctx.approve ? await ctx.approve(`run_shell: ${command}`) : false;

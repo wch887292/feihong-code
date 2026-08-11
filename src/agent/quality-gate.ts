@@ -66,7 +66,7 @@ export class QualityGate {
     // 2. 代码质量分析
     const analysis = analyzeFile(filePath, content);
     const complexity = analysis.metrics.complexity;
-    const nullRisk = analysis.issues.filter((i) => i.type === 'bug' && i.message.includes('null') || i.message.includes('undefined')).length;
+    const nullRisk = analysis.issues.filter((i) => i.type === 'bug' && (i.message.includes('null') || i.message.includes('undefined'))).length;
     checks.push({
       name: '复杂度',
       passed: complexity <= this.config.maxComplexity,
@@ -82,7 +82,7 @@ export class QualityGate {
 
     // 3. 测试文件检查
     if (this.config.requireTests) {
-      const testFile = filePath.replace('.ts', '.test.ts');
+      const testFile = filePath.replace(/\.ts$/, '.test.ts');
       const hasTest = existsSync(testFile);
       checks.push({
         name: '测试覆盖',
@@ -113,8 +113,8 @@ export class QualityGate {
     const files = this.findTypeScriptFiles(dirPath, maxFiles);
     for (const file of files) {
       const content = require('fs').readFileSync(file, 'utf8');
-      const testFile = file.replace('.ts', '.test.ts');
-      if (!existsSync(testFile)) {
+      const testFile = file.replace(/\.ts$/, '.test.ts');
+      if (existsSync(testFile)) {
         const funcName = this.inferFunctionName(content);
         const testCases = inferTestCases(funcName, content.slice(0, 500));
         const testCode = generateJestTest(file, funcName, testCases);

@@ -136,15 +136,13 @@ function summarizeSessions(sessionDir: string): {
   let sessions = 0;
   let costUsd = 0;
   let lastActiveAt = '-';
-  // 避免为汇总而反序列化整份对话：仅正则提取所需字段
   for (const f of readdirSync(sessionDir)) {
     if (!f.endsWith('.session.json')) continue;
     sessions++;
     try {
-      const text = readTextSafe(join(sessionDir, f));
-      costUsd += Number(/"costUsd":\s*([0-9.eE+-]+)/.exec(text)?.[1] ?? 0);
-      const at = /"updatedAt":\s*"([^"]+)"/.exec(text)?.[1] ?? '';
-      if (at > lastActiveAt) lastActiveAt = at;
+      const cp: { updatedAt?: string; costUsd?: number } = JSON.parse(readTextSafe(join(sessionDir, f)));
+      costUsd += Number(cp.costUsd ?? 0);
+      if (cp.updatedAt && cp.updatedAt > lastActiveAt) lastActiveAt = cp.updatedAt;
     } catch {
       /* 跳过损坏文件 */
     }

@@ -237,7 +237,7 @@ export class Orchestrator {
           const errorAnalysis = classifyError(lastToolMsg.content || '', '');
           if (errorAnalysis) {
             errorHistory.push(errorAnalysis);
-            await logRecoveryAttempt({ append: eventLog.append.bind(eventLog) } as any, calls, errorAnalysis, false);
+            await logRecoveryAttempt(eventLog as any, calls, errorAnalysis, false);
             consecutiveErrors = consecutiveErrorsCount;
 
             if (failed) {

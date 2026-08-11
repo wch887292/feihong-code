@@ -61,11 +61,20 @@ export const grepTool: Tool = {
   },
   schema: z.object({ pattern: z.string().min(1), path: z.string().min(1).optional() }),
   async execute(args, ctx: ToolContext): Promise<ToolResult> {
-    const { pattern, path } = args as { pattern: string; path?: string };
-    const base = safeJoin(ctx.cwd, path ?? '.');
-    const regex = new RegExp(pattern, 'i');
-    const hits: string[] = [];
-    await walk(base, 0, regex, base, hits);
-    return { ok: true, output: hits.length ? hits.slice(0, 50).join('\n') : '无匹配' };
+    try {
+      const { pattern, path } = args as { pattern: string; path?: string };
+      let regex: RegExp;
+      try {
+        regex = new RegExp(pattern, 'i');
+      } catch {
+        return { ok: false, output: '', error: `无效的正则表达式: "${pattern}"` };
+      }
+      const base = safeJoin(ctx.cwd, path ?? '.');
+      const hits: string[] = [];
+      await walk(base, 0, regex, base, hits);
+      return { ok: true, output: hits.length ? hits.slice(0, 50).join('\n') : '无匹配' };
+    } catch (err) {
+      return { ok: false, output: '', error: `grep 搜索失败: ${err instanceof Error ? err.message : String(err)}` };
+    }
   },
 };

@@ -151,7 +151,7 @@ export class CodeWriter {
     let newContent = content;
     for (const issue of highIssues) {
       const fix = this.issueToFix(issue);
-      newContent = newContent.replace(fix.pattern, fix.replacement);
+      newContent = newContent.replace(fix.pattern, fix.replacement as any);
     }
     writeFileSync(absPath, newContent, 'utf8');
     this.issuesFixed += highIssues.length;
@@ -245,9 +245,12 @@ export class CodeWriter {
     return match?.[1] || 'main';
   }
 
-  private issueToFix(issue: { message: string; suggestion: string }): { pattern: RegExp; replacement: string } {
+  private issueToFix(issue: { message: string; suggestion: string }): { pattern: RegExp; replacement: string | ((substring: string, ...args: string[]) => string) } {
     if (issue.message.includes('硬编码')) {
-      return { pattern: /['"`][^'"`]*(password|secret|key|token)[^'"`]*['"`]/gi, replacement: 'process.env.FH_${1?.toUpperCase()}' };
+      return {
+        pattern: /['"`][^'"`]*(password|secret|key|token)[^'"`]*['"`]/gi,
+        replacement: (_sub: string, p1: string) => `process.env.FH_${p1?.toUpperCase() ?? 'UNKNOWN'}`,
+      };
     }
     if (issue.message.includes('SQL')) {
       return { pattern: /['"][\s\S]*?SELECT[\s\S]*?['"]/gi, replacement: '// 使用参数化查询' };

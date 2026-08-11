@@ -40,7 +40,16 @@ export type ManagementCommand =
   | { kind: 'experiences'; path?: string }
   | { kind: 'code-write'; goal: string; filePath: string }
   | { kind: 'quality-gate'; path: string }
-  | { kind: 'self-improve' };
+  | { kind: 'self-improve' }
+  | {
+      kind: 'swe';
+      goal: string;
+      repo?: string;
+      maxTasks: number;
+      maxRetries: number;
+      verifyOnly: boolean;
+      planOnly: boolean;
+    };
 
 export interface ParsedArgs {
   flags: {
@@ -50,6 +59,11 @@ export interface ParsedArgs {
     yes?: boolean;
     limit?: number;
     port?: number;
+    repo?: string;
+    maxTasks?: number;
+    maxRetries?: number;
+    verifyOnly?: boolean;
+    planOnly?: boolean;
   };
   /** 单命令模式下的需求文本（首个非 flag 参数） */
   command?: string;
@@ -70,18 +84,40 @@ export function parseArgs(argv: string[]): ParsedArgs {
     else if (arg === '--parallel') flags.parallel = true;
     else if (arg === '--yes') flags.yes = true;
     else if (arg === '--port') {
-      const n = Number(argv[++i]);
-      if (Number.isFinite(n) && n > 0) flags.port = Math.floor(n);
+      const next = argv[++i];
+      const n = Number(next);
+      if (next !== undefined && Number.isFinite(n) && n > 0) flags.port = Math.floor(n);
     } else if (arg.startsWith('--port=')) {
       const n = Number(arg.slice('--port='.length));
       if (Number.isFinite(n) && n > 0) flags.port = Math.floor(n);
     }
     else if (arg === '--limit') {
-      const n = Number(argv[++i]);
-      if (Number.isFinite(n) && n > 0) flags.limit = Math.floor(n);
-    } else if (arg.startsWith('--limit=')) {
+      const next = argv[++i];
+      const n = Number(next);
+      if (next !== undefined && Number.isFinite(n) && n > 0) flags.limit = Math.floor(n);
+    }     else if (arg.startsWith('--limit=')) {
       const n = Number(arg.slice('--limit='.length));
       if (Number.isFinite(n) && n > 0) flags.limit = Math.floor(n);
+    } else if (arg === '--repo') {
+      flags.repo = argv[++i];
+    } else if (arg.startsWith('--repo=')) {
+      flags.repo = arg.slice('--repo='.length);
+    } else if (arg === '--max-tasks') {
+      const n = Number(argv[++i]);
+      if (Number.isFinite(n) && n > 0) flags.maxTasks = Math.floor(n);
+    } else if (arg.startsWith('--max-tasks=')) {
+      const n = Number(arg.slice('--max-tasks='.length));
+      if (Number.isFinite(n) && n > 0) flags.maxTasks = Math.floor(n);
+    } else if (arg === '--max-retries') {
+      const n = Number(argv[++i]);
+      if (Number.isFinite(n) && n >= 0) flags.maxRetries = Math.floor(n);
+    } else if (arg.startsWith('--max-retries=')) {
+      const n = Number(arg.slice('--max-retries='.length));
+      if (Number.isFinite(n) && n >= 0) flags.maxRetries = Math.floor(n);
+    } else if (arg === '--verify-only') {
+      flags.verifyOnly = true;
+    } else if (arg === '--plan-only') {
+      flags.planOnly = true;
     } else positional.push(arg);
   }
 
@@ -134,6 +170,22 @@ export function parseArgs(argv: string[]): ParsedArgs {
   }
   if (head === 'self-improve') {
     return { flags, manage: { kind: 'self-improve' } };
+  }
+
+  // M9 全自动软件工程 Agent
+  if (head === 'swe') {
+    return {
+      flags,
+      manage: {
+        kind: 'swe',
+        goal: rest.join(' ') || 'auto-improve',
+        repo: flags.repo,
+        maxTasks: flags.maxTasks ?? 8,
+        maxRetries: flags.maxRetries ?? 2,
+        verifyOnly: !!flags.verifyOnly,
+        planOnly: !!flags.planOnly,
+      },
+    };
   }
 
   // 斜杠技能

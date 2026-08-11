@@ -7,7 +7,7 @@
  * - 存储到 FH_HOME/experiences/*.jsonl
  * - 下次任务开始时加载相关经验注入 system prompt
  */
-import { appendFile, mkdir, readFile } from 'fs/promises';
+import { appendFile, mkdir, readFile, writeFile } from 'fs/promises';
 import { existsSync } from 'fs';
 import { join } from 'path';
 import type { ChatMessage } from '../models/model.interface';
@@ -175,7 +175,7 @@ export async function updateExperienceUsage(experienceDir: string, experienceId:
       }
     });
 
-    await appendFile(file, updatedLines.join('\n') + '\n', 'utf8');
+    await writeFile(file, updatedLines.join('\n') + '\n', 'utf8');
   } catch {
     // 静默失败
   }

@@ -31,6 +31,7 @@ import {
   runCodeWrite,
   runQualityGate,
   runSelfImprove,
+  runSwe,
 } from './run';
 import { VERSION, PRODUCT, TAGLINE, SIGNATURE } from './version';
 
@@ -74,6 +75,14 @@ Web 控制台 (M5):
   fhcode code-write "<目标>"         自主编写代码（规划→编写→测试→审查→修复）
   fhcode quality-gate [路径]         质量门禁审查（安全+质量+测试覆盖）
   fhcode self-improve                自我改进统计与历史
+
+全自动软件工程 Agent (M9):
+  fhcode swe "<目标>"                读取仓库→拆解规划→实现+验证+自愈→报告
+                                     --repo <路径> 指定仓库(默认当前目录)
+                                     --plan-only 仅规划不执行
+                                     --verify-only 仅跑验证不实现
+                                     --max-tasks N 限制子任务数(默认8)
+                                     --max-retries N 单任务自愈重试(默认2)
 
   fhcode --version                   显示版本 (-v)
   fhcode --help                      显示帮助 (-h)
@@ -135,6 +144,14 @@ async function main(): Promise<void> {
       runQualityGate(m.path);
     } else if (m.kind === 'self-improve') {
       runSelfImprove();
+    } else if (m.kind === 'swe') {
+      await runSwe(m.goal, {
+        repo: m.repo,
+        maxTasks: m.maxTasks,
+        maxRetries: m.maxRetries,
+        verifyOnly: m.verifyOnly,
+        planOnly: m.planOnly,
+      });
     }
     return;
   }

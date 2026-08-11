@@ -2,6 +2,21 @@
 
 本文件遵循 [Keep a Changelog](https://keepachangelog.com/) 约定，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.2.0] — 2026-08-11（M9 全自动软件工程 Agent）
+
+> 新增全自动软件工程 Agent（M9），对标业界"读取仓库→拆解→改码→跑测试→验证"长链路自主开发范式。
+
+### 新增（Added）
+- **仓库读取器（repo-reader）**：扫描整个（大型）代码仓库，含文件数/体积限流、`.gitignore` 解析、语言分布、关键文件识别、测试/构建命令探测、目录树与上下文串。
+- **任务拆解规划器（swe-planner）**：将目标拆解为有序、可独立验证的子任务（勘察→实现/修复/重构→测试→构建验证），每个子任务携带目标文件、验收标准与验证命令。
+- **验证器（swe-verifier）**：根据仓库快照自动执行构建与测试，解析 exit code 与输出，判定每步/整体通过/失败，产出错误摘要供自愈注入。
+- **全自动 Agent 主编排（swe-agent）**：读取仓库→规划→逐任务（委托 Orchestrator 实现 + 构建/测试验证 + 失败自愈重试）→ 产出结构化 `SweReport`；支持 `plan-only` / `verify-only` / `max-tasks` / `max-retries` 模式。
+- **CLI 命令**：`fhcode swe "<目标>" [--repo PATH] [--plan-only] [--verify-only] [--max-tasks N] [--max-retries N]`。
+- **验证脚本**：`scripts/verify-m9.mjs`（25 项离线断言，覆盖四阶段 + 自愈路径）。
+
+### 校验（Verified）
+- TypeScript 零错误；M4 企业能力验证 41/41 通过；M9 验证 25/25 通过。
+
 ## [0.1.0] — 2026-08-10（稳定版 / Stable）
 
 > M4 企业级能力合入，fhcode 进入可稳定部署状态。

@@ -8,6 +8,10 @@
 import { spawn } from 'child_process';
 import { existsSync, rmSync } from 'fs';
 import { join } from 'path';
+import { platform } from 'os';
+
+/** 跨平台空设备路径（Windows 用 nul，POSIX 用 /dev/null） */
+const NULL_DEVICE = platform() === 'win32' ? 'nul' : '/dev/null';
 
 interface GitOut {
   code: number;
@@ -55,7 +59,7 @@ export async function gitDiff(cwd: string, files?: string[]): Promise<string> {
   for (const f of untrackedToShow) {
     const abs = join(cwd, f);
     if (!existsSync(abs)) continue;
-    const ni = await git(['diff', '--no-index', '--color=never', '/dev/null', abs.replace(/\\/g, '/')], cwd);
+    const ni = await git(['diff', '--no-index', '--color=never', NULL_DEVICE, abs.replace(/\\/g, '/')], cwd);
     parts.push(ni.out || `(新增文件: ${f})`);
   }
   return parts.join('\n').trim() || '(无变更)';

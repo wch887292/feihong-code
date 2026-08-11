@@ -33,11 +33,10 @@ export function tenantSpendToday(sessionDir: string, day = todayUtc()): {
   for (const f of readdirSync(sessionDir)) {
     if (!f.endsWith('.session.json')) continue;
     try {
-      const text = readFileSync(join(sessionDir, f), 'utf8');
-      const at = /"updatedAt":\s*"([^"]+)"/.exec(text)?.[1] ?? '';
-      if (!at.startsWith(day)) continue;
+      const cp: { updatedAt?: string; costUsd?: number } = JSON.parse(readFileSync(join(sessionDir, f), 'utf8'));
+      if (!cp.updatedAt?.startsWith(day)) continue;
       sessions++;
-      usedUsd += Number(/"costUsd":\s*([0-9.eE+-]+)/.exec(text)?.[1] ?? 0);
+      usedUsd += Number(cp.costUsd ?? 0);
     } catch {
       /* 跳过损坏文件 */
     }
