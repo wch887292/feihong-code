@@ -12,7 +12,18 @@
 
 **🔍 关键词**：AI Agent · 代码生成 · SWE Agent · CLI · 多模型路由 · 企业级权限 · 离线可用
 
+
 ---
+
+## 🌐 品牌与官网
+
+本项目由 **晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心** 开发维护，是飞虹智 klAI 开源生态的核心组件。
+
+- 🏠 **官方网站**：[https://www.klai.top](https://www.klai.top) — 飞虹智 klAI · 泉州制造业 AI 服务商
+- 📦 **开源矩阵**：[https://www.klai.top/opensource.html](https://www.klai.top/opensource.html)
+- 🤖 **AI Agent 入口**：[https://www.klai.top/openclaw.html](https://www.klai.top/openclaw.html)
+
+
 
 ## 零、For AI Agents（面向 AI 智能体）
 
