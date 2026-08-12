@@ -13,7 +13,7 @@ import { tmpdir, homedir } from 'os';
 import { join, dirname } from 'path';
 import { createInterface } from 'readline';
 import { setRunId, logger } from '../shared/logger';
-import { loadConfig } from '../shared/config';
+import { loadConfig, loadConfigFile } from '../shared/config';
 import { AppError } from '../shared/errors';
 import { ModelRouter } from '../models/model-router';
 import { ScriptedMockProvider, type MockStep } from '../models/providers/mock.provider';
@@ -217,15 +217,19 @@ export async function runGoal(goal: string, opts: RunOptions = {}): Promise<void
 
 /** 默认是否离线：未配置 FH_PROVIDERS 或为空数组时离线 */
 export function isOfflineByDefault(): boolean {
-  const raw = process.env.FH_PROVIDERS;
+  // M9.1 实测修复：此前仅看 FH_PROVIDERS，导致文档示例「单环境变量快速接入」
+  // （FH_MODEL_NAME=... FH_MODEL_TYPE=ollama）实际仍落入离线 mock，真实模型接不进来。
   if (process.env.FH_OFFLINE === 'true') return true;
-  if (!raw) return true;
+  if (process.env.FH_OFFLINE === 'false') return false;
+  // 任一真实模型接入方式存在即进入真实模式
+  if (process.env.FH_PROVIDERS || process.env.FH_MODEL_NAME) return false;
   try {
-    const providers = JSON.parse(raw);
-    return Array.isArray(providers) && (providers as unknown[]).length === 0;
+    const cfg = loadConfigFile();
+    if (cfg?.models?.providers && cfg.models.providers.length > 0) return false;
   } catch {
-    return true;
+    /* 配置文件缺失/损坏忽略 */
   }
+  return true;
 }
 
 /* ===================== M2：技能与并行入口 ===================== */

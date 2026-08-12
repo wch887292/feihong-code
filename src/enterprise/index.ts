@@ -63,7 +63,11 @@ export function createEnterpriseRuntime(baseHome = resolveHomeDir()): Enterprise
 
 /** 配额超限时抛出（fail-fast，任务启动前拦截，不产生任何模型费用） */
 export function assertQuota(rt: EnterpriseRuntime): void {
-  if (!rt.quota.exceeded) return;
+  // M14 修复：每次实时复核配额，而非依赖运行时创建时的快照。
+  // 否则会话内累计成本越过预算后，rt.quota.exceeded 仍为 false，冻结失效。
+  const live = checkQuota(rt.tenant, rt.policy);
+  rt.quota = live;
+  if (!live.exceeded) return;
   rt.audit.record({
     tenantId: rt.tenant.tenantId,
     userId: rt.tenant.userId,

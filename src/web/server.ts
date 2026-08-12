@@ -38,7 +38,8 @@ export function startWebServer(opts: ServeOptions = {}): ServeHandle {
   }
 
   const app = express();
-  app.use(express.json());
+  // M8 修复：限制请求体大小，防止超大 payload 触发内存耗尽（DoS 面）
+  app.use(express.json({ limit: '1mb' }));
 
   // 静态仪表盘（S3 填充；S1 占位页）
   const publicDir = join(__dirname, 'public');

@@ -12,7 +12,18 @@
  * 脱敏：resource/reason 中的 key/token/secret/password 一律替换为 ***
  */
 import { createHash } from 'crypto';
-import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync } from 'fs';
+import {
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  openSync,
+  closeSync,
+  unlinkSync,
+  statSync,
+  writeSync,
+} from 'fs';
 import { join } from 'path';
 import { logger } from '../shared/logger';
 
@@ -38,13 +49,27 @@ export type AuditInput = Omit<AuditRecord, 'seq' | 'ts' | 'prevHash' | 'hash'>;
 
 const GENESIS = '0'.repeat(64);
 
-const SECRET_RE =
-  /((?:api[_-]?key|apikey|secret|token|password|passwd|pwd|authorization|bearer)\s*[=:]\s*)(\S+)/gi;
+// M12 修复：扩充敏感字段识别，覆盖常见密钥/令牌形态（含 JSON 键值、Bearer、JWT）。
+const SECRET_KEYS =
+  'api[_-]?key|apikey|secret|client[_-]?secret|access[_-]?token|refresh[_-]?token|' +
+  'token|password|passwd|pwd|authorization|bearer|private[_-]?key|cookie|credential|' +
+  'passphrase|session[_-]?id|x-api-key';
+// 匹配 key=value / key:value / "key":"value" / 'key':'value'，捕获前导与值
+const SECRET_RE = new RegExp(
+  `((?:${SECRET_KEYS})["']?\\s*[=:]\\s*["']?)([^"'\\s]+)`,
+  'gi',
+);
+const BEARER_RE = /\bBearer\s+(\S+)/gi;
+const JWT_RE = /\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g;
 const SK_RE = /\b(sk-[A-Za-z0-9_-]{8,})\b/g;
 
 /** 敏感信息脱敏（审计日志同样不得泄密） */
 export function redact(text: string): string {
-  return text.replace(SECRET_RE, (_m, p1: string) => `${p1}***`).replace(SK_RE, 'sk-***');
+  return text
+    .replace(SECRET_RE, '$1***')
+    .replace(BEARER_RE, 'Bearer ***')
+    .replace(JWT_RE, '***')
+    .replace(SK_RE, 'sk-***');
 }
 
 function computeHash(r: Omit<AuditRecord, 'hash'>): string {
@@ -67,6 +92,92 @@ function computeHash(r: Omit<AuditRecord, 'hash'>): string {
 function monthFile(dir: string, d = new Date()): string {
   const ym = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
   return join(dir, `audit-${ym}.jsonl`);
+}
+
+/**
+ * M5 修复：读取审计文件最后一条有效记录（用于跨进程重算 seq/prevHash）。
+ * 空文件或无有效行返回 null。
+ */
+function readLastRecord(file: string): AuditRecord | null {
+  if (!existsSync(file)) return null;
+  const lines = readFileSync(file, 'utf8').split('\n');
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    try {
+      return JSON.parse(line) as AuditRecord;
+    } catch {
+      /* 跳过损坏行 */
+    }
+  }
+  return null;
+}
+
+// M5 修复：跨进程写锁参数
+const AUDIT_LOCK_FILE = '.audit.lock';
+const AUDIT_LOCK_TIMEOUT_MS = 5000;
+const AUDIT_LOCK_STALE_MS = 10000;
+
+/** 跨进程同步睡眠（Node 主线程可用 Atomics.wait 阻塞） */
+function sleepSync(ms: number): void {
+  const sab = new SharedArrayBuffer(4);
+  const view = new Int32Array(sab);
+  try {
+    Atomics.wait(view, 0, 0, ms);
+  } catch {
+    /* 不支持时直接返回，退化为忙等 */
+  }
+}
+
+/**
+ * M5 修复：跨进程 advisory 文件锁。
+ * 用 `openSync(path,'wx')` 原子创建锁文件；持有期间执行 fn；
+ * 锁超时/过期会被清理，避免挂死进程导致审计永久阻塞。
+ */
+function withAuditLock(dir: string, fn: () => void): void {
+  mkdirSync(dir, { recursive: true });
+  const lockPath = join(dir, AUDIT_LOCK_FILE);
+  const deadline = Date.now() + AUDIT_LOCK_TIMEOUT_MS;
+  for (;;) {
+    try {
+      const fd = openSync(lockPath, 'wx');
+      try {
+        writeSync(fd, String(process.pid));
+      } finally {
+        closeSync(fd);
+      }
+      try {
+        fn();
+        return;
+      } finally {
+        try {
+          unlinkSync(lockPath);
+        } catch {
+          /* 忽略清理失败 */
+        }
+      }
+    } catch (e: unknown) {
+      const code = (e as NodeJS.ErrnoException)?.code;
+      if (code === 'EEXIST') {
+        // 锁被占用：检查是否过期（进程崩溃遗留）
+        try {
+          const st = statSync(lockPath);
+          if (Date.now() - st.mtimeMs > AUDIT_LOCK_STALE_MS) {
+            unlinkSync(lockPath);
+            continue;
+          }
+        } catch {
+          /* 锁已消失，重试 */
+        }
+        if (Date.now() > deadline) {
+          throw new Error('审计写入锁等待超时（可能存在挂死的写进程）');
+        }
+        sleepSync(10);
+        continue;
+      }
+      throw e;
+    }
+  }
 }
 
 /** 列出审计目录下按时间排序的全部分片文件 */
@@ -124,31 +235,41 @@ export class AuditLog {
   }
 
   record(input: AuditInput): AuditRecord {
-    const base: Omit<AuditRecord, 'hash'> = {
-      seq: this.seq + 1,
-      ts: new Date().toISOString(),
-      tenantId: input.tenantId,
-      userId: input.userId,
-      role: input.role,
-      runId: input.runId,
-      action: input.action,
-      resource: redact(input.resource).slice(0, 500),
-      decision: input.decision,
-      reason: redact(input.reason).slice(0, 300),
-      prevHash: this.prevHash,
-    };
-    const rec: AuditRecord = { ...base, hash: computeHash(base) };
-    try {
-      mkdirSync(this.dir, { recursive: true });
-      appendFileSync(monthFile(this.dir), JSON.stringify(rec) + '\n', 'utf8');
-      this.seq = rec.seq;
-      this.prevHash = rec.hash;
-    } catch (e) {
-      logger.error('审计写入失败（高危：操作将被拒绝）', {
-        error: e instanceof Error ? e.message : String(e),
-      });
-      throw e;
-    }
+    // M5 修复：跨进程加锁，并在锁内从文件尾部重算 seq/prevHash，
+    // 避免多进程各自维护的内存计数相互覆盖而破坏哈希链。
+    let rec!: AuditRecord;
+    withAuditLock(this.dir, () => {
+      const file = monthFile(this.dir);
+      const last = readLastRecord(file);
+      const seq = last ? last.seq : 0;
+      const prevHash = last ? last.hash : GENESIS;
+      const base: Omit<AuditRecord, 'hash'> = {
+        seq: seq + 1,
+        ts: new Date().toISOString(),
+        tenantId: input.tenantId,
+        userId: input.userId,
+        role: input.role,
+        runId: input.runId,
+        action: input.action,
+        resource: redact(input.resource).slice(0, 500),
+        decision: input.decision,
+        reason: redact(input.reason).slice(0, 300),
+        prevHash,
+      };
+      const next: AuditRecord = { ...base, hash: computeHash(base) };
+      try {
+        mkdirSync(this.dir, { recursive: true });
+        appendFileSync(file, JSON.stringify(next) + '\n', 'utf8');
+        this.seq = next.seq;
+        this.prevHash = next.hash;
+        rec = next;
+      } catch (e) {
+        logger.error('审计写入失败（高危：操作将被拒绝）', {
+          error: e instanceof Error ? e.message : String(e),
+        });
+        throw e;
+      }
+    });
     return rec;
   }
 
