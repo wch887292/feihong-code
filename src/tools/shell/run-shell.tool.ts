@@ -23,14 +23,15 @@ export const runShellTool: Tool = {
   async execute(args, ctx: ToolContext): Promise<ToolResult> {
     const { command } = args as { command: string };
     const head = commandHead(command);
+    // 白名单检查（仅当配置了白名单时约束首词）
     if (ctx.security.shellAllowlist.length > 0) {
-      // 白名单检查：首词必须在白名单中，且含注入元字符时拒绝（防止 git; rm -rf / 绕过）
       if (!ctx.security.shellAllowlist.includes(head)) {
         return { ok: false, output: '', error: `命令不在白名单: ${head}` };
       }
-      if (SHELL_INJECTION_RE.test(command)) {
-        return { ok: false, output: '', error: `命令含 shell 注入风险，已被拦截: ${command.slice(0, 100)}` };
-      }
+    }
+    // 注入元字符校验独立于白名单，始终执行（防止白名单关闭后命令注入逃逸）
+    if (SHELL_INJECTION_RE.test(command)) {
+      return { ok: false, output: '', error: `命令含 shell 注入风险，已被拦截: ${command.slice(0, 100)}` };
     }
     if (ctx.security.requireApproval) {
       const approved = ctx.approve ? await ctx.approve(`run_shell: ${command}`) : false;

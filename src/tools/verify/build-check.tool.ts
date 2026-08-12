@@ -6,7 +6,7 @@
  */
 import { z } from 'zod';
 import type { Tool, ToolContext, ToolResult } from '../tool.interface';
-import { runCommand } from '../shell/exec';
+import { runCommand, sanitizeManagedCommand } from '../shell/exec';
 
 export const buildCheckTool: Tool = {
   name: 'build_check',
@@ -17,7 +17,14 @@ export const buildCheckTool: Tool = {
   },
   schema: z.object({ command: z.string().min(1).optional() }),
   async execute(args, ctx: ToolContext): Promise<ToolResult> {
-    const cmd = (args.command as string) ?? 'npm run build';
+    const cmd = sanitizeManagedCommand(args.command as string | undefined, 'npm run build');
+    if (!cmd) {
+      return {
+        ok: false,
+        output: '',
+        error: '仅允许 npm/pnpm/yarn/bun 的 test 或 build 等脚本，且禁止命令注入字符（; & | ` $ 等）与危险命令',
+      };
+    }
     const res = await runCommand(cmd, ctx.cwd);
     return {
       ok: res.code === 0,

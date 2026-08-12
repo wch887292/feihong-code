@@ -96,10 +96,14 @@ export function compactContext(
   messages: ChatMessage[],
   preservedCount: number = 10,
 ): { messages: ChatMessage[]; stats: CompactionStats } {
-  const totalRounds = Math.floor(messages.length / 2); // 假设每轮 2 条消息（assistant + tool）
-  const preservedMessages = Math.min(preservedCount * 2, messages.length);
-  const earlyMessages = messages.slice(0, messages.length - preservedMessages);
-  const recentMessages = messages.slice(messages.length - preservedMessages);
+  // 始终保留首条 system 指令（messages[0]），避免压缩后丢失系统级提示导致行为退化
+  const systemMsg = messages[0]?.role === 'system' ? messages[0] : null;
+  const body = systemMsg ? messages.slice(1) : messages;
+
+  const totalRounds = Math.floor(body.length / 2); // 假设每轮 2 条消息（assistant + tool）
+  const preservedMessages = Math.min(preservedCount * 2, body.length);
+  const earlyMessages = body.slice(0, body.length - preservedMessages);
+  const recentMessages = body.slice(body.length - preservedMessages);
 
   if (earlyMessages.length === 0) {
     return { messages, stats: { originalLength: messages.length, compressedLength: messages.length, preservedMessages, compressedRounds: 0, timestamp: new Date().toISOString() } };
@@ -109,13 +113,14 @@ export function compactContext(
   const summary = extractSummary(earlyMessages);
   const compactionPrompt = generateCompactionPrompt(summary, preservedMessages, totalRounds);
 
-  // 构建压缩后的消息列表
+  // 压缩摘要作为 system message 注入；原 system 指令（如有）始终保留在首位
   const systemHint: ChatMessage = {
     role: 'system',
     content: compactionPrompt,
   };
+  const prefix = systemMsg ? [systemMsg, systemHint] : [systemHint];
 
-  const compacted: ChatMessage[] = [systemHint, ...recentMessages];
+  const compacted: ChatMessage[] = [...prefix, ...recentMessages];
   const stats: CompactionStats = {
     originalLength: messages.length,
     compressedLength: compacted.length,

@@ -544,7 +544,6 @@ export function runModelStats(): void {
     console.log('（暂无模型性能数据，执行任务后自动生成）');
     return;
   }
-  const { ModelRouter } = require('../dist/models/model-router');
   const router = new ModelRouter([], 'cost', 0, statsFile);
   router.loadStats(homeDir).then(() => {
     const stats = router.getStats();

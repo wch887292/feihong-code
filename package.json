@@ -19,6 +19,7 @@
     "dev": "tsx src/cli/index.ts",
     "typecheck": "tsc --noEmit",
     "verify:m4": "node scripts/verify-m4.mjs",
+    "test": "tsx --test tests/unit/*.test.ts",
     "verify": "npm run typecheck && npm run build && npm run verify:m4",
     "prepublishOnly": "npm run build"
   },

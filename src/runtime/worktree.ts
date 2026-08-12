@@ -61,6 +61,12 @@ export async function createWorktree(
       cwd: repoRoot,
     });
   } catch (e) {
+    // git worktree add 失败：清理已创建的临时目录，避免孤儿目录泄漏
+    try {
+      rmSync(path, { recursive: true, force: true });
+    } catch {
+      /* best-effort */
+    }
     throw new WorktreeError(
       `创建 worktree 失败 (${name}): ${e instanceof Error ? e.message : String(e)}`,
     );

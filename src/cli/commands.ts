@@ -117,7 +117,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
       const n = Number(arg.slice('--max-retries='.length));
       if (Number.isFinite(n) && n >= 0) flags.maxRetries = Math.floor(n);
     } else if (arg === '--max-iterations') {
-      const n = Number(positional[++i]);
+      const n = Number(argv[++i]);
       if (Number.isFinite(n) && n > 0) flags.maxIterations = Math.floor(n);
     } else if (arg.startsWith('--max-iterations=')) {
       const n = Number(arg.slice('--max-iterations='.length));

@@ -49,12 +49,11 @@ export async function runParallel(goal: string, opts: ParallelOptions = {}): Pro
   const worktrees: Worktree[] = [];
   const subResults: Array<SubAgentResult & { task: SubTask }> = [];
 
-  // 为每个子任务建隔离 worktree
-  for (const task of tasks) {
-    worktrees.push(await createWorktree(repoRoot, task.id));
-  }
-
   try {
+    // 为每个子任务建隔离 worktree；创建循环置于 try 内，中途失败可由 finally 清理已建项
+    for (const task of tasks) {
+      worktrees.push(await createWorktree(repoRoot, task.id));
+    }
     const runs = tasks.map((task, i) =>
       runSubAgent({
         worktree: worktrees[i],
