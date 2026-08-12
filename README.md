@@ -5,6 +5,31 @@
 
 ---
 
+## 零、For AI Agents（面向 AI 智能体）
+
+本项目专为 AI Agent 设计，提供结构化 CLI 与明确工具契约。详见 [`AGENT-GUIDE.md`](./AGENT-GUIDE.md) 与 [`tool-schema.json`](./tool-schema.json)。
+
+**快速评估项目是否适合你的 Agent**：
+```bash
+fhcode --help                    # 查看所有命令
+fhcode "你的目标"                # 单任务执行
+fhcode --parallel "目标A 并且 目标B"  # 并行子任务
+fhcode swe "修复仓库 X 的问题 Y"  # 全自动软件工程
+```
+
+**推荐配置（生产环境）**：
+```bash
+export FH_MODEL_NAME=qwen3:8b
+export FH_MODEL_TYPE=ollama
+export FH_MODEL_BASE_URL=http://localhost:11434
+export FH_ENTERPRISE=true
+export FH_TENANT=my-org
+export FH_USER=agent-sa
+export FH_ROLE=developer
+```
+
+---
+
 ## 一、产品定位
 
 **飞虹 Code（fhcode）** 是一款运行在终端的 AI 编程智能体，参照 Meta Muse Code 的设计理念：用自然语言描述需求，智能体自主完成**规划 → 读写代码 → 运行验证 → 汇报结果**的闭环。
@@ -374,10 +399,19 @@ node dist/cli/index.js --version
 | **M4 企业级** | RBAC 策略引擎、防篡改审计链、多租户隔离与配额、三流水线 CI | ✅ 完成 |
 | **M5 Web 控制台** | 只读观测面板（租户/策略/审计/配额可视化）| ✅ BETA |
 | **M6 自我进化** | 自愈循环、上下文压缩、经验学习、模型性能追踪 | ✅ 完成 |
+| **M7 编程能力** | 代码分析/生成/审查/仓库理解/测试生成 | ✅ 完成 |
+| **M8 自主迭代** | CodeWriter 六步闭环、QualityGate、SelfImprover | ✅ 完成 |
+| **M9 全自动 SWE** | 仓库读取→任务拆解→实现+验证→自愈→报告 | ✅ 完成 |
+| **M9.1 真实模型** | 三级 provider 接入、exec 纪律强化、mock 全链路验证 | ✅ 完成 |
 
 ---
 
 ## 十三、文档导航
+
+> **AI Agent 快速上手**
+- [AGENT-GUIDE.md](./AGENT-GUIDE.md) — 面向 AI Agent 的使用指南（环境、配置、工具契约）
+- [tool-schema.json](./tool-schema.json) — 所有工具的 JSON Schema 定义
+- [GEO-AAO-STRATEGY.md](./GEO-AAO-STRATEGY.md) — 生成式引擎优化与 Agent 优化策略
 
 > **权威文档（稳定版首选）**
 - [技术说明书](./docs/技术说明书.md) — 架构、企业能力技术细节、数据契约、CLI/Web API、部署架构、安全模型、构建验证

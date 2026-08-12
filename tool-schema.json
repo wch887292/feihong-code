@@ -1,0 +1,127 @@
+{
+  "name": "feihong-code",
+  "version": "0.2.1",
+  "description": "Terminal AI Coding Agent — 终端 AI 编程智能体",
+  "tools": [
+    {
+      "name": "write_file",
+      "description": "写入或覆盖文件内容。如果文件不存在则创建，如果已存在则完全替换。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "path": { "type": "string", "description": "文件相对路径（相对于工作区根目录）" },
+          "content": { "type": "string", "description": "文件的完整内容" }
+        },
+        "required": ["path", "content"],
+        "additionalProperties": false
+      },
+      "example": { "path": "src/main.ts", "content": "export function hello() { return 'world'; }" }
+    },
+    {
+      "name": "edit_file",
+      "description": "在文件中插入、删除或替换文本块。使用 oldText/newText 精确匹配。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "path": { "type": "string", "description": "目标文件路径" },
+          "oldText": { "type": "string", "description": "待替换的原文本（必须唯一存在于文件中）" },
+          "newText": { "type": "string", "description": "替换后的新文本" }
+        },
+        "required": ["path", "oldText", "newText"],
+        "additionalProperties": false
+      },
+      "example": { "path": "src/calc.ts", "oldText": "return a - b;", "newText": "return a + b;" }
+    },
+    {
+      "name": "read_file",
+      "description": "读取文件的全部内容。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "path": { "type": "string", "description": "文件相对路径" }
+        },
+        "required": ["path"],
+        "additionalProperties": false
+      },
+      "example": { "path": "package.json" }
+    },
+    {
+      "name": "list_files",
+      "description": "列出目录下的文件和子目录。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "path": { "type": "string", "description": "目录路径，默认为 '.'（工作区根）" }
+        },
+        "additionalProperties": false
+      },
+      "example": { "path": "src/" }
+    },
+    {
+      "name": "grep",
+      "description": "使用正则表达式在项目中搜索文本。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "pattern": { "type": "string", "description": "正则表达式模式" },
+          "path": { "type": "string", "description": "搜索起始目录，默认为工作区根" }
+        },
+        "required": ["pattern"],
+        "additionalProperties": false
+      },
+      "example": { "pattern": "class.*Error", "path": "src/" }
+    },
+    {
+      "name": "run_shell",
+      "description": "在工作区内执行 shell 命令。命令需通过白名单验证。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "command": { "type": "string", "description": "要执行的完整命令（如 'npm test'、'node index.js'）" }
+        },
+        "required": ["command"],
+        "additionalProperties": false
+      },
+      "example": { "command": "npm run typecheck" }
+    },
+    {
+      "name": "build_check",
+      "description": "检查项目是否能成功编译（运行 tsc --noEmit）。",
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "example": {}
+    },
+    {
+      "name": "run_tests",
+      "description": "运行测试套件并返回结果。",
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "example": {}
+    }
+  ],
+  "toolCategories": {
+    "file": ["write_file", "edit_file", "read_file", "list_files"],
+    "search": ["grep"],
+    "shell": ["run_shell"],
+    "verify": ["build_check", "run_tests"]
+  },
+  "security": {
+    "sandbox": "所有文件操作限制在工作区目录内",
+    "approval": "危险操作（shell 命令、写入敏感文件）可能需要人工审批",
+    "audit": "所有工具调用记录到 JSONL 事件日志"
+  },
+  "errorCodes": {
+    "FH_4001": "配额超限 — 日预算已耗尽，等待次日重置或申请配额",
+    "FH_4003": "权限拒绝 — 当前角色无权执行此操作，检查 RBAC 策略",
+    "FH_5001": "模型调用失败 — 网络问题或 API Key 无效，检查 provider 配置",
+    "FH_5002": "上下文压缩失败 — 对话过长，尝试使用 /plan 重新规划",
+    "FH_6001": "文件路径越权 — 路径包含 '..' 或符号链接，检查沙箱规则"
+  },
+  "authoredBy": "晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹"
+}
