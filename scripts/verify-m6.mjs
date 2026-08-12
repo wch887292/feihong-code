@@ -45,6 +45,12 @@ const {
 } = require(join(distDir, 'agent', 'experience'));
 
 // ========== M6-A: 自我修复循环 ==========
+let passed = 0, failed = 0;
+function assert(cond, msg) {
+  if (cond) passed++;
+  else { failed++; console.log(`  ❌ FAIL: ${msg}`); }
+}
+const TESTS = [];
 TESTS.push({
   name: 'M6-A 自我修复循环',
   async run() {

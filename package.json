@@ -1,6 +1,6 @@
 {
   "name": "feihong-code",
-  "version": "0.1.0",
+  "version": "0.2.1",
   "description": "飞虹 Code — 终端 AI 编程智能体（Muse Code 参照复刻）",
   "bin": {
     "fhcode": "dist/cli/index.js"
