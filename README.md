@@ -1,7 +1,16 @@
 # 飞虹 Code（fhcode）
 
-> 终端 AI 编程智能体 · **对标 Muse Code · 超越级自我进化能力**
+> **终端 AI 编程智能体** · 对标 Meta Muse Code · 全功能 M0→M9.1 完成 · 企业级 RBAC/审计/SWE Agent
 > 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+[![Node.js >= 18](https://img.shields.io/badge/node-%3E%3D18-brightgreen.svg)](https://nodejs.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue.svg)](https://typescriptlang.org)
+[![GitHub stars](https://img.shields.io/github/stars/wch887292/feihong-code?style=social)](https://github.com/wch887292/feihong-code/stargazers)
+[![GitHub issues](https://img.shields.io/github/issues/wch887292/feihong-code)](https://github.com/wch887292/feihong-code/issues)
+[![CI Status](https://github.com/wch887292/feihong-code/actions/workflows/ci.yml/badge.svg)](https://github.com/wch887292/feihong-code/actions)
+
+**🔍 关键词**：AI Agent · 代码生成 · SWE Agent · CLI · 多模型路由 · 企业级权限 · 离线可用
 
 ---
 
@@ -32,7 +41,14 @@ export FH_ROLE=developer
 
 ## 一、产品定位
 
-**飞虹 Code（fhcode）** 是一款运行在终端的 AI 编程智能体，参照 Meta Muse Code 的设计理念：用自然语言描述需求，智能体自主完成**规划 → 读写代码 → 运行验证 → 汇报结果**的闭环。
+**飞虹 Code（fhcode）** 是一款运行在终端的 **AI 编程智能体**，参照 Meta Muse Code 的设计理念：用自然语言描述需求，智能体自主完成**规划 → 读写代码 → 运行验证 → 汇报结果**的闭环。
+
+**🎯 适用场景**：
+- 代码生成与修改（函数、模块、完整功能）
+- 批量重构与代码审查
+- 离线脚本化任务与自动化工作流
+- 企业内多团队共享的智能体底座
+- 全自动软件工程（SWE Agent）：读取仓库 → 拆解任务 → 实现 + 测试验证 → 报告
 
 - 不绑定任何单一大模型厂商，通过**多模型路由层**在 DeepSeek / 通义 / Ollama（本地）/ 任意 OpenAI 兼容网关之间按需调度。
 - 所有行为以 **append-only 事件日志**为单一可信源，完全可审计、可恢复。
@@ -43,22 +59,33 @@ export FH_ROLE=developer
 
 ## 二、核心特性
 
-- ✅ **自然语言 → 代码闭环**：描述需求，自动调用工具完成改码与验证。
-- ✅ **多模型路由**：cost / capability / latency 三种策略选优，失败时自动 fallback。
-- ✅ **离线可跑**：未配置 `FH_PROVIDERS` 时自动进入脚本化 Mock 闭环，用于演示与回归（零成本）。
-- ✅ **强工具系统**：文件读写改、代码搜索、受控 shell、测试/构建验证（共 8 个工具）。
-- ✅ **多子代理并行（M2）**：`--parallel` 自动拆目标、建 worktree、并发执行、安全清理。
-- ✅ **高级技能（M2）**：`/plan` 实现计划、`/grill` 红队审查、`/goal` 目标跟踪，均为只读。
-- ✅ **完全可审计**：每次运行生成结构化事件日志（JSONL），含 `runId`。
-- ✅ **安全优先**：路径沙箱、shell 白名单、密钥脱敏、审批拦截。
-- ✅ **恢复与审计（M3）**：`sessions` 列会话、`resume` 断点续跑、`diff`/`rollback` 会话作用域变更管理、交互式审批流。
-- ✅ **企业级能力（M4）**：RBAC 权限矩阵、哈希链审计日志、多租户物理隔离、日预算配额熔断、三流水线 CI。
-- ✅ **Web 管理控制台（M5）**：`fhcode serve` 启动只读观测面板，可视化租户/策略/审计/配额。
-- ✅ **自我进化（M6）**：错误自动识别与自愈重试、长对话上下文压缩、经验学习、模型性能追踪。
-- ✅ **编程能力增强（M7）**：静态代码分析、模板化代码生成、AI 代码审查、仓库理解、测试生成。
-- ✅ **自主编程迭代（M8）**：CodeWriter 六步闭环、QualityGate 质量门禁、SelfImprover 自我改进。
-- ✅ **全自动软件工程 Agent（M9）**：`fhcode swe "<目标>"` 读取整个（大型）仓库 → 任务拆解规划 → 逐任务（实现 + 构建/测试验证 + 自愈重试）→ 产出结构化报告，自主完成长链路开发。
-- ✅ **真实模型接入与实测调优（M9.1）**：`loadConfig` 支持 `FH_PROVIDERS` / `fhcode.config.json` / 单环境变量 `FH_MODEL_*` 三级接入；`swe` 支持 `--max-iterations`；针对真实模型强化执行纪律与自愈注入；`scripts/verify-m9-real.mjs` 以 mock HTTP 服务实测真实 provider 全链路（11/11 通过）。
+### 🔥 主要亮点
+- ✅ **自然语言 → 代码闭环**：描述需求，自动调用工具完成改码与验证
+- ✅ **多模型路由**：支持 DeepSeek / 通义 / Ollama / OpenAI 兼容网关，自动选优+fallback
+- ✅ **离线可用**：无需 API Key 即可演示完整闭环（内置 Mock 驱动）
+- ✅ **企业级安全**：RBAC 权限矩阵、防篡改审计链、多租户隔离、配额熔断
+- ✅ **全自动 SWE Agent**：读取仓库 → 任务拆解 → 实现 + 测试验证 → 自愈重试 → 报告
+
+### 🛠️ 功能矩阵
+| 里程碑 | 能力 | 状态 |
+|--------|------|------|
+| **M0-M1** | CLI 基础、模型路由、文件/Shell 工具、离线闭环 | ✅ 完成 |
+| **M2** | 多子代理并行（git worktree 隔离）+ `/plan` `/grill` `/goal` 技能 | ✅ 完成 |
+| **M3** | 会话恢复、diff/rollback、交互式审批流 | ✅ 完成 |
+| **M4** | RBAC 权限、哈希链审计、多租户、配额治理、CI 三流水线 | ✅ 完成 |
+| **M5** | Web 管理控制台（BETA） | ✅ BETA |
+| **M6** | 自愈循环、上下文压缩、经验学习、模型性能追踪 | ✅ 完成 |
+| **M7** | 静态代码分析、模板化生成、AI 代码审查、仓库理解、测试生成 | ✅ 完成 |
+| **M8** | CodeWriter 六步闭环、QualityGate 质量门禁、SelfImprover 自我改进 | ✅ 完成 |
+| **M9** | 全自动软件工程 Agent（swe 命令） | ✅ 完成 |
+| **M9.1** | 真实模型接入（三级 provider 解析）、exec 纪律强化 | ✅ 完成 |
+
+### 🌟 技术亮点
+- **零依赖侵入**：仅依赖 `express` + `zod`，无框架包袱
+- **TypeScript 全量类型安全**：tsc --noEmit 零错误
+- **完整测试覆盖**：27+ 单元测试，41+ 断言的 M4 企业能力专项验证
+- **CI/CD 就绪**：GitHub Actions 三流水线（build/enterprise/security），零 Secrets 可跑
+- **Docker 多阶段构建**：支持容器化部署
 
 ---
 

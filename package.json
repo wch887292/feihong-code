@@ -1,7 +1,7 @@
 {
   "name": "feihong-code",
   "version": "0.2.1",
-  "description": "飞虹 Code — 终端 AI 编程智能体（Muse Code 参照复刻）",
+  "description": "飞虹 Code — 终端 AI 编程智能体（对标 Muse Code），支持多模型路由、企业级 RBAC/审计、全自动 SWE Agent",
   "bin": {
     "fhcode": "dist/cli/index.js"
   },
@@ -9,9 +9,14 @@
   "files": [
     "dist",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE",
     "CONTRIBUTING.md",
-    "docs"
+    "CODE_OF_CONDUCT.md",
+    "AGENT-GUIDE.md",
+    "tool-schema.json",
+    "docs",
+    ".github"
   ],
   "scripts": {
     "build": "tsc && node scripts/copy-web.cjs",
@@ -26,16 +31,44 @@
   "keywords": [
     "ai",
     "agent",
+    "ai-agent",
     "coding",
     "cli",
-    "llm"
+    "llm",
+    "large-language-model",
+    "muse-code",
+    "autonomous-agent",
+    "swe-agent",
+    "software-engineering",
+    "deepseek",
+    "ollama",
+    "openai",
+    "typescript",
+    "rbac",
+    "enterprise",
+    "multi-tenant",
+    "code-generation",
+    "test-generation"
   ],
-  "author": "吴赐虹",
+  "author": "吴赐虹 <wch887292@gmail.com>",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wch887292/feihong-code.git"
+  },
+  "homepage": "https://github.com/wch887292/feihong-code#readme",
+  "bugs": {
+    "url": "https://github.com/wch887292/feihong-code/issues"
+  },
   "engines": {
-    "node": ">=18"
+    "node": ">=18.0.0"
+  },
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/wch887292"
   },
   "devDependencies": {
+    "@types/express": "^4.17.21",
     "@types/node": "^26.2.0",
     "tsx": "^4.19.2",
     "typescript": "^5.6.3"
