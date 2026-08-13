@@ -67,7 +67,7 @@ TESTS.push({
     assert(runtimeError && runtimeError.category === 'runtime-error', 'classifyError 应识别运行时错误');
 
     // 测试 3: classifyError 识别路径穿越
-    const pathError = classifyError('', '路径穿越检测：文件路径包含非法字符');
+    const pathError = classifyError('', 'path traversal detected: file path contains illegal characters');
     assert(pathError && pathError.category === 'path-traversal', 'classifyError 应识别路径错误');
 
     // 测试 4: injectReflection 注入反思消息
@@ -140,8 +140,8 @@ TESTS.push({
     await saveExperience(expDir, experiences[0]);
     assert(existsSync(join(expDir, 'experiences.jsonl')), '经验应保存到文件');
 
-    // 测试 3: 加载经验
-    const loaded = await loadExperiences(expDir, ['test']);
+    // 测试 3: 加载经验（使用 experience 标题中的关键词）
+    const loaded = await loadExperiences(expDir, ['list_dir']);
     assert(loaded.length === 1, '应加载 1 条匹配经验');
 
     // 测试 4: 经验提示生成
@@ -211,7 +211,11 @@ TESTS.push({
       tags: ['code-gen'],
       costPer1k: 0,
       chat: async () => ({
-        message: { role: 'assistant', content: '已完成', toolCalls: [] },
+        message: {
+          role: 'assistant',
+          content: '已完成',
+          toolCalls: [{ id: '1', name: 'write_file', arguments: { path: 'test.ts', content: 'test' } }],
+        },
         providerId: 'mock',
         model: 'mock',
         costUsd: 0,
