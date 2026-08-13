@@ -32,6 +32,8 @@ import {
   runQualityGate,
   runSelfImprove,
   runSwe,
+  runModelStats,
+  runExperiences,
 } from './run';
 import { VERSION, PRODUCT, TAGLINE, SIGNATURE } from './version';
 
@@ -144,6 +146,10 @@ async function main(): Promise<void> {
       runQualityGate(m.path);
     } else if (m.kind === 'self-improve') {
       runSelfImprove();
+    } else if (m.kind === 'model-stats') {
+      runModelStats();
+    } else if (m.kind === 'experiences') {
+      runExperiences(m.path);
     } else if (m.kind === 'swe') {
       await runSwe(m.goal, {
         repo: m.repo,
