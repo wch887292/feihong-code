@@ -54,11 +54,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/wch887292/feihong-code.git"
+    "url": "https://gitcode.com/gcw_YuRlTP0G/feihong-code.git"
   },
-  "homepage": "https://github.com/wch887292/feihong-code#readme",
+  "homepage": "https://gitcode.com/gcw_YuRlTP0G/feihong-code#readme",
   "bugs": {
-    "url": "https://github.com/wch887292/feihong-code/issues"
+    "url": "https://gitcode.com/gcw_YuRlTP0G/feihong-code/issues"
   },
   "engines": {
     "node": ">=18.0.0"
@@ -76,5 +76,8 @@
   "dependencies": {
     "express": "^4.21.2",
     "zod": "^4.4.3"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/"
   }
 }

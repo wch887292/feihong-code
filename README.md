@@ -118,15 +118,18 @@ node dist/cli/index.js --version
 bash install.sh
 ```
 
-### 方式二：全局安装（发布到 npm 后）
+### 方式二：全局安装（已发布到 npm）
 
 ```bash
+# 官方源
 npm install -g feihong-code
+# 国内镜像（加速）
+npm install -g feihong-code --registry=https://registry.npmmirror.com
 fhcode --version           # 直接调用 bin（Windows 下为 fhcode.cmd）
 ```
 
 > 要求 Node.js >= 18。入口 `dist/cli/index.js` 已带 `#!/usr/bin/env node` shebang。
-
+> 源码与问题反馈已迁移至 GitCode 镜像仓库：<https://gitcode.com/gcw_YuRlTP0G/feihong-code>
 ### 方式三：Docker
 
 ```bash
