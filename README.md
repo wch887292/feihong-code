@@ -147,6 +147,7 @@ npm install -g feihong-code
 # 国内镜像（加速）
 npm install -g feihong-code --registry=https://registry.npmmirror.com
 fhcode --version           # 直接调用 bin（Windows 下为 fhcode.cmd）
+> 也支持别名包：`npm install -g feihong-cli`（与 feihong-code 同源，bin 同为 `fhcode`）。
 ```
 
 > 要求 Node.js >= 18。入口 `dist/cli/index.js` 已带 `#!/usr/bin/env node` shebang。
