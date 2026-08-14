@@ -1,7 +1,7 @@
 {
   "name": "feihong-code",
-  "version": "0.2.1",
-  "description": "飞虹 Code — 终端 AI 编程智能体（对标 Muse Code），支持多模型路由、企业级 RBAC/审计、全自动 SWE Agent",
+  "version": "0.2.2",
+  "description": "fhcode（飞虹 Code）— 终端 AI 编程智能体，对标 Muse Code / Cursor CLI：多模型路由（DeepSeek/通义/Ollama/OpenAI）、企业级 RBAC 审计、全自动 SWE Agent、支持离线私有化",
   "bin": {
     "fhcode": "dist/cli/index.js"
   },
@@ -48,15 +48,41 @@
     "enterprise",
     "multi-tenant",
     "code-generation",
-    "test-generation"
+    "test-generation",
+    "terminal",
+    "developer-tools",
+    "productivity",
+    "agentic",
+    "vibe-coding",
+    "code-review",
+    "refactor",
+    "automation",
+    "mcp",
+    "tool-use",
+    "claude",
+    "copilot",
+    "chatgpt",
+    "devops",
+    "agent-framework",
+    "ai-tools",
+    "coding-assistant",
+    "self-improving",
+    "offline-ai",
+    "ai-coding",
+    "command-line",
+    "software-development",
+    "llm-agent",
+    "nodejs-cli",
+    "code-assistant",
+    "agentic-ai"
   ],
-  "author": "吴赐虹 <wch887292@gmail.com>",
+  "author": "吴赐虹 (晋江市飞虹智科技企业管理有限公司) <wch887292@gmail.com>",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://gitcode.com/gcw_YuRlTP0G/feihong-code.git"
   },
-  "homepage": "https://gitcode.com/gcw_YuRlTP0G/feihong-code#readme",
+  "homepage": "https://www.klai.top",
   "bugs": {
     "url": "https://gitcode.com/gcw_YuRlTP0G/feihong-code/issues"
   },
@@ -64,8 +90,8 @@
     "node": ">=18.0.0"
   },
   "funding": {
-    "type": "github",
-    "url": "https://github.com/sponsors/wch887292"
+    "type": "company",
+    "url": "https://www.klai.top"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",

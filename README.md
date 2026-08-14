@@ -8,9 +8,15 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue.svg)](https://typescriptlang.org)
 [![GitHub stars](https://img.shields.io/github/stars/wch887292/feihong-code?style=social)](https://github.com/wch887292/feihong-code/stargazers)
 [![GitHub issues](https://img.shields.io/github/issues/wch887292/feihong-code)](https://github.com/wch887292/feihong-code/issues)
+[![npm version](https://img.shields.io/npm/v/feihong-code.svg)](https://www.npmjs.com/package/feihong-code)
+[![npm downloads (monthly)](https://img.shields.io/npm/dm/feihong-code.svg)](https://www.npmjs.com/package/feihong-code)
+[![npm downloads (total)](https://img.shields.io/npm/dt/feihong-code.svg)](https://www.npmjs.com/package/feihong-code)
 [![CI Status](https://github.com/wch887292/feihong-code/actions/workflows/ci.yml/badge.svg)](https://github.com/wch887292/feihong-code/actions)
 
 **🔍 关键词**：AI Agent · 代码生成 · SWE Agent · CLI · 多模型路由 · 企业级权限 · 离线可用
+
+**📦 一键安装**：`npm install -g feihong-code` · 国内镜像：`npm install -g feihong-code --registry=https://registry.npmmirror.com`
+**🚀 5 分钟上手**：`fhcode --version` → `fhcode chat`（离线模式免 API Key 即可对话）
 
 
 ---
@@ -67,6 +73,21 @@ export FH_ROLE=developer
 - **M2 多子代理并行**：用 `git worktree` 物理隔离多个子代理工作区，并发推进互不干扰。
 
 ---
+
+### 🆚 与其他工具对比
+
+| 能力 | **fhcode（飞虹 Code）** | Claude Code | Cursor CLI | Aider | OpenCode |
+|---|---|---|---|---|---|
+| 终端原生 CLI | ✅ | ✅ | ⚠️（编辑器内） | ✅ | ✅ |
+| 多模型路由（DeepSeek/通义/Ollama/OpenAI） | ✅ | ❌（仅 Anthropic） | ⚠️ | ⚠️ | ✅ |
+| 离线 / 私有化（数据不出内网） | ✅（Ollama 本地） | ❌ | ❌ | ⚠️ | ✅ |
+| 企业级 RBAC / 审计链 | ✅ | ❌ | ❌ | ❌ | ❌ |
+| 全自动 SWE Agent（M0→M9.1） | ✅ | ✅ | ⚠️ | ✅ | ⚠️ |
+| 多子代理并行（M2） | ✅ | ✅ | ❌ | ❌ | ❌ |
+| 自我进化（M6） | ✅ | ❌ | ❌ | ❌ | ❌ |
+| 开源可自托管（MIT） | ✅ | ❌ | ❌ | ✅ Apache-2.0 | ✅ MIT |
+
+> 最适合：**数据不出内网**、需要**企业权限审计**、希望**混合调度多家大模型**的团队与个人开发者。
 
 ## 二、核心特性
 
