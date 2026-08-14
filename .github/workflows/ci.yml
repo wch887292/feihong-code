@@ -104,7 +104,7 @@ jobs:
           echo "发布包白名单校验通过"
       - name: 仓库内不得提交明文密钥
         run: |
-          if git grep -nIE "sk-[A-Za-z0-9_-]{16,}" -- . ':!*.md' ':!scripts/verify-m4.mjs'; then
+          if git grep -nIE "sk-[A-Za-z0-9_-]{16,}" -- . ':!*.md' ':!scripts/verify-m4.mjs' ':!tests/unit/redact.test.ts'; then
             echo "::error::检出疑似明文 API Key"
             exit 1
           fi
