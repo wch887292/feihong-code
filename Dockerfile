@@ -11,9 +11,9 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm install
 
-# 再拷贝源码并构建（tsc 编译 + 拷贝 Web 静态资源）
+# 再拷贝源码并构建（tsc 编译 + 复制 Web 静态资源，不依赖 scripts/copy-web.cjs）
 COPY . .
-RUN npm run build
+RUN npx tsc && node -e "const {cpSync,mkdirSync,existsSync}=require('fs'),{join}=require('path');const s=join(process.cwd(),'src','web','public'),d=join(process.cwd(),'dist','web','public');if(existsSync(s)){mkdirSync(d,{recursive:true});cpSync(s,d,{recursive:true});console.log('[copy-web] done')}"
 
 # ---------- 运行阶段 ----------
 FROM node:20-slim AS runtime
