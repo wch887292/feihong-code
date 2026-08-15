@@ -2,6 +2,32 @@
 
 本文件遵循 [Keep a Changelog](https://keepachangelog.com/) 约定，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.3.0] — 2026-08-15（宇宙能量级复盘优化 · GitHub + npm 上线准备）
+
+> 全面复盘查漏补缺后的收口版本：修复版本链路不一致、修复命令无输出、扩充核心模块单元测试到 42 例、补齐 GitHub 社区健康文件与 npm 发布白名单，为 GitHub 升级与 npm 首发做完整准备。
+
+### 修复（Fixed）
+- **版本号全链路一致性**：`package.json` 0.2.3 与 `src/cli/version.ts`、`src/shared/config.ts` 的 `0.2.1` 不一致，统一升级到 `0.3.0`（运行时 / 包 / 配置三方一致）。
+- **`model-stats` / `experiences` 命令无输出**：`runModelStats` / `runExperiences` 未导入 `index.ts` 调用，现已补全，命令正常输出（空状态给出友好提示，执行任务后自动累积数据）。
+
+### 优化（Changed）
+- **GitHub 仓库指向**：`package.json` 的 `repository` / `bugs` 由 GitCode 镜像切回 GitHub 主仓（`wch887292/feihong-code`），README 同步修正迁移说明与社区板块（二维码改为官网链接，避免失效资源）。
+- **GitHub 仓库元数据升级**：通过 API 更新仓库描述为 `v0.3.0` 并突出 npm 可装 / MIT 开源；Topics 补充至 19 个合规标签。
+
+### 新增（Added）
+- **单元测试扩充**：新增 `tests/unit/experience.test.ts`（9 例，覆盖经验提取/持久化/加载/排序/注入）、`tests/unit/orchestrator.test.ts`（6 例，覆盖 ReAct 循环/工具执行/成本熔断/迭代上限/检查点恢复/经验提取），单元测试总量 42 例。
+- **GitHub 社区健康文件**：新增 `.github/FUNDING.yml`（Sponsor 按钮）、`.github/dependabot.yml`（每周依赖与安全自动化更新）。
+- **本地部署调试指南**：`DEPLOYMENT-GUIDE.md`（安装 / 配置模板 / 调试命令 / 故障排查）。
+- **npm 上线预检清单**：`NPM-RELEASE.md`（发布前自动校验、包字段核对、发布流程、回滚预案）。
+
+### 校验（Verified）
+- TypeScript 零错误（tsc --noEmit）；`npm test` 42/42；`verify:m4` 41/41；`verify:m6` 29/29；`verify:m7` 12/12；`verify:m8` 27/27；`verify:m9` 25/25；`verify:m9-real` 11/11；全部 100% 通过。
+- `npm run build` 成功，`npm pack --dry-run` 白名单校验通过（无 `.env`/`src`/`policy.json`/`node_modules` 泄露），运行时显示 `fhcode v0.3.0`，署名信息完整。
+
+## [0.2.3] — 2026-08-12（npm 可见度优化）
+
+> 扩充 `package.json` 关键词 / 描述、README 增加 npm 徽章、对比表与一键安装 CTA，`feihong-cli` 别名包同源发布（bin 同为 `fhcode`）。
+
 ## [0.2.1] — 2026-08-11（M9.1 真实模型接入与实测调优）
 
 > 让 `swe` 与常规命令可一键接入真实模型，并以 mock HTTP 服务实测"真实 provider 全链路"。

@@ -117,7 +117,7 @@ export FH_ROLE=developer
 ### 🌟 技术亮点
 - **零依赖侵入**：仅依赖 `express` + `zod`，无框架包袱
 - **TypeScript 全量类型安全**：tsc --noEmit 零错误
-- **完整测试覆盖**：27+ 单元测试，41+ 断言的 M4 企业能力专项验证
+- **完整测试覆盖**：42 单元测试 + 145 集成验证断言（M4/M6/M7/M8/M9/M9-real 全离线）
 - **CI/CD 就绪**：GitHub Actions 三流水线（build/enterprise/security），零 Secrets 可跑
 - **Docker 多阶段构建**：支持容器化部署
 
@@ -153,7 +153,7 @@ fhcode --version           # 直接调用 bin（Windows 下为 fhcode.cmd）
 ```
 
 > 要求 Node.js >= 18。入口 `dist/cli/index.js` 已带 `#!/usr/bin/env node` shebang。
-> 源码与问题反馈已迁移至 GitCode 镜像仓库：<https://gitcode.com/gcw_YuRlTP0G/feihong-code>
+> 源码与问题反馈请前往 GitHub 仓库：<https://github.com/wch887292/feihong-code>
 ### 方式三：Docker
 
 ```bash
@@ -502,9 +502,10 @@ node dist/cli/index.js --version
 
 关注飞虹智 klAI 动态，获取最新开源项目更新与技术教程：
 
-![社区支持二维码](https://github.com/wch887292/feihong-code/releases/download/v1.0.0-community/qrcode-community.png)
+- 🏠 官网与开源矩阵：[https://www.klai.top/opensource.html](https://www.klai.top/opensource.html)
+- 🤖 AI Agent 入口：[https://www.klai.top/openclaw.html](https://www.klai.top/openclaw.html)
 
-扫码加入 **飞虹智企微小助手**，获取：
+加入 **飞虹智企微小助手**，获取：
 - 技术答疑与部署指导
 - 开源项目更新通知
 - 本地化服务预约（泉州地区）

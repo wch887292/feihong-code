@@ -1,6 +1,6 @@
 {
   "name": "feihong-code",
-  "version": "0.2.3",
+  "version": "0.3.0",
   "description": "fhcode（飞虹 Code）— 终端 AI 编程智能体，对标 Muse Code / Cursor CLI：多模型路由（DeepSeek/通义/Ollama/OpenAI）、企业级 RBAC 审计、全自动 SWE Agent、支持离线私有化",
   "bin": {
     "fhcode": "dist/cli/index.js"
@@ -80,11 +80,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://gitcode.com/gcw_YuRlTP0G/feihong-code.git"
+    "url": "https://github.com/wch887292/feihong-code.git"
   },
   "homepage": "https://www.klai.top",
   "bugs": {
-    "url": "https://gitcode.com/gcw_YuRlTP0G/feihong-code/issues"
+    "url": "https://github.com/wch887292/feihong-code/issues"
   },
   "engines": {
     "node": ">=18.0.0"

@@ -59,7 +59,7 @@ export interface AppConfig {
   security: { shellAllowlist: string[]; requireApproval: boolean };
 }
 
-const APP_VERSION = '0.2.1';
+const APP_VERSION = '0.3.0';
 
 /**
  * 解析主目录：优先 FH_HOME，缺省 ~/.feihong-code（避免缺环境变量即崩溃）。
