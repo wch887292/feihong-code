@@ -1,3 +1,5 @@
+> **English / 英文文档**：[README_EN.md](README_EN.md) · [FAQ (English)](FAQ_EN.md)
+
 # 飞虹 Code（fhcode）
 
 > **终端 AI 编程智能体** · 对标 Meta Muse Code · 全功能 M0→M9.1 完成 · 企业级 RBAC/审计/SWE Agent
