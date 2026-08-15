@@ -145,7 +145,7 @@ async function main(): Promise<void> {
     } else if (m.kind === 'quality-gate') {
       runQualityGate(m.path);
     } else if (m.kind === 'self-improve') {
-      runSelfImprove();
+      await runSelfImprove();
     } else if (m.kind === 'model-stats') {
       runModelStats();
     } else if (m.kind === 'experiences') {

@@ -25,12 +25,19 @@ export interface ErrorAnalysis {
   fixHint: string;
 }
 
-/** 错误分类器：根据工具返回结果判断错误类型 */
+/** 错误分类器：根据工具返回结果判断错误类型（中英双语识别） */
 export function classifyError(output: string, error?: string): ErrorAnalysis | null {
   const text = (error || output).toLowerCase();
 
   // 编译错误
-  if (text.includes('error ts') || text.includes('typescript error') || text.includes('cannot find module') || text.includes('syntax error')) {
+  if (
+    text.includes('error ts') ||
+    text.includes('typescript error') ||
+    text.includes('cannot find module') ||
+    text.includes('syntax error') ||
+    text.includes('编译') ||
+    text.includes('tsc')
+  ) {
     return {
       category: 'compile-error',
       message: error || output,
@@ -39,7 +46,14 @@ export function classifyError(output: string, error?: string): ErrorAnalysis | n
   }
 
   // 运行时错误
-  if (text.includes('undefined is not') || text.includes('cannot read property') || text.includes('referenceerror') || text.includes('typeerror')) {
+  if (
+    text.includes('undefined is not') ||
+    text.includes('cannot read property') ||
+    text.includes('referenceerror') ||
+    text.includes('typeerror') ||
+    text.includes('未定义') ||
+    text.includes('is not a function')
+  ) {
     return {
       category: 'runtime-error',
       message: error || output,
@@ -48,7 +62,14 @@ export function classifyError(output: string, error?: string): ErrorAnalysis | n
   }
 
   // 路径穿越
-  if (text.includes('path traversal') || text.includes('outside workspace') || text.includes('safe-path') || text.includes('forbidden')) {
+  if (
+    text.includes('path traversal') ||
+    text.includes('outside workspace') ||
+    text.includes('safe-path') ||
+    text.includes('forbidden') ||
+    text.includes('路径') ||
+    text.includes('穿越')
+  ) {
     return {
       category: 'path-traversal',
       message: error || output,
@@ -57,7 +78,12 @@ export function classifyError(output: string, error?: string): ErrorAnalysis | n
   }
 
   // 超时
-  if (text.includes('timeout') || text.includes('timed out') || text.includes('ETIMEDOUT')) {
+  if (
+    text.includes('timeout') ||
+    text.includes('timed out') ||
+    text.includes('ETIMEDOUT') ||
+    text.includes('超时')
+  ) {
     return {
       category: 'timeout',
       message: error || output,
@@ -66,7 +92,13 @@ export function classifyError(output: string, error?: string): ErrorAnalysis | n
   }
 
   // 权限拒绝
-  if (text.includes('permission denied') || text.includes('eacces') || text.includes('epERM')) {
+  if (
+    text.includes('permission denied') ||
+    text.includes('eacces') ||
+    text.includes('eperm') ||
+    text.includes('权限') ||
+    text.includes('拒绝')
+  ) {
     return {
       category: 'permission-denied',
       message: error || output,
@@ -75,7 +107,14 @@ export function classifyError(output: string, error?: string): ErrorAnalysis | n
   }
 
   // 模型错误
-  if (text.includes('api error') || text.includes('rate limit') || text.includes('429') || text.includes('500')) {
+  if (
+    text.includes('api error') ||
+    text.includes('rate limit') ||
+    text.includes('429') ||
+    text.includes('500') ||
+    text.includes('模型') ||
+    text.includes('限流')
+  ) {
     return {
       category: 'model-error',
       message: error || output,

@@ -77,6 +77,8 @@ export function reviewCode(filePath: string, content: string, rules: ReviewRule[
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     for (const rule of rules) {
+      // 关键：规则正则带 g 标志时 RegExp.test 会残留 lastIndex，必须每次重置，否则跨行误判
+      rule.pattern.lastIndex = 0;
       if (rule.pattern.test(line)) {
         issues.push({
           ruleId: rule.id,

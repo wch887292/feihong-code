@@ -655,15 +655,27 @@ export function runQualityGate(path?: string): void {
   }
 }
 
-/** fhcode self-improve：自我改进统计 */
-export function runSelfImprove(): void {
+/** fhcode self-improve：自我改进统计 + 经验库概览 + 学习提示预览 */
+export async function runSelfImprove(): Promise<void> {
   const improver = createSelfImprover();
   const records = improver.loadImprovements();
   const stats = improver.getStats();
-  console.log('===== M8 自我改进统计 =====');
-  console.log(`总反思次数: ${stats.totalReflections}`);
+  console.log('===== M6/M8 自我迭代系统状态 =====');
+  console.log(`反思次数: ${stats.totalReflections}`);
   console.log(`成功率: ${(stats.successRate * 100).toFixed(1)}%`);
   console.log(`平均耗时: ${stats.avgDurationMs.toFixed(0)}ms`);
+
+  // 经验库概览（与 orchestrator 共用同一库，体现回流闭环）
+  const exps = await listExperiences(improver.experienceStoreDir);
+  const totalWeight = exps.reduce((s, e) => s + e.metadata.sessionCount, 0);
+  console.log(`\n经验库: ${exps.length} 条独特经验, 累计验证权重 ${totalWeight}`);
+  if (exps.length > 0) {
+    console.log('\nTop 经验（按被复用次数）:');
+    for (const e of exps.slice(0, 6)) {
+      console.log(`  [${e.metadata.sessionCount}×] ${e.type} | ${e.title}`);
+    }
+  }
+
   if (records.length > 0) {
     console.log(`\n最近改进记录:`);
     for (const rec of records.slice(-5).reverse()) {
@@ -675,6 +687,11 @@ export function runSelfImprove(): void {
   } else {
     console.log('\n（暂无改进记录，完成任务后自动生成）');
   }
+
+  // 学习提示预览：模拟一次任务，展示将注入模型的经验
+  console.log('\n----- 学习提示预览（目标: 实现一个 REST API 功能）-----');
+  const learned = await improver.getLearnedPrompt('实现一个 REST API 功能');
+  console.log(learned || '（暂无可注入经验）');
 }
 
 /* ===================== M9：全自动软件工程 Agent ===================== */

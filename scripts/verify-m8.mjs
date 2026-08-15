@@ -106,7 +106,7 @@ console.log('\n【4. SelfImprover 自我改进】');
 const { createSelfImprover } = require('../dist/agent/self-improver.js');
 const improver = createSelfImprover();
 
-const reflectResult = improver.reflect([], true, 1200);
+const reflectResult = await improver.reflect([], true, 1200);
 assert('reflect 返回反思结果', reflectResult.success === true);
 assert('reflect 提取成功模式', reflectResult.patterns.length > 0);
 assert('reflect 生成改进建议', reflectResult.improvements.length > 0);

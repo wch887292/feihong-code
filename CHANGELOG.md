@@ -2,6 +2,29 @@
 
 本文件遵循 [Keep a Changelog](https://keepachangelog.com/) 约定，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.3.1] — 2026-08-15（自我迭代系统 / 写代码能力 宇宙级升级）
+
+> 把"自我迭代"从断环变成闭环：经验库升级为强化学习式（稳定 id + upsert 去重加权），反思器真正分析对话并写入与 orchestrator **共用**的同一经验库（此前孤岛目录互不回流），让既往任务的成功/失败/自愈经验真正注入后续任务。同时修复 code-writer 两处真实 bug（通配正则整体覆盖文件、空规则导致审查失效）。
+
+### 修复（Fixed · 真实 bug）
+- **code-writer `fix()` 灾难性修复**：原 `issueToFix` 默认分支用 `pattern: /.*/` 会把**整个文件替换成建议文本**，造成数据破坏。改为仅对「硬编码密钥 / SQL 拼接」等已知安全模式做针对性替换，其余一律跳过并提示人工处理。
+- **code-writer 审查/修复失效**：构造时 `rules` 默认 `[]` 被透传给 `reviewCode`，使默认审查规则不生效（默认参数仅 `undefined` 时触发）。改为规则为空时回落默认规则。
+- **reviewCode 跨行误判**：规则正则带 `g` 标志导致 `RegExp.test()` 的 `lastIndex` 跨行残留，后续行误判为无问题。每次匹配前重置 `lastIndex`。
+
+### 优化（Changed · 自我迭代闭环）
+- **经验系统强化学习化**（experience.ts）：新增 `upsertExperience`（同 id 合并、sessionCount 累积、成功率加权平均、标签合并）、`retrieveRelevantExperiences`（标签重叠 + 新鲜度 + 成功率加权召回）、`extractFixPattern`（从自愈成功会话提取可复用修复经验）；`extractExperience` 改用 `classifyError` 精确错误分类并生成稳定 id。
+- **反思器打通回流**（self-improver.ts）：`reflect` 基于真实对话统计工具调用/错误簇/自愈恢复，产出具体模式与改进，并以 `upsertExperience` 写入与 orchestrator 共用目录（默认 `~/.feihong-code/experiences`），新增 `getLearnedPrompt(goal)` 召回既往学习。
+- **orchestrator 闭环**：加载改用加权检索并注入 system prompt；提取改用 `upsert` 强化；`selfHealed` 成功时额外固化修复经验；修正 usage 统计更新的是"被加载并使用的经验"。
+- **错误分类中英双语**（self-heal.ts）：`classifyError` 新增中文关键词识别（路径/权限/超时/编译/未定义等），对中文工具输出分类更准确。
+
+### 新增（Added）
+- **self-improve 命令增强**：展示经验库规模/Top 经验/反思记录，并预览"将注入模型的学习提示"，可直观看到自我迭代积累。
+- **测试扩充**：`tests/unit/self-learn.test.ts`（6 例：upsert 合并/加权召回/稳定 id/修复经验提取/反思回流）、`tests/unit/code-writer.test.ts`（3 例：安全修复不破坏文件/空规则跳过/自愈收敛）。
+
+### 校验（Verified）
+- typecheck ✅ · build ✅ · `npm test` 51/51 ✅
+- verify:m4 41/41 · m6 29/29 · m7 12/12 · m8 27/27 · m9 25/25 · m9-real 11/11 ✅ 全部 100% 通过
+
 ## [0.3.0] — 2026-08-15（宇宙能量级复盘优化 · GitHub + npm 上线准备）
 
 > 全面复盘查漏补缺后的收口版本：修复版本链路不一致、修复命令无输出、扩充核心模块单元测试到 42 例、补齐 GitHub 社区健康文件与 npm 发布白名单，为 GitHub 升级与 npm 首发做完整准备。

@@ -2,22 +2,25 @@
  * 飞虹 Code (Muse Code 参照复刻)
  * 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
  *
- * 经验学习（Experience Learning）：
- * - 会话完成后自动提取经验（成功模式、失败教训、高效工具调用序列）
- * - 存储到 FH_HOME/experiences/*.jsonl
- * - 下次任务开始时加载相关经验注入 system prompt
+ * 经验学习（Experience Learning）— 强化学习式经验系统：
+ * - 会话完成后自动提取经验（成功模式、失败教训、高效工具调用序列、自愈修复经验）
+ * - 存储到 FH_HOME/experiences/*.jsonl，并以「稳定 id + upsert 合并」实现强化学习
+ *   （同一模式被多次验证会累积 sessionCount 与成功率权重，而非无限追加重复记录）
+ * - 下次任务开始时用 retrieveRelevantExperiences 做加权检索（标签重叠 + 新鲜度 + 成功率）
+ *   注入 system prompt，形成「执行 → 反思 → 回流 → 更强执行」的闭环
  */
 import { appendFile, mkdir, readFile, writeFile } from 'fs/promises';
 import { existsSync } from 'fs';
 import { join } from 'path';
 import type { ChatMessage } from '../models/model.interface';
 import { logger } from '../shared/logger';
+import { classifyError } from './self-heal';
 
 export type ExperienceType =
   | 'tool-efficiency'      // 高效工具调用模式
   | 'error-pattern'        // 错误模式与规避
   | 'path-planning'        // 文件路径规划技巧
-  | 'success-pattern'      // 成功执行序列
+  | 'success-pattern'      // 成功执行序列 / 自愈修复经验
   | 'performance-tip';     // 性能优化建议
 
 export interface Experience {
@@ -34,12 +37,24 @@ export interface Experience {
   };
 }
 
-/** 从会话历史中提取经验 */
+/** 稳定短哈希（用于经验去重 id） */
+function shortHash(s: string): string {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(36);
+}
+
+/** 由类型 + 归一化键生成稳定 id（跨 run 一致，支撑去重与 usage 追踪） */
+export function normalizeExperienceId(type: ExperienceType, key: string): string {
+  return `exp-${shortHash(`${type}:${key}`)}`;
+}
+
+/** 从会话历史中提取经验（强化学习素材） */
 export function extractExperience(messages: ChatMessage[], runId: string): Experience[] {
   const experiences: Experience[] = [];
   const toolCalls: Array<{ name: string; args: unknown; success: boolean }> = [];
 
-  // 提取工具调用序列
+  // 提取工具调用序列及成败
   for (const msg of messages) {
     if (msg.role === 'assistant' && msg.toolCalls) {
       for (const tc of msg.toolCalls) {
@@ -54,57 +69,69 @@ export function extractExperience(messages: ChatMessage[], runId: string): Exper
     }
   }
 
-  // 经验 1: 高效工具调用模式
+  const now = new Date().toISOString();
+  const mkMeta = (successRate: number, tags: string[]): Experience['metadata'] => ({
+    sessionCount: 1,
+    successRate,
+    tags,
+    createdAt: now,
+    lastUsedAt: now,
+  });
+
+  // 经验 1: 高效工具调用模式（成功序列）
   if (toolCalls.length >= 3) {
     const successfulCalls = toolCalls.filter((tc) => tc.success);
     if (successfulCalls.length >= 2) {
       const pattern = successfulCalls.map((tc) => tc.name).join(' → ');
       experiences.push({
-        id: `exp-${runId}-tools`,
+        id: normalizeExperienceId('tool-efficiency', pattern),
         type: 'tool-efficiency',
         title: `成功工具序列: ${pattern}`,
-        content: `在本次任务中，以下工具调用序列成功完成目标:\n${pattern}\n\n建议未来类似任务可参考此序列。`,
-        metadata: {
-          sessionCount: 1,
-          successRate: successfulCalls.length / toolCalls.length,
-          tags: successfulCalls.map((tc) => tc.name),
-          createdAt: new Date().toISOString(),
-          lastUsedAt: new Date().toISOString(),
-        },
+        content:
+          `在本次任务中，以下工具调用序列成功完成目标:\n${pattern}\n\n建议未来类似任务优先复用此序列，可减少试错轮次。`,
+        metadata: mkMeta(successfulCalls.length / toolCalls.length, successfulCalls.map((tc) => tc.name)),
       });
     }
   }
 
-  // 经验 2: 错误模式与规避
+  // 经验 2: 错误模式与规避（用 classifyError 精确归类）
   const errors = messages.filter((m) => m.role === 'tool' && (m.content || '').startsWith('错误:'));
   if (errors.length > 0) {
-    const errorTypes = errors.map((e) => {
-      const content = e.content || '';
-      if (content.includes('路径') || content.includes('path')) return 'path-error';
-      if (content.includes('超时') || content.includes('timeout')) return 'timeout';
-      if (content.includes('权限') || content.includes('permission')) return 'permission';
-      return 'unknown';
-    });
-    const uniqueErrors = [...new Set(errorTypes)];
+    const categories = new Set<string>();
+    for (const e of errors) {
+      const analysis = classifyError(e.content || '', e.content || '');
+      categories.add(analysis?.category ?? 'unknown');
+    }
+    const uniqueErrors = [...categories];
     experiences.push({
-      id: `exp-${runId}-errors`,
+      id: normalizeExperienceId('error-pattern', uniqueErrors.join(',')),
       type: 'error-pattern',
       title: `常见错误模式: ${uniqueErrors.join(', ')}`,
-      content: `本次任务遇到以下错误类型:\n${uniqueErrors.map((e) => `- ${e}`).join('\n')}\n\n规避建议: 检查文件路径、增加超时重试、确认权限设置。`,
-      metadata: {
-        sessionCount: 1,
-        successRate: 0,
-        tags: uniqueErrors,
-        createdAt: new Date().toISOString(),
-        lastUsedAt: new Date().toISOString(),
-      },
+      content:
+        `本次任务遇到以下错误类型:\n${uniqueErrors.map((e) => `- ${e}`).join('\n')}\n\n规避建议: 提前校验前置条件（路径/权限/依赖），增加超时重试与最小改动原则，避免同类错误重复发生。`,
+      metadata: mkMeta(0, uniqueErrors),
     });
   }
 
+  // 经验 3: 干净成功模式（无错误且工具调用高效）
+  const errorCount = errors.length;
+  if (errorCount === 0 && toolCalls.filter((tc) => tc.success).length >= 2) {
+    experiences.push({
+      id: normalizeExperienceId('success-pattern', 'clean-run'),
+      type: 'success-pattern',
+      title: '干净高效执行（无错误通过）',
+      content:
+        '本次任务在较少轮次内一次性通过，说明目标拆解与工具使用策略有效。未来可优先沿用「先勘察→小步编辑→就地验证」的节奏。',
+      metadata: mkMeta(1.0, ['clean-run', 'efficiency']),
+    });
+  }
+
+  // runId 仅用于审计留痕，不影响稳定 id
+  void runId;
   return experiences;
 }
 
-/** 保存经验到文件 */
+/** 追加保存一条经验（新建场景） */
 export async function saveExperience(experienceDir: string, experience: Experience): Promise<void> {
   await mkdir(experienceDir, { recursive: true });
   const file = join(experienceDir, 'experiences.jsonl');
@@ -112,7 +139,67 @@ export async function saveExperience(experienceDir: string, experience: Experien
   logger.info('experience saved', { id: experience.id, type: experience.type });
 }
 
-/** 加载相关经验（基于任务关键词） */
+/**
+ * upsertExperience：强化学习式合并写入。
+ * - 若同 id 经验已存在：sessionCount+1、成功率按次数加权平均、标签合并、刷新 lastUsedAt
+ * - 否则新增
+ * 这样同一模式被多次验证会「越用越可信」，且不会无限膨胀出重复记录。
+ */
+export async function upsertExperience(experienceDir: string, experience: Experience): Promise<void> {
+  const file = join(experienceDir, 'experiences.jsonl');
+  if (!existsSync(file)) {
+    await saveExperience(experienceDir, experience);
+    return;
+  }
+  try {
+    const content = await readFile(file, 'utf8');
+    const lines = content.split('\n').filter(Boolean);
+    let merged = false;
+    const out: string[] = [];
+    for (const line of lines) {
+      try {
+        const e = JSON.parse(line) as Experience;
+        if (e.id === experience.id) {
+          const prev = e.metadata.sessionCount;
+          const mergedExp: Experience = {
+            ...e,
+            content: experience.content.length >= e.content.length ? experience.content : e.content,
+            metadata: {
+              sessionCount: prev + 1,
+              successRate: (e.metadata.successRate * prev + experience.metadata.successRate) / (prev + 1),
+              tags: [...new Set([...e.metadata.tags, ...experience.metadata.tags])],
+              createdAt: e.metadata.createdAt,
+              lastUsedAt: new Date().toISOString(),
+            },
+          };
+          out.push(JSON.stringify(mergedExp));
+          merged = true;
+        } else {
+          out.push(line);
+        }
+      } catch {
+        out.push(line);
+      }
+    }
+    if (!merged) out.push(JSON.stringify(experience));
+    await writeFile(file, out.join('\n') + '\n', 'utf8');
+    logger.info('experience upserted', { id: experience.id, merged, type: experience.type });
+  } catch {
+    await saveExperience(experienceDir, experience);
+  }
+}
+
+/** 关键词分词的轻量实现（用于检索打分） */
+function tokenize(s: string): string[] {
+  return s
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .split(/\s+/)
+    .filter((w) => w.length >= 3)
+    .map((w) => w.replace(/[es]$/, ''));
+}
+
+/** 加载相关经验（基于任务关键词，兼容旧路径） */
 export async function loadExperiences(experienceDir: string, keywords: string[]): Promise<Experience[]> {
   const file = join(experienceDir, 'experiences.jsonl');
   if (!existsSync(file)) return [];
@@ -125,15 +212,13 @@ export async function loadExperiences(experienceDir: string, keywords: string[])
     for (const line of lines) {
       try {
         const exp: Experience = JSON.parse(line);
-        // 匹配关键词
-        const matched = keywords.some((kw) =>
-          exp.title.includes(kw) ||
-          exp.content.includes(kw) ||
-          exp.metadata.tags.some((tag) => tag.includes(kw)),
+        const matched = keywords.some(
+          (kw) =>
+            exp.title.includes(kw) ||
+            exp.content.includes(kw) ||
+            exp.metadata.tags.some((tag) => tag.includes(kw)),
         );
-        if (matched) {
-          experiences.push(exp);
-        }
+        if (matched) experiences.push(exp);
       } catch {
         // 跳过损坏的经验记录
       }
@@ -148,7 +233,72 @@ export async function loadExperiences(experienceDir: string, keywords: string[])
   }
 }
 
-/** 更新经验使用统计 */
+/**
+ * retrieveRelevantExperiences：加权检索（强化学习「召回」阶段）
+ * 综合：标签重叠(×3) + 成功率基础权重(×2) + 子串命中(+2) + token 命中(+0.5) + 新鲜度衰减
+ * 返回 top-N，供 orchestrator 注入 system prompt。
+ */
+export interface RetrieveOptions {
+  limit?: number;
+}
+
+export async function retrieveRelevantExperiences(
+  experienceDir: string,
+  goal: string,
+  opts: RetrieveOptions = {},
+): Promise<Experience[]> {
+  const limit = opts.limit ?? 5;
+  const file = join(experienceDir, 'experiences.jsonl');
+  if (!existsSync(file)) return [];
+
+  const tokens = tokenize(goal);
+  const goalLower = goal.toLowerCase();
+
+  try {
+    const content = await readFile(file, 'utf8');
+    const lines = content.trim().split('\n').filter(Boolean);
+    const scored: Array<{ exp: Experience; score: number }> = [];
+
+    for (const line of lines) {
+      try {
+        const exp = JSON.parse(line) as Experience;
+        let score = exp.metadata.successRate * 2; // 基础权重
+
+        // 标签重叠
+        const tagOverlap = exp.metadata.tags.filter((t) => tokens.includes(t.toLowerCase())).length;
+        score += tagOverlap * 3;
+
+        // 标题/内容子串命中
+        if (
+          goalLower &&
+          (exp.title.toLowerCase().includes(goalLower) || exp.content.toLowerCase().includes(goalLower))
+        ) {
+          score += 2;
+        }
+
+        // token 命中
+        for (const tk of tokens) {
+          if (exp.content.toLowerCase().includes(tk) || exp.title.toLowerCase().includes(tk)) score += 0.5;
+        }
+
+        // 新鲜度衰减（约 20 天线性衰减到 0）
+        const ageDays = (Date.now() - new Date(exp.metadata.lastUsedAt).getTime()) / 86_400_000;
+        score += Math.max(0, 1.5 - ageDays / 20);
+
+        scored.push({ exp, score });
+      } catch {
+        // 跳过损坏记录
+      }
+    }
+
+    scored.sort((a, b) => b.score - a.score);
+    return scored.slice(0, limit).map((s) => s.exp);
+  } catch {
+    return [];
+  }
+}
+
+/** 更新经验使用统计（bump 被加载/使用的经验，强化其权重） */
 export async function updateExperienceUsage(experienceDir: string, experienceId: string): Promise<void> {
   const file = join(experienceDir, 'experiences.jsonl');
   if (!existsSync(file)) return;
@@ -181,13 +331,66 @@ export async function updateExperienceUsage(experienceDir: string, experienceId:
   }
 }
 
-/** 生成经验注入的系统提示 */
+/**
+ * extractFixPattern：从「自愈成功」的会话中提取可复用修复经验。
+ * 触发条件：会话中出现「错误:」工具消息，且后续助手消息表明已修复/通过验证。
+ * 仅产出一条高价值经验，避免噪声；orchestrator 在 selfHealed 时调用。
+ */
+export function extractFixPattern(messages: ChatMessage[]): Experience | null {
+  let errorMsg: string | null = null;
+  let resolved = false;
+  for (const m of messages) {
+    if (m.role === 'tool' && (m.content || '').startsWith('错误:')) {
+      if (!errorMsg) errorMsg = m.content;
+    }
+    if (
+      m.role === 'assistant' &&
+      /修复|已修复|解决|resolved|fixed|通过验证|验证通过|成功/i.test(m.content || '')
+    ) {
+      resolved = true;
+    }
+  }
+  if (!errorMsg || !resolved) return null;
+
+  const analysis = classifyError(errorMsg, errorMsg);
+  const category = analysis?.category ?? 'unknown';
+  const key = `fix-pattern:${category}`;
+  const now = new Date().toISOString();
+  return {
+    id: normalizeExperienceId('success-pattern', key),
+    type: 'success-pattern',
+    title: `自愈修复经验: ${category}`,
+    content:
+      `历史上遇到过「${category}」类错误，通过多轮自我修复（读错误→定位根因→就地修复→重跑验证）最终解决。` +
+      `未来遇到同类错误应直接采用该闭环，避免重复试错。`,
+    metadata: {
+      sessionCount: 1,
+      successRate: 1.0,
+      tags: [category, 'self-heal', 'fix'],
+      createdAt: now,
+      lastUsedAt: now,
+    },
+  };
+}
+
+/** 生成经验注入的系统提示（分组：成功模式优先、失败模式警示） */
 export function generateExperiencePrompt(experiences: Experience[]): string {
   if (experiences.length === 0) return '';
 
-  const parts = ['📚 历史经验参考'];
-  for (const exp of experiences) {
-    parts.push(`\n**${exp.title}** (${exp.type}):\n${exp.content.slice(0, 300)}`);
+  const success = experiences.filter((e) => e.type === 'success-pattern' || e.type === 'tool-efficiency');
+  const errors = experiences.filter((e) => e.type === 'error-pattern');
+
+  const parts = [
+    '📚 历史经验参考（系统已从既往任务中强化学习，请优先参考成功经验、主动规避失败模式）',
+  ];
+
+  if (success.length) {
+    parts.push('\n## ✅ 可复用成功模式');
+    for (const exp of success) parts.push(`- **${exp.title}**: ${exp.content.slice(0, 200)}`);
+  }
+  if (errors.length) {
+    parts.push('\n## ⚠️ 应避免的失败模式');
+    for (const exp of errors) parts.push(`- **${exp.title}**: ${exp.content.slice(0, 200)}`);
   }
 
   return parts.join('\n');

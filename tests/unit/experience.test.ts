@@ -63,7 +63,7 @@ test('extractExperience: 提取错误模式', () => {
   const exps = extractExperience(messages, 'run-2');
   const errExp = exps.find((e) => e.type === 'error-pattern');
   assert.ok(errExp, '应提取错误模式经验');
-  assert.ok(errExp!.metadata.tags.includes('path-error'));
+  assert.ok(errExp!.metadata.tags.includes('path-traversal'));
 });
 
 test('saveExperience + loadExperiences: 持久化与关键词匹配', async () => {

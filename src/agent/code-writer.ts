@@ -3,14 +3,16 @@
  * 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
  *
  * 自主代码编写器（M8）：
- * - 任务规划 → 代码编写 → 测试生成 → 审查反馈 → 迭代优化
+ * - 任务规划 → 代码编写 → 测试生成 → 审查反馈 → 自愈修复 → 迭代优化
  * - 内置代码生成模板（API 路由、Model、工具骨架）
  * - 自动测试生成（Jest/Vitest）
  * - 质量门禁集成（审查规则 + 分析结果）
+ * - 安全修复：仅对已知安全模式做针对性修复，杜绝「通配正则整体覆盖文件」的破坏性修复
+ * - 自愈闭环：审查 → 修复 → 复审查，多轮收敛至无高优先级问题
  */
 import { existsSync, mkdirSync, writeFileSync, readFileSync } from 'fs';
 import { join, dirname } from 'path';
-import type { ReviewRule } from './code-review';
+import type { ReviewRule, ReviewIssue } from './code-review';
 import { reviewCode } from './code-review';
 import { analyzeFile } from '../tools/analysis/code-analyzer';
 import { generateJestTest, inferTestCases } from '../tools/generator/test-generator';
@@ -33,6 +35,12 @@ export interface CodeWriterResult {
   issuesFound: number;
   issuesFixed: number;
   summary: string;
+}
+
+/** 安全修复规则：仅返回已知安全的针对性修复，无匹配返回 null（不做破坏性通配替换） */
+interface SafeFix {
+  pattern: RegExp;
+  replacement: string;
 }
 
 /** 自主编写器状态机 */
@@ -124,7 +132,7 @@ export class CodeWriter {
       return { type: 'review', content: `跳过审查：文件不存在 ${filePath}` };
     }
     const content = readFileSync(absPath, 'utf8');
-    const result = reviewCode(filePath, content, this.rules);
+    const result = reviewCode(filePath, content, this.rules.length ? this.rules : undefined);
     this.issuesFound += result.issues.length;
     const step: CodeWriterStep = {
       type: 'review',
@@ -136,30 +144,77 @@ export class CodeWriter {
     return step;
   }
 
-  /** 阶段 5：修复高优先级问题 */
+  /**
+   * 阶段 5：安全修复高优先级问题
+   * 关键安全约束：仅对「硬编码密钥 / SQL 拼接」等已知安全模式做针对性替换（替换首个匹配），
+   * 任何无明确安全方案的问题一律跳过并提示人工处理，绝不使用通配正则把整个文件覆盖为建议文本。
+   */
   fix(filePath: string, maxFixes = 3): CodeWriterStep {
     const absPath = join(this.cwd, filePath);
     if (!existsSync(absPath)) {
       return { type: 'fix', content: `文件不存在 ${filePath}` };
     }
     const content = readFileSync(absPath, 'utf8');
-    const result = reviewCode(filePath, content, this.rules);
+    const result = reviewCode(filePath, content, this.rules.length ? this.rules : undefined);
     const highIssues = result.issues.filter((i) => i.severity === 'high').slice(0, maxFixes);
     if (highIssues.length === 0) {
       return { type: 'fix', content: '无高优先级问题需要修复' };
     }
+
     let newContent = content;
+    const applied: string[] = [];
     for (const issue of highIssues) {
-      const fix = this.issueToFix(issue);
-      newContent = newContent.replace(fix.pattern, fix.replacement as any);
+      const safeFix = this.issueToSafeFix(issue);
+      if (!safeFix) continue; // 仅做安全修复
+      const next = newContent.replace(safeFix.pattern, safeFix.replacement);
+      if (next !== newContent) {
+        newContent = next;
+        applied.push(issue.message);
+      }
     }
+
+    if (applied.length === 0) {
+      return {
+        type: 'fix',
+        content: `高优先级问题无安全自动修复，建议人工处理: ${highIssues.map((i) => i.message).join(', ')}`,
+        file: filePath,
+      };
+    }
+
     writeFileSync(absPath, newContent, 'utf8');
-    this.issuesFixed += highIssues.length;
+    this.issuesFixed += applied.length;
     return {
       type: 'fix',
-      content: `已修复 ${highIssues.length} 个高优先级问题: ${highIssues.map((i) => i.message).join(', ')}`,
+      content: `已安全修复 ${applied.length} 个高优先级问题: ${applied.join(', ')}`,
       file: filePath,
     };
+  }
+
+  /**
+   * 阶段 5b：自愈闭环
+   * 审查 → 修复 → 复审查，最多 maxRounds 轮，直到无高优先级问题或达上限。
+   * 修复动作复用安全修复（不会破坏文件），输出每轮收敛情况。
+   */
+  selfHealFix(filePath: string, maxRounds = 3): CodeWriterStep[] {
+    const steps: CodeWriterStep[] = [];
+    for (let round = 0; round < maxRounds; round++) {
+      this.review(filePath); // 推入审查步骤
+      const fixStep = this.fix(filePath);
+      steps.push(fixStep);
+
+      // 静默复审查（不重复推步骤），判定是否收敛
+      const absPath = join(this.cwd, filePath);
+      if (!existsSync(absPath)) break;
+      const content = readFileSync(absPath, 'utf8');
+      const re = reviewCode(filePath, content, this.rules);
+      const high = re.issues.filter((i) => i.severity === 'high').length;
+      if (high === 0) {
+        steps.push({ type: 'fix', content: `自愈收敛：第 ${round + 1} 轮后无高优先级问题` });
+        return steps;
+      }
+    }
+    steps.push({ type: 'fix', content: `已达自愈上限(${maxRounds}轮)，剩余高优先级问题建议人工复核` });
+    return steps;
   }
 
   /** 阶段 6：分析代码质量 */
@@ -187,14 +242,14 @@ export class CodeWriter {
     return step;
   }
 
-  /** 完整流程：规划 → 编写 → 测试 → 审查 → 修复 → 总结 */
+  /** 完整流程：规划 → 编写 → 测试 → 审查 → 自愈修复 → 总结 */
   async run(goal: string, code: string, filePath: string): Promise<CodeWriterResult> {
     this.plan(goal);
     this.write(code, filePath);
     this.test(filePath);
     this.review(filePath);
     this.analyze(filePath);
-    this.fix(filePath);
+    this.selfHealFix(filePath, 3);
     this.summary();
     return this.getResult();
   }
@@ -224,14 +279,21 @@ export class CodeWriter {
     return `任务规划：${goal}\n预期输出文件: 待编写\n策略: 先规划结构，再逐步实现`;
   }
 
-  private formatReviewResult(result: { file: string; issues: { severity: string; message: string }[]; passed: boolean }): string {
+  private formatReviewResult(result: {
+    file: string;
+    issues: { severity: string; message: string }[];
+    passed: boolean;
+  }): string {
     const high = result.issues.filter((i) => i.severity === 'high').length;
     const med = result.issues.filter((i) => i.severity === 'medium').length;
     const low = result.issues.filter((i) => i.severity === 'low').length;
     return `${result.file}: ${result.issues.length} 个问题 (高:${high} 中:${med} 低:${low}) ${result.passed ? '✅ 通过' : '❌ 未通过'}`;
   }
 
-  private formatAnalysisResult(analysis: { issues: { type: string; severity: string; message: string }[]; metrics: { complexity: number } }): string {
+  private formatAnalysisResult(analysis: {
+    issues: { type: string; severity: string; message: string }[];
+    metrics: { complexity: number };
+  }): string {
     const highIssues = analysis.issues.filter((i) => i.severity === 'high').length;
     return `代码质量分析: 复杂度=${analysis.metrics.complexity} 高优问题=${highIssues} 总问题=${analysis.issues.length}`;
   }
@@ -245,17 +307,24 @@ export class CodeWriter {
     return match?.[1] || 'main';
   }
 
-  private issueToFix(issue: { message: string; suggestion: string }): { pattern: RegExp; replacement: string | ((substring: string, ...args: string[]) => string) } {
-    if (issue.message.includes('硬编码')) {
+  /**
+   * 将审查问题映射到「安全修复」。
+   * 仅对硬编码密钥、SQL 拼接两类有明确安全方案的问题生成针对性正则；其余一律返回 null。
+   */
+  private issueToSafeFix(issue: ReviewIssue): SafeFix | null {
+    if (/硬编码|密码|密钥|secret|token|api[_-]?key/i.test(issue.message)) {
       return {
-        pattern: /['"`][^'"`]*(password|secret|key|token)[^'"`]*['"`]/gi,
-        replacement: (_sub: string, p1: string) => `process.env.FH_${p1?.toUpperCase() ?? 'UNKNOWN'}`,
+        pattern: /(['"`])[^'"`]*(?:password|secret|(?:api[_-]?)?key|token)[^'"`]*\1/gi,
+        replacement: 'process.env.FH_SECRET',
       };
     }
-    if (issue.message.includes('SQL')) {
-      return { pattern: /['"][\s\S]*?SELECT[\s\S]*?['"]/gi, replacement: '// 使用参数化查询' };
+    if (/sql/i.test(issue.message)) {
+      return {
+        pattern: /(['"`])[\s\S]*?select[\s\S]*?\1/gi,
+        replacement: '/* 使用参数化查询，避免 SQL 拼接 */',
+      };
     }
-    return { pattern: /.*/, replacement: issue.suggestion };
+    return null;
   }
 }
 

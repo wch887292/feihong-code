@@ -2,15 +2,23 @@
  * 飞虹 Code (Muse Code 参照复刻)
  * 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
  *
- * 自我改进（M8）：
- * - 任务后反思：提取成功/失败模式
- * - 策略优化：基于历史表现调整行为
- * - 经验融合：将反思结果注入经验库
+ * 自我改进（M6 / 自我迭代核心）：
+ * - 任务后反思：从真实对话中统计工具调用、错误簇、自愈恢复，产出具体模式与改进
+ * - 经验融合：将反思结果以「稳定 id + upsert」写入与 orchestrator 同一套 experiences 库，
+ *   使自我迭代真正回流到后续任务（闭合环），而非写入互不相连的孤岛目录
+ * - 人类可读账本：另存 improvements.json 供 self-improve 命令展示
  */
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
+import { homedir } from 'os';
 import type { ChatMessage } from '../models/model.interface';
-import { saveExperience, type Experience } from './experience';
+import {
+  upsertExperience,
+  retrieveRelevantExperiences,
+  generateExperiencePrompt,
+  normalizeExperienceId,
+  type Experience,
+} from './experience';
 
 export interface ReflectionResult {
   success: boolean;
@@ -22,13 +30,14 @@ export interface ReflectionResult {
 export interface SelfImprovementConfig {
   reflectionEnabled: boolean;
   maxPatternsPerTask: number;
+  /** 与 orchestrator 共用同一经验库，默认就是 experiences 目录 */
   experienceDir: string;
 }
 
 const DEFAULT_CONFIG: SelfImprovementConfig = {
   reflectionEnabled: true,
   maxPatternsPerTask: 5,
-  experienceDir: join(require('os').homedir(), '.feihong-code', 'improvements'),
+  experienceDir: join(homedir(), '.feihong-code', 'experiences'),
 };
 
 export class SelfImprover {
@@ -39,11 +48,46 @@ export class SelfImprover {
     this.config = { ...DEFAULT_CONFIG, ...config };
   }
 
-  /** 任务后反思 */
-  reflect(messages: ChatMessage[], success: boolean, durationMs: number): ReflectionResult {
-    const patterns = this.extractPatterns(messages, success);
-    const improvements = this.generateImprovements(messages, success, patterns);
-    const strategyChanges = this.deriveStrategyChanges(patterns, improvements);
+  /** 经验库目录（与 orchestrator 共用，供命令层展示） */
+  get experienceStoreDir(): string {
+    return this.config.experienceDir;
+  }
+
+  /** 任务后反思（基于真实对话内容分析，异步持久化到统一经验库） */
+  async reflect(messages: ChatMessage[], success: boolean, durationMs: number): Promise<ReflectionResult> {
+    const toolCalls = messages
+      .filter((m) => m.role === 'assistant' && m.toolCalls)
+      .flatMap((m) => m.toolCalls ?? []);
+    const errors = messages.filter((m) => m.role === 'tool' && (m.content || '').startsWith('错误:'));
+    const hasSelfHeal =
+      errors.length > 0 &&
+      messages.some((m) =>
+        m.role === 'assistant' && /修复|已修复|解决|resolved|fixed|通过验证|验证通过/i.test(m.content || ''),
+      );
+
+    // 模式提取（具体、可观测）
+    const patterns: string[] = [];
+    if (success) patterns.push('任务成功完成，核心策略有效');
+    else patterns.push('任务未达成，需调整策略');
+    if (toolCalls.length >= 3) patterns.push(`工具调用高频(${toolCalls.length}次)，注意批次化与最小改动`);
+    if (errors.length > 0) patterns.push(`出现 ${errors.length} 处工具错误，需增强前置校验`);
+    if (hasSelfHeal) patterns.push('发生自愈并恢复，闭环修复有效');
+
+    // 改进建议（针对性）
+    const improvements: string[] = [];
+    if (!success) {
+      improvements.push('复盘失败任务：定位首个错误根因，先最小化复现再修复');
+      improvements.push('考虑将大目标拆为更小、可独立验证的子任务');
+    }
+    if (errors.length > 0) improvements.push('为高频错误类型补充前置校验，减少运行时失败');
+    if (toolCalls.length >= 5) improvements.push('工具调用偏多，先勘察再动手可减少往返轮次');
+    if (improvements.length === 0) improvements.push('维持当前执行节奏，持续监控工具效率');
+
+    // 策略变化
+    const strategyChanges: string[] = [];
+    if (errors.length > 0) strategyChanges.push('增强错误检测与前置校验');
+    if (hasSelfHeal) strategyChanges.push('固化自愈闭环为默认行为');
+    if (strategyChanges.length === 0) strategyChanges.push('保持当前策略');
 
     const result: ReflectionResult = {
       success,
@@ -52,7 +96,7 @@ export class SelfImprover {
       strategyChanges,
     };
 
-    // 保存反思记录
+    // 内存账本
     this.improvements.push({
       timestamp: new Date().toISOString(),
       success,
@@ -61,26 +105,34 @@ export class SelfImprover {
       improvements: result.improvements,
     });
 
-    // 写入经验库
+    // 写入统一经验库（与 orchestrator 共用，实现回流）
     if (this.config.reflectionEnabled) {
+      const key = `reflect:${result.patterns.slice(0, 2).join('|')}`;
       const exp: Experience = {
-        id: `improvement-${Date.now()}`,
+        id: normalizeExperienceId(success ? 'success-pattern' : 'error-pattern', key),
         type: success ? 'success-pattern' : 'error-pattern',
-        title: success ? '成功模式提取' : '失败模式分析',
-        content: result.improvements.join('\n'),
+        title: success ? '成功模式反思' : '失败模式反思',
+        content: `反思结论:\n${result.improvements.join('\n')}\n策略变化: ${result.strategyChanges.join('; ')}`,
         metadata: {
           successRate: success ? 1.0 : 0.0,
           sessionCount: 1,
-          tags: result.patterns.slice(0, 3),
+          tags: result.patterns.slice(0, 3).map((p) => p.replace(/[^\p{L}\p{N}]/gu, '').slice(0, 12)),
           createdAt: new Date().toISOString(),
           lastUsedAt: new Date().toISOString(),
         },
       };
       mkdirSync(this.config.experienceDir, { recursive: true });
-      saveExperience(this.config.experienceDir, exp).catch(() => {});
+      await upsertExperience(this.config.experienceDir, exp);
+      this.saveImprovements(this.improvements);
     }
 
     return result;
+  }
+
+  /** 基于目标召回既往学习，生成注入模型的「学习提示」 */
+  async getLearnedPrompt(goal: string): Promise<string> {
+    const exps = await retrieveRelevantExperiences(this.config.experienceDir, goal);
+    return generateExperiencePrompt(exps);
   }
 
   /** 加载历史改进记录 */
@@ -111,67 +163,12 @@ export class SelfImprover {
     }
     const total = this.improvements.length;
     const successful = this.improvements.filter((i) => i.success).length;
-    const avgDuration =
-      this.improvements.reduce((sum, i) => sum + i.durationMs, 0) / total;
+    const avgDuration = this.improvements.reduce((sum, i) => sum + i.durationMs, 0) / total;
     return {
       totalReflections: total,
       successRate: successful / total,
       avgDurationMs: avgDuration,
     };
-  }
-
-  private extractPatterns(_messages: ChatMessage[], success: boolean): string[] {
-    const patterns: string[] = [];
-
-    // 成功/失败模式
-    if (success) {
-      patterns.push('任务成功完成，策略有效');
-    } else {
-      patterns.push('任务未完成，需要调整策略');
-    }
-
-    return patterns;
-  }
-
-  private generateImprovements(_messages: ChatMessage[], success: boolean, patterns: string[]): string[] {
-    const improvements: string[] = [];
-
-    if (!success) {
-      improvements.push('失败任务：检查错误分类并重试');
-      improvements.push('失败任务：考虑简化目标或分解子任务');
-    }
-
-    // 基于模式生成改进建议
-    for (const pattern of patterns) {
-      if (pattern.includes('工具') && pattern.includes('高频')) {
-        improvements.push('高频工具调用：考虑批量操作优化');
-      }
-      if (pattern.includes('错误')) {
-        improvements.push('错误模式：增加前置校验减少运行时错误');
-      }
-    }
-
-    if (improvements.length === 0) {
-      improvements.push('持续监控工具调用效率');
-    }
-
-    return improvements;
-  }
-
-  private deriveStrategyChanges(patterns: string[], improvements: string[]): string[] {
-    const changes: string[] = [];
-
-    if (patterns.some((p) => p.includes('错误模式'))) {
-      changes.push('增强错误检测机制');
-    }
-    if (improvements.some((i) => i.includes('批量操作'))) {
-      changes.push('优化工具调用批次');
-    }
-    if (changes.length === 0) {
-      changes.push('保持当前策略');
-    }
-
-    return changes;
   }
 }
 

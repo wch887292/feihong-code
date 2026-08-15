@@ -35,10 +35,12 @@ import {
 import { compactContext, shouldCompact, getCompactionThreshold } from './context-compactor';
 import {
   extractExperience,
-  saveExperience,
-  loadExperiences,
+  upsertExperience,
+  retrieveRelevantExperiences,
   generateExperiencePrompt,
   updateExperienceUsage,
+  extractFixPattern,
+  type Experience,
 } from './experience';
 
 export interface OrchestratorSecurity {
@@ -105,6 +107,7 @@ export class Orchestrator {
     const compactThreshold = getCompactionThreshold({ compactEvery: contextCompactEvery });
 
     let messages: ChatMessage[];
+    let loadedExperiences: Experience[] = [];
     let baselineIterations = 0;
     let carryCost = 0;
     const touchedFiles: string[] = resume ? [...resume.touchedFiles] : [];
@@ -117,9 +120,9 @@ export class Orchestrator {
       carryCost = resume.costUsd;
       await eventLog.append('session.resume', { fromIterations: baselineIterations });
     } else {
-      // M6: 加载历史经验
-      const experiences = experienceDir ? await loadExperiences(experienceDir, [goal]) : [];
-      const experiencePrompt = generateExperiencePrompt(experiences);
+      // M6: 加权检索相关历史经验（强化学习召回）
+      loadedExperiences = experienceDir ? await retrieveRelevantExperiences(experienceDir, goal) : [];
+      const experiencePrompt = generateExperiencePrompt(loadedExperiences);
       const systemPrompt = experiencePrompt ? `${SYSTEM_PROMPT}\n\n${experiencePrompt}` : SYSTEM_PROMPT;
 
       const { messages: initMessages, plan } = planTask(goal);
@@ -282,19 +285,27 @@ export class Orchestrator {
       logger.warn('orchestrator reached max iterations', { runId: session.runId });
     }
 
-    // M6: 提取经验并保存
+    // M6: 提取经验并以 upsert 强化写入（同一模式多次验证会累积权重，而非无限追加）
     let experiencesExtracted = 0;
     if (experienceDir && finalAnswer) {
       const experiences = extractExperience(messages, session.runId);
       for (const exp of experiences) {
-        await saveExperience(experienceDir, exp);
+        await upsertExperience(experienceDir, exp);
       }
-      // 更新已使用经验的统计
-      for (const exp of experiences) {
+      // 自愈成功：额外固化一条「修复经验」，强化后续同类错误的闭环
+      if (selfHealed) {
+        const fixExp = extractFixPattern(messages);
+        if (fixExp) {
+          await upsertExperience(experienceDir, fixExp);
+          experiences.push(fixExp);
+        }
+      }
+      // 更新「被加载并用于本次任务」的经验的统计（强化其权重）
+      for (const exp of loadedExperiences) {
         await updateExperienceUsage(experienceDir, exp.id);
       }
       experiencesExtracted = experiences.length;
-      await eventLog.append('experience.extracted', { count: experiencesExtracted });
+      await eventLog.append('experience.extracted', { count: experiencesExtracted, selfHealed });
     }
 
     await emitCheckpoint('done');
