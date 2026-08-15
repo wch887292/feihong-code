@@ -94,7 +94,7 @@
     "url": "https://www.klai.top"
   },
   "devDependencies": {
-    "@types/express": "^4.17.21",
+    "@types/express": "^5.0.6",
     "@types/node": "^26.2.0",
     "tsx": "^4.19.2",
     "typescript": "^5.6.3"
