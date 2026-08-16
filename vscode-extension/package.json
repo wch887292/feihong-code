@@ -13,6 +13,7 @@
     "onCommand:fhcode.run",
     "onCommand:fhcode.diff",
     "onCommand:fhcode.output",
+    "onCommand:fhcode.review",
     "onStartupFinished"
   ],
   "main": "./extension.js",
@@ -21,6 +22,11 @@
       {
         "command": "fhcode.run",
         "title": "fhcode: 运行任务（附带选区上下文）",
+        "category": "fhcode"
+      },
+      {
+        "command": "fhcode.review",
+        "title": "fhcode: 内联评审当前文件",
         "category": "fhcode"
       },
       {
@@ -46,6 +52,11 @@
           "type": "boolean",
           "default": false,
           "description": "以离线模式（mock）运行，便于无模型环境验证"
+        },
+        "fhcode.reviewOnSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "保存文件后自动运行 fhcode review 内联评审"
         }
       }
     }

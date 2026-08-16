@@ -334,6 +334,24 @@ export function runGrillSkill(target: string): string {
   return lines.filter(Boolean).join('\n');
 }
 
+/**
+ * M1.1a `fhcode review [路径] [--json]`：红队式代码审查的结构化版本。
+ *  - 文本模式：与 /grill 输出一致（人类可读）
+ *  - --json 模式：输出完整结构（scanned/findings/summary），供 IDE 内联评审等消费
+ */
+export function runReviewCmd(path: string, asJson: boolean): void {
+  const result = runGrill(process.cwd(), path || '.');
+  if (asJson) {
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
+  console.log(`【review】${result.summary}`);
+  for (const f of result.findings) {
+    console.log(`  [${f.severity.toUpperCase()}] ${f.file}:${f.line} (${f.rule}) ${f.detail}`);
+  }
+  if (result.findings.length === 0) console.log('  未发现明显问题。');
+}
+
 /** /goal 技能：分解并保存高层目标（M4 起写入租户隔离目录 tenants/<id>/goals） */
 export function runGoalSkill(title: string): string {
   const goal = decomposeGoalToGoal(title);

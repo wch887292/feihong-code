@@ -2,6 +2,25 @@
 
 本文件遵循 [Keep a Changelog](https://keepachangelog.com/) 约定，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.5.0-a] — 2026-08-16（IDE 深度集成首轮：review --json + 内联评审 + 上下文入参 + O6 安全前置）
+
+> v0.5.0 里程碑 a：CLI 新增结构化代码评审输出（`fhcode review --json`，修复单文件目标）、编辑器上下文直达（`--context-file`）、VSCode 扩展内联评审（DiagnosticCollection + CodeAction 建议 + 保存自动评审）、O6 入站签名校验工具与出站渠道白名单。
+
+### 新增（Added）
+- **M1.1a `fhcode review [路径] [--json]`**：复用 /grill 规则引擎的结构化评审——文本模式人类可读、`--json` 输出完整结构（scanned/findings/summary），供 IDE 内联评审消费；修复 `runGrill` 仅支持目录目标（单文件路径被 collectFiles 当目录读返回空），现文件/目录均可。
+- **M1.3 `--context-file <path>`**：主命令可附加活动文件/选区文件内容作为结构化上下文（限 32KB 防爆上下文，包裹 `<context-file>` 标记），IDE 扩展与 CI 均可注入。
+- **M1.1b VSCode 内联评审**：`fhcode.review` 调起 CLI `review --json`，findings 映射为编辑器内联诊断（critical/high=Error、medium=Warning、low=Information），悬停看详情；CodeAction 快速修复查看建议；`fhcode.reviewOnSave` 配置（默认 true）保存后自动评审。
+- **O6 安全前置**：`verifyHmacSignature`（HMAC-SHA256 计时安全比较，`sha256=` 前缀兼容）与 `verifyWecomSignature`（企微回调 SHA1 排序校验）供 M3 入站 webhook 复用；出站渠道白名单 `FH_CHANNEL_ALLOW`（逗号分隔，缺省全放行，显式配置后仅白名单渠道可发，大小写不敏感）。
+
+### 测试（Tests）
+- 新增 `channels-auth.test.ts` 3 个用例（HMAC 正确/篡改/缺参、企微 SHA1 排序校验、白名单空=全放行/显式限制/大小写）。
+- `npm test` **164/164** ✅
+
+### 校验（Verified）
+- typecheck ✅ · build ✅ · `npm run eval` ✅（10/10：场景 5 + 验收 5，整体通过率 100%）
+- review --json 冒烟 ✅（单文件扫描输出 findings）· --context-file 冒烟 ✅（内容注入目标）
+- verify:m4 41/41 · m6 29/29 · m7 12/12 · m8 27/27 · m9 25/25 ✅ 零回归
+
 ## [0.4.0] — 2026-08-16（P6 治理与增强：提交基线 + eval 扩充 + IDE 增强 + 跨进程队列 + 复杂度治理）
 
 > 全面复盘后按投入产出落地五项：提交 v0.4.0 基线打 tag、eval 接入验收型任务集（SWE-bench 风格）、VSCode 扩展升级（选区上下文 + 原生 diff 面板）、任务队列跨进程持久化、两处核心函数表驱动化降复杂度。

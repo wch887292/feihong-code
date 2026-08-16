@@ -34,11 +34,119 @@ function activate(context) {
   })();
   context.subscriptions.push(vscode.workspace.registerTextDocumentContentProvider(HEAD_SCHEME, provider));
 
+  // M1.1b：内联评审诊断集合（按语言分组）
+  const diagnostics = vscode.languages.createDiagnosticCollection('fhcode');
+  context.subscriptions.push(diagnostics);
+
+  // M1.1b：CodeAction——为评审诊断提供「查看 fhcode 建议」修复动作
+  const codeActionProvider = vscode.languages.registerCodeActionsProvider(
+    [{ scheme: 'file' }],
+    {
+      provideCodeActions(document, range, ctx) {
+        const actions = [];
+        for (const diag of ctx.diagnostics) {
+          if (diag.source !== 'fhcode') continue;
+          const detail = diag.code || diag.message;
+          const action = new vscode.CodeAction(
+            `fhcode: ${diag.message}`,
+            vscode.CodeActionKind.QuickFix,
+          );
+          action.diagnostics = [diag];
+          action.command = {
+            command: 'fhcode.showSuggestion',
+            title: '查看 fhcode 建议',
+            arguments: [{ rule: diag.code, detail: detail }],
+          };
+          actions.push(action);
+        }
+        return actions;
+      },
+    },
+    { providedCodeActionKinds: [vscode.CodeActionKind.QuickFix] },
+  );
+  context.subscriptions.push(codeActionProvider);
+
   context.subscriptions.push(
     vscode.commands.registerCommand('fhcode.run', runTask),
     vscode.commands.registerCommand('fhcode.diff', showDiff),
     vscode.commands.registerCommand('fhcode.output', showOutput),
+    vscode.commands.registerCommand('fhcode.review', () => runReview(diagnostics)),
+    vscode.commands.registerCommand('fhcode.showSuggestion', showSuggestion),
   );
+
+  // M1.1b：文件保存后自动评审（默认开启，可用 fhcode.reviewOnSave 关闭）
+  if (vscode.workspace.getConfiguration('fhcode').get('reviewOnSave', true)) {
+    context.subscriptions.push(
+      vscode.workspace.onDidSaveTextDocument((doc) => {
+        if (doc.uri.scheme === 'file') runReview(diagnostics, doc.uri);
+      }),
+    );
+  }
+}
+
+/** 执行 fhcode 命令并捕获 stdout（JSON 等结构化输出用） */
+function execFhcodeCapture(args) {
+  return new Promise((resolve) => {
+    const bin = vscode.workspace.getConfiguration('fhcode').get('binaryPath', 'fhcode');
+    const cwd = vscode.workspace.workspaceFolders?.[0]?.uri?.fsPath || process.cwd();
+    const child = spawn(bin, args, { cwd, shell: true });
+    let out = '';
+    let err = '';
+    child.stdout?.on('data', (d) => (out += d.toString()));
+    child.stderr?.on('data', (d) => (err += d.toString()));
+    child.on('error', (e) => resolve({ code: 1, stdout: '', stderr: e.message }));
+    child.on('close', (code) => resolve({ code: code ?? 1, stdout: out, stderr: err }));
+  });
+}
+
+/**
+ * M1.1b：对活动文件/指定 URI 跑 `fhcode review <file> --json`，
+ * 把 findings 映射为编辑器内联诊断（critical/high→Error，medium→Warning，low→Information）。
+ */
+async function runReview(diagnostics, uri) {
+  const folder = vscode.workspace.workspaceFolders?.[0];
+  if (!folder) {
+    vscode.window.showErrorMessage('请先打开一个工作区文件夹');
+    return;
+  }
+  const target = uri || vscode.window.activeTextEditor?.document.uri;
+  if (!target) {
+    vscode.window.showInformationMessage('没有活动文件可评审');
+    return;
+  }
+  const doc = await vscode.workspace.openTextDocument(target);
+  const rel = vscode.workspace.asRelativePath(target).replace(/\\/g, '/');
+  const { stdout } = await execFhcodeCapture(['review', rel, '--json']);
+  let parsed;
+  try {
+    parsed = JSON.parse(stdout);
+  } catch {
+    vscode.window.showErrorMessage('fhcode review 输出解析失败，请确认 CLI 已安装且支持 --json');
+    return;
+  }
+  const sevMap = { critical: 0, high: 0, medium: 1, low: 2 }; // Error/Warning/Information
+  const entries = [];
+  for (const f of parsed.findings || []) {
+    const line = Math.max(0, (f.line || 1) - 1);
+    const range = new vscode.Range(line, 0, line, Math.max(1, doc.lineAt(line).text.length));
+    const severity = sevMap[f.severity] !== undefined ? sevMap[f.severity] : 2;
+    const diag = new vscode.Diagnostic(range, `${f.detail}（${f.rule}）`, severity);
+    diag.source = 'fhcode';
+    diag.code = f.rule;
+    entries.push([target, [diag]]);
+  }
+  diagnostics.set(entries);
+  const n = entries.length;
+  vscode.window.setStatusBarMessage(
+    n === 0 ? 'fhcode review：未发现问题 ✅' : `fhcode review：发现 ${n} 个问题`,
+    4000,
+  );
+}
+
+/** M1.1b：展示评审建议详情（quick fix 动作） */
+function showSuggestion(args) {
+  const { rule, detail } = args || {};
+  vscode.window.showInformationMessage(`[fhcode ${rule}] ${detail}`);
 }
 
 /** 执行一个 fhcode 命令并流式输出到 Output Channel */

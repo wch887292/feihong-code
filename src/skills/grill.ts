@@ -64,7 +64,8 @@ const RULES: Array<{
 
 export function runGrill(rootDir: string, target = '.'): GrillResult {
   const base = join(rootDir, target);
-  const files = collectFiles(base);
+  // 支持单文件目标（M1.1a IDE 内联评审）：文件路径直接分析，否则按目录递归收集
+  const files = existsSync(base) && statSync(base).isFile() ? [base] : collectFiles(base);
   const findings: Finding[] = [];
 
   for (const file of files) {

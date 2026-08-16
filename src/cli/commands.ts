@@ -38,6 +38,7 @@ export type ManagementCommand =
   | { kind: 'doctor' }
   | { kind: 'plugin'; action: 'install' | 'list'; source?: string }
   | { kind: 'skill-market'; action: 'search' | 'install' | 'list'; query?: string; market?: string }
+  | { kind: 'review'; path: string; json: boolean }
   | { kind: 'team'; goal: string }
   | { kind: 'serve'; port?: number }
   | { kind: 'model-stats' }
@@ -71,6 +72,8 @@ export interface ParsedArgs {
     maxIterations?: number;
     verifyOnly?: boolean;
     planOnly?: boolean;
+    json?: boolean;
+    contextFile?: string;
     lang?: string;
   };
   /** 单命令模式下的需求文本（首个非 flag 参数） */
@@ -96,10 +99,12 @@ const FLAG_SPECS: Record<string, FlagSpec> = {
   stream: { kind: 'bool', key: 'stream' },
   'verify-only': { kind: 'bool', key: 'verifyOnly' },
   'plan-only': { kind: 'bool', key: 'planOnly' },
+  json: { kind: 'bool', key: 'json' },
   port: { kind: 'int', min: 1, key: 'port' },
   limit: { kind: 'int', min: 1, key: 'limit' },
   repo: { kind: 'str', key: 'repo' },
   lang: { kind: 'str', key: 'lang' },
+  'context-file': { kind: 'str', key: 'contextFile' },
   'max-tasks': { kind: 'int', min: 1, key: 'maxTasks' },
   'max-retries': { kind: 'int', min: 0, key: 'maxRetries' },
   'max-iterations': { kind: 'int', min: 1, key: 'maxIterations' },
@@ -166,6 +171,7 @@ const MANAGE_BUILDERS: Record<string, ManageBuilder> = {
     query: rest[1],
     market: flags.repo, // 复用 --repo 承载市场源地址
   }),
+  review: ({ flags, rest }) => ({ kind: 'review', path: rest[0] || '.', json: !!flags.json }),
   team: ({ rest }) => ({ kind: 'team', goal: rest.join(' ') || '协作开发' }),
   serve: ({ flags }) => ({ kind: 'serve', port: flags.port }),
   audit: ({ flags, rest }) => ({ kind: 'audit', verify: rest[0] === 'verify', limit: flags.limit ?? 20 }),

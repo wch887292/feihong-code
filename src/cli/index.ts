@@ -6,6 +6,7 @@
  * CLI 入口：参数解析 → 版本/帮助/单命令/REPL/管理命令 分发
  */
 import { randomUUID } from 'crypto';
+import { readFileSync, existsSync } from 'fs';
 import { setRunId } from '../shared/logger';
 import { AppError } from '../shared/errors';
 import { loadDotEnv } from '../shared/config';
@@ -30,6 +31,7 @@ import {
   runDoctor,
   runPluginCmd,
   runSkillMarketCmd,
+  runReviewCmd,
   runTeamCmd,
   runServe,
   runCodeWrite,
@@ -50,6 +52,18 @@ function printVersion(): void {
 
 function printHelp(): void {
   console.log(t('cli.help', { version: VERSION, signature: t('app.signature') }));
+}
+
+/** M1.3: 读取上下文文件内容（限 32KB；不存在/不可读返回 null） */
+const MAX_CONTEXT_BYTES = 32 * 1024;
+function readContextFile(path: string): string | null {
+  try {
+    if (!existsSync(path)) return null;
+    const buf = readFileSync(path);
+    return buf.subarray(0, MAX_CONTEXT_BYTES).toString('utf8');
+  } catch {
+    return null;
+  }
 }
 
 async function main(): Promise<void> {
@@ -81,7 +95,15 @@ async function main(): Promise<void> {
   }
   if (args.command) {
     const offline = isOfflineByDefault();
-    await runGoal(args.command, { offline, stream: args.flags.stream });
+    let goal = args.command;
+    // M1.3: --context-file 附加活动文件/选区文件内容作为结构化上下文（限 32KB 防爆上下文）
+    if (args.flags.contextFile) {
+      const content = readContextFile(args.flags.contextFile);
+      if (content !== null) {
+        goal += `\n\n<context-file: ${args.flags.contextFile}>\n${content}\n</context-file>`;
+      }
+    }
+    await runGoal(goal, { offline, stream: args.flags.stream });
     return;
   }
 
@@ -107,6 +129,7 @@ async function dispatchManage(m: ManagementCommand): Promise<void> {
     case 'doctor': await runDoctor(); break;
     case 'plugin': await runPluginCmd(m.action, m.source); break;
     case 'skill-market': await runSkillMarketCmd(m.action, m.query, m.market); break;
+    case 'review': runReviewCmd(m.path, m.json); break;
     case 'team': await runTeamCmd(m.goal); break;
     case 'serve': runServe(m.port); break;
     case 'code-write': runCodeWrite(m.goal); break;
