@@ -2,15 +2,21 @@
  * 飞虹 Code (Muse Code 参照复刻)
  * 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
  *
- * P4-1 云执行：进程内任务队列。
+ * P4-1/P6-4 云执行任务队列：
  *  - submit(goal)     入队并异步执行（executeTask 复用 CLI 装配，服务端静默）
  *  - list() / get(id) 查询状态与结果
  *  - 任务状态机：queued → running → done | failed
  *  - 并发上限（默认 2），超出排队等待，避免服务端资源失控
+ * P6-4 跨进程/重启恢复：
+ *  - 可选 persistDir：每任务落盘 <dir>/<id>.json（原子写 tmp+rename）
+ *  - 构造时扫描恢复：queued 重新入队、running 标记 failed（避免僵尸任务）
+ *  - 每任务独立文件天然支持多实例并发写；同任务竞争由 executeTask 幂等兜底
  */
 import { randomUUID } from 'crypto';
 import { executeTask } from '../cli/run';
 import { logger } from '../shared/logger';
+import { existsSync, readdirSync, readFileSync, writeFileSync, mkdirSync, renameSync, rmSync } from 'fs';
+import { join } from 'path';
 import type { MessageChannels } from './channels';
 
 export type TaskStatus = 'queued' | 'running' | 'done' | 'failed';
@@ -39,6 +45,8 @@ export interface TaskQueueOptions {
   webhookUrl?: string;
   /** P5-6：消息渠道（Telegram/企业微信），任务状态变化时推送 */
   channels?: MessageChannels;
+  /** P6-4：任务持久化目录（跨进程/重启恢复；不配置则纯内存） */
+  persistDir?: string;
 }
 
 export class TaskQueue {
@@ -48,11 +56,75 @@ export class TaskQueue {
   private readonly concurrency: number;
   private webhookUrl: string;
   private readonly channels?: MessageChannels;
+  private readonly persistDir?: string;
 
   constructor(opts: TaskQueueOptions = {}) {
     this.concurrency = opts.concurrency ?? 2;
     this.webhookUrl = opts.webhookUrl ?? '';
     this.channels = opts.channels;
+    this.persistDir = opts.persistDir;
+    if (this.persistDir) this.recover();
+  }
+
+  /** P6-4：启动恢复——queued 重新入队、running 标记 failed（僵尸任务）、终态直接载入 */
+  private recover(): void {
+    if (!this.persistDir || !existsSync(this.persistDir)) return;
+    let restored = 0;
+    for (const f of readdirSync(this.persistDir)) {
+      if (!f.endsWith('.json')) continue;
+      try {
+        const record = JSON.parse(readFileSync(join(this.persistDir, f), 'utf8')) as TaskRecord;
+        if (!record?.id) continue;
+        if (record.status === 'running') {
+          // 上次进程崩溃遗留的 running 任务无法续跑 → 标记 failed（防僵尸）
+          record.status = 'failed';
+          record.error = '进程重启，运行中任务被终止';
+          record.updatedAt = new Date().toISOString();
+          this.persist(record);
+        }
+        this.tasks.set(record.id, record);
+        if (record.status === 'queued') {
+          this.queue.push(record.id);
+          void this.fireWebhook(record.id, 'queued');
+          void this.channels?.notify(record, 'queued');
+        }
+        restored++;
+      } catch {
+        /* 损坏记录跳过 */
+      }
+    }
+    if (restored > 0) {
+      logger.info('task queue recovered', { persistDir: this.persistDir, restored });
+      this.pump();
+    }
+  }
+
+  /** P6-4：原子落盘（tmp + rename，避免半写文件被其他进程读到） */
+  private persist(record: TaskRecord): void {
+    if (!this.persistDir) return;
+    try {
+      mkdirSync(this.persistDir, { recursive: true });
+      const file = join(this.persistDir, `${record.id}.json`);
+      const tmp = file + '.tmp';
+      writeFileSync(tmp, JSON.stringify(record), 'utf8');
+      renameSync(tmp, file);
+    } catch (e) {
+      logger.warn('task persist failed', {
+        taskId: record.id,
+        error: e instanceof Error ? e.message : String(e),
+      });
+    }
+  }
+
+  /** P6-4：删除任务文件（终态清理，可关闭） */
+  clearPersisted(id: string): void {
+    if (!this.persistDir) return;
+    try {
+      rmSync(join(this.persistDir, `${id}.json`), { force: true });
+      rmSync(join(this.persistDir, `${id}.json.tmp`), { force: true });
+    } catch {
+      /* 忽略清理失败 */
+    }
   }
 
   /** P5-2：动态设置/更新 webhook（供 API 注册） */
@@ -75,6 +147,7 @@ export class TaskQueue {
       updatedAt: now,
     };
     this.tasks.set(record.id, record);
+    this.persist(record); // P6-4 落盘
     this.queue.push(record.id);
     this.pump();
     void this.fireWebhook(record.id, 'queued'); // queued 节点回调（状态快照）
@@ -143,6 +216,7 @@ export class TaskQueue {
     this.running++;
     record.status = 'running';
     record.updatedAt = new Date().toISOString();
+    this.persist(record); // P6-4 落盘 running
     logger.info('task started', { taskId: id });
     void this.fireWebhook(id, 'running'); // running 节点回调
     void this.channels?.notify(record, 'running'); // P5-6 消息渠道推送
@@ -164,6 +238,7 @@ export class TaskQueue {
       logger.error('task failed', { taskId: id, error: record.error });
     } finally {
       record.updatedAt = new Date().toISOString();
+      this.persist(record); // P6-4 落盘终态
       void this.fireWebhook(id, record.status); // done|failed 节点回调
       void this.channels?.notify(record, record.status); // P5-6 消息渠道推送
       this.running--;

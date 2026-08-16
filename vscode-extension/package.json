@@ -12,6 +12,7 @@
   "activationEvents": [
     "onCommand:fhcode.run",
     "onCommand:fhcode.diff",
+    "onCommand:fhcode.output",
     "onStartupFinished"
   ],
   "main": "./extension.js",
@@ -19,12 +20,17 @@
     "commands": [
       {
         "command": "fhcode.run",
-        "title": "fhcode: 运行任务（Run task）",
+        "title": "fhcode: 运行任务（附带选区上下文）",
         "category": "fhcode"
       },
       {
         "command": "fhcode.diff",
-        "title": "fhcode: 查看工作区 diff",
+        "title": "fhcode: 就地查看工作区 diff（HEAD ↔ 工作区）",
+        "category": "fhcode"
+      },
+      {
+        "command": "fhcode.output",
+        "title": "fhcode: 查看最近任务输出",
         "category": "fhcode"
       }
     ],

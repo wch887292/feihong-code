@@ -142,6 +142,197 @@ async function runScenario(scenario) {
   }
 }
 
+/**
+ * P6-2 验收型基准任务（SWE-bench 风格本地任务集）：
+ *  - setup(cwd)     初始化仓库（可写起始文件）
+ *  - steps          模型侧预设动作（驱动真实工具执行）
+ *  - check(cwd)     验证**真实产物**（文件存在/内容/命令输出），不依赖 mock 结果
+ * 这测的是「编排器 + 工具链 + 沙箱」端到端闭环，而非仅 mock 循环。
+ */
+const BENCH_TASKS = [
+  {
+    name: 'bench-write-module',
+    desc: '验收: 写出含 add 函数的 calc.ts',
+    setup: (cwd) => {
+      const { mkdirSync } = require('fs');
+      mkdirSync(join(cwd, 'src'), { recursive: true });
+    },
+    steps: [
+      {
+        message: {
+          role: 'assistant',
+          content: '',
+          toolCalls: [
+            { id: 't1', name: 'write_file', arguments: { path: 'src/calc.ts', content: 'export function add(a: number, b: number): number { return a + b; }\n' } },
+          ],
+        },
+      },
+      { message: { role: 'assistant', content: '已写出 calc.ts', toolCalls: [] } },
+    ],
+    check: (cwd) => {
+      const { existsSync, readFileSync } = require('fs');
+      const f = join(cwd, 'src', 'calc.ts');
+      if (!existsSync(f)) return '缺少 src/calc.ts';
+      const content = readFileSync(f, 'utf8');
+      if (!/export function add/.test(content)) return '未包含 add 函数';
+      if (!/a \+ b/.test(content)) return 'add 实现不正确';
+      return null;
+    },
+  },
+  {
+    name: 'bench-edit-file',
+    desc: '验收: edit_file 精确替换',
+    setup: (cwd) => {
+      const { writeFileSync } = require('fs');
+      writeFileSync(join(cwd, 'greet.txt'), 'hello world\n', 'utf8');
+    },
+    steps: [
+      {
+        message: {
+          role: 'assistant',
+          content: '',
+          toolCalls: [
+            { id: 't1', name: 'edit_file', arguments: { path: 'greet.txt', oldText: 'hello', newText: 'hi' } },
+          ],
+        },
+      },
+      { message: { role: 'assistant', content: '已替换', toolCalls: [] } },
+    ],
+    check: (cwd) => {
+      const { readFileSync } = require('fs');
+      const content = readFileSync(join(cwd, 'greet.txt'), 'utf8');
+      if (!content.startsWith('hi')) return `替换失败: ${content.trim()}`;
+      return null;
+    },
+  },
+  {
+    name: 'bench-grep-write',
+    desc: '验收: grep 定位后写入结果文件',
+    setup: (cwd) => {
+      const { writeFileSync } = require('fs');
+      writeFileSync(join(cwd, 'config.json'), '{"port": 8080}\n', 'utf8');
+    },
+    steps: [
+      {
+        message: {
+          role: 'assistant',
+          content: '',
+          toolCalls: [
+            { id: 't1', name: 'grep', arguments: { pattern: '8080', path: '.' } },
+            { id: 't2', name: 'write_file', arguments: { path: 'port.txt', content: 'port=8080\n' } },
+          ],
+        },
+      },
+      { message: { role: 'assistant', content: '已记录端口', toolCalls: [] } },
+    ],
+    check: (cwd) => {
+      const { existsSync, readFileSync } = require('fs');
+      const f = join(cwd, 'port.txt');
+      if (!existsSync(f)) return '缺少 port.txt';
+      if (!/8080/.test(readFileSync(f, 'utf8'))) return 'port.txt 内容不含 8080';
+      return null;
+    },
+  },
+  {
+    name: 'bench-shell-script',
+    desc: '验收: run_shell 执行并产出文件',
+    // 注：命令须避开 shell 注入防护元字符（;|&`$(){}<>!），cp 为无元字符真实命令
+    setup: (cwd) => {
+      const { writeFileSync } = require('fs');
+      writeFileSync(join(cwd, 'src.txt'), 'built-ok', 'utf8');
+    },
+    steps: [
+      {
+        message: {
+          role: 'assistant',
+          content: '',
+          toolCalls: [
+            { id: 't1', name: 'run_shell', arguments: { command: 'cp src.txt built.txt' } },
+          ],
+        },
+      },
+      { message: { role: 'assistant', content: '已执行脚本', toolCalls: [] } },
+    ],
+    check: (cwd) => {
+      const { existsSync, readFileSync } = require('fs');
+      const f = join(cwd, 'built.txt');
+      if (!existsSync(f)) return 'run_shell 未产出 built.txt';
+      if (readFileSync(f, 'utf8') !== 'built-ok') return 'built.txt 内容不符';
+      return null;
+    },
+  },
+  {
+    name: 'bench-sandbox-guard',
+    desc: '验收: 沙箱拦截越界写(read-only 生效)',
+    sandboxMode: 'read-only',
+    steps: [
+      {
+        message: {
+          role: 'assistant',
+          content: '',
+          toolCalls: [
+            { id: 't1', name: 'write_file', arguments: { path: 'src/ok.ts', content: 'export const ok = 1;\n' } },
+          ],
+        },
+      },
+      { message: { role: 'assistant', content: '完成', toolCalls: [] } },
+    ],
+    check: (cwd) => {
+      // 用 read-only 沙箱语义校验：本任务单独以 sandboxMode=read-only 运行，
+      // 期望 write_file 被拦截（不产出文件）——通过 orchestrator 结果判定。
+      const { existsSync } = require('fs');
+      // 若文件被写出说明沙箱未拦截 → 失败
+      if (existsSync(join(cwd, 'src', 'ok.ts'))) return 'read-only 沙箱未拦截 write_file';
+      return null;
+    },
+  },
+];
+
+/** 运行验收型基准任务（真实工具 + 可选沙箱模式） */
+async function runBenchTask(task) {
+  const runId = randomUUID();
+  const logDir = mkdtempSync(join(tmpdir(), 'fhcode-eval-'));
+  const cwd = mkdtempSync(join(tmpdir(), 'fhcode-eval-ws-'));
+  const stats = { toolCalls: 0, selfHeals: 0 };
+  const provider = new ScriptedMockProvider(task.steps);
+  const mockRouter = { chat: async (req) => provider.chat(req), getStats: () => [] };
+
+  try {
+    if (task.setup) task.setup(cwd);
+    const tools = createDefaultRegistry();
+    const eventLog = new EventLog(runId, logDir);
+    const session = new SessionStore(runId, cwd);
+    // 默认 workspace-write 正常执行；仅 bench-sandbox-guard 任务以 read-only 沙箱运行（验证拦截）
+    const security = { shellAllowlist: [], requireApproval: false, sandboxMode: task.sandboxMode ?? 'workspace-write' };
+    const orch = new Orchestrator({
+      router: mockRouter,
+      tools,
+      eventLog,
+      session,
+      cwd,
+      security,
+      maxIterations: 6,
+      maxCostUsd: 0,
+      onEvent: (ev) => {
+        if (ev.type === 'tool.result') stats.toolCalls++;
+        if (ev.type === 'self-heal') stats.selfHeals++;
+      },
+    });
+    const result = await orch.run(task.name);
+    const checkErr = task.check ? task.check(cwd) : null;
+    return {
+      ok: result.ok && checkErr === null,
+      iterations: result.iterations,
+      toolCalls: stats.toolCalls,
+      checkError: checkErr,
+      finalAnswer: result.finalAnswer.slice(0, 80),
+    };
+  } finally {
+    rmSync(logDir, { recursive: true, force: true });
+    rmSync(cwd, { recursive: true, force: true });
+  }
+}
+
 function check(scenario, r) {
   const failures = [];
   if (r.ok !== scenario.expect.ok) failures.push(`ok=${r.ok} 期望 ${scenario.expect.ok}`);
@@ -151,7 +342,10 @@ function check(scenario, r) {
 }
 
 async function main() {
-  console.log('=========== P1-3 eval 跑分基准（本地 mock） ===========\n');
+  console.log('=========== P6-2 eval 跑分基准（场景统计 + 验收型任务） ===========\n');
+
+  // 第一部分：标准场景统计
+  console.log('--- 场景统计（编排循环） ---');
   const results = [];
   let pass = 0;
   const fails = [];
@@ -162,7 +356,7 @@ async function main() {
     const ok = issues.length === 0;
     if (ok) pass++;
     else fails.push(`${sc.name}: ${issues.join('; ')}`);
-    results.push({ ...sc, result: r, ok });
+    results.push({ kind: 'scenario', name: sc.name, ok, result: r });
     console.log(
       `  ${ok ? '✅' : '❌'} ${sc.name.padEnd(14)} ${sc.desc.padEnd(18)} ` +
         `ok=${r.ok ? 'Y' : 'N'} iter=${r.iterations} tools=${r.toolCalls} selfHeal=${r.selfHeals}`,
@@ -170,20 +364,35 @@ async function main() {
     if (!ok) console.log(`        ${issues.join('; ')}`);
   }
 
-  // 汇总指标
+  // 第二部分：验收型基准任务（真实产物验证）
+  console.log('\n--- 验收型任务（SWE-bench 风格，验证真实产物） ---');
+  for (const task of BENCH_TASKS) {
+    const r = await runBenchTask(task);
+    const ok = r.ok;
+    if (ok) pass++;
+    else fails.push(`${task.name}: ${r.checkError ?? '编排失败'}`);
+    results.push({ kind: 'bench', name: task.name, ok, result: r });
+    console.log(
+      `  ${ok ? '✅' : '❌'} ${task.name.padEnd(22)} ${task.desc.padEnd(26)} ` +
+        `iter=${r.iterations} tools=${r.toolCalls}${r.checkError ? `  ✗ ${r.checkError}` : ''}`,
+    );
+  }
+
+  // 汇总指标（场景 + 验收合并）
   const total = results.length;
-  const completionRate = results.filter((r) => r.result.ok).length / total;
-  const avgIterations = results.reduce((s, r) => s + r.result.iterations, 0) / total;
-  const avgToolCalls = results.reduce((s, r) => s + r.result.toolCalls, 0) / total;
-  const totalSelfHeals = results.reduce((s, r) => s + r.result.selfHeals, 0);
-  const selfHealRate = totalSelfHeals / total;
+  const completionRate = pass / total;
+  const scenarioStats = results.filter((r) => r.kind === 'scenario');
+  const avgIterations = scenarioStats.reduce((s, r) => s + r.result.iterations, 0) / (scenarioStats.length || 1);
+  const avgToolCalls = scenarioStats.reduce((s, r) => s + r.result.toolCalls, 0) / (scenarioStats.length || 1);
+  const totalSelfHeals = scenarioStats.reduce((s, r) => s + r.result.selfHeals, 0);
+  const selfHealRate = totalSelfHeals / (scenarioStats.length || 1);
 
   console.log('\n------------------------------------------');
-  console.log(`通过 ${pass} 项，失败 ${total - pass} 项`);
-  console.log(`完成率: ${(completionRate * 100).toFixed(0)}%`);
-  console.log(`平均迭代: ${avgIterations.toFixed(1)} 轮`);
-  console.log(`平均工具调用（工具效率）: ${avgToolCalls.toFixed(1)} 次/任务`);
-  console.log(`自愈触发率: ${(selfHealRate * 100).toFixed(0)}%（共 ${totalSelfHeals} 次）`);
+  console.log(`通过 ${pass} 项，失败 ${total - pass} 项（场景 ${SCENARIOS.length} + 验收 ${BENCH_TASKS.length}）`);
+  console.log(`整体通过率: ${(completionRate * 100).toFixed(0)}%`);
+  console.log(`场景平均迭代: ${avgIterations.toFixed(1)} 轮`);
+  console.log(`场景平均工具调用（工具效率）: ${avgToolCalls.toFixed(1)} 次/任务`);
+  console.log(`场景自愈触发率: ${(selfHealRate * 100).toFixed(0)}%（共 ${totalSelfHeals} 次）`);
 
   if (JSON_OUT) {
     console.log('\n=== JSON ===');
@@ -194,7 +403,8 @@ async function main() {
       avgIterations,
       avgToolCalls,
       selfHealRate,
-      scenarios: results.map((r) => ({ name: r.name, ok: r.ok, result: r.result })),
+      scenarios: scenarioStats.map((r) => ({ name: r.name, ok: r.ok, result: r.result })),
+      benchTasks: results.filter((r) => r.kind === 'bench').map((r) => ({ name: r.name, ok: r.ok, result: r.result })),
     }, null, 2));
   }
 

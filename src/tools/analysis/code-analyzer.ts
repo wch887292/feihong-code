@@ -31,6 +31,52 @@ export interface CodeAnalysisResult {
   suggestions: CodeSuggestion[];
 }
 
+/**
+ * P6-5 规则表：纯正则匹配的检查项（含建议/技术债务提示）。
+ * 表驱动替代长 if 链，新增规则只需追加一行。
+ */
+interface IssueRule {
+  type: CodeIssue['type'];
+  severity: CodeIssue['severity'];
+  re: RegExp;
+  message: string;
+  suggestion: string;
+  /** 命中时同时追加的 suggestion（技术债务等） */
+  debt?: { category: string; description: string; impact: CodeSuggestion['impact'] };
+}
+
+const ISSUE_RULES: IssueRule[] = [
+  {
+    type: 'bug',
+    severity: 'high',
+    re: /!\./g,
+    message: '检测到非空断言 (!.)',
+    suggestion: '使用可选链 (?.) 替代',
+  },
+  {
+    type: 'security',
+    severity: 'high',
+    re: /['"`](password|secret|key|token)[^'"`]*['"`]/gi,
+    message: '检测到可能硬编码的敏感字符串',
+    suggestion: '使用环境变量管理敏感信息',
+  },
+  {
+    type: 'style',
+    severity: 'low',
+    re: /console\.(log|warn|error)\(/g,
+    message: '检测到 console 输出',
+    suggestion: '生产环境应移除',
+  },
+  {
+    type: 'style',
+    severity: 'low',
+    re: /\/\/\s*(TODO|FIXME)/gi,
+    message: '发现 TODO/FIXME 标记',
+    suggestion: '规划排期清理技术债务',
+    debt: { category: '技术债务', description: '发现 TODO/FIXME', impact: 'medium' },
+  },
+];
+
 /** 分析单文件 */
 export function analyzeFile(filePath: string, content: string): CodeAnalysisResult {
   const lines = content.split('\n');
@@ -50,7 +96,7 @@ export function analyzeFile(filePath: string, content: string): CodeAnalysisResu
     (content.match(/\bcatch\b/g) || []).length
   ) || 1;
 
-  // Bug 检测：未使用变量
+  // Bug 检测：未使用变量（需上下文，非纯正则，独立处理）
   const varRegex = /\b(const|let|var)\s+(\w+)\s*=/g;
   const declaredVars = new Set<string>();
   let match;
@@ -64,26 +110,18 @@ export function analyzeFile(filePath: string, content: string): CodeAnalysisResu
     }
   }
 
-  // Bug 检测：空值风险
-  if (content.match(/!\./g)?.length) {
-    issues.push({ type: 'bug', severity: 'high', message: '检测到非空断言 (!.)', suggestion: '使用可选链 (?.) 替代' });
-  }
-
-  // Security：硬编码敏感字符串
-  if (content.match(/['"`](password|secret|key|token)[^'"`]*['"`]/gi)?.length) {
-    issues.push({ type: 'security', severity: 'high', message: '检测到可能硬编码的敏感字符串', suggestion: '使用环境变量管理敏感信息' });
-  }
-
-  // Style：console.log 残留
-  const consoleLogs = (content.match(/console\.(log|warn|error)\(/g) || []).length;
-  if (consoleLogs > 0) {
-    issues.push({ type: 'style', severity: 'low', message: `检测到 ${consoleLogs} 处 console 输出`, suggestion: '生产环境应移除' });
-  }
-
-  // TODO/FIXME
-  const todos = (content.match(/\/\/\s*(TODO|FIXME)/gi) || []).length;
-  if (todos > 0) {
-    suggestions.push({ category: '技术债务', description: `发现 ${todos} 处 TODO/FIXME`, impact: 'medium' });
+  // P6-5：表驱动规则检查（行为与原 if 链一致）
+  for (const rule of ISSUE_RULES) {
+    const hits = content.match(rule.re);
+    if (hits && hits.length > 0) {
+      const message = rule.message.includes('{n}')
+        ? rule.message.replace('{n}', String(hits.length))
+        : hits.length > 1
+          ? `${rule.message}（${hits.length} 处）`
+          : rule.message;
+      issues.push({ type: rule.type, severity: rule.severity, message, suggestion: rule.suggestion });
+      if (rule.debt) suggestions.push(rule.debt);
+    }
   }
 
   // 注释覆盖率

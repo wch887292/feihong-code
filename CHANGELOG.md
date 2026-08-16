@@ -2,6 +2,31 @@
 
 本文件遵循 [Keep a Changelog](https://keepachangelog.com/) 约定，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.4.0] — 2026-08-16（P6 治理与增强：提交基线 + eval 扩充 + IDE 增强 + 跨进程队列 + 复杂度治理）
+
+> 全面复盘后按投入产出落地五项：提交 v0.4.0 基线打 tag、eval 接入验收型任务集（SWE-bench 风格）、VSCode 扩展升级（选区上下文 + 原生 diff 面板）、任务队列跨进程持久化、两处核心函数表驱动化降复杂度。
+
+### 新增（Added）
+- **P6-2 eval 验收型任务集**：`scripts/eval.mjs` 新增 SWE-bench 风格验收任务（setup→steps→check 验证**真实产物**，而非 mock 结果）：写模块（含 add 函数）/ edit_file 精确替换 / grep 定位后写结果 / run_shell 产出文件（cp）/ 沙箱 read-only 拦截；整体通过率从场景统计扩展为「场景 5 + 验收 5 = 10 项」。
+- **P6-3 VSCode 扩展增强**：`fhcode.run` 自动检测选区并把选中代码作为 `<selection>` 上下文注入目标；`fhcode.diff` 用 VSCode **原生 diff 编辑器**展示 HEAD ↔ 工作区（`fhcode-head` scheme + TextDocumentContentProvider + `git show HEAD:<path>`）；新增 `fhcode.output` 命令。
+- **P6-4 跨进程任务队列**：`TaskQueue` 可选 `persistDir`——每任务落盘 `<dir>/<id>.json`（tmp+rename 原子写）；构造时恢复：queued 重新入队执行、**running 僵尸标记 failed**（防进程崩溃遗留）、终态保留可查询；`clearPersisted` 清理。
+
+### 修复（Fixed）
+- **eval 沙箱模式误用**：验收任务曾统一以 read-only 沙箱运行导致写类任务全被拦截——默认 workspace-write，仅 sandbox-guard 任务用 read-only。
+- **eval 命令注入误伤**：bench-shell-script 原用 `node -e "...()"` 命中 run_shell 注入防护（`()` 为元字符）——改用无元字符 `cp` 命令验证真实执行（防护本身正确工作）。
+
+### 优化（Changed）
+- **P6-5 复杂度治理**：`experience.extractExperience`（cc 20→表驱动 EXTRACTORS，增删规则只加一行）、`code-analyzer.analyzeFile`（规则 if 链表 → `ISSUE_RULES` 表，含技术债务提示）。行为零变更，161 单测全绿验证。
+- **P6-1 提交基线**：67 文件拆 3 commit（feat/test/docs）+ **tag v0.4.0**，历史可回滚。
+
+### 测试（Tests）
+- 新增 `task-persist.test.ts` 5 个用例（落盘原子性/queued 恢复执行/僵尸标记 failed/清理/纯内存不落盘）。
+- `npm test` **161/161** ✅
+
+### 校验（Verified）
+- typecheck ✅ · build ✅ · `npm run eval` ✅（**10/10：场景 5 + 验收 5**，整体通过率 100%）
+- verify:m4 41/41 · m6 29/29 · m7 12/12 · m8 27/27 · m9 25/25 ✅ 零回归
+
 ## [0.4.0] — 2026-08-16（Skills 市场对接：search / install / list）
 
 > 对接 agentskills.io 开放技能市场（discovery index 规范 0.2.0）：`fhcode skill-market search <关键词>` 检索、`install <技能名>` 安装（支持 SKILL.md 直下与 tar.gz 归档解包）、`list` 查看本地技能；安装后自动被任务技能发现（渐进式披露）复用。

@@ -50,6 +50,74 @@ export function normalizeExperienceId(type: ExperienceType, key: string): string
 }
 
 /** 从会话历史中提取经验（强化学习素材） */
+/** 经验提取器：declare -> (ctx) => Experience | null。表驱动替代长 if 链，便于增删规则 */
+interface ExperienceExtractor {
+  key: string;
+  extract(ctx: ExtractCtx): Experience | null;
+}
+
+interface ExtractCtx {
+  toolCalls: Array<{ name: string; args: unknown; success: boolean }>;
+  errors: ChatMessage[];
+  mkMeta: (successRate: number, tags: string[]) => Experience['metadata'];
+  now: string;
+}
+
+const EXTRACTORS: ExperienceExtractor[] = [
+  {
+    // 经验 1: 高效工具调用模式（成功序列）
+    key: 'tool-efficiency',
+    extract: ({ toolCalls, mkMeta }) => {
+      if (toolCalls.length < 3) return null;
+      const successfulCalls = toolCalls.filter((tc) => tc.success);
+      if (successfulCalls.length < 2) return null;
+      const pattern = successfulCalls.map((tc) => tc.name).join(' → ');
+      return {
+        id: normalizeExperienceId('tool-efficiency', pattern),
+        type: 'tool-efficiency',
+        title: `成功工具序列: ${pattern}`,
+        content: `在本次任务中，以下工具调用序列成功完成目标:\n${pattern}\n\n建议未来类似任务优先复用此序列，可减少试错轮次。`,
+        metadata: mkMeta(successfulCalls.length / toolCalls.length, successfulCalls.map((tc) => tc.name)),
+      };
+    },
+  },
+  {
+    // 经验 2: 错误模式与规避（用 classifyError 精确归类）
+    key: 'error-pattern',
+    extract: ({ errors, mkMeta }) => {
+      if (errors.length === 0) return null;
+      const categories = new Set<string>();
+      for (const e of errors) {
+        const analysis = classifyError(e.content || '', e.content || '');
+        categories.add(analysis?.category ?? 'unknown');
+      }
+      const uniqueErrors = [...categories];
+      return {
+        id: normalizeExperienceId('error-pattern', uniqueErrors.join(',')),
+        type: 'error-pattern',
+        title: `常见错误模式: ${uniqueErrors.join(', ')}`,
+        content: `本次任务遇到以下错误类型:\n${uniqueErrors.map((e) => `- ${e}`).join('\n')}\n\n规避建议: 提前校验前置条件（路径/权限/依赖），增加超时重试与最小改动原则，避免同类错误重复发生。`,
+        metadata: mkMeta(0, uniqueErrors),
+      };
+    },
+  },
+  {
+    // 经验 3: 干净成功模式（无错误且工具调用高效）
+    key: 'clean-success',
+    extract: ({ toolCalls, errors, mkMeta }) => {
+      if (errors.length > 0) return null;
+      if (toolCalls.filter((tc) => tc.success).length < 2) return null;
+      return {
+        id: normalizeExperienceId('success-pattern', 'clean-run'),
+        type: 'success-pattern',
+        title: '干净高效执行（无错误通过）',
+        content: '本次任务在较少轮次内一次性通过，说明目标拆解与工具使用策略有效。未来可优先沿用「先勘察→小步编辑→就地验证」的节奏。',
+        metadata: mkMeta(1.0, ['clean-run', 'efficiency']),
+      };
+    },
+  },
+];
+
 export function extractExperience(messages: ChatMessage[], runId: string): Experience[] {
   const experiences: Experience[] = [];
   const toolCalls: Array<{ name: string; args: unknown; success: boolean }> = [];
@@ -78,52 +146,13 @@ export function extractExperience(messages: ChatMessage[], runId: string): Exper
     lastUsedAt: now,
   });
 
-  // 经验 1: 高效工具调用模式（成功序列）
-  if (toolCalls.length >= 3) {
-    const successfulCalls = toolCalls.filter((tc) => tc.success);
-    if (successfulCalls.length >= 2) {
-      const pattern = successfulCalls.map((tc) => tc.name).join(' → ');
-      experiences.push({
-        id: normalizeExperienceId('tool-efficiency', pattern),
-        type: 'tool-efficiency',
-        title: `成功工具序列: ${pattern}`,
-        content:
-          `在本次任务中，以下工具调用序列成功完成目标:\n${pattern}\n\n建议未来类似任务优先复用此序列，可减少试错轮次。`,
-        metadata: mkMeta(successfulCalls.length / toolCalls.length, successfulCalls.map((tc) => tc.name)),
-      });
-    }
-  }
-
-  // 经验 2: 错误模式与规避（用 classifyError 精确归类）
   const errors = messages.filter((m) => m.role === 'tool' && (m.content || '').startsWith('错误:'));
-  if (errors.length > 0) {
-    const categories = new Set<string>();
-    for (const e of errors) {
-      const analysis = classifyError(e.content || '', e.content || '');
-      categories.add(analysis?.category ?? 'unknown');
-    }
-    const uniqueErrors = [...categories];
-    experiences.push({
-      id: normalizeExperienceId('error-pattern', uniqueErrors.join(',')),
-      type: 'error-pattern',
-      title: `常见错误模式: ${uniqueErrors.join(', ')}`,
-      content:
-        `本次任务遇到以下错误类型:\n${uniqueErrors.map((e) => `- ${e}`).join('\n')}\n\n规避建议: 提前校验前置条件（路径/权限/依赖），增加超时重试与最小改动原则，避免同类错误重复发生。`,
-      metadata: mkMeta(0, uniqueErrors),
-    });
-  }
+  const ctx: ExtractCtx = { toolCalls, errors, mkMeta, now };
 
-  // 经验 3: 干净成功模式（无错误且工具调用高效）
-  const errorCount = errors.length;
-  if (errorCount === 0 && toolCalls.filter((tc) => tc.success).length >= 2) {
-    experiences.push({
-      id: normalizeExperienceId('success-pattern', 'clean-run'),
-      type: 'success-pattern',
-      title: '干净高效执行（无错误通过）',
-      content:
-        '本次任务在较少轮次内一次性通过，说明目标拆解与工具使用策略有效。未来可优先沿用「先勘察→小步编辑→就地验证」的节奏。',
-      metadata: mkMeta(1.0, ['clean-run', 'efficiency']),
-    });
+  // 表驱动：依次运行提取器，命中的经验入列（行为与原三段 if 完全一致）
+  for (const ex of EXTRACTORS) {
+    const exp = ex.extract(ctx);
+    if (exp) experiences.push(exp);
   }
 
   // runId 仅用于审计留痕，不影响稳定 id

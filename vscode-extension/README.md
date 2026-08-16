@@ -1,7 +1,7 @@
-# fhcode VSCode 扩展（最小可用壳）
+# fhcode VSCode 扩展
 
 飞虹 Code 的 VSCode 入口扩展。**不含 Agent 逻辑**，仅作为编辑器侧薄壳：
-调起 `fhcode` CLI 执行任务、查看会话 diff。
+调起 `fhcode` CLI 执行任务、就地查看工作区 diff。
 
 ## 安装
 
@@ -12,8 +12,9 @@
 
 | 命令 | 说明 |
 |------|------|
-| `fhcode: 运行任务` | 输入目标 → 调起 `fhcode "<目标>"`，输出流式写入 Output Channel |
-| `fhcode: 查看工作区 diff` | 调起 `fhcode diff` 展示变更 |
+| `fhcode: 运行任务（附带选区上下文）` | 输入目标执行；**自动检测选中代码**，可选把选区作为 `<selection>` 上下文注入目标 |
+| `fhcode: 就地查看工作区 diff` | 列出已跟踪变更文件，用 VSCode **原生 diff 编辑器**展示 HEAD ↔ 工作区 |
+| `fhcode: 查看最近任务输出` | 聚焦任务 Output Channel |
 
 ## 配置
 
@@ -23,3 +24,4 @@
 | `fhcode.offline` | `false` | 以离线 mock 模式运行（无模型环境验证用） |
 
 > 扩展仅透传命令；沙箱/审批/企业策略均由 CLI 侧执行，行为与终端一致。
+> diff 面板通过 `git show HEAD:<path>` 提供左侧内容，需 git 仓库（与 `fhcode diff` 一致）。
