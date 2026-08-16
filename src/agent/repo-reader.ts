@@ -184,102 +184,13 @@ function langFromExt(ext: string): string {
   return map[ext.toLowerCase()] || (ext ? ext.slice(1) : 'other');
 }
 
-/** 读取整个代码仓库，产出结构化快照 */
-export function readRepository(root: string, opts: RepoReaderOptions = {}): RepoSnapshot {
-  const maxFiles = opts.maxFiles ?? 2000;
-  const treeDepth = opts.treeDepth ?? 3;
-  const maxContextLength = opts.maxContextLength ?? 6000;
-  const maxPreviewBytes = opts.maxPreviewBytes ?? 64 * 1024;
-
-  const ignores = parseGitignore(root);
-  const files: RepoFileEntry[] = [];
-  const languages: Record<string, number> = {};
-  let totalBytes = 0;
-  let truncated = false;
-
-  // BFS 遍历，带深度限制与忽略
-  const walk = (dir: string, depth: number): void => {
-    if (files.length >= maxFiles) {
-      truncated = true;
-      return;
-    }
-    let entries: string[];
-    try {
-      entries = readdirSync(dir);
-    } catch {
-      return;
-    }
-    for (const name of entries) {
-      if (files.length >= maxFiles) {
-        truncated = true;
-        break;
-      }
-      const abs = join(dir, name);
-      let st;
-      try {
-        st = statSync(abs);
-      } catch {
-        continue;
-      }
-      const rel = relative(root, abs);
-      if (DEFAULT_IGNORES.includes(name) || matchesIgnore(rel, ignores)) continue;
-      if (st.isDirectory()) {
-        walk(abs, depth + 1);
-      } else if (st.isFile()) {
-        const ext = extname(name).toLowerCase();
-        const isSource = SOURCE_EXTS.has(ext);
-        const entry: RepoFileEntry = {
-          path: rel,
-          abs,
-          size: st.size,
-          ext,
-          isSource,
-          isTest: isTestFile(rel),
-        };
-        files.push(entry);
-        totalBytes += st.size;
-        if (isSource) {
-          const lang = langFromExt(ext);
-          languages[lang] = (languages[lang] ?? 0) + 1;
-        }
-      }
-    }
-  };
-  walk(root, 0);
-
-  // 关键文件识别
-  const keyFiles: string[] = [];
-  const candidates = [
-    'package.json',
-    'pyproject.toml',
-    'go.mod',
-    'Cargo.toml',
-    'pom.xml',
-    'build.gradle',
-    'requirements.txt',
-    'README.md',
-    'README.rst',
-    'README',
-    'tsconfig.json',
-    'vite.config.ts',
-    'webpack.config.js',
-    'jest.config.js',
-    'vitest.config.ts',
-    'Dockerfile',
-    '.github/workflows',
-  ];
-  for (const c of candidates) {
-    if (existsSync(join(root, c))) keyFiles.push(c);
-  }
-  // 入口文件（index/main/bin）
-  for (const f of files) {
-    const b = basename(f.path);
-    if (/^(index|main|app|server|cli)\.(ts|tsx|js|jsx|mjs|go|py|rs|java)$/.test(b)) {
-      if (!keyFiles.includes(f.path)) keyFiles.push(f.path);
-    }
-  }
-
-  // 测试 / 构建命令探测
+/** 探测测试 / 构建命令（package.json 优先，Python/Go/Rust 兜底） */
+function detectTestBuild(root: string): {
+  testCommand?: string;
+  testFramework?: string;
+  buildCommand?: string;
+  hasPackageJson: boolean;
+} {
   let testCommand: string | undefined;
   let testFramework: string | undefined;
   let buildCommand: string | undefined;
@@ -313,7 +224,6 @@ export function readRepository(root: string, opts: RepoReaderOptions = {}): Repo
       /* 忽略损坏的 package.json */
     }
   }
-  // Python / Go / Rust 兜底
   if (!testCommand) {
     if (existsSync(join(root, 'pyproject.toml')) || existsSync(join(root, 'pytest.ini'))) {
       testFramework = 'pytest';
@@ -326,6 +236,102 @@ export function readRepository(root: string, opts: RepoReaderOptions = {}): Repo
       testCommand = 'cargo test';
     }
   }
+  return { testCommand, testFramework, buildCommand, hasPackageJson };
+}
+
+interface WalkState {
+  files: RepoFileEntry[];
+  languages: Record<string, number>;
+  totalBytes: number;
+  truncated: boolean;
+}
+
+/** BFS 遍历仓库（带文件数限流与忽略规则），结果写入 WalkState */
+function walkRepository(dir: string, root: string, maxFiles: number, ignores: string[], state: WalkState): void {
+  if (state.files.length >= maxFiles) {
+    state.truncated = true;
+    return;
+  }
+  let entries: string[];
+  try {
+    entries = readdirSync(dir);
+  } catch {
+    return;
+  }
+  for (const name of entries) {
+    if (state.files.length >= maxFiles) {
+      state.truncated = true;
+      break;
+    }
+    const abs = join(dir, name);
+    let st;
+    try {
+      st = statSync(abs);
+    } catch {
+      continue;
+    }
+    const rel = relative(root, abs);
+    if (DEFAULT_IGNORES.includes(name) || matchesIgnore(rel, ignores)) continue;
+    if (st.isDirectory()) {
+      walkRepository(abs, root, maxFiles, ignores, state);
+    } else if (st.isFile()) {
+      const ext = extname(name).toLowerCase();
+      const isSource = SOURCE_EXTS.has(ext);
+      state.files.push({ path: rel, abs, size: st.size, ext, isSource, isTest: isTestFile(rel) });
+      state.totalBytes += st.size;
+      if (isSource) {
+        const lang = langFromExt(ext);
+        state.languages[lang] = (state.languages[lang] ?? 0) + 1;
+      }
+    }
+  }
+}
+
+/** 读取整个代码仓库，产出结构化快照 */
+export function readRepository(root: string, opts: RepoReaderOptions = {}): RepoSnapshot {
+  const maxFiles = opts.maxFiles ?? 2000;
+  const treeDepth = opts.treeDepth ?? 3;
+  const maxContextLength = opts.maxContextLength ?? 6000;
+  const maxPreviewBytes = opts.maxPreviewBytes ?? 64 * 1024;
+
+  const ignores = parseGitignore(root);
+  const state: WalkState = { files: [], languages: {}, totalBytes: 0, truncated: false };
+  walkRepository(root, root, maxFiles, ignores, state);
+  const { files, languages, totalBytes, truncated } = state;
+
+  // 关键文件识别
+  const keyFiles: string[] = [];
+  const candidates = [
+    'package.json',
+    'pyproject.toml',
+    'go.mod',
+    'Cargo.toml',
+    'pom.xml',
+    'build.gradle',
+    'requirements.txt',
+    'README.md',
+    'README.rst',
+    'README',
+    'tsconfig.json',
+    'vite.config.ts',
+    'webpack.config.js',
+    'jest.config.js',
+    'vitest.config.ts',
+    'Dockerfile',
+    '.github/workflows',
+  ];
+  for (const c of candidates) {
+    if (existsSync(join(root, c))) keyFiles.push(c);
+  }
+  // 入口文件（index/main/bin）
+  for (const f of files) {
+    const b = basename(f.path);
+    if (/^(index|main|app|server|cli)\.(ts|tsx|js|jsx|mjs|go|py|rs|java)$/.test(b)) {
+      if (!keyFiles.includes(f.path)) keyFiles.push(f.path);
+    }
+  }
+
+  const { testCommand, testFramework, buildCommand, hasPackageJson } = detectTestBuild(root);
 
   const tree = buildTree(root, files, treeDepth);
   const contextString = buildContextString({

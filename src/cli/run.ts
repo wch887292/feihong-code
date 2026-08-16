@@ -13,6 +13,7 @@ import { tmpdir, homedir } from 'os';
 import { join, dirname } from 'path';
 import { createInterface } from 'readline';
 import { setRunId, logger } from '../shared/logger';
+import { t } from '../shared/i18n';
 import { loadConfig, loadConfigFile } from '../shared/config';
 import { AppError } from '../shared/errors';
 import { ModelRouter } from '../models/model-router';
@@ -166,9 +167,7 @@ export async function runGoal(goal: string, opts: RunOptions = {}): Promise<void
   });
 
   if (rt) {
-    console.log(
-      `[飞虹 Code] 身份 tenant=${rt.tenant.tenantId} user=${rt.tenant.userId} role=${rt.tenant.role}`,
-    );
+    console.log(t('run.identity', { tenant: rt.tenant.tenantId, user: rt.tenant.userId, role: rt.tenant.role }));
     rt.audit.record({
       tenantId: rt.tenant.tenantId,
       userId: rt.tenant.userId,
@@ -181,7 +180,7 @@ export async function runGoal(goal: string, opts: RunOptions = {}): Promise<void
     });
   }
 
-  console.log(`[飞虹 Code] 开始任务 (runId=${runId.slice(0, 8)}${offline ? ', 离线模式' : ''})`);
+  console.log(t('run.start', { id: runId.slice(0, 8), mode: offline ? t('run.offlineFragment') : '' }));
   const result = await orchestrator.run(goal);
 
   if (rt) {
@@ -197,20 +196,18 @@ export async function runGoal(goal: string, opts: RunOptions = {}): Promise<void
     });
   }
 
-  console.log('\n===== 执行结果 =====');
+  console.log('\n' + t('run.resultTitle'));
   console.log(result.finalAnswer);
-  console.log(
-    `\n迭代 ${result.iterations} 次 · 成本 $${result.costUsd.toFixed(6)} · 日志 ${result.logFile}`,
-  );
-  console.log(`会话检查点: ${join(logDir, `${runId}.session.json`)}（可用 fhcode sessions / resume / diff 管理）`);
+  console.log('\n' + t('run.summary', { iter: result.iterations, cost: '$' + result.costUsd.toFixed(6), log: result.logFile }));
+  console.log(t('run.checkpoint', { path: join(logDir, `${runId}.session.json`) }));
   if (offline) {
     // 演示文件可能因策略拒绝而未生成，据实播报，避免误导
     const demoFile = join(cwd, 'demo-output.txt');
     logger.info('offline-run done', { cwd, demoFile });
     console.log(
       existsSync(demoFile)
-        ? `(离线模式演示文件已写入: ${demoFile})`
-        : `(离线模式未产生演示文件，工作区: ${cwd}；如为策略拒绝可用 fhcode audit 查看原因)`,
+        ? t('run.offlineFileYes', { file: demoFile })
+        : t('run.offlineFileNo', { cwd }),
     );
   }
 }
@@ -289,7 +286,7 @@ export function runGoalSkill(title: string): string {
 /** --parallel 并行多子代理执行（离线用 Mock；真实模式接入 FH_PROVIDERS 路由） */
 export async function runParallelGoal(goal: string): Promise<void> {
   const offline = isOfflineByDefault();
-  console.log(`[飞虹 Code] 并行模式 (offline=${offline})`);
+  console.log(t('run.parallelMode', { offline: offline ? t('run.modeOffline') : t('run.modeLive') }));
 
   if (!offline) {
     const cfg = loadConfig();
@@ -303,9 +300,9 @@ export async function runParallelGoal(goal: string): Promise<void> {
       router,
       approve: defaultApproverFor(security),
     });
-    console.log('\n===== 并行执行结果 =====');
+    console.log('\n' + t('run.parallelResult'));
     console.log(result.summary);
-    console.log(`仓库根: ${result.repoRoot} · 工作树已清理: ${result.worktrees.length}`);
+    console.log(t('run.parallelRepo', { root: result.repoRoot, trees: result.worktrees.length }));
     return;
   }
 
@@ -313,9 +310,9 @@ export async function runParallelGoal(goal: string): Promise<void> {
     offline: true,
     mockFor: (task) => defaultParallelMock(task),
   });
-  console.log('\n===== 并行执行结果 =====');
+  console.log('\n' + t('run.parallelResult'));
   console.log(result.summary);
-  console.log(`仓库根: ${result.repoRoot} · 工作树已清理: ${result.worktrees.length}`);
+  console.log(t('run.parallelRepo', { root: result.repoRoot, trees: result.worktrees.length }));
 }
 
 /* ===================== M3：会话管理（resume / diff / rollback） ===================== */
@@ -339,15 +336,22 @@ export async function runSessions(): Promise<void> {
   const home = getSessionHome(offline);
   const cps = await listCheckpoints(home);
   if (cps.length === 0) {
-    console.log('（无历史会话）');
+    console.log(t('run.noSessions'));
     return;
   }
-  console.log(`历史会话（${offline ? '离线' : '真实'}模式，目录 ${home}）:`);
+  console.log(t('run.sessionList', { mode: offline ? t('mode.offline') : t('mode.live'), home }));
   for (const cp of cps) {
     console.log(
-      `- ${cp.runId.slice(0, 8)} | ${cp.status} | 迭代${cp.iterations} | $${cp.costUsd.toFixed(6)} | 文件${cp.touchedFiles.length} | ${cp.updatedAt}`,
+      t('run.sessionItem', {
+        id: cp.runId.slice(0, 8),
+        status: cp.status,
+        iter: cp.iterations,
+        cost: '$' + cp.costUsd.toFixed(6),
+        files: cp.touchedFiles.length,
+        time: cp.updatedAt,
+      }),
     );
-    console.log(`    目标: ${cp.goal}`);
+    console.log(t('run.sessionGoal', { goal: cp.goal }));
   }
 }
 
@@ -357,10 +361,10 @@ export async function runResume(runId: string): Promise<void> {
   const home = getSessionHome(offline);
   const cp = await resolveCheckpoint(home, runId);
   if (cp.status === 'done') {
-    console.log(`会话 ${runId.slice(0, 8)} 已完成，无需恢复。`);
+    console.log(t('run.resumeDone', { id: runId.slice(0, 8) }));
     return;
   }
-  console.log(`[飞虹 Code] 恢复会话 ${runId.slice(0, 8)} (状态: ${cp.status}, 已迭代 ${cp.iterations} 次)`);
+  console.log(t('run.resumeStart', { id: runId.slice(0, 8), status: cp.status, iter: cp.iterations }));
 
   const security: OrchestratorSecurity = { shellAllowlist: [], requireApproval: true };
   let router: ModelRouter;
@@ -410,9 +414,9 @@ export async function runResume(runId: string): Promise<void> {
     touchedFiles: cp.touchedFiles,
   });
 
-  console.log('\n===== 恢复执行结果 =====');
+  console.log('\n' + t('run.resultTitle'));
   console.log(result.finalAnswer);
-  console.log(`迭代 ${result.iterations} 次 · 成本 $${result.costUsd.toFixed(6)} · 日志 ${result.logFile}`);
+  console.log(t('run.summary', { iter: result.iterations, cost: '$' + result.costUsd.toFixed(6), log: result.logFile }));
 }
 
 /** 展示会话作用域的 diff（缺省为本工作区全量 diff） */
@@ -421,10 +425,10 @@ export async function runDiff(id?: string): Promise<void> {
   const home = getSessionHome(offline);
   if (id) {
     const cp = await resolveCheckpoint(home, id);
-    console.log(`[飞虹 Code] 会话 ${id.slice(0, 8)} 的变更 (cwd=${cp.cwd}):`);
+    console.log(t('run.diffSession', { id: id.slice(0, 8), cwd: cp.cwd }));
     console.log(await gitDiff(cp.cwd, cp.touchedFiles));
   } else {
-    console.log(`[飞虹 Code] 当前目录 (${process.cwd()}) 工作区变更:`);
+    console.log(t('run.diffCwd', { cwd: process.cwd() }));
     console.log(await gitDiff(process.cwd()));
   }
 }
@@ -454,11 +458,11 @@ export async function runRollback(id: string, yes: boolean): Promise<void> {
     }
   }
 
-  console.log(`[飞虹 Code] 回滚会话 ${id.slice(0, 8)} 的 ${cp.touchedFiles.length} 个文件 (cwd=${cp.cwd})`);
+  console.log(t('run.rollbackStart', { id: id.slice(0, 8), n: cp.touchedFiles.length, cwd: cp.cwd }));
   const res = await gitRollback(cp.cwd, cp.touchedFiles, { yes });
-  if (res.reverted.length) console.log(`已还原(已跟踪): ${res.reverted.join(', ')}`);
-  if (res.removed.length) console.log(`已删除(未跟踪): ${res.removed.join(', ')}`);
-  if (res.errors.length) console.log(`注意: ${res.errors.join('; ')}`);
+  if (res.reverted.length) console.log(t('run.rollbackReverted', { files: res.reverted.join(', ') }));
+  if (res.removed.length) console.log(t('run.rollbackRemoved', { files: res.removed.join(', ') }));
+  if (res.errors.length) console.log(t('run.rollbackNote', { errors: res.errors.join('; ') }));
   if (yes) await updateStatus(home, id, 'done');
 }
 
@@ -468,7 +472,7 @@ function requireEnterprise(): EnterpriseRuntime {
   const rt = getEnterprise();
   if (!rt) {
     throw new AppError(
-      '企业模式已关闭（FH_ENTERPRISE=false），该命令不可用。',
+      t('err.enterpriseDisabled'),
       'ENTERPRISE_DISABLED',
       400,
     );
@@ -492,20 +496,27 @@ export function runAudit(limit = 20): void {
   const rt = requireEnterprise();
   const all = readAudit(rt.tenant.auditDir);
   if (all.length === 0) {
-    console.log(`（租户 ${rt.tenant.tenantId} 暂无审计记录，目录 ${rt.tenant.auditDir}）`);
+    console.log(t('audit.empty', { tenant: rt.tenant.tenantId, dir: rt.tenant.auditDir }));
     return;
   }
   const rows = all.slice(-limit);
-  console.log(`审计记录 ${rows.length}/${all.length} 条（租户 ${rt.tenant.tenantId}）:`);
+  console.log(t('audit.header', { rows: rows.length, all: all.length, tenant: rt.tenant.tenantId }));
   for (const r of rows) {
     console.log(
-      `#${String(r.seq).padStart(4, '0')} ${r.ts} [${r.decision.toUpperCase()}] ${r.action}` +
-        ` by ${r.userId}(${r.role}) run=${String(r.runId).slice(0, 8)}`,
+      t('audit.row', {
+        seq: String(r.seq).padStart(4, '0'),
+        ts: r.ts,
+        decision: r.decision.toUpperCase(),
+        action: r.action,
+        user: r.userId,
+        role: r.role,
+        run: String(r.runId).slice(0, 8),
+      }),
     );
-    console.log(`      资源: ${r.resource}`);
-    if (r.reason) console.log(`      理由: ${r.reason}`);
+    console.log(t('audit.resource', { resource: r.resource }));
+    if (r.reason) console.log(t('audit.reason', { reason: r.reason }));
   }
-  console.log(`链尾哈希: ${all[all.length - 1].hash.slice(0, 16)}…`);
+  console.log(t('audit.chainTail', { hash: all[all.length - 1].hash.slice(0, 16) }));
 }
 
 /** fhcode audit verify：校验哈希链完整性 */
@@ -513,10 +524,10 @@ export function runAuditVerify(): void {
   const rt = requireEnterprise();
   const res = verifyAudit(rt.tenant.auditDir);
   if (res.ok) {
-    console.log(`✅ 审计链完整：${res.total} 条记录，哈希链自洽未被篡改。`);
+    console.log(t('audit.verifyOk', { total: res.total }));
     return;
   }
-  console.log(`❌ 审计链校验失败：共 ${res.total} 条，断点在第 ${res.brokenAt} 条`);
+  console.log(t('audit.verifyFail', { total: res.total, brokenAt: res.brokenAt ?? 0 }));
   console.log(`   ${res.detail}`);
   process.exitCode = 2;
 }
@@ -526,14 +537,20 @@ export function runTenants(): void {
   requireEnterprise();
   const list = listTenants();
   if (list.length === 0) {
-    console.log('（暂无租户数据，执行一次任务后自动创建）');
+    console.log(t('tenants.empty'));
     return;
   }
-  console.log('租户用量汇总:');
-  console.log('  租户ID                会话数   累计成本      审计条数   最近活跃');
-  for (const t of list) {
+  console.log(t('tenants.header'));
+  console.log(t('tenants.tableHeader'));
+  for (const tenant of list) {
     console.log(
-      `  ${t.tenantId.padEnd(20)} ${String(t.sessions).padStart(5)}   $${t.costUsd.toFixed(6).padStart(10)}   ${String(t.auditRecords).padStart(7)}   ${t.lastActiveAt}`,
+      t('tenants.row', {
+        id: tenant.tenantId.padEnd(20),
+        sessions: String(tenant.sessions).padStart(5),
+        cost: '$' + tenant.costUsd.toFixed(6).padStart(10),
+        audit: String(tenant.auditRecords).padStart(7),
+        last: tenant.lastActiveAt,
+      }),
     );
   }
 }
@@ -545,18 +562,18 @@ export function runModelStats(): void {
   const homeDir = join(homedir(), '.feihong-code');
   const statsFile = join(homeDir, 'model-stats.jsonl');
   if (!existsSync(statsFile)) {
-    console.log('（暂无模型性能数据，执行任务后自动生成）');
+    console.log(t('modelStats.empty'));
     return;
   }
   const router = new ModelRouter([], 'cost', 0, statsFile);
   router.loadStats(homeDir).then(() => {
     const stats = router.getStats();
     if (stats.length === 0) {
-      console.log('（无模型统计记录）');
+      console.log(t('modelStats.noRecords'));
       return;
     }
-    console.log('模型性能统计（M6）:');
-    console.log('  提供者ID          模型               总调用  成功  失败  成功率  平均延迟  总成本');
+    console.log(t('modelStats.title'));
+    console.log(t('modelStats.tableHeader'));
     for (const s of stats) {
       console.log(
         `  ${s.providerId.padEnd(16)} ${s.model.padEnd(18)} ${String(s.totalCalls).padStart(5)} ${String(s.successfulCalls).padStart(5)} ${String(s.failedCalls).padStart(5)} ${s.successRate.toFixed(2).padStart(6)} ${s.avgLatencyMs.toFixed(0).padStart(8)}ms $${s.totalCostUsd.toFixed(6)}`,
@@ -570,18 +587,18 @@ export function runExperiences(path?: string): void {
   const experienceDir = path || join(require('os').homedir(), '.feihong-code', 'experiences');
   listExperiences(experienceDir).then((experiences: Experience[]) => {
     if (experiences.length === 0) {
-      console.log('（暂无经验记录，完成任务后自动积累）');
+      console.log(t('exp.empty'));
       return;
     }
-    console.log(`经验库 (${experiences.length} 条，来源: ${experienceDir}):`);
-    console.log('  ID                              类型                 标题                    成功率  使用次数');
+    console.log(t('exp.header', { n: experiences.length, dir: experienceDir }));
+    console.log(t('exp.tableHeader'));
     for (const exp of experiences.slice(0, 10)) {
       console.log(
         `  ${exp.id.padEnd(30)} ${exp.type.padEnd(16)} ${exp.title.slice(0, 25).padEnd(25)} ${(exp.metadata.successRate * 100).toFixed(0).padStart(4)}%    ${String(exp.metadata.sessionCount).padStart(4)}`,
       );
     }
     if (experiences.length > 10) {
-      console.log(`  ... 共 ${experiences.length} 条，显示前 10 条`);
+      console.log(t('exp.more', { n: experiences.length }));
     }
   });
 }
@@ -591,9 +608,9 @@ export function runExperiences(path?: string): void {
 /** fhcode serve：启动 Web 管理控制台。无 FH_WEB_PORT 用 8080；无 FH_WEB_TOKEN 自动生成。 */
 export function runServe(port?: number): void {
   const handle = startWebServer({ port });
-  console.log(`[飞虹 Code] Web 控制台: ${handle.url}`);
-  console.log(`[飞虹 Code] 访问令牌 (FH_WEB_TOKEN): ${handle.token}`);
-  console.log(`[飞虹 Code] 按 Ctrl+C 停止`);
+  console.log(t('serve.url', { url: handle.url }));
+  console.log(t('serve.token', { token: handle.token }));
+  console.log(t('serve.stop'));
   // 注意：app.listen 保持事件循环运行，进程持续存活直到收到 SIGINT；本函数返回后 main() 结束不影响服务。
 }
 
@@ -638,9 +655,9 @@ export function calculateTieredCommission(plan: CommissionPlan, amount: number):
 }
 `;
   const result = await writer.run(goal, sampleCode, 'generated/commission.ts');
-  console.log(`\n===== M8 自主编写结果 =====`);
+  console.log('\n' + t('codewrite.resultTitle'));
   console.log(result.summary);
-  console.log(`生成文件: ${result.finalFiles.join(', ')}`);
+  console.log(t('codewrite.files', { files: result.finalFiles.join(', ') }));
 }
 
 /** fhcode quality-gate [路径]：质量门禁审查 */
@@ -651,7 +668,7 @@ export function runQualityGate(path?: string): void {
   console.log(gate.report(results));
   const failed = results.filter((r) => !r.passed);
   if (failed.length > 0) {
-    console.log(`\n⚠️ ${failed.length} 个文件未通过门禁，请修复后再提交`);
+    console.log('\n' + t('quality.failed', { n: failed.length }));
   }
 }
 
@@ -660,38 +677,38 @@ export async function runSelfImprove(): Promise<void> {
   const improver = createSelfImprover();
   const records = improver.loadImprovements();
   const stats = improver.getStats();
-  console.log('===== M6/M8 自我迭代系统状态 =====');
-  console.log(`反思次数: ${stats.totalReflections}`);
-  console.log(`成功率: ${(stats.successRate * 100).toFixed(1)}%`);
-  console.log(`平均耗时: ${stats.avgDurationMs.toFixed(0)}ms`);
+  console.log(t('selfimp.title'));
+  console.log(t('selfimp.reflections', { n: stats.totalReflections }));
+  console.log(t('selfimp.successRate', { p: (stats.successRate * 100).toFixed(1) }));
+  console.log(t('selfimp.avgDuration', { ms: stats.avgDurationMs.toFixed(0) }));
 
   // 经验库概览（与 orchestrator 共用同一库，体现回流闭环）
   const exps = await listExperiences(improver.experienceStoreDir);
   const totalWeight = exps.reduce((s, e) => s + e.metadata.sessionCount, 0);
-  console.log(`\n经验库: ${exps.length} 条独特经验, 累计验证权重 ${totalWeight}`);
+  console.log('\n' + t('selfimp.expLib', { n: exps.length, w: totalWeight }));
   if (exps.length > 0) {
-    console.log('\nTop 经验（按被复用次数）:');
+    console.log('\n' + t('selfimp.topExp'));
     for (const e of exps.slice(0, 6)) {
-      console.log(`  [${e.metadata.sessionCount}×] ${e.type} | ${e.title}`);
+      console.log(t('selfimp.expItem', { count: e.metadata.sessionCount, type: e.type, title: e.title }));
     }
   }
 
   if (records.length > 0) {
-    console.log(`\n最近改进记录:`);
+    console.log('\n' + t('selfimp.recent'));
     for (const rec of records.slice(-5).reverse()) {
-      console.log(`  ${rec.timestamp.slice(0, 19)} | ${rec.success ? '✅' : '❌'} | 模式: ${rec.patterns.length} 条`);
+      console.log(t('selfimp.record', { ts: rec.timestamp.slice(0, 19), ok: rec.success ? '✅' : '❌', n: rec.patterns.length }));
       for (const imp of rec.improvements.slice(0, 3)) {
-        console.log(`    → ${imp}`);
+        console.log(t('selfimp.improvement', { imp }));
       }
     }
   } else {
-    console.log('\n（暂无改进记录，完成任务后自动生成）');
+    console.log('\n' + t('selfimp.noRecords'));
   }
 
   // 学习提示预览：模拟一次任务，展示将注入模型的经验
-  console.log('\n----- 学习提示预览（目标: 实现一个 REST API 功能）-----');
+  console.log('\n' + t('selfimp.learnPreview', { goal: '实现一个 REST API 功能' }));
   const learned = await improver.getLearnedPrompt('实现一个 REST API 功能');
-  console.log(learned || '（暂无可注入经验）');
+  console.log(learned || t('selfimp.noLearned'));
 }
 
 /* ===================== M9：全自动软件工程 Agent ===================== */
@@ -727,13 +744,7 @@ export async function runSwe(goal: string, opts: SweOptions = {}): Promise<void>
   if (!offline) {
     const cfg = loadConfig();
     if (!cfg.models.providers.length) {
-      console.error(
-        '[飞虹 Code] 未配置真实模型供应商，无法进入真实模式。请通过以下任一方式接入：\n' +
-          '  1) 环境变量: FH_MODEL_NAME=<模型> FH_MODEL_TYPE=ollama|openai-compatible FH_MODEL_BASE_URL=<地址> [FH_MODEL_API_KEY=<令牌>]\n' +
-          '  2) 配置文件: ./fhcode.config.json 的 models.providers 数组\n' +
-          '  3) FH_PROVIDERS 环境变量(JSON 数组)\n' +
-          '本地 Ollama 示例: FH_MODEL_NAME=qwen2.5-coder:1.5b FH_MODEL_TYPE=ollama fhcode swe "..."',
-      );
+      console.error(t('swe.noProvider'));
       return;
     }
   }
@@ -782,7 +793,7 @@ export async function runSwe(goal: string, opts: SweOptions = {}): Promise<void>
     };
   };
 
-  console.log(`[飞虹 Code] 启动全自动软件工程 Agent (offline=${offline}, 仓库=${cwd})`);
+  console.log(t('swe.start', { offline: offline ? t('run.modeOffline') : t('run.modeLive'), cwd }));
   const report: SweReport = await runSweAgent(goal, {
     cwd,
     runSubTask,
@@ -792,7 +803,7 @@ export async function runSwe(goal: string, opts: SweOptions = {}): Promise<void>
     planOnly: !!opts.planOnly,
   });
 
-  console.log('\n===== 全自动软件工程 Agent 报告 =====');
+  console.log('\n' + t('swe.reportTitle'));
   console.log(report.summary);
 
   if (rt) {
@@ -850,7 +861,7 @@ export function interactiveApprover(): (action: string) => Promise<boolean> {
     new Promise<boolean>((resolve) => {
       const rl = createInterface({ input: process.stdin, output: process.stdout });
       const ask = () =>
-        rl.question(`[审批] 是否允许执行: ${action}\n  输入 y/yes 允许，其他拒绝: `, (ans) => {
+        rl.question(t('approve.prompt', { action }), (ans) => {
           rl.close();
           resolve(/^(y|yes|是)$/i.test(ans.trim()));
         });

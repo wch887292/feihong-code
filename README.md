@@ -20,6 +20,8 @@
 **📦 一键安装**：`npm install -g feihong-code` · 国内镜像：`npm install -g feihong-code --registry=https://registry.npmmirror.com`
 **🚀 5 分钟上手**：`fhcode --version` → `fhcode chat`（离线模式免 API Key 即可对话）
 
+**🌐 中英文双语界面**：`fhcode --lang zh|en` 切换 CLI 语言，或设置环境变量 `FHCODE_LANG=zh|en`（默认按系统 locale 自动检测）。Web 控制台（`fhcode serve`）同样支持中英文一键切换。
+
 
 ---
 

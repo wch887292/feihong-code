@@ -13,6 +13,7 @@ import type { ReviewRule } from './code-review';
 import { reviewCode } from './code-review';
 import { analyzeFile } from '../tools/analysis/code-analyzer';
 import { generateJestTest, inferTestCases } from '../tools/generator/test-generator';
+import { t } from '../shared/i18n';
 
 export interface QualityGateConfig {
   maxHighSeverityIssues: number;
@@ -127,15 +128,24 @@ export class QualityGate {
 
   /** 批量审查并报告 */
   report(results: GateResult[]): string {
-    const lines = ['===== 质量门禁报告 ====='];
+    const lines = [t('quality.reportTitle')];
     for (const r of results) {
-      lines.push(`\n${r.file}: ${r.passed ? '✅ 通过' : '❌ 未通过'}`);
+      lines.push(
+        t('quality.fileResult', { file: r.file, status: r.passed ? t('quality.pass') : t('quality.fail') }),
+      );
       for (const check of r.checks) {
-        lines.push(`  ${check.passed ? '✅' : '❌'} ${check.name}: ${check.value} ${check.threshold ? `(要求: ${check.threshold})` : ''}`);
+        lines.push(
+          t('quality.check', {
+            mark: check.passed ? '✅' : '❌',
+            name: check.name,
+            value: check.value,
+            req: check.threshold ? t('quality.req', { threshold: check.threshold }) : '',
+          }),
+        );
       }
     }
     const passed = results.filter((r) => r.passed).length;
-    lines.push(`\n总计: ${passed}/${results.length} 通过`);
+    lines.push(t('quality.total', { passed, total: results.length }));
     return lines.join('\n');
   }
 

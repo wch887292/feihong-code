@@ -18,6 +18,7 @@ import { existsSync, readFileSync } from 'fs';
 import { join, resolve, sep } from 'path';
 import { logger } from '../shared/logger';
 import { ROLES, type Role } from './tenant';
+import { t } from '../shared/i18n';
 
 export type Effect = 'allow' | 'deny' | 'approval';
 
@@ -267,19 +268,30 @@ export function evaluate(policy: Policy, input: EvalInput): PolicyDecision {
 export function renderPolicy(policy: Policy, role: Role): string {
   const rp = policy.roles[role];
   const lines = [
-    `策略版本: v${policy.version}`,
-    `当前角色: ${role}`,
-    `  直接允许: ${rp.allowTools.join(', ')}`,
-    `  需审批  : ${rp.approvalTools.join(', ') || '（无）'}`,
-    `  单任务成本上限: ${rp.maxCostUsd > 0 ? `$${rp.maxCostUsd}` : '不限'}`,
-    `租户日成本上限: ${policy.tenantDailyBudgetUsd > 0 ? `$${policy.tenantDailyBudgetUsd}` : '不限'}`,
-    `危险命令黑名单(${policy.denyShell.length}): ${policy.denyShell.slice(0, 8).join(' | ')}${policy.denyShell.length > 8 ? ' ...' : ''}`,
-    `敏感路径黑名单(${policy.denyPaths.length}): ${policy.denyPaths.slice(0, 8).join(' | ')}${policy.denyPaths.length > 8 ? ' ...' : ''}`,
+    t('policy.version', { v: policy.version }),
+    t('policy.role', { v: role }),
+    t('policy.allow', { v: rp.allowTools.join(', ') }),
+    t('policy.approval', { v: rp.approvalTools.join(', ') || t('enterprise.none') }),
+    t('policy.taskCap', { v: rp.maxCostUsd > 0 ? `$${rp.maxCostUsd}` : t('enterprise.unlimited') }),
+    t('policy.tenantCap', { v: policy.tenantDailyBudgetUsd > 0 ? `$${policy.tenantDailyBudgetUsd}` : t('enterprise.unlimited') }),
+    t('policy.denyShell', {
+      n: policy.denyShell.length,
+      v: policy.denyShell.slice(0, 8).join(' | ') + (policy.denyShell.length > 8 ? ' ...' : ''),
+    }),
+    t('policy.denyPaths', {
+      n: policy.denyPaths.length,
+      v: policy.denyPaths.slice(0, 8).join(' | ') + (policy.denyPaths.length > 8 ? ' ...' : ''),
+    }),
     '',
-    '全角色矩阵:',
+    t('policy.matrixTitle'),
     ...ROLES.map(
       (r) =>
-        `  ${r.padEnd(10)} allow=[${policy.roles[r].allowTools.join(',')}] approval=[${policy.roles[r].approvalTools.join(',') || '-'}] max=$${policy.roles[r].maxCostUsd || '∞'}`,
+        t('policy.matrixRow', {
+          role: r.padEnd(10),
+          allow: policy.roles[r].allowTools.join(','),
+          approval: policy.roles[r].approvalTools.join(',') || '-',
+          max: policy.roles[r].maxCostUsd || '∞',
+        }),
     ),
   ];
   return lines.join('\n');

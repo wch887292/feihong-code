@@ -66,6 +66,7 @@ export interface ParsedArgs {
     maxIterations?: number;
     verifyOnly?: boolean;
     planOnly?: boolean;
+    lang?: string;
   };
   /** 单命令模式下的需求文本（首个非 flag 参数） */
   command?: string;
@@ -75,141 +76,129 @@ export interface ParsedArgs {
   manage?: ManagementCommand;
 }
 
+type FlagKey = keyof ParsedArgs['flags'];
+type FlagSpec =
+  | { kind: 'bool'; key: FlagKey }
+  | { kind: 'int'; min: number; key: FlagKey }
+  | { kind: 'str'; key: FlagKey };
+
+/** 标志规格表：统一处理 `--flag` 与 `--flag=value` 两种写法，降低解析分支复杂度 */
+const FLAG_SPECS: Record<string, FlagSpec> = {
+  version: { kind: 'bool', key: 'version' },
+  help: { kind: 'bool', key: 'help' },
+  parallel: { kind: 'bool', key: 'parallel' },
+  yes: { kind: 'bool', key: 'yes' },
+  'verify-only': { kind: 'bool', key: 'verifyOnly' },
+  'plan-only': { kind: 'bool', key: 'planOnly' },
+  port: { kind: 'int', min: 1, key: 'port' },
+  limit: { kind: 'int', min: 1, key: 'limit' },
+  repo: { kind: 'str', key: 'repo' },
+  lang: { kind: 'str', key: 'lang' },
+  'max-tasks': { kind: 'int', min: 1, key: 'maxTasks' },
+  'max-retries': { kind: 'int', min: 0, key: 'maxRetries' },
+  'max-iterations': { kind: 'int', min: 1, key: 'maxIterations' },
+};
+
+const SHORT_FLAGS: Record<string, FlagKey> = {
+  '-v': 'version',
+  '-h': 'help',
+};
+
+/** 类型安全的标志赋值：用泛型把联合键收敛为单一键，避免联合键写入报错 */
+function setFlag<K extends FlagKey>(flags: ParsedArgs['flags'], key: K, value: ParsedArgs['flags'][K]): void {
+  flags[key] = value;
+}
+
+function applyFlag(flags: ParsedArgs['flags'], name: string, inline: string | undefined, consume: () => string | undefined): void {
+  const spec = FLAG_SPECS[name];
+  if (!spec) return;
+  if (spec.kind === 'bool') {
+    setFlag(flags, spec.key, true);
+  } else if (spec.kind === 'str') {
+    setFlag(flags, spec.key, (inline ?? consume()) || undefined);
+  } else {
+    const raw = inline ?? consume();
+    const n = Number(raw);
+    if (raw !== undefined && Number.isFinite(n) && n >= spec.min) setFlag(flags, spec.key, Math.floor(n));
+  }
+}
+
+function buildSweCommand(flags: ParsedArgs['flags'], rest: string[]): ManagementCommand {
+  return {
+    kind: 'swe',
+    goal: rest.join(' ') || 'auto-improve',
+    repo: flags.repo,
+    maxTasks: flags.maxTasks ?? 8,
+    maxRetries: flags.maxRetries ?? 2,
+    maxIterations: flags.maxIterations ?? 6,
+    verifyOnly: !!flags.verifyOnly,
+    planOnly: !!flags.planOnly,
+  };
+}
+
+type ManageCtx = { flags: ParsedArgs['flags']; rest: string[] };
+type ManageBuilder = (ctx: ManageCtx) => ManagementCommand;
+
+/** 管理命令分发表：head -> 构造对应 ManagementCommand，表驱动替代长 if 链 */
+const MANAGE_BUILDERS: Record<string, ManageBuilder> = {
+  sessions: () => ({ kind: 'sessions' }),
+  resume: ({ rest }) => ({ kind: 'resume', id: rest[0] ?? '' }),
+  diff: ({ rest }) => ({ kind: 'diff', id: rest[0] }),
+  rollback: ({ flags, rest }) => ({ kind: 'rollback', id: rest[0] ?? '', yes: !!flags.yes }),
+  whoami: () => ({ kind: 'whoami' }),
+  policy: () => ({ kind: 'policy' }),
+  tenants: () => ({ kind: 'tenants' }),
+  serve: ({ flags }) => ({ kind: 'serve', port: flags.port }),
+  audit: ({ flags, rest }) => ({ kind: 'audit', verify: rest[0] === 'verify', limit: flags.limit ?? 20 }),
+  'model-stats': () => ({ kind: 'model-stats' }),
+  experiences: ({ rest }) => ({ kind: 'experiences', path: rest[0] }),
+  'code-write': ({ rest }) => ({ kind: 'code-write', goal: rest.join(' ') || 'auto-generate', filePath: 'output.ts' }),
+  'quality-gate': ({ rest }) => ({ kind: 'quality-gate', path: rest[0] || '.' }),
+  'self-improve': () => ({ kind: 'self-improve' }),
+  swe: ({ flags, rest }) => buildSweCommand(flags, rest),
+};
+
 export function parseArgs(argv: string[]): ParsedArgs {
   const flags: ParsedArgs['flags'] = {};
   const positional: string[] = [];
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
-    if (arg === '--version' || arg === '-v') flags.version = true;
-    else if (arg === '--help' || arg === '-h') flags.help = true;
-    else if (arg === '--parallel') flags.parallel = true;
-    else if (arg === '--yes') flags.yes = true;
-    else if (arg === '--port') {
-      const next = argv[++i];
-      const n = Number(next);
-      if (next !== undefined && Number.isFinite(n) && n > 0) flags.port = Math.floor(n);
-    } else if (arg.startsWith('--port=')) {
-      const n = Number(arg.slice('--port='.length));
-      if (Number.isFinite(n) && n > 0) flags.port = Math.floor(n);
+    if (arg.startsWith('-') && !arg.startsWith('--')) {
+      const key = SHORT_FLAGS[arg];
+      if (key) setFlag(flags, key, true);
+      else positional.push(arg);
+      continue;
     }
-    else if (arg === '--limit') {
-      const next = argv[++i];
-      const n = Number(next);
-      if (next !== undefined && Number.isFinite(n) && n > 0) flags.limit = Math.floor(n);
-    }     else if (arg.startsWith('--limit=')) {
-      const n = Number(arg.slice('--limit='.length));
-      if (Number.isFinite(n) && n > 0) flags.limit = Math.floor(n);
-    } else if (arg === '--repo') {
-      flags.repo = argv[++i];
-    } else if (arg.startsWith('--repo=')) {
-      flags.repo = arg.slice('--repo='.length);
-    } else if (arg === '--max-tasks') {
-      const n = Number(argv[++i]);
-      if (Number.isFinite(n) && n > 0) flags.maxTasks = Math.floor(n);
-    } else if (arg.startsWith('--max-tasks=')) {
-      const n = Number(arg.slice('--max-tasks='.length));
-      if (Number.isFinite(n) && n > 0) flags.maxTasks = Math.floor(n);
-    } else if (arg === '--max-retries') {
-      const n = Number(argv[++i]);
-      if (Number.isFinite(n) && n >= 0) flags.maxRetries = Math.floor(n);
-    } else if (arg.startsWith('--max-retries=')) {
-      const n = Number(arg.slice('--max-retries='.length));
-      if (Number.isFinite(n) && n >= 0) flags.maxRetries = Math.floor(n);
-    } else if (arg === '--max-iterations') {
-      const n = Number(argv[++i]);
-      if (Number.isFinite(n) && n > 0) flags.maxIterations = Math.floor(n);
-    } else if (arg.startsWith('--max-iterations=')) {
-      const n = Number(arg.slice('--max-iterations='.length));
-      if (Number.isFinite(n) && n > 0) flags.maxIterations = Math.floor(n);
-    } else if (arg === '--verify-only') {
-      flags.verifyOnly = true;
-    } else if (arg === '--plan-only') {
-      flags.planOnly = true;
-    } else positional.push(arg);
+    if (arg.startsWith('--')) {
+      const eq = arg.indexOf('=');
+      const name = eq >= 0 ? arg.slice(2, eq) : arg.slice(2);
+      const inline = eq >= 0 ? arg.slice(eq + 1) : undefined;
+      if (FLAG_SPECS[name]) {
+        applyFlag(flags, name, inline, () => argv[++i]);
+        continue;
+      }
+    }
+    positional.push(arg);
   }
 
   const head = positional[0];
   const rest = positional.slice(1);
 
-  // 会话管理命令
-  if (head === 'sessions') {
-    return { flags, manage: { kind: 'sessions' } };
-  }
-  if (head === 'resume') {
-    return { flags, manage: { kind: 'resume', id: rest[0] ?? '' } };
-  }
-  if (head === 'diff') {
-    return { flags, manage: { kind: 'diff', id: rest[0] } };
-  }
-  if (head === 'rollback') {
-    return { flags, manage: { kind: 'rollback', id: rest[0] ?? '', yes: !!flags.yes } };
-  }
-
-  // M4 企业管理命令
-  if (head === 'whoami') return { flags, manage: { kind: 'whoami' } };
-  if (head === 'policy') return { flags, manage: { kind: 'policy' } };
-  if (head === 'tenants') return { flags, manage: { kind: 'tenants' } };
-  if (head === 'serve') return { flags, manage: { kind: 'serve', port: flags.port } };
-  if (head === 'audit') {
-    return {
-      flags,
-      manage: { kind: 'audit', verify: rest[0] === 'verify', limit: flags.limit ?? 20 },
-    };
-  }
-
-  // M6 自我进化命令
-  if (head === 'model-stats') return { flags, manage: { kind: 'model-stats' } };
-  if (head === 'experiences') return { flags, manage: { kind: 'experiences', path: rest[0] } };
-
-  // M8 自主编程命令
-  if (head === 'code-write') {
-    return {
-      flags,
-      manage: {
-        kind: 'code-write',
-        goal: rest.join(' ') || 'auto-generate',
-        filePath: 'output.ts',
-      },
-    };
-  }
-  if (head === 'quality-gate') {
-    return { flags, manage: { kind: 'quality-gate', path: rest[0] || '.' } };
-  }
-  if (head === 'self-improve') {
-    return { flags, manage: { kind: 'self-improve' } };
-  }
-
-  // M9 全自动软件工程 Agent
-  if (head === 'swe') {
-    return {
-      flags,
-      manage: {
-        kind: 'swe',
-        goal: rest.join(' ') || 'auto-improve',
-        repo: flags.repo,
-        maxTasks: flags.maxTasks ?? 8,
-        maxRetries: flags.maxRetries ?? 2,
-        maxIterations: flags.maxIterations ?? 6,
-        verifyOnly: !!flags.verifyOnly,
-        planOnly: !!flags.planOnly,
-      },
-    };
-  }
+  // 管理命令分发表驱动（M3/M4/M6/M8/M9）
+  const buildManage = MANAGE_BUILDERS[head];
+  if (buildManage) return { flags, manage: buildManage({ flags, rest }) };
 
   // 斜杠技能
   if (head?.startsWith('/')) {
     const [kind, ...parts] = head.slice(1).split(/\s+/);
     const valid = ['plan', 'grill', 'goal'] as const;
     if (valid.includes(kind as (typeof valid)[number])) {
-      const arg = [...parts, ...rest].join(' ').trim();
-      return { flags, skill: { kind: kind as SkillCommand, arg } };
+      return { flags, skill: { kind: kind as SkillCommand, arg: [...parts, ...rest].join(' ').trim() } };
     }
   }
 
   // 单命令需求
-  if (head) {
-    return { flags, command: positional.join(' ') };
-  }
+  if (head) return { flags, command: positional.join(' ') };
   return { flags };
 }

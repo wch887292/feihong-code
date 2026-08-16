@@ -2,6 +2,39 @@
 
 本文件遵循 [Keep a Changelog](https://keepachangelog.com/) 约定，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.3.3] — 2026-08-16（代码复杂度治理 + 双语收尾）
+
+> 用 TS AST 圈复杂度扫描（`scripts/complexity.cjs`）量化热点，针对性重构最高复杂度的函数，不改动任何对外行为。同时把上一轮已完成的 v0.3.2 中英文双语界面一并随本次提交收尾上线。
+
+### 优化（Changed · 复杂度治理）
+- **`cli/commands.parseArgs`**：~50 个 if 分支的参数解析改为 `FLAG_SPECS` 规格表 + `applyFlag()` 统一分发；~18 个管理命令 if 链改为 `MANAGE_BUILDERS` 分发表；抽出 `buildSweCommand()`。圈复杂度 **73 → 13**，函数长度 142 → 44 行。
+- **`agent/self-heal.classifyError`**：6 类错误长 if 链改为声明式 `ERROR_RULES` 规则表。圈复杂度 **41 → <10**。
+- **`agent/repo-reader.readRepository`**：内部嵌套 BFS `walk` 提到模块级 `walkRepository()`；抽出 `detectTestBuild()`（package.json 优先 + Python/Go/Rust 兜底）。圈复杂度 **39 → 10**，行数 174 → 77。
+- **`agent/orchestrator.run`**：抽出 `recordTouchedFiles()` / `executeToolRound()` / `handleRecovery()`（自愈密集分支用判别返回值 `{signal}` 承载原 `break/continue` 控制流，零行为变更）。圈复杂度 **39 → 28**。
+- **`cli/index.main`**：抽出 `dispatchSkill()` / `dispatchManage()`（`switch(m.kind)` 派发，判别联合自动收窄字段，类型安全）。圈复杂度 **30 → <10**。
+
+### 新增（Added）
+- **复杂度量化工具**：`scripts/complexity.cjs`（基于 TS 编译器 API 的圈复杂度 + 函数长度扫描，输出 `cc≥10 || 行数≥80` 热点榜），可随时复测。
+
+### 校验（Verified）
+- typecheck ✅ · build ✅
+- `npm test` **51/51** ✅ 无回归
+- parseArgs 9 组用例输出与原实现逐字节一致；readRepository 扫真实仓库验证遍历/测试命令探测正确
+- 原 Top 5 热点（parseArgs 73 / classifyError 41 / orchestrator.run 39 / readRepository 39 / main 30）**全部降级**
+
+## [0.3.2] — 2026-08-15（中英文双语界面升级）
+
+> 全量国际化（i18n）：CLI 与 Web 控制台界面支持中文/英文一键切换，默认按系统 locale 自动检测，可用 `--lang zh|en` 或环境变量 `FHCODE_LANG` 强制指定。新增 `src/shared/i18n.ts` 双语词库与 `t()` 插值函数，覆盖 banner/help/REPL/全部子命令输出/企业身份与策略渲染/质量门禁报告。Web 控制台由占位页升级为真正的双语仪表盘（含语言切换按钮，前端直接拉取免鉴权的 `/api/health`）。
+
+### 新增（Added）
+- **i18n 基础设施**：`src/shared/i18n.ts` 提供 `zh`/`en` 双语词库、`t(key, params?)` 插值、`detectLang()`（FHCODE_LANG > 系统 locale）、`setLang/getLang` 运行时切换。
+- **CLI 双语**：`--lang zh|en` 参数；banner/help/异常/REPL/全部 run 命令（sessions/resume/diff/rollback/whoami/policy/audit/tenants/model-stats/experiences/serve/code-write/quality-gate/self-improve/swe/审批器）输出可切换。
+- **企业命令与质量门禁双语**：`renderWhoami`/`renderPolicy` 与质量门禁报告接入 `t()`。
+- **Web 双语仪表盘**：`src/web/public/index.html` 真正的观测页，含中英文切换（?lang / localStorage / 浏览器语言 / 服务端 lang 四级回退）；`/api/health` 新增 `lang` 字段并改为免鉴权公开端点。
+
+### 校验（Verified）
+- typecheck ✅ · build ✅
+
 ## [0.3.1] — 2026-08-15（自我迭代系统 / 写代码能力 宇宙级升级）
 
 > 把"自我迭代"从断环变成闭环：经验库升级为强化学习式（稳定 id + upsert 去重加权），反思器真正分析对话并写入与 orchestrator **共用**的同一经验库（此前孤岛目录互不回流），让既往任务的成功/失败/自愈经验真正注入后续任务。同时修复 code-writer 两处真实 bug（通配正则整体覆盖文件、空规则导致审查失效）。

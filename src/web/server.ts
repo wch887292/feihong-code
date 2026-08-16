@@ -10,6 +10,7 @@ import { randomBytes } from 'crypto';
 import { join } from 'path';
 import { requireToken } from './auth';
 import { VERSION, PRODUCT, SIGNATURE } from '../cli/version';
+import { t, getLang } from '../shared/i18n';
 import { isEnterpriseEnabled } from '../enterprise';
 
 export interface ServeOptions {
@@ -34,7 +35,7 @@ export function startWebServer(opts: ServeOptions = {}): ServeHandle {
   let token = opts.token ?? process.env.FH_WEB_TOKEN ?? '';
   if (!token) {
     token = randomBytes(24).toString('hex');
-    console.log(`[飞虹 Code] Web 控制台令牌已自动生成（FH_WEB_TOKEN）: ${token}`);
+    console.log(t('serve.tokenAuto', { token }));
   }
 
   const app = express();
@@ -45,9 +46,7 @@ export function startWebServer(opts: ServeOptions = {}): ServeHandle {
   const publicDir = join(__dirname, 'public');
   app.use(express.static(publicDir));
 
-  // 鉴权：全部 /api 需 Bearer token（静态资源除外）
-  app.use('/api', requireToken(token));
-
+  // 公开健康检查（仅暴露版本/状态等观测信息，无敏感数据，便于前端仪表盘直接拉取）
   app.get('/api/health', (_req: Request, res: Response) => {
     res.json({
       ok: true,
@@ -55,12 +54,16 @@ export function startWebServer(opts: ServeOptions = {}): ServeHandle {
       version: VERSION,
       signature: SIGNATURE,
       enterprise: isEnterpriseEnabled(),
+      lang: getLang(),
       time: new Date().toISOString(),
     });
   });
 
+  // 鉴权：其余 /api 需 Bearer token（静态资源除外）
+  app.use('/api', requireToken(token));
+
   const server = app.listen(port, () => {
-    console.log(`[飞虹 Code] Web 控制台已启动: http://localhost:${port}`);
+    console.log(t('serve.started', { port }));
   });
 
   return {

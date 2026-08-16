@@ -25,103 +25,54 @@ export interface ErrorAnalysis {
   fixHint: string;
 }
 
-/** 错误分类器：根据工具返回结果判断错误类型（中英双语识别） */
+interface ErrorRule {
+  category: ErrorCategory;
+  keywords: string[];
+  fixHint: string;
+}
+
+/** 错误分类规则表（顺序即优先级，命中即返回） */
+const ERROR_RULES: ErrorRule[] = [
+  {
+    category: 'compile-error',
+    keywords: ['error ts', 'typescript error', 'cannot find module', 'syntax error', '编译', 'tsc'],
+    fixHint: '检查 TypeScript 类型错误、缺失依赖或路径拼写错误。尝试运行 npm run build 查看完整错误信息。',
+  },
+  {
+    category: 'runtime-error',
+    keywords: ['undefined is not', 'cannot read property', 'referenceerror', 'typeerror', '未定义', 'is not a function'],
+    fixHint: '检查变量是否已定义、函数调用是否正确、空值处理是否完善。',
+  },
+  {
+    category: 'path-traversal',
+    keywords: ['path traversal', 'outside workspace', 'safe-path', 'forbidden', '路径', '穿越'],
+    fixHint: '文件路径包含非法字符或试图访问工作区外部。使用相对路径，避免 ../ 穿越。',
+  },
+  {
+    category: 'timeout',
+    keywords: ['timeout', 'timed out', 'ETIMEDOUT', '超时'],
+    fixHint: '命令执行超时。检查是否存在死循环或需要长时间运行的进程。',
+  },
+  {
+    category: 'permission-denied',
+    keywords: ['permission denied', 'eacces', 'eperm', '权限', '拒绝'],
+    fixHint: '文件权限不足或路径不存在。检查文件权限和目录结构。',
+  },
+  {
+    category: 'model-error',
+    keywords: ['api error', 'rate limit', '429', '500', '模型', '限流'],
+    fixHint: '模型 API 错误。检查 API 密钥、速率限制或网络连通性。',
+  },
+];
+
+/** 错误分类器：根据工具返回结果判断错误类型（规则表驱动，中英双语识别） */
 export function classifyError(output: string, error?: string): ErrorAnalysis | null {
   const text = (error || output).toLowerCase();
-
-  // 编译错误
-  if (
-    text.includes('error ts') ||
-    text.includes('typescript error') ||
-    text.includes('cannot find module') ||
-    text.includes('syntax error') ||
-    text.includes('编译') ||
-    text.includes('tsc')
-  ) {
-    return {
-      category: 'compile-error',
-      message: error || output,
-      fixHint: '检查 TypeScript 类型错误、缺失依赖或路径拼写错误。尝试运行 npm run build 查看完整错误信息。',
-    };
+  for (const rule of ERROR_RULES) {
+    if (rule.keywords.some((kw) => text.includes(kw))) {
+      return { category: rule.category, message: error || output, fixHint: rule.fixHint };
+    }
   }
-
-  // 运行时错误
-  if (
-    text.includes('undefined is not') ||
-    text.includes('cannot read property') ||
-    text.includes('referenceerror') ||
-    text.includes('typeerror') ||
-    text.includes('未定义') ||
-    text.includes('is not a function')
-  ) {
-    return {
-      category: 'runtime-error',
-      message: error || output,
-      fixHint: '检查变量是否已定义、函数调用是否正确、空值处理是否完善。',
-    };
-  }
-
-  // 路径穿越
-  if (
-    text.includes('path traversal') ||
-    text.includes('outside workspace') ||
-    text.includes('safe-path') ||
-    text.includes('forbidden') ||
-    text.includes('路径') ||
-    text.includes('穿越')
-  ) {
-    return {
-      category: 'path-traversal',
-      message: error || output,
-      fixHint: '文件路径包含非法字符或试图访问工作区外部。使用相对路径，避免 ../ 穿越。',
-    };
-  }
-
-  // 超时
-  if (
-    text.includes('timeout') ||
-    text.includes('timed out') ||
-    text.includes('ETIMEDOUT') ||
-    text.includes('超时')
-  ) {
-    return {
-      category: 'timeout',
-      message: error || output,
-      fixHint: '命令执行超时。检查是否存在死循环或需要长时间运行的进程。',
-    };
-  }
-
-  // 权限拒绝
-  if (
-    text.includes('permission denied') ||
-    text.includes('eacces') ||
-    text.includes('eperm') ||
-    text.includes('权限') ||
-    text.includes('拒绝')
-  ) {
-    return {
-      category: 'permission-denied',
-      message: error || output,
-      fixHint: '文件权限不足或路径不存在。检查文件权限和目录结构。',
-    };
-  }
-
-  // 模型错误
-  if (
-    text.includes('api error') ||
-    text.includes('rate limit') ||
-    text.includes('429') ||
-    text.includes('500') ||
-    text.includes('模型') ||
-    text.includes('限流')
-  ) {
-    return {
-      category: 'model-error',
-      message: error || output,
-      fixHint: '模型 API 错误。检查 API 密钥、速率限制或网络连通性。',
-    };
-  }
-
   return null;
 }
 

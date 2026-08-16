@@ -6,14 +6,15 @@
  */
 import * as readline from 'readline';
 import { runGoal, isOfflineByDefault } from './run';
+import { t } from '../shared/i18n';
 
 export async function startRepl(): Promise<void> {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-  console.log('飞虹 Code REPL（输入需求回车执行，exit 退出）');
-  console.log('提示：未配置 FH_PROVIDERS 时自动离线模式运行。\n');
+  console.log(t('repl.welcome'));
+  console.log(t('repl.hint'));
 
   while (true) {
-    const line = await new Promise<string>((resolve) => rl.question('飞虹> ', resolve));
+    const line = await new Promise<string>((resolve) => rl.question(t('repl.prompt'), resolve));
     const cmd = line.trim();
     if (cmd === 'exit' || cmd === 'quit') break;
     if (!cmd) continue;
@@ -21,10 +22,10 @@ export async function startRepl(): Promise<void> {
     try {
       await runGoal(cmd, { offline });
     } catch (e) {
-      console.error('执行出错:', e instanceof Error ? e.message : String(e));
+      console.error(t('repl.errorPrefix') + (e instanceof Error ? e.message : String(e)));
     }
   }
 
   rl.close();
-  console.log('\n再见。');
+  console.log(t('repl.bye'));
 }

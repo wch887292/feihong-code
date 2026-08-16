@@ -170,17 +170,7 @@ export class Orchestrator {
       messages.push(msg);
       session.append(msg);
 
-      // 记录被文件类工具改动的文件路径
-      for (const tc of msg.toolCalls ?? []) {
-        const p = (tc.arguments as { path?: unknown } | undefined)?.path;
-        if (
-          (tc.name === 'write_file' || tc.name === 'edit_file') &&
-          typeof p === 'string' &&
-          !touchedFiles.includes(p)
-        ) {
-          touchedFiles.push(p);
-        }
-      }
+      this.recordTouchedFiles(msg, touchedFiles);
 
       await eventLog.append('model.response', {
         provider: resp.providerId,
@@ -205,60 +195,30 @@ export class Orchestrator {
         break;
       }
 
-      // 执行本轮所有工具调用，并将结果以 tool 消息回填
-      let roundErrors = 0;
-      for (const tc of msg.toolCalls) {
-        await eventLog.append('tool.call', { name: tc.name, args: tc.arguments });
-        const result = await tools.execute(tc.name, tc.arguments, {
-          runId: session.runId,
-          cwd,
-          security,
-          approve,
-          guard,
-        });
-        await eventLog.append('tool.result', {
-          name: tc.name,
-          ok: result.ok,
-          output: result.output.slice(0, 500),
-        });
-        const content = result.ok ? result.output : `错误: ${result.error}`;
-        const toolMsg: ChatMessage = { role: 'tool', content, toolCallId: tc.id };
-        messages.push(toolMsg);
-        session.append(toolMsg);
-
-        if (!result.ok) {
-          roundErrors++;
-        }
-      }
+      const roundErrors = await this.executeToolRound(msg, { tools, eventLog, session, cwd, security, approve, guard }, messages);
 
       // M6: 错误检测与自愈循环
       if (roundErrors > 0) {
-        const { failed, errors: consecutiveErrorsCount } = countConsecutiveErrors(messages, maxRetryErrors);
-        if (consecutiveErrorsCount > consecutiveErrors) {
-          // 新增错误，分类并记录
-          const lastToolMsg = messages[messages.length - 1];
-          const errorAnalysis = classifyError(lastToolMsg.content || '', '');
-          if (errorAnalysis) {
-            errorHistory.push(errorAnalysis);
-            await logRecoveryAttempt(eventLog as any, calls, errorAnalysis, false);
-            consecutiveErrors = consecutiveErrorsCount;
-
-            if (failed) {
-              // 达到重试上限，生成最终答案
-              finalAnswer = `任务执行遇到连续 ${maxRetryErrors} 次错误，已尝试自动修复但未能成功。错误类型: ${errorHistory.map(e => e.category).join(', ')}。请检查工作区与日志，或使用 resume 续跑。`;
-              await eventLog.append('error', { reason: 'max-retry-errors', errors: errorHistory });
-              logger.warn('orchestrator hit max retry errors', { runId: session.runId, errors: errorHistory });
-              calls++;
-              break;
-            }
-
-            // 触发自愈：注入反思消息
-            selfHealed = true;
-            messages = injectReflection(messages, errorAnalysis, goal);
-            await eventLog.append('self-heal', { category: errorAnalysis.category, iteration: calls });
-            logger.info('self-heal: injected reflection', { iteration: calls, category: errorAnalysis.category });
-            continue; // 跳过本轮计数，直接进入下一轮
-          }
+        const rec = await this.handleRecovery(msg, {
+          iteration: calls,
+          consecutiveErrors,
+          maxRetryErrors,
+          eventLog,
+          goal,
+          errorHistory,
+          messages,
+          sessionRunId: session.runId,
+        });
+        if (rec.signal === 'break') {
+          finalAnswer = rec.finalAnswer;
+          calls++;
+          break;
+        }
+        if (rec.signal === 'continue') {
+          messages = rec.messages;
+          consecutiveErrors = rec.consecutiveErrors;
+          selfHealed = rec.selfHealed;
+          continue; // 跳过本轮计数，直接进入下一轮
         }
       } else {
         // 本轮无错误，重置连续错误计数
@@ -326,5 +286,97 @@ export class Orchestrator {
       selfHealed,
       experiencesExtracted,
     };
+  }
+
+  /** 记录被 write/edit 类工具改动的文件路径（用于检查点与 diff） */
+  private recordTouchedFiles(msg: ChatMessage, touchedFiles: string[]): void {
+    for (const tc of msg.toolCalls ?? []) {
+      const p = (tc.arguments as { path?: unknown } | undefined)?.path;
+      if (
+        (tc.name === 'write_file' || tc.name === 'edit_file') &&
+        typeof p === 'string' &&
+        !touchedFiles.includes(p)
+      ) {
+        touchedFiles.push(p);
+      }
+    }
+  }
+
+  /** 执行本轮所有工具调用，将结果以 tool 消息回填，返回本轮失败次数 */
+  private async executeToolRound(
+    msg: ChatMessage,
+    ctx: {
+      tools: ToolRegistry;
+      eventLog: EventLog;
+      session: SessionStore;
+      cwd: string;
+      security: OrchestratorSecurity;
+      approve?: (action: string) => Promise<boolean>;
+      guard?: ToolGuard;
+    },
+    messages: ChatMessage[],
+  ): Promise<number> {
+    let roundErrors = 0;
+    for (const tc of msg.toolCalls ?? []) {
+      await ctx.eventLog.append('tool.call', { name: tc.name, args: tc.arguments });
+      const result = await ctx.tools.execute(tc.name, tc.arguments, {
+        runId: ctx.session.runId,
+        cwd: ctx.cwd,
+        security: ctx.security,
+        approve: ctx.approve,
+        guard: ctx.guard,
+      });
+      await ctx.eventLog.append('tool.result', {
+        name: tc.name,
+        ok: result.ok,
+        output: result.output.slice(0, 500),
+      });
+      const content = result.ok ? result.output : `错误: ${result.error}`;
+      const toolMsg: ChatMessage = { role: 'tool', content, toolCallId: tc.id };
+      messages.push(toolMsg);
+      ctx.session.append(toolMsg);
+      if (!result.ok) roundErrors++;
+    }
+    return roundErrors;
+  }
+
+  /** 错误检测与自愈：返回 'break'（达重试上限）/ 'continue'（已注入反思）/ 'none'（未触发） */
+  private async handleRecovery(
+    _msg: ChatMessage,
+    input: {
+      iteration: number;
+      consecutiveErrors: number;
+      maxRetryErrors: number;
+      eventLog: EventLog;
+      goal: string;
+      errorHistory: ErrorAnalysis[];
+      messages: ChatMessage[];
+      sessionRunId: string;
+    },
+  ): Promise<{ signal: 'break' | 'continue' | 'none'; messages: ChatMessage[]; consecutiveErrors: number; selfHealed: boolean; finalAnswer: string }> {
+    const { messages } = input;
+    const { failed, errors } = countConsecutiveErrors(messages, input.maxRetryErrors);
+    if (errors <= input.consecutiveErrors) {
+      return { signal: 'none', messages, consecutiveErrors: input.consecutiveErrors, selfHealed: false, finalAnswer: '' };
+    }
+    const lastToolMsg = messages[messages.length - 1];
+    const errorAnalysis = classifyError(lastToolMsg.content || '', '');
+    if (!errorAnalysis) {
+      return { signal: 'none', messages, consecutiveErrors: input.consecutiveErrors, selfHealed: false, finalAnswer: '' };
+    }
+    input.errorHistory.push(errorAnalysis);
+    await logRecoveryAttempt(input.eventLog as any, input.iteration, errorAnalysis, false);
+    const consecutiveErrors = errors;
+    if (failed) {
+      const finalAnswer = `任务执行遇到连续 ${input.maxRetryErrors} 次错误，已尝试自动修复但未能成功。错误类型: ${input.errorHistory.map((e) => e.category).join(', ')}。请检查工作区与日志，或使用 resume 续跑。`;
+      await input.eventLog.append('error', { reason: 'max-retry-errors', errors: input.errorHistory });
+      logger.warn('orchestrator hit max retry errors', { runId: input.sessionRunId, errors: input.errorHistory });
+      return { signal: 'break', messages, consecutiveErrors, selfHealed: false, finalAnswer };
+    }
+    const selfHealed = true;
+    const newMessages = injectReflection(messages, errorAnalysis, input.goal);
+    await input.eventLog.append('self-heal', { category: errorAnalysis.category, iteration: input.iteration });
+    logger.info('self-heal: injected reflection', { iteration: input.iteration, category: errorAnalysis.category });
+    return { signal: 'continue', messages: newMessages, consecutiveErrors, selfHealed, finalAnswer: '' };
   }
 }
