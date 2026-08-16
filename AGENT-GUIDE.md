@@ -139,7 +139,7 @@ fhcode plugin list                     # 列出已安装插件
 内置 `web_search`（默认 DuckDuckGo，`FH_SEARCH_ENDPOINT` 可换端点）与 `web_fetch` 工具，
 目标域名受沙箱网络规则约束（FH_NETWORK_ALLOW/DENY）。
 
-### 4.12 云执行任务队列（P4-1）
+### 4.12 云执行任务队列（P4-1 / P6-4）
 ```bash
 # 启动 Web 控制台（含 /api/tasks 任务队列，服务端静默执行）
 fhcode serve --port 8080
@@ -151,6 +151,8 @@ curl -X POST http://localhost:8080/api/tasks \
 # 查询: GET /api/tasks 列表 · GET /api/tasks/:id 单任务
 ```
 并发上限默认 2，可用 `FH_TASK_CONCURRENCY` 调整。
+**跨进程持久化（P6-4）**：任务默认落盘 `~/.feihong-code/tasks/`（可用 `FH_TASK_PERSIST_DIR` 覆盖），
+服务重启自动恢复队列——queued 重新入队执行、running 僵尸标记 failed（防崩溃遗留）。
 
 ### 4.13 Agent teams 多 agent 协作（P4-2）
 ```bash
@@ -191,6 +193,16 @@ fhcode skill-market list
 ```
 市场源协议：站点暴露 `/.well-known/agent-skills/index.json`（agentskills.io discovery 规范），
 支持 SKILL.md 直下与 tar.gz 归档（sha256 digest 校验防篡改，路径穿越防护）。
+
+### 4.18 VSCode 扩展增强（P6-3）
+```bash
+# 在 vscode-extension/ 目录打包或 F5 调试加载
+# fhcode: 运行任务（附带选区上下文）——选中代码自动作为 <selection> 上下文注入目标
+# fhcode: 就地查看工作区 diff——VSCode 原生 diff 编辑器展示 HEAD ↔ 工作区
+# fhcode: 查看最近任务输出
+```
+配置：`fhcode.binaryPath`（CLI 路径，默认 PATH 中的 fhcode）、`fhcode.offline`。
+diff 面板通过 `git show HEAD:<path>` 提供左侧内容，需 git 仓库。
 
 ---
 

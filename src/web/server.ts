@@ -63,9 +63,14 @@ export function startWebServer(opts: ServeOptions = {}): ServeHandle {
 
   // P4-1 云执行：任务队列（进程内；服务端静默执行，不输出到 HTTP 日志流）
   // P5-2 调度入口：FH_TASK_WEBHOOK_URL 初始化状态回调；/api/webhook 可动态注册
+  // P6-4 跨进程持久化：FH_TASK_PERSIST_DIR 启用（缺省 ~/.feihong-code/tasks），重启恢复队列
+  const persistDir =
+    process.env.FH_TASK_PERSIST_DIR?.trim() ||
+    join(process.env.FH_HOME?.trim() || join(require('os').homedir(), '.feihong-code'), 'tasks');
   const queue = new TaskQueue({
     concurrency: Number(process.env.FH_TASK_CONCURRENCY ?? 2),
     webhookUrl: process.env.FH_TASK_WEBHOOK_URL,
+    persistDir,
   });
 
   // 鉴权：其余 /api 需 Bearer token（静态资源除外）
