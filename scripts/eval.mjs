@@ -14,7 +14,7 @@
 import { createRequire } from 'module';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { mkdtempSync, rmSync } from 'fs';
+import { mkdtempSync, rmSync, writeFileSync, readFileSync, existsSync } from 'fs';
 import { tmpdir } from 'os';
 import { randomUUID } from 'crypto';
 
@@ -408,8 +408,41 @@ async function main() {
     }, null, 2));
   }
 
+  // O2 回归门禁：基线 JSON 存档 + 对比（本次 pass 低于基线即失败，供 CI 使用）
+  const summary = { total, pass, completionRate, timestamp: new Date().toISOString() };
+  const baselinePath = argValue('--baseline');
+  const savePath = argValue('--save-baseline');
+  if (savePath) {
+    try {
+      writeFileSync(savePath, JSON.stringify(summary, null, 2), 'utf8');
+      console.log(`\n[O2] 基线已存档: ${savePath}（pass=${pass}/${total}）`);
+    } catch (e) {
+      console.warn(`[O2] 基线存档失败: ${e.message}`);
+    }
+  }
+  if (baselinePath && existsSync(baselinePath)) {
+    try {
+      const base = JSON.parse(readFileSync(baselinePath, 'utf8'));
+      const basePass = Number(base.pass ?? -1);
+      if (basePass >= 0 && pass < basePass) {
+        console.error(`\n[O2] ❌ 回归门禁失败: 本次 pass=${pass}/${total} < 基线 ${basePass}/${base.total ?? '?'}（${baselinePath}）`);
+        process.exitCode = 1;
+      } else {
+        console.log(`\n[O2] ✅ 回归门禁通过: pass=${pass}/${total}（基线 ${basePass}/${base.total ?? '?'}）`);
+      }
+    } catch (e) {
+      console.warn(`[O2] 基线解析失败，跳过对比: ${e.message}`);
+    }
+  }
+
   console.log(`\n晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹`);
-  process.exitCode = fails.length > 0 ? 1 : 0;
+  process.exitCode = fails.length > 0 ? 1 : process.exitCode;
+}
+
+/** 从命令行参数取 --flag 的取值 */
+function argValue(flag) {
+  const i = process.argv.indexOf(flag);
+  return i >= 0 ? process.argv[i + 1] : undefined;
 }
 
 main().catch((e) => {

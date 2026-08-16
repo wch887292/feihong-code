@@ -2,6 +2,24 @@
 
 本文件遵循 [Keep a Changelog](https://keepachangelog.com/) 约定，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.5.0-b] — 2026-08-16（SWE-bench 基准接入：数据集加载 + mock 执行 + 报告 + eval 回归门禁）
+
+> v0.5.0 里程碑 b：SWE-bench 数据集加载器（HF datasets-server / 镜像 / 缓存）、mock 模式实例执行闭环与 markdown/JSON 报告、eval 回归门禁（基线存档 + 对比失败即退出非零）。
+
+### 新增（Added）
+- **M2.1 `scripts/eval-swebench.mjs` 数据集加载器**：默认 HuggingFace datasets-server 免认证 API 分页拉取（`--split lite|verified`，`--limit/--offset`），`FH_SWEBENCH_DATA_URL` 指向镜像/离线 JSON（国内网络友好）；缓存到 `~/.feihong-code/bench/swebench-<split>.json`，二次运行免下载；字段归一化（instance_id/repo/base_commit/problem_statement/patch/test_patch/FAIL_TO_PASS/PASS_TO_PASS）。
+- **M2.4 mock 执行 + 报告**：`--run` 模式在临时工作区以 ScriptedMockProvider 驱动编排器跑「写方案→总结」闭环（验证 pipeline），输出 markdown 报告（表格：instance_id/repo/问题/F2P/P2P/结果/迭代/工具 + 汇总）与 JSON（meta/results/summary）；`--report <path>` 落盘；有失败实例退出非零。
+- **O2 eval 回归门禁**：`node scripts/eval.mjs --save-baseline <path>` 存档基线 JSON，`--baseline <path>` 对比——本次 pass 低于基线即打印失败并退出非零（可接入 CI）；基线解析失败跳过对比（不阻断）。
+
+### 修复（Fixed）
+- **eval-swebench Windows 直跑缺陷**：`import.meta.url.endsWith(argv[1])` 前缀不匹配（URL 带 `file:///` 前缀）导致直接运行时 main 不执行——改用 `pathToFileURL` 归一化比较。
+
+### 校验（Verified）
+- typecheck ✅ · build ✅ · `npm test` **164/164** ✅
+- eval-swebench mock 验证 ✅（镜像加载/缓存/二次走缓存/--json/--run 执行/报告写入）
+- eval 门禁三路径 ✅（存档/对比通过/对比失败拦截）
+- verify:m4 41/41 · m6 29/29 · m7 12/12 · m8 27/27 · m9 25/25 · eval 10/10 ✅ 零回归
+
 ## [0.5.0-a] — 2026-08-16（IDE 深度集成首轮：review --json + 内联评审 + 上下文入参 + O6 安全前置）
 
 > v0.5.0 里程碑 a：CLI 新增结构化代码评审输出（`fhcode review --json`，修复单文件目标）、编辑器上下文直达（`--context-file`）、VSCode 扩展内联评审（DiagnosticCollection + CodeAction 建议 + 保存自动评审）、O6 入站签名校验工具与出站渠道白名单。
