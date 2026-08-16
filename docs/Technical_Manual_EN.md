@@ -208,8 +208,7 @@ Priority: `FH_PROVIDERS` (JSON) > `fhcode.config.json` > single env vars `FH_MOD
 ## 8. Versioning & Roadmap
 
 - v0.4.0: P0-P5 full capabilities (streaming/sandbox/MCP/Skills/plugins/cloud queue/channels/symbol index)
-- v0.5.0-a: IDE deep integration (review --json + inline review + context input) + O6 security hardening
-- v0.5.0-b: SWE-bench harness integration + eval regression gate
+- v0.5.0 (released 2026-08-17): consolidates IDE deep integration first round (review --json + inline review + context input), SWE-bench harness integration (dataset loading + mock execution + report), eval regression gate, O6 inbound signature verification & security hardening
 - Planned v0.5.0-c/d: containerized SWE execution + real-model benchmark; inbound channel scheduling (see planning doc)
 
 ---

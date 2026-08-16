@@ -99,7 +99,7 @@ export class McpClient {
     const initResp = await this.request('initialize', {
       protocolVersion: '2024-11-05',
       capabilities: {},
-      clientInfo: { name: 'feihong-code', version: '0.4.0' },
+      clientInfo: { name: 'feihong-code', version: '0.5.0' },
     }, this.cfg.initTimeoutMs ?? 15000);
     if (!initResp.result) {
       throw new Error(`MCP ${name} initialize 失败: ${initResp.error?.message ?? '无响应'}`);

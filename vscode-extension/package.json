@@ -2,7 +2,7 @@
   "name": "fhcode-vscode",
   "displayName": "fhcode — 飞虹 Code",
   "description": "调起 fhcode 终端 AI 编程智能体：运行任务、查看会话 diff（最小可用壳）",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "publisher": "feihong",
   "license": "MIT",
   "engines": {

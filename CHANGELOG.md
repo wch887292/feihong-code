@@ -2,6 +2,22 @@
 
 本文件遵循 [Keep a Changelog](https://keepachangelog.com/) 约定，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.5.0] — 2026-08-17（正式发布：IDE 深度集成首轮 + SWE-bench 基准接入 + eval 回归门禁）
+
+> **飞虹 Code v0.5.0 正式发布版本**，整合 v0.5.0-a（IDE 深度集成首轮）与 v0.5.0-b（SWE-bench 基准接入）的全部能力，并统一收口版本号（此前 package.json / version.ts 停留在 0.4.0）。
+
+### 亮点（Highlights）
+- **IDE 深度集成首轮（M1.1/M1.3 + O6）**：`fhcode review [路径] [--json]` 结构化代码评审，VSCode 扩展内联诊断 + CodeAction 建议 + 保存自动评审；`--context-file` 编辑器上下文直达；O6 入站 HMAC/企微签名校验与出站渠道白名单。
+- **SWE-bench 基准接入（M2.1/M2.4 + O2）**：`scripts/eval-swebench.mjs` 数据集加载器（HF datasets-server / 镜像 / 缓存）+ mock 执行闭环 + markdown/JSON 报告；eval 回归门禁（基线存档 + 对比失败即非零退出，可接入 CI）。
+- **版本号收口**：package.json / version.ts / vscode-extension / MCP clientInfo 统一为 0.5.0，消除运行时版本漂移。
+
+### 校验（Verified）
+- typecheck ✅ · build ✅
+- `npm test` **164/164** ✅ · `npm run eval` **10/10** ✅
+- verify:m4 **41/41** · m6 **29/29** · m7 **12/12** · m8 **27/27** · m9 **25/25** ✅ 零回归
+
+> 详细子项见下方 `0.5.0-a` / `0.5.0-b` 章节。
+
 ## [0.5.0-b] — 2026-08-16（SWE-bench 基准接入：数据集加载 + mock 执行 + 报告 + eval 回归门禁）
 
 > v0.5.0 里程碑 b：SWE-bench 数据集加载器（HF datasets-server / 镜像 / 缓存）、mock 模式实例执行闭环与 markdown/JSON 报告、eval 回归门禁（基线存档 + 对比失败即退出非零）。
