@@ -7,6 +7,8 @@
 import { logger } from '../shared/logger';
 import type { Tool, ToolContext, ToolResult } from './tool.interface';
 import { toDefinition } from './tool.interface';
+import { checkSandbox, type SandboxMode, type SandboxRules } from './sandbox';
+import { runHooks } from '../runtime/hooks';
 import type { ToolDefinition } from '../models/model.interface';
 
 export class ToolRegistry {
@@ -48,6 +50,32 @@ export class ToolRegistry {
     }
     const args = parsed.data as Record<string, unknown>;
 
+    // P0-2：沙箱技术边界（先于 RBAC 守卫执行 —— 沙箱是"能否做"的硬边界，
+    // 审批/策略都无权放行被沙箱拦截的动作）
+    if (ctx.security.sandboxMode) {
+      const rules: SandboxRules = ctx.security.networkRules ?? { networkAllow: [], networkDeny: [] };
+      const decision = checkSandbox(ctx.security.sandboxMode as SandboxMode, name, args, rules);
+      if (decision.blocked) {
+        logger.warn('sandbox blocked tool call', { tool: name, reason: decision.reason });
+        return { ok: false, output: '', error: `[沙箱拦截] ${decision.reason}` };
+      }
+    }
+
+    // P2-1：PreToolUse hook（确定性拦截，命令退出码非 0 → 阻止执行）
+    const hookCtx = {
+      cwd: ctx.cwd,
+      runId: ctx.runId,
+      tool: name,
+      path: typeof args.path === 'string' ? args.path : typeof args.file === 'string' ? args.file : undefined,
+    };
+    if (ctx.security.hooks?.length) {
+      const pre = await runHooks(ctx.security.hooks, 'PreToolUse', hookCtx);
+      if (pre.blocked) {
+        logger.warn('hook denied tool call', { tool: name, reason: pre.reason });
+        return { ok: false, output: '', error: `[hook 拦截] ${pre.reason}` };
+      }
+    }
+
     // M4：企业守卫前置（策略 → 审批 → 审计）。未注入 guard 时行为不变。
     if (ctx.guard) {
       let verdict;
@@ -68,12 +96,24 @@ export class ToolRegistry {
       ctx = { ...ctx, security: { shellAllowlist: [], requireApproval: false } };
     }
 
+    let result: ToolResult;
     try {
-      return await tool.execute(args, ctx);
+      result = await tool.execute(args, ctx);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       logger.error('tool execution failed', { tool: name, error: msg });
       return { ok: false, output: '', error: msg };
     }
+
+    // P2-1：PostToolUse / PostEdit hook（记录结果；编辑成功时对文件触发）
+    if (ctx.security.hooks?.length) {
+      const postCtx = { ...hookCtx, ok: result.ok };
+      await runHooks(ctx.security.hooks, 'PostToolUse', postCtx);
+      if (result.ok && hookCtx.path) {
+        await runHooks(ctx.security.hooks, 'PostEdit', postCtx);
+      }
+    }
+
+    return result;
   }
 }

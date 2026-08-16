@@ -8,6 +8,7 @@
  * - 自动重试机制（最多 N 次）
  */
 import type { ChatMessage } from '../models/model.interface';
+import type { EventLog } from '../runtime/event-log';
 import { logger } from '../shared/logger';
 
 export type ErrorCategory =
@@ -148,7 +149,7 @@ export function buildReflectContext(messages: ChatMessage[], errors: ErrorAnalys
 
 /** 记录修复事件到日志 */
 export async function logRecoveryAttempt(
-  eventLog: { append: (type: string, payload: unknown) => Promise<void> },
+  eventLog: Pick<EventLog, 'append'>,
   iteration: number,
   errorAnalysis: ErrorAnalysis,
   success: boolean,

@@ -35,6 +35,10 @@ export type ManagementCommand =
   | { kind: 'policy' }
   | { kind: 'audit'; verify: boolean; limit: number }
   | { kind: 'tenants' }
+  | { kind: 'doctor' }
+  | { kind: 'plugin'; action: 'install' | 'list'; source?: string }
+  | { kind: 'skill-market'; action: 'search' | 'install' | 'list'; query?: string; market?: string }
+  | { kind: 'team'; goal: string }
   | { kind: 'serve'; port?: number }
   | { kind: 'model-stats' }
   | { kind: 'experiences'; path?: string }
@@ -58,6 +62,7 @@ export interface ParsedArgs {
     help?: boolean;
     parallel?: boolean;
     yes?: boolean;
+    stream?: boolean;
     limit?: number;
     port?: number;
     repo?: string;
@@ -88,6 +93,7 @@ const FLAG_SPECS: Record<string, FlagSpec> = {
   help: { kind: 'bool', key: 'help' },
   parallel: { kind: 'bool', key: 'parallel' },
   yes: { kind: 'bool', key: 'yes' },
+  stream: { kind: 'bool', key: 'stream' },
   'verify-only': { kind: 'bool', key: 'verifyOnly' },
   'plan-only': { kind: 'bool', key: 'planOnly' },
   port: { kind: 'int', min: 1, key: 'port' },
@@ -148,6 +154,19 @@ const MANAGE_BUILDERS: Record<string, ManageBuilder> = {
   whoami: () => ({ kind: 'whoami' }),
   policy: () => ({ kind: 'policy' }),
   tenants: () => ({ kind: 'tenants' }),
+  doctor: () => ({ kind: 'doctor' }),
+  plugin: ({ rest }) => ({
+    kind: 'plugin',
+    action: rest[0] === 'install' ? 'install' : 'list',
+    source: rest[0] === 'install' ? rest[1] : undefined,
+  }),
+  'skill-market': ({ flags, rest }) => ({
+    kind: 'skill-market',
+    action: rest[0] === 'search' || rest[0] === 'install' ? rest[0] : 'list',
+    query: rest[1],
+    market: flags.repo, // 复用 --repo 承载市场源地址
+  }),
+  team: ({ rest }) => ({ kind: 'team', goal: rest.join(' ') || '协作开发' }),
   serve: ({ flags }) => ({ kind: 'serve', port: flags.port }),
   audit: ({ flags, rest }) => ({ kind: 'audit', verify: rest[0] === 'verify', limit: flags.limit ?? 20 }),
   'model-stats': () => ({ kind: 'model-stats' }),

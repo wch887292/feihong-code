@@ -1,6 +1,6 @@
 {
   "name": "feihong-code",
-  "version": "0.3.3",
+  "version": "0.4.0",
   "description": "fhcode（飞虹 Code）— 终端 AI 编程智能体，对标 Muse Code / Cursor CLI：多模型路由（DeepSeek/通义/Ollama/OpenAI）、企业级 RBAC 审计、全自动 SWE Agent、支持离线私有化",
   "bin": {
     "fhcode": "dist/cli/index.js"
@@ -24,8 +24,13 @@
     "dev": "tsx src/cli/index.ts",
     "typecheck": "tsc --noEmit",
     "verify:m4": "node scripts/verify-m4.mjs",
+    "verify:m6": "node scripts/verify-m6.mjs",
+    "verify:m7": "node scripts/verify-m7.mjs",
+    "verify:m8": "node scripts/verify-m8.mjs",
+    "verify:m9": "node scripts/verify-m9.mjs",
+    "eval": "node scripts/eval.mjs",
     "test": "tsx --test tests/unit/*.test.ts",
-    "verify": "npm run typecheck && npm run build && npm run verify:m4",
+    "verify": "npm run typecheck && npm run build && npm run verify:m4 && npm run verify:m6 && npm run verify:m7 && npm run verify:m8 && npm run verify:m9",
     "prepublishOnly": "npm run build"
   },
   "keywords": [

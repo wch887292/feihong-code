@@ -13,6 +13,8 @@ import { grepTool } from './search/grep.tool';
 import { runShellTool } from './shell/run-shell.tool';
 import { runTestsTool } from './verify/test-run.tool';
 import { buildCheckTool } from './verify/build-check.tool';
+import { loadSkillTool } from './skills/load-skill.tool';
+import { webFetchTool, webSearchTool } from './web/web.tool';
 
 export function createDefaultRegistry(): ToolRegistry {
   const reg = new ToolRegistry();
@@ -25,6 +27,9 @@ export function createDefaultRegistry(): ToolRegistry {
     runShellTool,
     runTestsTool,
     buildCheckTool,
+    loadSkillTool,
+    webFetchTool,
+    webSearchTool,
   ]) {
     reg.register(t);
   }

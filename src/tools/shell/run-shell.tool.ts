@@ -6,7 +6,7 @@
  */
 import { z } from 'zod';
 import type { Tool, ToolContext, ToolResult } from '../tool.interface';
-import { runCommand, commandHead } from './exec';
+import { runCommand, runCommandInContainer, commandHead } from './exec';
 
 /** Shell 注入元字符 — 命中则需额外审批 */
 const SHELL_INJECTION_RE = /[;&|`$(){}<>!]|&&|\|\||\b(alias|eval|exec|source)\b/;
@@ -37,7 +37,11 @@ export const runShellTool: Tool = {
       const approved = ctx.approve ? await ctx.approve(`run_shell: ${command}`) : false;
       if (!approved) return { ok: false, output: '', error: '已拒绝执行（需审批）' };
     }
-    const res = await runCommand(command, ctx.cwd);
+    // P5-4：container 沙箱模式下命令在 Docker 容器内执行（挂载工作区）
+    const res =
+      ctx.security.sandboxMode === 'container'
+        ? await runCommandInContainer(command, ctx.cwd)
+        : await runCommand(command, ctx.cwd);
     return {
       ok: res.code === 0,
       output: `${res.stdout}${res.stderr}`.slice(0, 4000),

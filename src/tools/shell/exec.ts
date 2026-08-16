@@ -3,6 +3,7 @@
  * 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
  *
  * 命令执行辅助（跨平台，spawn shell）
+ * P5-4：容器执行（docker run 挂载工作区，镜像 FH_SANDBOX_IMAGE）
  */
 import { spawn } from 'child_process';
 
@@ -10,6 +11,30 @@ export interface ExecResult {
   code: number;
   stdout: string;
   stderr: string;
+}
+
+/** 容器镜像（FH_SANDBOX_IMAGE 可覆盖；默认 node:22-alpine 轻量且覆盖常见工具） */
+export function containerImage(): string {
+  return process.env.FH_SANDBOX_IMAGE || 'node:22-alpine';
+}
+
+/** 容器模式下应把命令包装成 docker run 执行；镜像不存在时由 docker 自动拉取 */
+export function runCommandInContainer(cmd: string, cwd: string, timeoutMs = 120000): Promise<ExecResult> {
+  const image = containerImage();
+  // 挂载工作区到 /workspace，容器内 cwd=/workspace；--rm 用完即删
+  const dockerArgs = [
+    'run',
+    '--rm',
+    '-v',
+    `${cwd}:/workspace`,
+    '-w',
+    '/workspace',
+    image,
+    'sh',
+    '-c',
+    cmd,
+  ];
+  return runCommand('docker ' + dockerArgs.map((a) => `"${a.replace(/"/g, '\\"')}"`).join(' '), cwd, timeoutMs);
 }
 
 export function runCommand(cmd: string, cwd: string, timeoutMs = 120000): Promise<ExecResult> {

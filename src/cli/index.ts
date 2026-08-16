@@ -27,6 +27,10 @@ import {
   runAudit,
   runAuditVerify,
   runTenants,
+  runDoctor,
+  runPluginCmd,
+  runSkillMarketCmd,
+  runTeamCmd,
   runServe,
   runCodeWrite,
   runQualityGate,
@@ -77,7 +81,7 @@ async function main(): Promise<void> {
   }
   if (args.command) {
     const offline = isOfflineByDefault();
-    await runGoal(args.command, { offline });
+    await runGoal(args.command, { offline, stream: args.flags.stream });
     return;
   }
 
@@ -100,6 +104,10 @@ async function dispatchManage(m: ManagementCommand): Promise<void> {
     case 'policy': runPolicyCmd(); break;
     case 'audit': if (m.verify) runAuditVerify(); else runAudit(m.limit); break;
     case 'tenants': runTenants(); break;
+    case 'doctor': await runDoctor(); break;
+    case 'plugin': await runPluginCmd(m.action, m.source); break;
+    case 'skill-market': await runSkillMarketCmd(m.action, m.query, m.market); break;
+    case 'team': await runTeamCmd(m.goal); break;
     case 'serve': runServe(m.port); break;
     case 'code-write': runCodeWrite(m.goal); break;
     case 'quality-gate': runQualityGate(m.path); break;

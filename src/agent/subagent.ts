@@ -8,7 +8,9 @@
  */
 import { randomUUID } from 'crypto';
 import { join } from 'path';
+import { mkdirSync } from 'fs';
 import { setRunId, logger } from '../shared/logger';
+import type { CapabilityTag } from '../shared/types';
 import { ModelRouter } from '../models/model-router';
 import { ScriptedMockProvider, type MockStep } from '../models/providers/mock.provider';
 import { createDefaultRegistry } from '../tools';
@@ -16,6 +18,11 @@ import { EventLog } from '../runtime/event-log';
 import { SessionStore } from '../runtime/session-store';
 import { Orchestrator, type OrchestratorSecurity, type RunResult } from './orchestrator';
 import type { Worktree } from '../runtime/worktree';
+import { decomposeGoal } from './planner';
+import { summarizeSubTaskAnswer } from './subagent-summary';
+
+/** P3-4：子代理最大嵌套深度（对齐 Claude subagents，默认 3 层） */
+export const MAX_SUBAGENT_DEPTH = 3;
 
 export interface SubAgentDeps {
   worktree: Worktree;
@@ -27,6 +34,12 @@ export interface SubAgentDeps {
   approve?: (action: string) => Promise<boolean>;
   /** 离线模式脚本（不传则用默认：写一份子任务产物文件） */
   mockSteps?: MockStep[];
+  /** P1-1：子代理模型标签路由（缺省 ['code-gen','cheap']，低成本模型优先） */
+  tags?: CapabilityTag[];
+  /** P3-4：当前嵌套深度（1 = 顶层子代理） */
+  depth?: number;
+  /** P3-4：最大嵌套深度（默认 3） */
+  maxDepth?: number;
 }
 
 export interface SubAgentResult extends RunResult {
@@ -35,9 +48,53 @@ export interface SubAgentResult extends RunResult {
 }
 
 export async function runSubAgent(deps: SubAgentDeps): Promise<SubAgentResult> {
-  const { worktree, goal, router, offline, security, approve, mockSteps } = deps;
+  const { worktree, goal, router, offline, security, approve, mockSteps, tags } = deps;
+  const depth = deps.depth ?? 1;
+  const maxDepth = deps.maxDepth ?? MAX_SUBAGENT_DEPTH;
   const runId = randomUUID();
   setRunId(runId);
+
+  // P3-4：深度未达上限且目标可拆解 → 递归派生子代理（子目录隔离，不建 git worktree）
+  if (depth < maxDepth) {
+    const subtasks = decomposeGoal(goal);
+    if (subtasks.length > 1) {
+      logger.info('subagent nesting', { runId, depth, children: subtasks.length, goal });
+      const parts: string[] = [];
+      let okAll = true;
+      let iterations = 0;
+      for (const st of subtasks) {
+        const subDir = join(worktree.path, `.sub-${st.id}`);
+        mkdirSync(subDir, { recursive: true });
+        const child: SubAgentResult = await runSubAgent({
+          worktree: { path: subDir, branch: `${worktree.branch}/${st.id}` },
+          goal: st.goal,
+          router,
+          offline,
+          security,
+          approve,
+          mockSteps,
+          tags,
+          depth: depth + 1,
+          maxDepth,
+        });
+        iterations += child.iterations;
+        okAll = okAll && child.ok;
+        // 逐层摘要：只把子代理的摘要结果带回上层上下文，隔离中间大输出
+        const s = summarizeSubTaskAnswer(child.finalAnswer);
+        parts.push(`[${st.id}] ${s.text}`);
+      }
+      const finalAnswer = parts.join('\n');
+      const result: RunResult = {
+        ok: okAll,
+        finalAnswer,
+        iterations,
+        costUsd: 0,
+        logFile: '',
+        runId,
+      };
+      return { ...result, worktree, subGoal: goal };
+    }
+  }
 
   const effectiveRouter = offline
     ? new ModelRouter([new ScriptedMockProvider(mockSteps ?? defaultSubMock(goal))], 'cost', 0)
@@ -59,9 +116,10 @@ export async function runSubAgent(deps: SubAgentDeps): Promise<SubAgentResult> {
     cwd: worktree.path,
     security: sec,
     approve,
+    tags,
   });
 
-  logger.info('subagent start', { runId, worktree: worktree.path, goal });
+  logger.info('subagent start', { runId, worktree: worktree.path, goal, depth });
   const result = await orch.run(goal);
   return { ...result, worktree, subGoal: goal };
 }

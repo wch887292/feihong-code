@@ -14,6 +14,7 @@
       --brand-soft: #eff4ff;
       --ok: #16a34a;
       --err: #dc2626;
+      --warn: #d97706;
       --border: #e3e8ef;
     }
     * { box-sizing: border-box; }
@@ -22,20 +23,17 @@
       font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", Roboto, Helvetica, Arial, sans-serif;
       background: var(--bg);
       color: var(--ink);
-      display: flex;
       min-height: 100vh;
-      align-items: center;
-      justify-content: center;
       padding: 24px;
     }
+    .wrap { max-width: 860px; margin: 0 auto; }
     .card {
-      width: 100%;
-      max-width: 560px;
       background: var(--card);
       border: 1px solid var(--border);
       border-radius: 16px;
-      padding: 28px;
+      padding: 24px;
       box-shadow: 0 10px 30px rgba(31, 41, 51, 0.08);
+      margin-bottom: 20px;
     }
     header h1 { margin: 0 0 4px; font-size: 22px; }
     header p { margin: 0; color: var(--muted); font-size: 13px; }
@@ -43,7 +41,7 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      margin: 18px 0;
+      margin: 16px 0;
       font-size: 13px;
       color: var(--muted);
     }
@@ -56,11 +54,7 @@
       cursor: pointer;
       font-size: 13px;
     }
-    .lang-switch button.active {
-      background: var(--brand);
-      color: #fff;
-      border-color: var(--brand);
-    }
+    .lang-switch button.active { background: var(--brand); color: #fff; border-color: var(--brand); }
     .status {
       padding: 10px 14px;
       border-radius: 10px;
@@ -78,17 +72,18 @@
     }
     dt { color: var(--muted); }
     dd { margin: 0; word-break: break-all; }
-    .hint {
-      font-size: 12px;
-      color: var(--muted);
-      background: #f8fafc;
-      border: 1px dashed var(--border);
+    label { font-size: 13px; color: var(--muted); display: block; margin-bottom: 6px; }
+    input[type="text"], textarea {
+      width: 100%;
+      border: 1px solid var(--border);
       border-radius: 10px;
       padding: 10px 12px;
-      margin: 0 0 16px;
-      line-height: 1.6;
+      font-size: 14px;
+      font-family: inherit;
+      margin-bottom: 12px;
     }
-    #refresh {
+    textarea { min-height: 64px; resize: vertical; }
+    button {
       border: none;
       background: var(--brand);
       color: #fff;
@@ -97,40 +92,98 @@
       font-size: 14px;
       cursor: pointer;
     }
-    #refresh:hover { filter: brightness(1.05); }
+    button:hover { filter: brightness(1.05); }
+    button.secondary { background: #fff; color: var(--ink); border: 1px solid var(--border); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+    .badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .badge.queued { background: #eef2f7; color: var(--muted); }
+    .badge.running { background: var(--brand-soft); color: var(--brand); }
+    .badge.done { background: #f0fdf4; color: var(--ok); }
+    .badge.failed { background: #fef2f2; color: var(--err); }
+    .task-list { display: flex; flex-direction: column; gap: 8px; }
+    .task-item {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 14px;
+      cursor: pointer;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      font-size: 14px;
+    }
+    .task-item:hover { background: var(--brand-soft); }
+    .task-item .goal { flex: 1; word-break: break-all; }
+    .task-item .meta { color: var(--muted); font-size: 12px; white-space: nowrap; }
+    .task-detail {
+      margin-top: 12px;
+      background: #f8fafc;
+      border: 1px dashed var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      font-size: 13px;
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 320px;
+      overflow-y: auto;
+    }
+    .empty { color: var(--muted); font-size: 13px; text-align: center; padding: 16px; }
+    .muted { color: var(--muted); font-size: 12px; }
+    .row { display: flex; gap: 8px; }
+    .row button { flex: 1; }
   </style>
 </head>
 <body>
-  <div class="card">
-    <header>
-      <h1 data-i18n="title">飞虹 Code 控制台</h1>
-      <p data-i18n="subtitle">终端 AI 编程智能体（Muse Code 参照复刻）</p>
-    </header>
+  <div class="wrap">
+    <div class="card">
+      <header>
+        <h1 data-i18n="title">飞虹 Code 控制台</h1>
+        <p data-i18n="subtitle">终端 AI 编程智能体（Muse Code 参照复刻）</p>
+      </header>
 
-    <div class="lang-switch">
-      <span data-i18n="langLabel">语言</span>
-      <button data-lang="zh">中文</button>
-      <button data-lang="en">English</button>
+      <div class="lang-switch">
+        <span data-i18n="langLabel">语言</span>
+        <button data-lang="zh">中文</button>
+        <button data-lang="en">English</button>
+      </div>
+
+      <div class="status" id="status">…</div>
+
+      <dl>
+        <dt data-i18n="productLabel">产品</dt>
+        <dd id="product">—</dd>
+        <dt data-i18n="versionLabel">版本</dt>
+        <dd id="version">—</dd>
+        <dt data-i18n="signatureLabel">署名</dt>
+        <dd id="signature">—</dd>
+        <dt data-i18n="enterpriseLabel">企业模式</dt>
+        <dd id="enterprise">—</dd>
+      </dl>
+
+      <label data-i18n="tokenLabel" for="token">访问令牌（FH_WEB_TOKEN，终端输出）</label>
+      <input type="text" id="token" autocomplete="off" placeholder="Bearer token…" />
     </div>
 
-    <div class="status" id="status">…</div>
+    <!-- P5-1 任务面板 -->
+    <div class="card">
+      <h2 style="margin:0 0 12px;font-size:17px;" data-i18n="taskPanelTitle">任务面板</h2>
+      <label data-i18n="goalLabel" for="goal">目标（自然语言需求）</label>
+      <textarea id="goal" placeholder="写一个 hello.ts…"></textarea>
+      <div class="row">
+        <button id="submit" data-i18n="submitTask">提交任务</button>
+        <button class="secondary" id="refreshTasks" data-i18n="refreshTasks">刷新任务</button>
+      </div>
 
-    <dl>
-      <dt data-i18n="productLabel">产品</dt>
-      <dd id="product">—</dd>
-      <dt data-i18n="versionLabel">版本</dt>
-      <dd id="version">—</dd>
-      <dt data-i18n="signatureLabel">署名</dt>
-      <dd id="signature">—</dd>
-      <dt data-i18n="enterpriseLabel">企业模式</dt>
-      <dd id="enterprise">—</dd>
-    </dl>
-
-    <p class="hint" data-i18n="tokenHint">
-      访问令牌由终端输出（FH_WEB_TOKEN），本控制台仅观测、不执行任务。
-    </p>
-
-    <button id="refresh" data-i18n="refresh">刷新</button>
+      <div class="task-list" id="taskList">
+        <div class="empty" data-i18n="taskEmpty">（暂无任务）</div>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -143,10 +196,26 @@
         versionLabel: '版本',
         signatureLabel: '署名',
         enterpriseLabel: '企业模式',
-        tokenHint: '访问令牌由终端输出（FH_WEB_TOKEN），本控制台仅观测、不执行任务。',
+        tokenLabel: '访问令牌（FH_WEB_TOKEN，终端输出）',
+        taskPanelTitle: '任务面板（云执行）',
+        goalLabel: '目标（自然语言需求）',
+        submitTask: '提交任务',
+        refreshTasks: '刷新任务',
+        taskEmpty: '（暂无任务，提交一个试试）',
+        taskId: '任务',
+        goal: '目标',
+        statusLabel: '状态',
+        result: '结果',
+        iterations: '迭代',
+        cost: '成本',
+        logFile: '日志',
+        error: '错误',
         refresh: '刷新',
         statusOk: '运行正常 ✅',
         statusErr: '无法连接控制台服务，请确认 fhcode serve 正在运行。',
+        needToken: '请先填写访问令牌（终端输出的 FH_WEB_TOKEN）。',
+        submitErr: '提交失败',
+        loadErr: '加载任务失败',
         on: '开启',
         off: '关闭',
       },
@@ -158,10 +227,26 @@
         versionLabel: 'Version',
         signatureLabel: 'Signature',
         enterpriseLabel: 'Enterprise mode',
-        tokenHint: 'Access token is printed in the terminal (FH_WEB_TOKEN). This console is observe-only and does not execute tasks.',
+        tokenLabel: 'Access token (FH_WEB_TOKEN, printed in terminal)',
+        taskPanelTitle: 'Task Panel (cloud execution)',
+        goalLabel: 'Goal (natural language)',
+        submitTask: 'Submit task',
+        refreshTasks: 'Refresh tasks',
+        taskEmpty: '(No tasks yet — submit one)',
+        taskId: 'Task',
+        goal: 'Goal',
+        statusLabel: 'Status',
+        result: 'Result',
+        iterations: 'Iterations',
+        cost: 'Cost',
+        logFile: 'Log',
+        error: 'Error',
         refresh: 'Refresh',
         statusOk: 'Running ✅',
         statusErr: 'Cannot reach the console service. Make sure `fhcode serve` is running.',
+        needToken: 'Please enter the access token (FH_WEB_TOKEN from the terminal).',
+        submitErr: 'Submit failed',
+        loadErr: 'Failed to load tasks',
         on: 'on',
         off: 'off',
       },
@@ -179,7 +264,6 @@
     }
 
     let lang = detectLang();
-
     function applyLang() {
       document.documentElement.lang = lang;
       document.querySelectorAll('[data-i18n]').forEach((el) => {
@@ -189,18 +273,91 @@
       document.querySelectorAll('.lang-switch button').forEach((b) => {
         b.classList.toggle('active', b.getAttribute('data-lang') === lang);
       });
+      renderTasks(currentTasks);
     }
-
     function setStatus(ok, msg) {
       const el = document.getElementById('status');
       el.classList.toggle('error', !ok);
       el.textContent = msg;
     }
 
-    async function load() {
+    // 令牌：优先 URL 参数 ?token=，其次 localStorage
+    const urlToken = new URLSearchParams(location.search).get('token');
+    if (urlToken) localStorage.setItem('fhcode.token', urlToken);
+    const tokenInput = document.getElementById('token');
+    tokenInput.value = localStorage.getItem('fhcode.token') || '';
+    function getToken() {
+      const t = tokenInput.value.trim();
+      if (t) localStorage.setItem('fhcode.token', t);
+      return t;
+    }
+
+    function authHeaders() {
+      const t = getToken();
+      return t ? { 'Authorization': 'Bearer ' + t, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
+    }
+
+    let currentTasks = [];
+    const statusBadge = (s) => {
+      const map = { queued: 'queued', running: 'running', done: 'done', failed: 'failed' };
+      return `<span class="badge ${map[s] || 'queued'}">${s}</span>`;
+    };
+
+    function renderTasks(tasks) {
+      currentTasks = tasks;
+      const list = document.getElementById('taskList');
+      if (!tasks || tasks.length === 0) {
+        list.innerHTML = `<div class="empty">${UI[lang].taskEmpty}</div>`;
+        return;
+      }
+      list.innerHTML = tasks
+        .map(
+          (t) => `
+          <div class="task-item" data-id="${t.id}" title="${UI[lang].goal}: ${escapeHtml(t.goal)}">
+            <div class="goal">${escapeHtml(t.goal)}</div>
+            ${statusBadge(t.status)}
+            <div class="meta">${new Date(t.createdAt).toLocaleString()}</div>
+          </div>`,
+        )
+        .join('');
+      list.querySelectorAll('.task-item').forEach((el) => {
+        el.addEventListener('click', () => showDetail(el.getAttribute('data-id')));
+      });
+    }
+
+    function showDetail(id) {
+      const t = currentTasks.find((x) => x.id === id);
+      if (!t) return;
+      const r = t.result;
+      const lines = [
+        `${UI[lang].statusLabel}: ${t.status}`,
+        `${UI[lang].iterations}: ${r ? r.iterations : '—'}`,
+        `${UI[lang].cost}: ${r ? '$' + r.costUsd.toFixed(6) : '—'}`,
+        `${UI[lang].logFile}: ${r ? r.logFile : '—'}`,
+      ];
+      if (r) lines.push('', '===== ' + UI[lang].result + ' =====', r.finalAnswer || '—');
+      if (t.error) lines.push('', '===== ' + UI[lang].error + ' =====', t.error);
+      const detail = document.createElement('div');
+      detail.className = 'task-detail';
+      detail.textContent = lines.join('\n');
+      // 替换上次展开的详情
+      document.querySelectorAll('.task-detail').forEach((d) => d.remove());
+      document.querySelector(`[data-id="${id}"]`).after(detail);
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    async function api(path, method = 'GET', body) {
+      const res = await fetch(path, { method, headers: authHeaders(), body: body ? JSON.stringify(body) : undefined });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return res.json();
+    }
+
+    async function loadHealth() {
       try {
-        const res = await fetch('/api/health');
-        const d = await res.json();
+        const d = await (await fetch('/api/health')).json();
         if (d.lang && !new URLSearchParams(location.search).get('lang') && !localStorage.getItem('fhcode.lang')) {
           lang = d.lang;
           applyLang();
@@ -216,18 +373,55 @@
       }
     }
 
+    async function loadTasks() {
+      if (!getToken()) return; // 未填令牌不打扰
+      try {
+        const d = await api('/api/tasks');
+        renderTasks(d.tasks || []);
+      } catch (e) {
+        console.warn(UI[lang].loadErr, e);
+      }
+    }
+
+    async function submitTask() {
+      const goal = document.getElementById('goal').value.trim();
+      if (!goal) return;
+      if (!getToken()) {
+        setStatus(false, UI[lang].needToken);
+        return;
+      }
+      const btn = document.getElementById('submit');
+      btn.disabled = true;
+      try {
+        await api('/api/tasks', 'POST', { goal });
+        document.getElementById('goal').value = '';
+        await loadTasks();
+        setStatus(true, UI[lang].statusOk);
+      } catch (e) {
+        setStatus(false, UI[lang].submitErr + ': ' + e.message);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
     document.querySelectorAll('.lang-switch button').forEach((b) => {
       b.addEventListener('click', () => {
         lang = b.getAttribute('data-lang');
         localStorage.setItem('fhcode.lang', lang);
         applyLang();
-        load();
+        loadHealth();
+        loadTasks();
       });
     });
-    document.getElementById('refresh').addEventListener('click', load);
+    document.getElementById('submit').addEventListener('click', submitTask);
+    document.getElementById('refreshTasks').addEventListener('click', loadTasks);
+    document.getElementById('token').addEventListener('change', loadTasks);
 
     applyLang();
-    load();
+    loadHealth();
+    loadTasks();
+    // 轮询任务状态（5s），实现"提交后自动刷新"
+    setInterval(loadTasks, 5000);
   </script>
 </body>
 </html>

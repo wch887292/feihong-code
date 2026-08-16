@@ -47,21 +47,35 @@ export class ModelRouter {
   private readonly strategy: ModelStrategy;
   private readonly budget: number;
   private readonly statsFile: string;
+  private readonly statsHomeDir: string;
   private statsCache: ModelStatsCache | null = null;
 
-  constructor(providers: ModelProvider[], strategy: ModelStrategy, budget: number, statsFile: string = '') {
+  constructor(
+    providers: ModelProvider[],
+    strategy: ModelStrategy,
+    budget: number,
+    statsFile: string = '',
+    statsHomeDir: string = '',
+  ) {
     this.providers = providers;
     this.strategy = strategy;
     this.budget = budget;
     this.statsFile = statsFile || DEFAULT_STATS_FILE;
+    this.statsHomeDir = statsHomeDir;
   }
 
-  /** 从 AppConfig 构建（默认路由，联调真实模型时使用） */
+  /** 从 AppConfig 构建（默认路由，联调真实模型时使用）；homeDir 用于统计自动落盘 */
   static fromConfig(cfg: AppConfig, statsFile?: string): ModelRouter {
     const providers = cfg.models.providers.map((p) =>
       p.type === 'ollama' ? new OllamaProvider(p) : new OpenAICompatibleProvider(p),
     );
-    return new ModelRouter(providers, cfg.models.defaultStrategy, cfg.models.budgetPerTaskUsd, statsFile);
+    return new ModelRouter(
+      providers,
+      cfg.models.defaultStrategy,
+      cfg.models.budgetPerTaskUsd,
+      statsFile,
+      cfg.app.homeDir,
+    );
   }
 
   /** 加载性能统计缓存 */
@@ -97,7 +111,7 @@ export class ModelRouter {
     await writeFile(file, lines, 'utf8');
   }
 
-  /** 更新模型调用统计 */
+  /** 更新模型调用统计（并在配置了 homeDir 时同步落盘，供 model-stats 命令读取） */
   async updateStat(providerId: string, model: string, success: boolean, costUsd: number, latencyMs: number): Promise<void> {
     if (!this.statsCache) {
       this.statsCache = { version: STATS_VERSION, stats: [], updatedAt: new Date().toISOString() };
@@ -126,6 +140,17 @@ export class ModelRouter {
       });
     }
     this.statsCache.updatedAt = new Date().toISOString();
+
+    // M6 闭环修复：统计仅驻留内存则 model-stats 永远读不到数据，这里同步落盘
+    if (this.statsHomeDir) {
+      try {
+        await this.saveStats(this.statsHomeDir);
+      } catch (e) {
+        logger.warn('failed to persist model stats', {
+          error: e instanceof Error ? e.message : String(e),
+        });
+      }
+    }
   }
 
   /** 获取模型统计报告 */
@@ -149,9 +174,9 @@ export class ModelRouter {
     else if (this.strategy === 'latency') base = p.tags.includes('local') ? 1 : 0;
     else base = (p.tags.includes('reasoning') ? 2 : 0) + (p.tags.includes('code-gen') ? 1 : 0);
 
-    // M6: 加权历史成功率（最多 0.3 分）
+    // M6: 加权历史成功率（最多 0.3 分）；统计按 providerId+model 键控，查找需一致
     if (this.statsCache) {
-      const stat = this.statsCache.stats.find((s) => s.providerId === p.id);
+      const stat = this.statsCache.stats.find((s) => s.providerId === p.id && s.model === p.model);
       if (stat && stat.totalCalls >= 3) {
         base += stat.successRate * 0.3;
       }
@@ -163,14 +188,14 @@ export class ModelRouter {
   async chat(req: ChatRequest, tags?: CapabilityTag[]): Promise<ChatResponse> {
     const order = this.rank(tags);
     let lastErr: unknown;
-    const startTime = Date.now();
 
     for (const p of order) {
+      const startTime = Date.now();
       try {
         const resp = await p.chat(req);
         const latency = Date.now() - startTime;
 
-        // M6: 更新性能统计
+        // M6: 更新性能统计（成功记录响应模型名）
         await this.updateStat(p.id, resp.model, true, resp.costUsd, latency);
 
         if (this.budget > 0 && resp.costUsd > this.budget) {
@@ -179,8 +204,8 @@ export class ModelRouter {
         return resp;
       } catch (e) {
         const latency = Date.now() - startTime;
-        // M6: 记录失败
-        await this.updateStat(p.id, '', false, 0, latency);
+        // M6: 记录失败（用 provider 配置的模型名，避免统计出 model='' 的空条目）
+        await this.updateStat(p.id, p.model, false, 0, latency);
         logger.warn('provider failed, try next', {
           provider: p.id,
           error: e instanceof Error ? e.message : String(e),

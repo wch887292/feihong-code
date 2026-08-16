@@ -8,17 +8,19 @@
  * M3 增强：会话检查点持久化 + resume/diff/rollback 管理命令 + 交互式审批。
  */
 import { randomUUID } from 'crypto';
-import { mkdtempSync, existsSync } from 'fs';
+import { mkdtempSync, existsSync, mkdirSync, writeFileSync, rmSync } from 'fs';
 import { tmpdir, homedir } from 'os';
 import { join, dirname } from 'path';
 import { createInterface } from 'readline';
 import { setRunId, logger } from '../shared/logger';
 import { t } from '../shared/i18n';
-import { loadConfig, loadConfigFile } from '../shared/config';
+import { loadConfig, loadConfigFile, resolveHomeDir } from '../shared/config';
 import { AppError } from '../shared/errors';
 import { ModelRouter } from '../models/model-router';
 import { ScriptedMockProvider, type MockStep } from '../models/providers/mock.provider';
 import { createDefaultRegistry } from '../tools';
+import { attachMcpTools, closeMcpClients } from '../tools/mcp';
+import type { McpClient } from '../tools/mcp/mcp-client';
 import { runCommand } from '../tools/shell/exec';
 import { EventLog } from '../runtime/event-log';
 import { SessionStore } from '../runtime/session-store';
@@ -42,7 +44,11 @@ import {
   type EnterpriseRuntime,
 } from '../enterprise';
 import { startWebServer } from '../web/server';
-import { Orchestrator, type OrchestratorSecurity } from '../agent/orchestrator';
+import { installPlugin, listPlugins } from '../plugins/plugin-loader';
+import { runTeam } from '../agent/team';
+import { fetchMarketIndex, searchMarket, installMarketSkill, isSchemaSupported } from '../skills/skill-market';
+import { discoverSkills } from '../skills/skill-loader';
+import { Orchestrator, type OrchestratorSecurity, type OrchestratorEvent } from '../agent/orchestrator';
 import { runParallel, defaultParallelMock } from '../agent/parallel-orchestrator';
 import { runPlan } from '../skills/plan';
 import { runGrill } from '../skills/grill';
@@ -52,10 +58,15 @@ import { createCodeWriter } from '../agent/code-writer';
 import { createQualityGate } from '../agent/quality-gate';
 import { createSelfImprover } from '../agent/self-improver';
 import { runSweAgent, type SweReport, type SubTaskOutcome } from '../agent/swe-agent';
+import { summarizeSubTaskAnswer } from '../agent/subagent-summary';
 
 export interface RunOptions {
   offline?: boolean;
   approve?: (action: string) => Promise<boolean>;
+  /** P0-1：流式输出（编排器事件增量渲染到 stdout） */
+  stream?: boolean;
+  /** P3-1：自定义事件渲染器（TUI 用），优先于 stream */
+  renderer?: (ev: OrchestratorEvent) => void;
 }
 
 /** 离线演示脚本：写文件 → 总结，跑通完整链路 */
@@ -113,7 +124,51 @@ function getSessionHome(offline: boolean): string {
   return join(home, 'sessions');
 }
 
-export async function runGoal(goal: string, opts: RunOptions = {}): Promise<void> {
+/** P0-1：把编排器事件流增量渲染到 stdout（流式输出）。抑制换行噪音：仅打印关键节点。 */
+function renderStreamEvent(ev: OrchestratorEvent): void {
+  switch (ev.type) {
+    case 'model.response':
+      // 有文本内容时直接流式打印（模拟 token 流）；仅工具调用时打印调用摘要
+      if (ev.content.trim()) console.log(`🧠 ${ev.content.trim().slice(0, 300)}`);
+      else if (ev.toolCalls.length > 0) console.log(`🔧 ${t('stream.toolCalling', { tools: ev.toolCalls.join(', ') })}`);
+      break;
+    case 'tool.call':
+      break; // 已在上层 model.response 摘要，避免重复
+    case 'tool.result':
+      console.log(ev.ok ? `  ✅ ${ev.name} ${t('stream.toolOk')}` : `  ❌ ${ev.name} ${t('stream.toolFail')} — ${ev.output.slice(0, 120)}`);
+      break;
+    case 'self-heal':
+      console.log(`🩹 ${t('stream.selfHeal', { category: ev.category })}`);
+      break;
+    case 'context.compact':
+      console.log(`📦 ${t('stream.compact', { from: ev.originalLength, to: ev.compressedLength })}`);
+      break;
+    case 'session.end':
+      console.log(`🏁 ${t('stream.done', { iter: ev.iterations, cost: '$' + ev.costUsd.toFixed(6) })}`);
+      break;
+  }
+}
+
+/** 流式输出事件渲染器（供 runGoal / runSwe 复用） */
+export function streamRenderer(): (ev: OrchestratorEvent) => void {
+  return renderStreamEvent;
+}
+
+/**
+ * P4-1 服务端可复用执行函数：装配编排器并执行目标，返回结构化结果。
+ * 不打印任何 console 输出（供 Web 任务队列等非 CLI 场景调用）。
+ * runGoal 在其上叠加展示层。
+ */
+export async function executeTask(goal: string, opts: RunOptions = {}): Promise<{
+  ok: boolean;
+  finalAnswer: string;
+  iterations: number;
+  costUsd: number;
+  logFile: string;
+  runId: string;
+  selfHealed?: boolean;
+  experiencesExtracted?: number;
+}> {
   const runId = randomUUID();
   setRunId(runId);
 
@@ -131,6 +186,7 @@ export async function runGoal(goal: string, opts: RunOptions = {}): Promise<void
   }
 
   let router: ModelRouter;
+  let pluginSkillDirs: string[] = [];
   if (offline) {
     router = new ModelRouter([new ScriptedMockProvider(buildDemoSteps())], 'cost', 0);
   } else {
@@ -138,9 +194,19 @@ export async function runGoal(goal: string, opts: RunOptions = {}): Promise<void
     router = ModelRouter.fromConfig(cfg);
     security.shellAllowlist = cfg.security.shellAllowlist;
     security.requireApproval = cfg.security.requireApproval;
+    security.sandboxMode = cfg.security.sandboxMode;
+    security.networkRules = { networkAllow: cfg.security.networkAllow, networkDeny: cfg.security.networkDeny };
+    security.hooks = cfg.hooks;
+    pluginSkillDirs = cfg.plugins.skillDirs;
   }
 
   const tools = createDefaultRegistry();
+  // P0-3：附加 MCP 外部工具（真实模式且有配置时）
+  let mcpClients: McpClient[] = [];
+  if (!offline) {
+    const cfg = loadConfig();
+    mcpClients = await attachMcpTools(tools, cfg.mcp.servers);
+  }
   const logDir = getSessionHome(offline);
   const eventLog = new EventLog(runId, logDir);
   const session = new SessionStore(runId, cwd);
@@ -164,10 +230,11 @@ export async function runGoal(goal: string, opts: RunOptions = {}): Promise<void
     guard,
     maxCostUsd: rt?.maxCostUsd ?? 0,
     persist: (cp: SessionCheckpoint) => saveCheckpoint(logDir, cp),
+    onEvent: opts.renderer ?? (opts.stream ? streamRenderer() : undefined),
+    pluginSkillDirs,
   });
 
   if (rt) {
-    console.log(t('run.identity', { tenant: rt.tenant.tenantId, user: rt.tenant.userId, role: rt.tenant.role }));
     rt.audit.record({
       tenantId: rt.tenant.tenantId,
       userId: rt.tenant.userId,
@@ -180,34 +247,44 @@ export async function runGoal(goal: string, opts: RunOptions = {}): Promise<void
     });
   }
 
-  console.log(t('run.start', { id: runId.slice(0, 8), mode: offline ? t('run.offlineFragment') : '' }));
-  const result = await orchestrator.run(goal);
-
-  if (rt) {
-    rt.audit.record({
-      tenantId: rt.tenant.tenantId,
-      userId: rt.tenant.userId,
-      role: rt.tenant.role,
-      runId,
-      action: 'session:end',
-      resource: `iterations=${result.iterations}`,
-      decision: 'info',
-      reason: `cost=$${result.costUsd.toFixed(6)}`,
-    });
+  try {
+    const result = await orchestrator.run(goal);
+    if (rt) {
+      rt.audit.record({
+        tenantId: rt.tenant.tenantId,
+        userId: rt.tenant.userId,
+        role: rt.tenant.role,
+        runId,
+        action: 'session:end',
+        resource: `iterations=${result.iterations}`,
+        decision: 'info',
+        reason: `cost=$${result.costUsd.toFixed(6)}`,
+      });
+    }
+    return result;
+  } finally {
+    // P0-3：任务结束关闭 MCP 子进程
+    await closeMcpClients(mcpClients);
   }
+}
+
+export async function runGoal(goal: string, opts: RunOptions = {}): Promise<void> {
+  const result = await executeTask(goal, opts);
+  const offline = opts.offline ?? isOfflineByDefault();
+  const logDir = getSessionHome(offline);
 
   console.log('\n' + t('run.resultTitle'));
   console.log(result.finalAnswer);
   console.log('\n' + t('run.summary', { iter: result.iterations, cost: '$' + result.costUsd.toFixed(6), log: result.logFile }));
-  console.log(t('run.checkpoint', { path: join(logDir, `${runId}.session.json`) }));
+  console.log(t('run.checkpoint', { path: join(logDir, `${result.runId}.session.json`) }));
   if (offline) {
     // 演示文件可能因策略拒绝而未生成，据实播报，避免误导
-    const demoFile = join(cwd, 'demo-output.txt');
-    logger.info('offline-run done', { cwd, demoFile });
+    const demoFile = join(process.cwd(), 'demo-output.txt');
+    logger.info('offline-run done', { cwd: process.cwd(), demoFile });
     console.log(
       existsSync(demoFile)
         ? t('run.offlineFileYes', { file: demoFile })
-        : t('run.offlineFileNo', { cwd }),
+        : t('run.offlineFileNo', { cwd: process.cwd() }),
     );
   }
 }
@@ -557,9 +634,245 @@ export function runTenants(): void {
 
 /* ===================== M6：自我进化 ===================== */
 
+/** 探测 baseURL 连通性：任何 HTTP 响应（含 4xx/5xx）都视为可达，连接失败视为不可达 */
+async function probeUrl(base: string): Promise<boolean> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 5000);
+  try {
+    await fetch(base.replace(/\/+$/, ''), { method: 'GET', signal: controller.signal });
+    return true;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * fhcode doctor：环境自检（版本 / git / 配置 / provider / 路径可写 / 网络连通）。
+ * 全部通过输出 ✅，异常项以 ⚠️ 列明，帮助快速定位接入问题。
+ */
+export async function runDoctor(): Promise<void> {
+  const checks: Array<{ name: string; ok: boolean; detail: string }> = [];
+
+  // 1. Node 版本（engines >= 18）
+  const nodeMajor = Number(process.versions.node.split('.')[0]);
+  checks.push({
+    name: t('doctor.node'),
+    ok: nodeMajor >= 18,
+    detail: `Node ${process.version}（要求 >=18）`,
+  });
+
+  // 2. git 可用性（diff/rollback/并行 worktree 依赖）
+  const git = await runCommand('git --version', process.cwd(), 5000).catch(() => null);
+  checks.push({
+    name: t('doctor.git'),
+    ok: !!git && git.code === 0,
+    detail: git && git.code === 0 ? (git.stdout || git.stderr).trim() : t('doctor.gitMissing'),
+  });
+
+  // 3. 配置加载 + provider 明细 + 网络连通
+  try {
+    const cfg = loadConfig();
+    if (cfg.models.providers.length === 0) {
+      checks.push({ name: t('doctor.config'), ok: true, detail: t('doctor.configEmpty') });
+    } else {
+      checks.push({ name: t('doctor.config'), ok: true, detail: `${cfg.models.providers.length} providers` });
+      for (const p of cfg.models.providers) {
+        checks.push({
+          name: `${t('doctor.provider')} ${p.id}`,
+          ok: !!p.baseURL,
+          detail: `${p.type} @ ${p.baseURL || '（缺 baseURL）'}${p.model ? ` · model=${p.model}` : ''}`,
+        });
+      }
+    }
+    // 网络探测：仅真实模式且有 provider 时执行；离线模式直接跳过
+    if (!isOfflineByDefault() && cfg.models.providers.length > 0) {
+      const base = cfg.models.providers[0].baseURL;
+      if (base) {
+        const reachable = await probeUrl(base);
+        checks.push({
+          name: t('doctor.network'),
+          ok: reachable,
+          detail: reachable ? `${base} 可达` : `${base} 不可达`,
+        });
+      }
+    } else {
+      checks.push({ name: t('doctor.network'), ok: true, detail: t('doctor.networkOffline') });
+    }
+  } catch (e) {
+    checks.push({
+      name: t('doctor.config'),
+      ok: false,
+      detail: e instanceof Error ? e.message : String(e),
+    });
+  }
+
+  // 4. 主目录可写（会话/审计/经验/统计落盘依赖）
+  const homeDir = resolveHomeDir();
+  let homeOk = true;
+  let homeDetail = homeDir;
+  try {
+    mkdirSync(homeDir, { recursive: true });
+    const probe = join(homeDir, '.doctor-probe');
+    writeFileSync(probe, 'ok');
+    rmSync(probe, { force: true });
+  } catch (e) {
+    homeOk = false;
+    homeDetail = `${homeDir}（${e instanceof Error ? e.message : String(e)}）`;
+  }
+  checks.push({ name: t('doctor.home'), ok: homeOk, detail: homeDetail });
+
+  // 5. 沙箱模式（P0-2）
+  try {
+    const cfg = loadConfig();
+    const sandboxDetail =
+      `${cfg.security.sandboxMode}` +
+      (cfg.security.networkDeny.length > 0 ? ` · deny: ${cfg.security.networkDeny.join(',')}` : '') +
+      (cfg.security.networkAllow.length > 0 ? ` · allow: ${cfg.security.networkAllow.join(',')}` : '');
+    checks.push({ name: t('doctor.sandbox'), ok: true, detail: sandboxDetail });
+  } catch {
+    checks.push({ name: t('doctor.sandbox'), ok: false, detail: t('doctor.sandboxUnavailable') });
+  }
+
+  // 输出
+  console.log(t('doctor.title'));
+  const failed = checks.filter((c) => !c.ok);
+  for (const c of checks) {
+    console.log(`  ${c.ok ? '✅' : '⚠️'} ${c.name}: ${c.detail}`);
+  }
+  console.log(failed.length === 0 ? t('doctor.allOk') : t('doctor.issues', { n: failed.length }));
+}
+
+/* ===================== P3-3：插件管理 ===================== */
+
+/** fhcode plugin install <source> / plugin list：插件打包分发管理 */
+export async function runPluginCmd(action: 'install' | 'list', source?: string): Promise<void> {
+  if (action === 'install') {
+    if (!source) {
+      console.error(t('plugin.installUsage'));
+      return;
+    }
+    try {
+      const { name, dir } = await installPlugin(source);
+      console.log(t('plugin.installed', { name, dir }));
+    } catch (e) {
+      console.error(t('plugin.installFailed') + (e instanceof Error ? e.message : String(e)));
+      process.exitCode = 1;
+    }
+    return;
+  }
+  // list
+  const plugins = listPlugins(process.cwd());
+  if (plugins.length === 0) {
+    console.log(t('plugin.empty'));
+    return;
+  }
+  console.log(t('plugin.listTitle'));
+  for (const p of plugins) {
+    console.log(`  ${p.name.padEnd(24)} v${p.version}  ${p.description ?? ''}`);
+  }
+}
+
+/* ===================== P4-2：Agent teams ===================== */
+
+/** fhcode team "<目标>"：多 agent 协作执行（共享任务清单 + 消息总线） */
+export async function runTeamCmd(goal: string): Promise<void> {
+  const offline = isOfflineByDefault();
+  console.log(t('team.start', { mode: offline ? t('run.modeOffline') : t('run.modeLive') }));
+
+  // 目标拆解为任务清单（复用 planner 的并列连词拆分；拆不开则单任务）
+  const { decomposeGoal } = await import('../agent/planner');
+  const tasks = decomposeGoal(goal).map((t) => t.goal);
+  if (tasks.length === 0) tasks.push(goal);
+
+  const report = await runTeam(tasks, {
+    runSubTask: async (focusedGoal) => {
+      const result = await executeTask(focusedGoal, { offline });
+      return { ok: result.ok, finalAnswer: result.finalAnswer, iterations: result.iterations };
+    },
+    pollIntervalMs: offline ? 0 : 100,
+  });
+
+  console.log('\n' + t('team.reportTitle'));
+  console.log(report.summary);
+}
+
+/* ===================== Skills 市场 ===================== */
+
+/** 默认市场源（agentskills.io 官方规范端点；可用 --repo 或 FH_SKILL_MARKET 覆盖） */
+const DEFAULT_MARKET = process.env.FH_SKILL_MARKET || 'https://agentskills.io';
+
+/** fhcode skill-market search <关键词> | install <技能名> | list */
+export async function runSkillMarketCmd(action: 'search' | 'install' | 'list', query?: string, market?: string): Promise<void> {
+  const base = market || DEFAULT_MARKET;
+
+  if (action === 'list') {
+    // 列出本地已安装技能（复用技能发现，含打包/仓库/用户级）
+    const skills = discoverSkills(process.cwd());
+    if (skills.length === 0) {
+      console.log(t('skillMarket.localEmpty'));
+      return;
+    }
+    console.log(t('skillMarket.localTitle', { n: skills.length }));
+    for (const s of skills) {
+      console.log(`  ${s.name.padEnd(24)} ${s.description.slice(0, 60)}`);
+    }
+    return;
+  }
+
+  // search / install 需联网拉索引
+  let index;
+  try {
+    index = await fetchMarketIndex(base);
+  } catch (e) {
+    console.error(t('skillMarket.fetchFailed', { base }) + (e instanceof Error ? e.message : String(e)));
+    process.exitCode = 1;
+    return;
+  }
+  if (!isSchemaSupported(index.schema)) {
+    console.warn(t('skillMarket.schemaWarn', { schema: index.schema ?? '?' }));
+  }
+
+  if (action === 'search') {
+    const results = searchMarket(index, query ?? '');
+    if (results.length === 0) {
+      console.log(t('skillMarket.searchEmpty', { q: query ?? '' }));
+      return;
+    }
+    console.log(t('skillMarket.searchTitle', { q: query ?? '', n: results.length, base }));
+    for (const s of results) {
+      console.log(`  ${s.name.padEnd(28)} [${s.type}] ${s.description.slice(0, 70)}`);
+    }
+    console.log(t('skillMarket.installHint'));
+    return;
+  }
+
+  // install
+  if (!query) {
+    console.error(t('skillMarket.installUsage'));
+    process.exitCode = 1;
+    return;
+  }
+  const skill = index.skills.find((s) => s.name === query);
+  if (!skill) {
+    console.error(t('skillMarket.notFound', { name: query }));
+    process.exitCode = 1;
+    return;
+  }
+  const destDir = join(resolveHomeDir(), 'skills');
+  try {
+    const target = await installMarketSkill(index, skill, destDir);
+    console.log(t('skillMarket.installed', { name: skill.name, dir: target }));
+  } catch (e) {
+    console.error(t('skillMarket.installFailed') + (e instanceof Error ? e.message : String(e)));
+    process.exitCode = 1;
+  }
+}
+
 /** fhcode model-stats：显示各模型性能统计 */
 export function runModelStats(): void {
-  const homeDir = join(homedir(), '.feihong-code');
+  const homeDir = resolveHomeDir();
   const statsFile = join(homeDir, 'model-stats.jsonl');
   if (!existsSync(statsFile)) {
     console.log(t('modelStats.empty'));
@@ -584,7 +897,7 @@ export function runModelStats(): void {
 
 /** fhcode experiences [路径]：列出经验库 */
 export function runExperiences(path?: string): void {
-  const experienceDir = path || join(require('os').homedir(), '.feihong-code', 'experiences');
+  const experienceDir = path || join(resolveHomeDir(), 'experiences');
   listExperiences(experienceDir).then((experiences: Experience[]) => {
     if (experiences.length === 0) {
       console.log(t('exp.empty'));
@@ -761,8 +1074,17 @@ export async function runSwe(goal: string, opts: SweOptions = {}): Promise<void>
       router = ModelRouter.fromConfig(cfg);
       security.shellAllowlist = cfg.security.shellAllowlist;
       security.requireApproval = cfg.security.requireApproval;
+      security.sandboxMode = cfg.security.sandboxMode;
+      security.networkRules = { networkAllow: cfg.security.networkAllow, networkDeny: cfg.security.networkDeny };
+      security.hooks = cfg.hooks;
     }
     const tools = createDefaultRegistry();
+    // P0-3：附加 MCP 外部工具（真实模式且有配置时），子任务结束即关闭
+    let mcpClients: McpClient[] = [];
+    if (!offline) {
+      const cfg = loadConfig();
+      mcpClients = await attachMcpTools(tools, cfg.mcp.servers);
+    }
     const logDir = getSessionHome(offline);
     const eventLog = new EventLog(runId, logDir);
     const session = new SessionStore(runId, cwd);
@@ -781,13 +1103,18 @@ export async function runSwe(goal: string, opts: SweOptions = {}): Promise<void>
       guard,
       maxIterations: opts.maxIterations ?? 6,
       maxCostUsd: rt?.maxCostUsd ?? 0,
+      // P1-1：子任务用低成本模型分担（编排器主模型保持 code-gen，worker 加 cheap 优先）
+      tags: ['code-gen', 'cheap'],
       persist: (cp: import('../runtime/session-persist').SessionCheckpoint) =>
         saveCheckpoint(logDir, cp),
     });
     const result = await orchestrator.run(focusedGoal);
+    await closeMcpClients(mcpClients);
+    // P2-2：子代理结果摘要化回主上下文（隔离中间大输出）
+    const summarized = summarizeSubTaskAnswer(result.finalAnswer);
     return {
       ok: result.ok,
-      finalAnswer: result.finalAnswer,
+      finalAnswer: summarized.text,
       iterations: result.iterations,
       touchedFiles: [],
     };
@@ -823,7 +1150,8 @@ export async function runSwe(goal: string, opts: SweOptions = {}): Promise<void>
 /* ===================== 审批器 ===================== */
 
 function expandHome(p: string): string {
-  if (p.startsWith('~')) return join(process.env.HOME || process.cwd(), p.slice(1));
+  // 统一用 os.homedir()（Windows 上 process.env.HOME 可能缺失，导致 ~ 展开为空路径）
+  if (p.startsWith('~')) return join(homedir(), p.slice(1));
   return p;
 }
 

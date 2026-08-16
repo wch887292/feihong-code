@@ -76,6 +76,7 @@ const ZH: Record<string, string> = {
   fhcode audit [--limit N]           查看审计记录（默认最近 20 条）
   fhcode audit verify                校验审计哈希链是否被篡改
   fhcode tenants                     列出全部租户与用量汇总
+  fhcode doctor                      环境自检（版本/git/provider/路径/网络）
 
 自我进化 (M6):
   fhcode model-stats                 查看各模型性能统计
@@ -108,10 +109,20 @@ Web 控制台 (M5):
 署名: {signature}`,
 
   'repl.welcome': '飞虹 Code REPL（输入需求回车执行，exit 退出）',
-  'repl.hint': '提示：未配置 FH_PROVIDERS 时自动离线模式运行。\n',
+  'repl.hint': '提示：未配置 FH_PROVIDERS 时自动离线模式运行；支持 /plan /grill /goal 技能。\n',
   'repl.prompt': '飞虹> ',
   'repl.errorPrefix': '执行出错: ',
+  'repl.unknownSkill': '未知技能: /{cmd}（支持 /plan /grill /goal）',
   'repl.bye': '\n再见。',
+  'repl.stateReady': '就绪',
+  'repl.stateRunning': '运行中',
+
+  'stream.toolCalling': '调用工具: {tools}',
+  'stream.toolOk': '成功',
+  'stream.toolFail': '失败',
+  'stream.selfHeal': '自愈重试: {category}',
+  'stream.compact': '上下文压缩: {from} → {to} 条消息',
+  'stream.done': '任务结束 · 迭代 {iter} 次 · 成本 {cost}',
 
   'run.identity': '身份 tenant={tenant} user={user} role={role}',
   'run.start': '开始任务 (runId={id}{mode})',
@@ -182,6 +193,42 @@ Web 控制台 (M5):
   'exp.header': '经验库 ({n} 条，来源: {dir}):',
   'exp.tableHeader': '  ID                              类型                 标题                    成功率  使用次数',
   'exp.more': '  ... 共 {n} 条，显示前 10 条',
+
+  'doctor.title': '===== fhcode doctor 环境自检 =====',
+  'doctor.node': 'Node 版本',
+  'doctor.git': 'git 可用性',
+  'doctor.gitMissing': 'git 不可用（diff/rollback/并行模式将受限）',
+  'doctor.config': '模型配置',
+  'doctor.configEmpty': '未配置 provider（将自动进入离线模式）',
+  'doctor.provider': '供应商',
+  'doctor.network': '网络连通',
+  'doctor.networkOffline': '离线模式，跳过网络探测',
+  'doctor.home': '主目录可写',
+  'doctor.sandbox': '沙箱模式',
+  'doctor.sandboxUnavailable': '（配置不可用）',
+  'doctor.allOk': '✅ 环境就绪，无异常项',
+  'doctor.issues': '⚠️ 发现 {n} 项异常，请根据提示处理',
+
+  'plugin.installUsage': '用法: fhcode plugin install <本地目录|git URL>',
+  'plugin.installed': '✅ 插件已安装: {name}（{dir}）',
+  'plugin.installFailed': '❌ 插件安装失败: ',
+  'plugin.empty': '（未安装任何插件）',
+  'plugin.listTitle': '已安装插件:',
+
+  'skillMarket.localEmpty': '（本地无已安装技能）',
+  'skillMarket.localTitle': '本地已安装技能（{n} 个）:',
+  'skillMarket.fetchFailed': '❌ 拉取市场索引失败（{base}）: ',
+  'skillMarket.schemaWarn': '⚠️ 市场索引 schema 未识别（{schema}），按 0.1.0 兼容处理',
+  'skillMarket.searchEmpty': '（市场无匹配 "{q}" 的技能）',
+  'skillMarket.searchTitle': '市场「{q}」搜索结果（{n} 个，来源 {base}）:',
+  'skillMarket.installHint': '安装: fhcode skill-market install <技能名> [--repo <市场源>]',
+  'skillMarket.installUsage': '用法: fhcode skill-market install <技能名> [--repo <市场源>]',
+  'skillMarket.notFound': '❌ 市场中未找到技能: {name}',
+  'skillMarket.installed': '✅ 技能已安装: {name}（{dir}），任务中自动发现',
+  'skillMarket.installFailed': '❌ 技能安装失败: ',
+
+  'team.start': 'Agent Team 启动（{mode}）: 共享任务清单 + 消息总线协作',
+  'team.reportTitle': '===== Agent Team 协作报告 =====',
 
   'serve.url': '[飞虹 Code] Web 控制台: {url}',
   'serve.token': '[飞虹 Code] 访问令牌 (FH_WEB_TOKEN): {token}',
@@ -293,6 +340,7 @@ Enterprise (M4):
   fhcode audit [--limit N]           View audit records (last 20 by default)
   fhcode audit verify               Verify audit hash-chain integrity
   fhcode tenants                     List all tenants & usage summary
+  fhcode doctor                      Environment self-check (version/git/providers/paths/network)
 
 Self-evolution (M6):
   fhcode model-stats                 View per-model performance stats
@@ -325,10 +373,20 @@ Enterprise mode is on by default (tenant isolation + RBAC + audit chain + quota)
 Signature: {signature}`,
 
   'repl.welcome': 'fhcode REPL (type a request and press Enter to run; type exit to quit)',
-  'repl.hint': 'Hint: offline mode is used automatically when FH_PROVIDERS is not configured.\n',
+  'repl.hint': 'Hint: offline mode is used automatically when FH_PROVIDERS is not configured; /plan /grill /goal skills supported.\n',
   'repl.prompt': 'fhcode> ',
   'repl.errorPrefix': 'Error: ',
+  'repl.unknownSkill': 'Unknown skill: /{cmd} (supported: /plan /grill /goal)',
   'repl.bye': '\nGoodbye.',
+  'repl.stateReady': 'ready',
+  'repl.stateRunning': 'running',
+
+  'stream.toolCalling': 'Calling tools: {tools}',
+  'stream.toolOk': 'ok',
+  'stream.toolFail': 'failed',
+  'stream.selfHeal': 'Self-heal retry: {category}',
+  'stream.compact': 'Context compacted: {from} → {to} messages',
+  'stream.done': 'Done · {iter} iterations · cost {cost}',
 
   'run.identity': 'Identity tenant={tenant} user={user} role={role}',
   'run.start': 'Task started (runId={id}{mode})',
@@ -400,6 +458,42 @@ Signature: {signature}`,
   'exp.header': 'Experience library ({n} entries, source: {dir}):',
   'exp.tableHeader': '  ID                              Type                Title                  Rate   Uses',
   'exp.more': '  ... {n} entries total, showing first 10',
+
+  'doctor.title': '===== fhcode doctor environment check =====',
+  'doctor.node': 'Node version',
+  'doctor.git': 'git availability',
+  'doctor.gitMissing': 'git unavailable (diff/rollback/parallel mode will be limited)',
+  'doctor.config': 'Model config',
+  'doctor.configEmpty': 'No provider configured (offline mode will be used automatically)',
+  'doctor.provider': 'Provider',
+  'doctor.network': 'Network reachability',
+  'doctor.networkOffline': 'Offline mode, skipping network probe',
+  'doctor.home': 'Home dir writable',
+  'doctor.sandbox': 'Sandbox mode',
+  'doctor.sandboxUnavailable': '(config unavailable)',
+  'doctor.allOk': '✅ Environment ready, no issues',
+  'doctor.issues': '⚠️ {n} issue(s) found, please fix them as suggested',
+
+  'plugin.installUsage': 'Usage: fhcode plugin install <local-dir|git-url>',
+  'plugin.installed': '✅ Plugin installed: {name} ({dir})',
+  'plugin.installFailed': '❌ Plugin install failed: ',
+  'plugin.empty': '(No plugins installed)',
+  'plugin.listTitle': 'Installed plugins:',
+
+  'skillMarket.localEmpty': '(No local skills installed)',
+  'skillMarket.localTitle': 'Local skills ({n}):',
+  'skillMarket.fetchFailed': '❌ Failed to fetch market index ({base}): ',
+  'skillMarket.schemaWarn': '⚠️ Unrecognized market index schema ({schema}), treating as 0.1.0',
+  'skillMarket.searchEmpty': '(No skills match "{q}" in the market)',
+  'skillMarket.searchTitle': 'Market results for "{q}" ({n} found, source {base}):',
+  'skillMarket.installHint': 'Install: fhcode skill-market install <skill-name> [--repo <market-url>]',
+  'skillMarket.installUsage': 'Usage: fhcode skill-market install <skill-name> [--repo <market-url>]',
+  'skillMarket.notFound': '❌ Skill not found in market: {name}',
+  'skillMarket.installed': '✅ Skill installed: {name} ({dir}), auto-discovered in tasks',
+  'skillMarket.installFailed': '❌ Skill install failed: ',
+
+  'team.start': 'Agent Team started ({mode}): shared task board + message bus',
+  'team.reportTitle': '===== Agent Team Report =====',
 
   'serve.url': '[fhcode] Web console: {url}',
   'serve.token': '[fhcode] access token (FH_WEB_TOKEN): {token}',

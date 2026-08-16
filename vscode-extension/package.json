@@ -1,0 +1,50 @@
+{
+  "name": "fhcode-vscode",
+  "displayName": "fhcode — 飞虹 Code",
+  "description": "调起 fhcode 终端 AI 编程智能体：运行任务、查看会话 diff（最小可用壳）",
+  "version": "0.4.0",
+  "publisher": "feihong",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Other"],
+  "activationEvents": [
+    "onCommand:fhcode.run",
+    "onCommand:fhcode.diff",
+    "onStartupFinished"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "fhcode.run",
+        "title": "fhcode: 运行任务（Run task）",
+        "category": "fhcode"
+      },
+      {
+        "command": "fhcode.diff",
+        "title": "fhcode: 查看工作区 diff",
+        "category": "fhcode"
+      }
+    ],
+    "configuration": {
+      "title": "fhcode",
+      "properties": {
+        "fhcode.binaryPath": {
+          "type": "string",
+          "default": "fhcode",
+          "description": "fhcode 可执行文件路径（默认取 PATH 中的 fhcode）"
+        },
+        "fhcode.offline": {
+          "type": "boolean",
+          "default": false,
+          "description": "以离线模式（mock）运行，便于无模型环境验证"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "check": "node --check extension.js"
+  }
+}

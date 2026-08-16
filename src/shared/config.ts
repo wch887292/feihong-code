@@ -8,7 +8,15 @@ import { ConfigError } from './errors';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
+import { VERSION } from '../cli/version';
 import type { CapabilityTag, ModelStrategy } from './types';
+import type { SandboxMode } from '../tools/sandbox';
+import { normalizeSandboxMode } from '../tools/sandbox';
+import type { McpServerConfig } from '../tools/mcp/mcp-client';
+import { parseMcpServers } from '../tools/mcp';
+import type { HookConfig } from '../runtime/hooks';
+import { parseHooks } from '../runtime/hooks';
+import { loadPlugins, type LoadedPlugins } from '../plugins/plugin-loader';
 
 /**
  * 极简 .env 加载器（不引入第三方依赖，离线可用）。
@@ -56,18 +64,36 @@ export interface AppConfig {
     budgetPerTaskUsd: number;
   };
   runtime: { logDir: string; maxRetries: number };
-  security: { shellAllowlist: string[]; requireApproval: boolean };
+  /** P0-3：MCP 服务器列表（外部工具扩展） */
+  mcp: { servers: McpServerConfig[] };
+  /** P2-1：hooks 确定性控制（PreToolUse/PostToolUse/PostEdit/SessionStart） */
+  hooks: HookConfig[];
+  /** P3-3：插件（聚合的 skills 目录 / hooks / MCP） */
+  plugins: LoadedPlugins;
+  security: {
+    shellAllowlist: string[];
+    requireApproval: boolean;
+    /** P0-2：沙箱模式（read-only / workspace-write / danger-full-access） */
+    sandboxMode: SandboxMode;
+    /** P0-2：网络域名规则（allow/deny，作用于 run_shell 命令中的 http(s) 目标） */
+    networkAllow: string[];
+    networkDeny: string[];
+  };
 }
-
-const APP_VERSION = '0.3.1';
 
 /**
  * 解析主目录：优先 FH_HOME，缺省 ~/.feihong-code（避免缺环境变量即崩溃）。
+ * 支持 `~` 前缀展开（Windows 下 HOME 不一定存在，统一走 os.homedir()）。
  */
 export function resolveHomeDir(): string {
   const h = process.env.FH_HOME?.trim();
   if (h) return h.startsWith('~') ? h.replace(/^~/, homedir()) : h;
   return join(homedir(), '.feihong-code');
+}
+
+/** 展开路径开头的 `~`（对 FH_LOG_DIR 等单值环境变量复用） */
+function expandTilde(p: string): string {
+  return p.startsWith('~') ? join(homedir(), p.slice(1)) : p;
 }
 
 let cached: AppConfig | null = null;
@@ -167,11 +193,13 @@ export function loadConfig(): AppConfig {
 
   const fileCfg = loadConfigFile();
   const providers = resolveProviders(fileCfg);
+  // P3-3：插件聚合（用户级 + 项目级）
+  const plugins = loadPlugins(process.cwd());
 
   cached = {
     app: {
       name: 'feihong-code',
-      version: APP_VERSION,
+      version: VERSION,
       homeDir: resolveHomeDir(),
     },
     models: {
@@ -185,12 +213,33 @@ export function loadConfig(): AppConfig {
       ),
     },
     runtime: {
-      logDir: process.env.FH_LOG_DIR || join(resolveHomeDir(), 'sessions'),
+      logDir: process.env.FH_LOG_DIR ? expandTilde(process.env.FH_LOG_DIR) : join(resolveHomeDir(), 'sessions'),
       maxRetries: 3,
     },
+    // P0-3：MCP 服务器（FH_MCP_SERVERS 环境变量优先，其次配置文件 mcp.servers；插件 MCP 叠加）
+    mcp: {
+      servers: [
+        ...(parseMcpServers(process.env.FH_MCP_SERVERS).length > 0
+          ? parseMcpServers(process.env.FH_MCP_SERVERS)
+          : (fileCfg?.mcp?.servers ?? [])),
+        ...plugins.mcp,
+      ],
+    },
+    // P2-1：hooks（FH_HOOKS 环境变量优先，其次配置文件 hooks；插件 hooks 叠加）
+    hooks: [
+      ...(parseHooks(process.env.FH_HOOKS).length > 0
+        ? parseHooks(process.env.FH_HOOKS)
+        : (fileCfg?.hooks ?? [])),
+      ...plugins.hooks,
+    ],
+    // P3-3：插件（用户级 + 项目级），聚合技能目录/hooks/MCP，与显式配置叠加
+    plugins,
     security: {
       shellAllowlist: (process.env.FH_SHELL_ALLOW || '').split(',').map((s) => s.trim()).filter(Boolean),
       requireApproval: process.env.FH_REQUIRE_APPROVAL !== 'false',
+      sandboxMode: normalizeSandboxMode(process.env.FH_SANDBOX_MODE),
+      networkAllow: (process.env.FH_NETWORK_ALLOW || '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean),
+      networkDeny: (process.env.FH_NETWORK_DENY || '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean),
     },
   };
   return cached;

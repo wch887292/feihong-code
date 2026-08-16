@@ -117,13 +117,17 @@ function readLastRecord(file: string): AuditRecord | null {
 const AUDIT_LOCK_FILE = '.audit.lock';
 const AUDIT_LOCK_TIMEOUT_MS = 5000;
 const AUDIT_LOCK_STALE_MS = 10000;
+/** 退避上限：初始 10ms，指数增长到 200ms，减少空转 CPU */
+const AUDIT_LOCK_BACKOFF_MAX_MS = 200;
+
+// 模块级复用（避免每次 sleepSync 重建 SharedArrayBuffer）
+const SLEEP_SAB = new SharedArrayBuffer(4);
+const SLEEP_VIEW = new Int32Array(SLEEP_SAB);
 
 /** 跨进程同步睡眠（Node 主线程可用 Atomics.wait 阻塞） */
 function sleepSync(ms: number): void {
-  const sab = new SharedArrayBuffer(4);
-  const view = new Int32Array(sab);
   try {
-    Atomics.wait(view, 0, 0, ms);
+    Atomics.wait(SLEEP_VIEW, 0, 0, ms);
   } catch {
     /* 不支持时直接返回，退化为忙等 */
   }
@@ -138,6 +142,7 @@ function withAuditLock(dir: string, fn: () => void): void {
   mkdirSync(dir, { recursive: true });
   const lockPath = join(dir, AUDIT_LOCK_FILE);
   const deadline = Date.now() + AUDIT_LOCK_TIMEOUT_MS;
+  let backoffMs = 10;
   for (;;) {
     try {
       const fd = openSync(lockPath, 'wx');
@@ -164,6 +169,7 @@ function withAuditLock(dir: string, fn: () => void): void {
           const st = statSync(lockPath);
           if (Date.now() - st.mtimeMs > AUDIT_LOCK_STALE_MS) {
             unlinkSync(lockPath);
+            backoffMs = 10; // 锁已清理，重置退避
             continue;
           }
         } catch {
@@ -172,7 +178,9 @@ function withAuditLock(dir: string, fn: () => void): void {
         if (Date.now() > deadline) {
           throw new Error('审计写入锁等待超时（可能存在挂死的写进程）');
         }
-        sleepSync(10);
+        // 指数退避（10ms → 200ms），降低锁竞争下的 CPU 空转
+        sleepSync(backoffMs);
+        backoffMs = Math.min(backoffMs * 2, AUDIT_LOCK_BACKOFF_MAX_MS);
         continue;
       }
       throw e;

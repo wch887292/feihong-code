@@ -22,6 +22,7 @@ export type EventType =
   | 'plan'
   | 'error'
   | 'self-heal'
+  | 'self-heal.attempt'
   | 'context.compact'
   | 'experience.extracted';
 

@@ -7,10 +7,18 @@
 import { z } from 'zod';
 import type { RunId } from '../shared/types';
 import type { ToolDefinition } from '../models/model.interface';
+import type { SandboxMode, SandboxRules } from './sandbox';
+import type { HookConfig } from '../runtime/hooks';
 
 export interface ToolSecurityConfig {
   shellAllowlist: string[];
   requireApproval: boolean;
+  /** P0-2：沙箱模式（read-only / workspace-write / danger-full-access） */
+  sandboxMode?: SandboxMode;
+  /** P0-2：网络域名规则 */
+  networkRules?: SandboxRules;
+  /** P2-1：hooks 确定性控制 */
+  hooks?: HookConfig[];
 }
 
 /** M4 守卫判定结果 */
