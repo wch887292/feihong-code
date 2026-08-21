@@ -27,6 +27,8 @@ export interface TaskRecord {
   status: TaskStatus;
   createdAt: string;
   updatedAt: string;
+  workspaceDir?: string;
+  modelId?: string;
   result?: {
     ok: boolean;
     finalAnswer: string;
@@ -136,8 +138,8 @@ export class TaskQueue {
     return this.webhookUrl;
   }
 
-  /** 提交任务，立即返回任务 id（后台异步执行） */
-  submit(goal: string): TaskRecord {
+  /** 提交任务，立即返回任务 id（后台异步执行）；opts 可覆盖本次任务的 modelId / workspaceDir */
+  submit(goal: string, opts: { modelId?: string; workspaceDir?: string } = {}): TaskRecord {
     const now = new Date().toISOString();
     const record: TaskRecord = {
       id: randomUUID(),
@@ -145,6 +147,8 @@ export class TaskQueue {
       status: 'queued',
       createdAt: now,
       updatedAt: now,
+      workspaceDir: opts.workspaceDir,
+      modelId: opts.modelId,
     };
     this.tasks.set(record.id, record);
     this.persist(record); // P6-4 落盘
