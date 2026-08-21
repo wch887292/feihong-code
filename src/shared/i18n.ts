@@ -264,6 +264,10 @@ Web 控制台 (M5):
     '本地 Ollama 示例: FH_MODEL_NAME=qwen2.5-coder:1.5b FH_MODEL_TYPE=ollama fhcode swe "..."',
   'swe.start': '[飞虹 Code] 启动全自动软件工程 Agent（{offline}，仓库={cwd}）',
   'swe.reportTitle': '===== 全自动软件工程 Agent 报告 =====',
+  'harness.start': '[飞虹 Code] 启动评测 harness（{mode} 模式 · split={split} · limit={limit}）',
+  'harness.noProvider': '[飞虹 Code] 未配置真实模型供应商（请设置 FH_PROVIDERS 或 FH_MODEL_NAME 后使用 --mode real）',
+  'harness.reportWritten': '报告已写入: {path}',
+  'harness.summary': '汇总: {completed}/{total} 通过（通过率 {rate}%）',
 
   'approve.prompt': '[审批] 是否允许执行: {action}\n  输入 y/yes 允许，其他拒绝: ',
 
@@ -529,6 +533,10 @@ Signature: {signature}`,
     'Local Ollama example: FH_MODEL_NAME=qwen2.5-coder:1.5b FH_MODEL_TYPE=ollama fhcode swe "..."',
   'swe.start': '[fhcode] launching autonomous SWE agent ({offline}, repo={cwd})',
   'swe.reportTitle': '===== Autonomous SWE Agent Report =====',
+  'harness.start': '[fhcode] starting evaluation harness ({mode} mode · split={split} · limit={limit})',
+  'harness.noProvider': '[fhcode] No real model provider configured (set FH_PROVIDERS or FH_MODEL_NAME, then use --mode real)',
+  'harness.reportWritten': 'Report written to: {path}',
+  'harness.summary': 'Summary: {completed}/{total} passed ({rate}%)',
 
   'approve.prompt': '[approve] allow execution: {action}\n  type y/yes to allow, anything else to deny: ',
 

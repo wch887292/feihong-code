@@ -40,6 +40,7 @@ import {
   runSwe,
   runModelStats,
   runExperiences,
+  runHarness,
 } from './run';
 import { VERSION } from './version';
 import { setLang, t } from '../shared/i18n';
@@ -137,6 +138,14 @@ async function dispatchManage(m: ManagementCommand): Promise<void> {
     case 'self-improve': await runSelfImprove(); break;
     case 'model-stats': runModelStats(); break;
     case 'experiences': runExperiences(m.path); break;
+    case 'harness': await runHarness({
+      split: m.split,
+      limit: m.limit,
+      offset: m.offset,
+      mode: m.mode,
+      report: m.report,
+      json: m.json,
+    }); break;
     case 'swe': await runSwe(m.goal, {
       repo: m.repo,
       maxTasks: m.maxTasks,

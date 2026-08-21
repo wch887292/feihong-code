@@ -46,6 +46,7 @@ export type ManagementCommand =
   | { kind: 'code-write'; goal: string; filePath: string }
   | { kind: 'quality-gate'; path: string }
   | { kind: 'self-improve' }
+  | { kind: 'harness'; split: string; limit: number; offset: number; mode: 'mock' | 'real'; report?: string; json: boolean }
   | {
       kind: 'swe';
       goal: string;
@@ -75,6 +76,11 @@ export interface ParsedArgs {
     json?: boolean;
     contextFile?: string;
     lang?: string;
+    /** harness 评测：数据集 split / 偏移 / 执行模式 / 报告输出路径 */
+    split?: string;
+    offset?: number;
+    mode?: string;
+    report?: string;
   };
   /** 单命令模式下的需求文本（首个非 flag 参数） */
   command?: string;
@@ -108,6 +114,10 @@ const FLAG_SPECS: Record<string, FlagSpec> = {
   'max-tasks': { kind: 'int', min: 1, key: 'maxTasks' },
   'max-retries': { kind: 'int', min: 0, key: 'maxRetries' },
   'max-iterations': { kind: 'int', min: 1, key: 'maxIterations' },
+  split: { kind: 'str', key: 'split' },
+  offset: { kind: 'int', min: 0, key: 'offset' },
+  mode: { kind: 'str', key: 'mode' },
+  report: { kind: 'str', key: 'report' },
 };
 
 const SHORT_FLAGS: Record<string, FlagKey> = {
@@ -180,6 +190,15 @@ const MANAGE_BUILDERS: Record<string, ManageBuilder> = {
   'code-write': ({ rest }) => ({ kind: 'code-write', goal: rest.join(' ') || 'auto-generate', filePath: 'output.ts' }),
   'quality-gate': ({ rest }) => ({ kind: 'quality-gate', path: rest[0] || '.' }),
   'self-improve': () => ({ kind: 'self-improve' }),
+  harness: ({ flags, rest }) => ({
+    kind: 'harness',
+    split: flags.split ?? rest[0] ?? 'lite',
+    limit: flags.limit ?? 5,
+    offset: flags.offset ?? 0,
+    mode: flags.mode === 'real' ? 'real' : 'mock',
+    report: flags.report,
+    json: !!flags.json,
+  }),
   swe: ({ flags, rest }) => buildSweCommand(flags, rest),
 };
 

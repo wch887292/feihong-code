@@ -59,6 +59,11 @@ import { createQualityGate } from '../agent/quality-gate';
 import { createSelfImprover } from '../agent/self-improver';
 import { runSweAgent, type SweReport, type SubTaskOutcome } from '../agent/swe-agent';
 import { summarizeSubTaskAnswer } from '../agent/subagent-summary';
+import { Harness } from '../harness/harness';
+import { SwebenchLoader } from '../harness/loader';
+import { MockOrchestratorExecutor, RealModelExecutor } from '../harness/executor';
+import { FileExistsVerifier } from '../harness/verifier';
+import { MarkdownReporter, JsonReporter } from '../harness/reporter';
 
 export interface RunOptions {
   offline?: boolean;
@@ -1163,6 +1168,62 @@ export async function runSwe(goal: string, opts: SweOptions = {}): Promise<void>
       reason: `tasks=${report.executedTasks}/${report.plannedTasks} passed=${report.completedTasks} overall=${report.overall}`,
     });
   }
+}
+
+/* ===================== harness 评测命令 ===================== */
+
+export interface HarnessCmdOptions {
+  split: string;
+  limit: number;
+  offset: number;
+  mode: 'mock' | 'real';
+  report?: string;
+  json: boolean;
+}
+
+/** fhcode harness [--split lite|verified] [--limit N] [--offset N] [--mode mock|real] [--report 路径] [--json] */
+export async function runHarness(opts: HarnessCmdOptions): Promise<void> {
+  console.log(t('harness.start', { mode: opts.mode, split: opts.split, limit: String(opts.limit) }));
+
+  // 真实模式就绪检查：未配置任何模型供应商时给出明确接入指引
+  if (opts.mode === 'real') {
+    const cfg = loadConfig();
+    if (!cfg.models.providers.length) {
+      console.error(t('harness.noProvider'));
+      return;
+    }
+  }
+
+  const loader = new SwebenchLoader({ split: opts.split });
+  const executor = opts.mode === 'real' ? new RealModelExecutor() : new MockOrchestratorExecutor();
+  const verifier = new FileExistsVerifier();
+  const harness = new Harness({
+    loader,
+    executor,
+    verifier,
+    reporter: opts.json ? new JsonReporter() : new MarkdownReporter(),
+    limit: opts.limit,
+    offset: opts.offset,
+    onProgress: (r, i, total) => {
+      console.log(`  [${i}/${total}] ${r.ok ? '✅' : '❌'} ${r.instance_id} iter=${r.iterations} tools=${r.toolCalls}`);
+    },
+  });
+
+  const { report, rendered } = await harness.run();
+  if (opts.report) {
+    writeFileSync(opts.report, rendered, 'utf8');
+    console.log(t('harness.reportWritten', { path: opts.report }));
+  } else {
+    console.log('\n' + rendered);
+  }
+  console.log(t('harness.summary', {
+    completed: String(report.summary.completed),
+    total: String(report.summary.total),
+    rate: String(Math.round(report.summary.rate * 100)),
+  }));
+  // 有失败实例 → 退出码非零（供 CI 门禁复用）
+  if (report.summary.completed < report.summary.total) process.exitCode = 1;
+  console.log(t('app.signature'));
 }
 
 /* ===================== 审批器 ===================== */
