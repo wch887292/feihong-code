@@ -29,6 +29,7 @@ import { requireToken, SessionStore, type Session } from './auth';
 import {
   TaskQueue,
   type TaskRecord,
+  type TaskStep,
   type AgentType,
   type TaskPermissions,
 } from './task-queue';
@@ -36,6 +37,16 @@ import { VERSION, PRODUCT, SIGNATURE } from '../cli/version';
 import { t, getLang } from '../shared/i18n';
 import { isEnterpriseEnabled } from '../enterprise';
 import { resolveHomeDir } from '../shared/config';
+import {
+  getMemoryConfig,
+  readShortTerm,
+  readLongTerm,
+  getMemoryStats,
+} from '../memory';
+import {
+  getSummaryHistory,
+  summarizeMemory,
+} from '../memory/auto-summarize';
 
 export interface ServeOptions {
   port?: number;
@@ -68,9 +79,10 @@ export function startWebServer(opts: ServeOptions = {}): {
   const app = express();
   // 放宽请求体上限以支持截图/图片 base64 上传（8MB），仍可有效防御内存耗尽
   app.use(express.json({ limit: '8mb' }));
-  // 静态仪表盘
-  const publicDir = join(__dirname, 'public');
-  app.use(express.static(publicDir));
+  // 静态仪表盘（开发时直接从 src 读取，避免 dist 被锁）
+  const publicDir =
+    process.env.FH_WEB_SRC_PUBLIC || join(__dirname, 'public');
+  app.use(express.static(publicDir, { maxAge: '0' }));
 
   // 登录会话存储（进程内）
   const sessions = new SessionStore();
@@ -116,6 +128,38 @@ export function startWebServer(opts: ServeOptions = {}): {
   app.get('/api/drives', (_req: Request, res: Response) => {
     res.json({ ok: true, drives: getAvailableDrives() });
   });
+
+  // 记忆管理 API（公开访问，无敏感信息）
+  const memoryConfig = getMemoryConfig();
+  app.get('/api/memory/short', (_req: Request, res: Response) => {
+    const date = typeof _req.query.date === 'string' ? _req.query.date : undefined;
+    const content = readShortTerm(memoryConfig, date ? new Date(date) : undefined);
+    res.json({ ok: true, content, date: date || new Date().toISOString().split('T')[0] });
+  });
+  app.get('/api/memory/long', (_req: Request, res: Response) => {
+    const content = readLongTerm(memoryConfig);
+    res.json({ ok: true, content });
+  });
+  app.get('/api/memory/stats', (_req: Request, res: Response) => {
+    const stats = getMemoryStats(memoryConfig);
+    res.json({ ok: true, ...stats });
+  });
+  app.post('/api/memory/summarize', async (req: Request, res: Response) => {
+    const body = req.body as Record<string, any>;
+    const forceDate = typeof body?.date === 'string' ? body.date : undefined;
+    try {
+      const result = await summarizeMemory(memoryConfig, forceDate);
+      res.json(result);
+    } catch (e: any) {
+      res.status(500).json({ ok: false, error: e.message });
+    }
+  });
+  app.get('/api/memory/history', (_req: Request, res: Response) => {
+    const limit = typeof _req.query.limit === 'string' ? parseInt(_req.query.limit) || 30 : 30;
+    const history = getSummaryHistory(memoryConfig, limit);
+    res.json({ ok: true, history });
+  });
+
   app.use('/api', requireToken(token, sessions));
 
   app.get('/api/auth/me', (req: Request, res: Response) => {
@@ -143,10 +187,10 @@ export function startWebServer(opts: ServeOptions = {}): {
     const modelId =
       typeof body?.modelId === 'string' && body.modelId.trim() ? body.modelId.trim() : undefined;
     const record = queue.submit(goal, { modelId, workspaceDir, agentType, permissions });
-    res.status(201).json({ ok: true, task: publicTask(record) });
+    res.status(201).json({ ok: true, task: publicTask(record, true) });
   });
   app.get('/api/tasks', (_req: Request, res: Response) => {
-    res.json({ ok: true, tasks: queue.list().map(publicTask) });
+    res.json({ ok: true, tasks: queue.list().map((t) => publicTask(t, false)) });
   });
   app.get('/api/tasks/:id', (req: Request, res: Response) => {
     const record = queue.get(req.params.id);
@@ -154,7 +198,30 @@ export function startWebServer(opts: ServeOptions = {}): {
       res.status(404).json({ ok: false, error: '任务不存在' });
       return;
     }
-    res.json({ ok: true, task: publicTask(record) });
+    res.json({ ok: true, task: publicTask(record, true) });
+  });
+  // 多轮续接：向当前任务追加一条用户消息，所有对话归属同一任务生命周期
+  app.post('/api/tasks/:id/messages', (req: Request, res: Response) => {
+    const body = req.body as Record<string, any>;
+    const message = typeof body?.message === 'string' ? body.message.trim() : '';
+    if (!message) {
+      res.status(400).json({ ok: false, error: '缺少 message 字段' });
+      return;
+    }
+    const record = queue.continueTask(req.params.id, message);
+    if (!record) {
+      res.status(409).json({ ok: false, error: '任务不存在或正在执行中，请等待完成后再继续对话' });
+      return;
+    }
+    res.status(201).json({ ok: true, task: publicTask(record, true) });
+  });
+  app.delete('/api/tasks/:id', (req: Request, res: Response) => {
+    const success = queue.delete(req.params.id);
+    if (!success) {
+      res.status(400).json({ ok: false, error: '无法删除运行中的任务' });
+      return;
+    }
+    res.json({ ok: true });
   });
 
   // P5-2：webhook 注册/查询
@@ -592,7 +659,7 @@ export function startWebServer(opts: ServeOptions = {}): {
     rule.runCount += 1;
     rule.lastRunAt = new Date().toISOString();
     await saveJsonFile(automationsFile, list);
-    res.status(201).json({ ok: true, task: publicTask(record), runCount: rule.runCount });
+    res.status(201).json({ ok: true, task: publicTask(record, true), runCount: rule.runCount });
   });
 
   /* ========== 模板库 ========== */
@@ -831,9 +898,14 @@ export function startWebServer(opts: ServeOptions = {}): {
   };
 }
 
-/** 对外暴露的任务视图（不含内部字段） */
-function publicTask(r: TaskRecord): TaskRecord {
-  return r;
+/** 对外暴露的任务视图。withSteps=true 时携带思维链路步骤与对话历史（仅单任务详情使用），列表接口剔除以降低负载 */
+function publicTask(r: TaskRecord, withSteps = false): TaskRecord {
+  if (withSteps) return r;
+  const { steps: _steps, conversation: _conversation, ...rest } = r as TaskRecord & {
+    steps?: TaskStep[];
+    conversation?: Array<{ role: string; content: string }>;
+  };
+  return rest;
 }
 
 /** 使用系统默认程序打开本地文件夹 */

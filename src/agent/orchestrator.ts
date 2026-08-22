@@ -131,7 +131,7 @@ export class Orchestrator {
       contextCompactEvery,
       experienceDir,
     } = this.deps;
-    const maxIter = this.deps.maxIterations ?? 12;
+    const maxIter = this.deps.maxIterations ?? 25;
     const maxCost = this.deps.maxCostUsd ?? 0;
     const compactThreshold = getCompactionThreshold({ compactEvery: contextCompactEvery });
 

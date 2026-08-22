@@ -100,10 +100,17 @@ export function compactContext(
   const systemMsg = messages[0]?.role === 'system' ? messages[0] : null;
   const body = systemMsg ? messages.slice(1) : messages;
 
+  // P0 修复：始终保留首条 user 消息（即原始目标），否则压缩后消息数组不再含 user 角色，
+  // 部分模型网关（如 agnes-ai.cn）会拒绝并返回 "No user query found in messages"。
+  // 先把首条 user 从 body 中摘除，压缩后再放回，避免在 recent 中重复。
+  const firstUserIdx = body.findIndex((m) => m.role === 'user');
+  const firstUser = firstUserIdx >= 0 ? body[firstUserIdx] : undefined;
+  const bodySansUser = firstUser ? [...body.slice(0, firstUserIdx), ...body.slice(firstUserIdx + 1)] : body;
+
   const totalRounds = Math.floor(body.length / 2); // 假设每轮 2 条消息（assistant + tool）
-  const preservedMessages = Math.min(preservedCount * 2, body.length);
-  const earlyMessages = body.slice(0, body.length - preservedMessages);
-  const recentMessages = body.slice(body.length - preservedMessages);
+  const preservedMessages = Math.min(preservedCount * 2, bodySansUser.length);
+  const earlyMessages = bodySansUser.slice(0, bodySansUser.length - preservedMessages);
+  const recentMessages = bodySansUser.slice(bodySansUser.length - preservedMessages);
 
   if (earlyMessages.length === 0) {
     return { messages, stats: { originalLength: messages.length, compressedLength: messages.length, preservedMessages, compressedRounds: 0, timestamp: new Date().toISOString() } };
@@ -120,7 +127,10 @@ export function compactContext(
   };
   const prefix = systemMsg ? [systemMsg, systemHint] : [systemHint];
 
-  const compacted: ChatMessage[] = [...prefix, ...recentMessages];
+  // 首条 user 目标始终置于 system 之后、recent 之前，保证下游模型请求必含 user 角色
+  const compacted: ChatMessage[] = firstUser
+    ? [...prefix, firstUser, ...recentMessages]
+    : [...prefix, ...recentMessages];
   const stats: CompactionStats = {
     originalLength: messages.length,
     compressedLength: compacted.length,

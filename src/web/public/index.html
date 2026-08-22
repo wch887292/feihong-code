@@ -161,28 +161,63 @@
 
     /* ========== 左侧侧边栏 ========== */
     .sidebar {
-      width: var(--sidebar-width);
+      width: 200px;
       background: var(--card);
       border-right: 1px solid var(--border);
       display: flex;
       flex-direction: column;
-      align-items: center;
-      padding: 12px 0;
-      gap: 4px;
+      padding: 12px 8px;
+      gap: 2px;
       flex-shrink: 0;
+      overflow-y: auto;
+    }
+    .sidebar-section {
+      margin-bottom: 8px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .sidebar-section-title {
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 4px 8px;
+      margin-bottom: 4px;
     }
     .sidebar-icon {
-      width: 40px;
-      height: 40px;
-      border-radius: 10px;
+      width: 100%;
+      height: 36px;
+      border-radius: 8px;
       display: flex;
       align-items: center;
-      justify-content: center;
-      font-size: 18px;
+      gap: 10px;
+      padding: 0 8px;
       cursor: pointer;
       color: var(--ink-2);
       transition: all 0.15s;
       position: relative;
+      font-size: 13px;
+    }
+    .sidebar-icon .icon {
+      font-size: 16px;
+      width: 20px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+    .sidebar-icon .label {
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .sidebar-icon .badge {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 10px;
+      background: var(--brand-soft);
+      color: var(--brand);
+      font-weight: 600;
+      flex-shrink: 0;
     }
     .sidebar-icon:hover {
       background: var(--bg);
@@ -191,11 +226,12 @@
     .sidebar-icon.active {
       background: var(--brand-soft);
       color: var(--brand);
+      font-weight: 600;
     }
     .sidebar-icon.active::before {
       content: '';
       position: absolute;
-      left: -8px;
+      left: 0;
       top: 50%;
       transform: translateY(-50%);
       width: 3px;
@@ -204,6 +240,49 @@
       border-radius: 0 2px 2px 0;
     }
     .sidebar-spacer { flex: 1; }
+    .sidebar-pin {
+      font-size: 10px;
+      color: var(--warn);
+      flex-shrink: 0;
+    }
+    .task-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: background 0.15s;
+    }
+    .task-item:hover { background: var(--bg); }
+    .task-item.active { background: var(--brand-soft); }
+    .task-item .task-icon { font-size: 14px; }
+    .task-item .task-title {
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: var(--ink-2);
+    }
+    .task-item.active .task-title { color: var(--brand); }
+    .task-item .task-actions {
+      display: none;
+      gap: 4px;
+      font-size: 11px;
+    }
+    .task-item:hover .task-actions { display: flex; }
+    .task-item .task-actions button {
+      padding: 2px 4px;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      border-radius: 4px;
+      font-size: 10px;
+    }
+    .task-item .task-actions button:hover { background: var(--border); }
+    .task-item .task-actions .delete-btn:hover { background: #fee2e2; color: var(--err); }
+    .task-pinned { color: var(--warn); }
 
     /* ========== 中间对话区 ========== */
     .chat-area {
@@ -214,30 +293,82 @@
       background: var(--bg);
     }
 
-    /* 思考过程面板 */
-    .think-panel {
-      background: var(--card);
-      border-bottom: 1px solid var(--border);
-      padding: 12px 16px;
-      display: none;
-    }
-    .think-panel.show { display: block; }
-    .think-header {
+    /* ========== 任务上下文头部 ========== */
+    .task-context-header {
       display: flex;
       align-items: center;
-      gap: 10px;
-      margin-bottom: 8px;
+      gap: 12px;
+      padding: 12px 16px;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
     }
-    .think-title { font-size: 14px; font-weight: 600; color: var(--ink); }
-    .think-sub { font-size: 12px; color: var(--muted); }
-    .think-body {
-      font-size: 13px;
-      line-height: 1.7;
-      color: var(--ink-2);
-      white-space: pre-wrap;
-      word-break: break-word;
-      max-height: 200px;
-      overflow-y: auto;
+    .tch-left { flex: 1; min-width: 0; }
+    .tch-title { font-size: 15px; font-weight: 700; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tch-sub { font-size: 12px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tch-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+    .tch-time { font-size: 12px; color: var(--muted); }
+
+    /* ========== 思维链路线程 ========== */
+    .messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 16px; padding-right: 4px; }
+    .step { max-width: 92%; font-size: 13.5px; line-height: 1.6; word-break: break-word; }
+    .step.created {
+      align-self: stretch; background: var(--bg); border: 1px dashed var(--border);
+      border-radius: 10px; padding: 8px 12px; color: var(--muted); font-size: 12.5px;
+    }
+    .step.reasoning {
+      align-self: flex-start; background: var(--card); border: 1px solid var(--border);
+      border-left: 3px solid var(--brand); border-radius: 10px; padding: 10px 14px;
+      white-space: pre-wrap; color: var(--ink-2);
+    }
+    .step.reasoning .reasoning-head { font-size: 11px; color: var(--brand); font-weight: 600; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
+    .step.toolcall {
+      align-self: flex-start; background: #fffbeb; border: 1px solid #fde68a;
+      border-radius: 10px; padding: 8px 12px; color: #92400e; font-size: 12.5px;
+    }
+    .dark .step.toolcall { background: #3a2f12; color: #fcd34d; border-color: #5b4a1f; }
+    .step.toolcall .tc-name { font-weight: 600; }
+    .step.toolcall .tc-args {
+      color: var(--muted); font-size: 12px; margin-top: 2px; white-space: pre-wrap; word-break: break-word;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+    .step.result {
+      align-self: flex-start; background: var(--card); border: 1px solid var(--border);
+      border-radius: 10px; padding: 8px 12px; color: var(--ink-2); font-size: 12.5px; max-width: 92%;
+    }
+    .step.result .res-head { font-weight: 600; display: flex; align-items: center; gap: 6px; }
+    .step.result.ok .res-head { color: var(--ok); }
+    .step.result.fail .res-head { color: var(--err); }
+    .step.result .res-out {
+      margin-top: 4px; white-space: pre-wrap; word-break: break-word; max-height: 160px; overflow-y: auto;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; color: var(--muted);
+    }
+    .step.note { align-self: stretch; background: var(--bg); border-radius: 8px; padding: 6px 12px; color: var(--muted); font-size: 12px; }
+    /* 对话流与思维链路分隔标题 */
+    .conv-divider {
+      align-self: stretch; text-align: center; font-size: 11px; color: var(--muted);
+      border-top: 1px solid var(--line); padding-top: 8px; margin-top: 4px;
+    }
+    .step.final {
+      align-self: flex-end; background: var(--ok); color: #fff; border-radius: 12px;
+      padding: 12px 16px; white-space: pre-wrap; word-break: break-word; max-width: 92%;
+      position: relative;
+    }
+    .step.final .final-head { font-size: 11px; opacity: 0.85; margin-bottom: 4px; font-weight: 600; }
+    .step.final .final-actions {
+      position: absolute; top: 8px; right: 8px; display: flex; gap: 4px;
+      opacity: 0; transition: opacity 0.2s;
+    }
+    .step.final:hover .final-actions { opacity: 1; }
+    .step.final .final-actions button {
+      background: rgba(255,255,255,0.2); border: none; color: #fff;
+      border-radius: 6px; padding: 3px 8px; font-size: 11px; cursor: pointer;
+      transition: background 0.15s;
+    }
+    .step.final .final-actions button:hover { background: rgba(255,255,255,0.35); }
+    .step.error {
+      align-self: flex-end; background: var(--err); color: #fff; border-radius: 12px;
+      padding: 12px 16px; white-space: pre-wrap; word-break: break-word; max-width: 92%;
     }
 
     /* 对话消息区 */
@@ -270,6 +401,12 @@
       background: var(--brand-soft);
       align-self: flex-end;
     }
+    .msg.assistant {
+      background: var(--card);
+      border: 1px solid var(--border);
+      align-self: flex-start;
+    }
+    .dark .msg.assistant { background: #1e293b; }
     .msg.sys {
       background: #f1f5f9;
       align-self: flex-start;
@@ -424,6 +561,33 @@
       font-size: 14px;
     }
     .ghost-btn:hover { background: var(--brand-soft); }
+
+    /* 新建任务按钮（侧边栏） */
+    .new-task-btn {
+      border: 1px solid var(--border);
+      background: var(--brand);
+      color: #fff;
+      border-radius: 8px;
+      padding: 3px 8px;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 600;
+      line-height: 1.6;
+    }
+    .new-task-btn:hover { opacity: 0.88; }
+
+    /* 新建对话任务弹窗 */
+    .nt-form { display: flex; flex-direction: column; gap: 12px; margin-top: 4px; }
+    .nt-label { font-size: 12.5px; font-weight: 600; color: var(--ink-2); display: block; margin-bottom: 4px; }
+    .nt-form textarea, .nt-form select {
+      width: 100%; box-sizing: border-box; padding: 8px 10px; font-size: 13px;
+      border: 1px solid var(--border); border-radius: 10px; background: var(--bg);
+      color: var(--ink); resize: vertical; font-family: inherit;
+    }
+    .nt-form select { cursor: pointer; }
+    .nt-row { display: flex; gap: 12px; }
+    .nt-row > div { flex: 1; }
+    .nt-hint { font-size: 12px; color: var(--muted); }
 
     /* ========== 右侧面板 ========== */
     .right-panel {
@@ -773,6 +937,16 @@
 
     /* ========== 隐藏文件输入 ========== */
     input[type="file"] { display: none; }
+
+    /* ========== 记忆系统 ========== */
+    .stat-card { text-align: center; padding: 16px; }
+    .stat-label { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+    .stat-value { font-size: 24px; font-weight: 700; color: var(--brand); }
+    .stat-date { font-size: 13px; color: var(--ink-2); font-weight: 400; }
+    .memory-content { max-height: 60vh; overflow-y: auto; white-space: pre-wrap; font-family: "SF Mono", Monaco, monospace; font-size: 12.5px; line-height: 1.7; }
+    .memory-content h1, .memory-content h2, .memory-content h3 { color: var(--brand); margin-top: 0; }
+    .memory-content pre { background: var(--bg); padding: 12px; border-radius: 8px; overflow-x: auto; }
+    .memory-content code { background: var(--bg); padding: 2px 6px; border-radius: 4px; font-size: 12px; }
   </style>
 </head>
 <body>
@@ -800,6 +974,7 @@
         <div class="topbar-nav-item" data-nav="templates">📚 模板库</div>
         <div class="topbar-nav-item" data-nav="market">🧩 插件</div>
         <div class="topbar-nav-item" data-nav="office">📎 办公</div>
+        <div class="topbar-nav-item" data-nav="memory">🧠 记忆</div>
       </nav>
       <div class="topbar-spacer"></div>
       <div class="topbar-user" id="topbarUser">
@@ -812,38 +987,86 @@
     <div class="main-area">
       <!-- 左侧图标导航 -->
       <aside class="sidebar">
-        <div class="sidebar-icon active" data-nav="chat" title="对话任务">💬</div>
-        <div class="sidebar-icon" data-nav="automations" title="自动化">⚡</div>
-        <div class="sidebar-icon" data-nav="templates" title="模板库">📚</div>
-        <div class="sidebar-icon" data-nav="market" title="插件市场">🧩</div>
-        <div class="sidebar-icon" data-nav="office" title="办公助理">📎</div>
+        <!-- 导航菜单 -->
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">导航</div>
+          <div class="sidebar-icon active" data-nav="chat" title="对话任务">
+            <span class="icon">💬</span>
+            <span class="label">对话任务</span>
+          </div>
+          <div class="sidebar-icon" data-nav="automations" title="自动化">
+            <span class="icon">⚡</span>
+            <span class="label">自动化</span>
+          </div>
+          <div class="sidebar-icon" data-nav="templates" title="模板库">
+            <span class="icon">📚</span>
+            <span class="label">模板库</span>
+          </div>
+          <div class="sidebar-icon" data-nav="market" title="插件市场">
+            <span class="icon">🧩</span>
+            <span class="label">插件市场</span>
+          </div>
+          <div class="sidebar-icon" data-nav="office" title="办公助理">
+            <span class="icon">📎</span>
+            <span class="label">办公助理</span>
+          </div>
+          <div class="sidebar-icon" data-nav="memory" title="记忆系统">
+            <span class="icon">🧠</span>
+            <span class="label">记忆系统</span>
+          </div>
+        </div>
+
+        <!-- 任务列表 -->
+        <div class="sidebar-section" id="taskListSection" style="display:none;">
+          <div class="sidebar-section-title" style="display:flex;align-items:center;justify-content:space-between;">
+            <span>任务列表 <span class="badge" id="taskCountBadge" style="margin-left:4px;">0</span></span>
+            <button class="new-task-btn" id="newTaskBtn" title="新建对话任务">＋ 新建任务</button>
+          </div>
+          <div id="taskListContainer" style="max-height:300px;overflow-y:auto;">
+            <div class="empty" style="font-size:11px;padding:8px;">暂无任务</div>
+          </div>
+        </div>
+
         <div class="sidebar-spacer"></div>
-        <div class="sidebar-icon" id="sidebarUser" title="用户菜单">👤</div>
-        <div class="sidebar-icon" id="sidebarSettings" title="设置">⚙️</div>
+
+        <!-- 用户和设置 -->
+        <div class="sidebar-section">
+          <div class="sidebar-icon" id="sidebarUser" title="用户菜单">
+            <span class="icon">👤</span>
+            <span class="label">用户</span>
+          </div>
+          <div class="sidebar-icon" id="sidebarSettings" title="设置">
+            <span class="icon">⚙️</span>
+            <span class="label">设置</span>
+          </div>
+        </div>
       </aside>
 
       <!-- 中间内容区 -->
       <main class="chat-area" id="chatArea">
-        <!-- 思考过程面板 -->
-        <div class="think-panel" id="thinkPanel">
-          <div class="think-header">
-            <span class="think-title">🧠 深度思考</span>
-            <span class="think-sub" id="thinkSub">提交任务后将在此展示推理过程与结果</span>
+        <!-- 任务上下文头部 -->
+        <div class="task-context-header" id="taskContextHeader">
+          <div class="tch-left">
+            <div class="tch-title" id="tchTitle">未选择任务</div>
+            <div class="tch-sub" id="tchSub">从左侧任务列表选择，或在下方输入指令发起新任务</div>
           </div>
-          <div class="think-body" id="thinkBody">
-            <div class="muted">暂无内容。提交一个任务后，推理过程与最终回复会实时显示在这里。</div>
+          <div class="tch-right">
+            <button class="ghost-btn" id="tchNewTask" title="新建对话任务">＋ 新建任务</button>
+            <span class="badge" id="tchStatus">—</span>
+            <span class="tch-time" id="tchTime"></span>
+            <button class="ghost-btn" id="tchRefresh" title="刷新当前任务">⟳</button>
           </div>
         </div>
 
         <!-- 对话视图 -->
         <div class="conv view active" data-view="chat">
           <div class="messages" id="messages">
-            <div class="msg sys">提交一个任务后，进度与结果会在此展示。点顶部「自动化 / 模板库 / 插件」可快速发起。</div>
+            <div class="msg sys">点击「＋ 新建任务」开启一个新任务，或直接在下方向当前任务发送消息——所有对话都会归属同一个任务运行。</div>
           </div>
 
           <div class="input-area">
             <div class="input-bar">
-              <textarea id="goalInput" placeholder="帮你编写代码、调试 Bug、优化性能等开发工作，交付生产级代码产物…"></textarea>
+              <textarea id="goalInput" placeholder="输入指令，消息将归属当前任务持续对话；点上方「＋ 新建任务」可开启新任务（创建 → 推理 → 工具验证 → 闭环全程追踪）"></textarea>
               <div class="input-toolbar">
                 <div class="dropdown" id="convMenuWrap">
                   <span class="pill" id="convMenuBtn" title="更多操作">＋ 菜单</span>
@@ -857,6 +1080,7 @@
                     <div class="dropdown-item" data-action="agent-type">🤖 选择智能体类型</div>
                   </div>
                 </div>
+                <button class="pill" id="screenshotBtn" title="截图（框选屏幕区域发给 AI）">📷 截图</button>
                 <span class="pill" id="skillPill" title="当前智能体">🤖 通用助手</span>
                 <span class="pill" id="directModePill" style="display:none;" title="直接操作电脑模式已开启">🖥 直接操作电脑</span>
                 <span id="voiceBadge" class="voice-badge" style="display:none;">● 正在听…</span>
@@ -931,6 +1155,70 @@
             <div><h2>📎 办公助理</h2><div class="sub">文档处理快捷入口，点击即生成提示词</div></div>
           </div>
           <div class="grid" id="officeGrid"><div class="empty">加载中…</div></div>
+        </div>
+
+        <!-- 记忆系统页面 -->
+        <div class="page-view" data-view="memory">
+          <div class="page-head">
+            <div><h2>🧠 记忆系统</h2><div class="sub">短期记忆每日自动整理，沉淀长期知识</div></div>
+            <div class="row">
+              <button id="memRefreshBtn" class="ghost">🔄 刷新</button>
+              <button id="memSummarizeBtn">✨ 立即总结</button>
+            </div>
+          </div>
+
+          <!-- 统计卡片 -->
+          <div class="memory-stats" id="memoryStats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px;">
+            <div class="card stat-card">
+              <div class="stat-label">短期记忆天数</div>
+              <div class="stat-value" id="statShortDays">-</div>
+            </div>
+            <div class="card stat-card">
+              <div class="stat-label">长期记忆条目</div>
+              <div class="stat-value" id="statLongNotes">-</div>
+            </div>
+            <div class="card stat-card">
+              <div class="stat-label">上次总结</div>
+              <div class="stat-value stat-date" id="statLastSum">-</div>
+            </div>
+            <div class="card stat-card">
+              <div class="stat-label">下次自动总结</div>
+              <div class="stat-value stat-date" id="statNextSum">-</div>
+            </div>
+          </div>
+
+          <!-- Tab 切换 -->
+          <div class="memory-tabs" style="display:flex;gap:8px;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:8px;">
+            <button class="mem-tab active" data-memtab="short" style="padding:6px 14px;border-radius:8px;border:1px solid var(--border);background:var(--card);cursor:pointer;font-size:13px;">📅 短期记忆</button>
+            <button class="mem-tab" data-memtab="long" style="padding:6px 14px;border-radius:8px;border:1px solid var(--border);background:var(--card);cursor:pointer;font-size:13px;">💾 长期记忆</button>
+            <button class="mem-tab" data-memtab="history" style="padding:6px 14px;border-radius:8px;border:1px solid var(--border);background:var(--card);cursor:pointer;font-size:13px;">📜 总结历史</button>
+          </div>
+
+          <!-- 短期记忆面板 -->
+          <div class="mem-panel active" id="memShortPanel">
+            <div class="row" style="margin-bottom:16px;align-items:center;">
+              <input type="date" id="memDateInput" style="margin:0;width:160px;" />
+              <button id="memLoadDay" style="margin:0;">查看</button>
+              <span class="muted" id="memDateLabel" style="margin-left:8px;"></span>
+            </div>
+            <div class="card memory-content" id="memShortContent">
+              <div class="empty">选择日期查看短期记忆</div>
+            </div>
+          </div>
+
+          <!-- 长期记忆面板 -->
+          <div class="mem-panel" id="memLongPanel" style="display:none;">
+            <div class="card memory-content" id="memLongContent">
+              <div class="empty">加载中…</div>
+            </div>
+          </div>
+
+          <!-- 总结历史面板 -->
+          <div class="mem-panel" id="memHistoryPanel" style="display:none;">
+            <div class="card memory-content" id="memHistoryContent">
+              <div class="empty">暂无总结记录</div>
+            </div>
+          </div>
         </div>
 
         <!-- 底部工具栏 -->
@@ -1120,6 +1408,33 @@
     </div>
   </div>
 
+  <div class="mask" id="newTaskModal">
+    <div class="modal" style="width:560px;">
+      <span class="close-x" data-close="newTaskModal">✕</span>
+      <h3>＋ 新建对话任务</h3>
+      <p class="hint">创建一个全新任务，中部对话栏的所有消息都将归属该任务运行（支持多轮连续对话）。</p>
+      <div class="nt-form">
+        <label class="nt-label">任务描述 <span style="color:var(--err)">*</span></label>
+        <textarea id="ntGoal" rows="5" placeholder="例如：请读取当前工作区 package.json，告诉我其中的 name 与 version 字段"></textarea>
+        <div class="nt-row">
+          <div>
+            <label class="nt-label">智能体类型</label>
+            <select id="ntAgentType"></select>
+          </div>
+          <div>
+            <label class="nt-label">工作区</label>
+            <select id="ntWorkspaceDir"></select>
+          </div>
+        </div>
+        <div class="nt-hint">工作区默认使用底部当前所选目录；若选择「默认」，则沿用服务器工作区。</div>
+      </div>
+      <div class="footer">
+        <button class="ghost" data-close="newTaskModal">取消</button>
+        <button class="primary" id="ntCreateBtn">创建任务</button>
+      </div>
+    </div>
+  </div>
+
   <div class="mask" id="settingsModal">
     <div class="modal" style="width:560px;">
       <span class="close-x" data-close="settingsModal">✕</span>
@@ -1140,6 +1455,24 @@
               <span class="si-icon">🎨</span>
               <div class="si-main"><div class="si-title">外观</div><div class="si-desc">切换浅色 / 深色主题</div></div>
               <span class="si-arrow">›</span>
+            </div>
+            <hr style="border:none;border-top:1px solid var(--line);margin:8px 0;">
+            <div style="padding:8px 0;">
+              <div style="font-weight:600;font-size:13px;color:var(--ink);margin-bottom:8px;">💬 会话管理</div>
+              <div style="display:flex;flex-direction:column;gap:8px;">
+                <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
+                  <input type="checkbox" class="session-toggle" data-key="autoResetOnNew">
+                  <span>发送消息前自动新建对话</span>
+                </label>
+                <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
+                  <input type="checkbox" class="session-toggle" data-key="autoResetOnOpen">
+                  <span>页面打开时自动新建对话</span>
+                </label>
+                <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
+                  <input type="checkbox" class="session-toggle" data-key="clearHistoryOnNew">
+                  <span>新建对话时清空历史上下文</span>
+                </label>
+              </div>
             </div>
           </div>
           <div class="settings-group" data-group="internal" style="display:none;">
@@ -1221,6 +1554,7 @@
       currentTaskId: null,
       submittedTaskIds: new Set(),
       completedTaskIds: new Set(),
+      pinnedTasks: new Set(), // 置顶任务ID集合
       market: [],
       installed: new Set(),
       agentType: 'general',
@@ -1239,6 +1573,12 @@
       models: [],
       defaultModelId: null,
       modelId: '',
+      // 会话管理配置
+      sessionConfig: {
+        autoResetOnNew: false,    // 打开时自动新建对话
+        autoResetOnOpen: false,   // 发送消息时自动重置
+        clearHistoryOnNew: true,  // 新建时清空历史
+      },
     };
 
     (function initSession() {
@@ -1252,6 +1592,21 @@
         const p = JSON.parse(localStorage.getItem('fhcode.permissions') || '{}');
         if (p) Object.assign(state.permissions, p);
       } catch {}
+      // 加载会话配置
+      try {
+        const sc = JSON.parse(localStorage.getItem('fhcode.sessionConfig') || '{}');
+        if (sc.autoResetOnNew != null) state.sessionConfig.autoResetOnNew = sc.autoResetOnNew;
+        if (sc.autoResetOnOpen != null) state.sessionConfig.autoResetOnOpen = sc.autoResetOnOpen;
+        if (sc.clearHistoryOnNew != null) state.sessionConfig.clearHistoryOnNew = sc.clearHistoryOnNew;
+      } catch {}
+      // autoResetOnOpen: 页面打开时若已有当前任务，则新建全新对话
+      if (state.sessionConfig.autoResetOnOpen && state.token) {
+        loadTasks().then(() => {
+          if (!state.currentTaskId && state.tasks.length) {
+            // 首次加载，不自动切换
+          }
+        });
+      }
     })();
 
     function authHeaders() {
@@ -1282,6 +1637,64 @@
     }
     function openModal(id) { document.getElementById(id).classList.add('show'); }
     function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+    // 消息气泡通用操作：复制 / 编辑 / 分享 / 创建文档
+    function bubbleActions(e, content) {
+      e.stopPropagation();
+      const menu = document.getElementById('bubbleMenu');
+      if (menu) menu.remove();
+      const m = document.createElement('div');
+      m.id = 'bubbleMenu';
+      m.style.cssText = 'position:fixed;z-index:10001;background:var(--card);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.18);padding:4px 0;min-width:140px;font-size:13px;';
+      const items = [
+        { label: '📋 复制', action: 'copy' },
+        { label: '✏️ 编辑', action: 'edit' },
+        { label: '🔗 分享链接', action: 'share' },
+        { label: '📄 创建文档', action: 'doc' },
+      ];
+      items.forEach((it) => {
+        const el = document.createElement('div');
+        el.className = 'dropdown-item';
+        el.textContent = it.label;
+        el.style.cssText = 'padding:7px 16px;cursor:pointer;';
+        el.addEventListener('mouseenter', () => { el.style.background = 'var(--brand-soft)'; });
+        el.addEventListener('mouseleave', () => { el.style.background = ''; });
+        el.addEventListener('click', () => {
+          m.remove();
+          handleBubbleAction(it.action, content);
+        });
+        m.appendChild(el);
+      });
+      document.body.appendChild(m);
+      const rect = e.target.getBoundingClientRect();
+      m.style.right = (window.innerWidth - rect.right + 4) + 'px';
+      m.style.top = rect.top + 'px';
+    }
+    async function handleBubbleAction(action, content) {
+      if (action === 'copy') {
+        try { await navigator.clipboard.writeText(content); toast('已复制到剪贴板'); }
+        catch { document.execCommand('copy'); toast('已复制'); }
+      } else if (action === 'edit') {
+        const edited = prompt('编辑内容：', content);
+        if (edited != null && edited.trim()) {
+          toast('已更新（本地预览）');
+        }
+      } else if (action === 'share') {
+        const payload = btoa(unescape(encodeURIComponent(content.slice(0, 2000))));
+        const url = location.origin + location.pathname + '#share/' + payload;
+        try { await navigator.clipboard.writeText(url); toast('分享链接已复制'); }
+        catch { prompt('复制以下链接分享给他人：', url); }
+      } else if (action === 'doc') {
+        const title = prompt('文档标题（默认： fhcode-回复）：', 'fhcode-回复-' + Date.now());
+        if (!title) return;
+        const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = title.replace(/[^\u4e00-\u9fa5a-zA-Z0-9_\-]/g, '_') + '.md';
+        a.click();
+        URL.revokeObjectURL(a.href);
+        toast('文档已下载');
+      }
+    }
 
     /* ========== 登录 ========== */
     async function doLogin() {
@@ -1316,7 +1729,7 @@
 
     async function afterLogin() {
       updateUserBar();
-      await Promise.allSettled([loadTasks(), loadAutomations(), loadTemplates(), loadMarket(), loadOffice(), loadWorkspace(), loadModels()]);
+      await Promise.allSettled([loadTasks(), loadAutomations(), loadTemplates(), loadMarket(), loadOffice(), loadWorkspace(), loadModels(), loadMemoryStats()]);
       startRefresh();
     }
 
@@ -1332,9 +1745,8 @@
       document.querySelectorAll('.topbar-nav-item').forEach((n) => n.classList.toggle('active', n.getAttribute('data-nav') === nav));
       document.querySelectorAll('.sidebar-icon').forEach((n) => n.classList.toggle('active', n.getAttribute('data-nav') === nav));
       document.querySelectorAll('.view, .page-view').forEach((v) => v.classList.toggle('active', v.getAttribute('data-view') === nav));
-      // 切换时显示/隐藏思考面板和底部工具栏
+      // 切换时显示/隐藏底部工具栏（任务上下文头部始终可见）
       const isChat = nav === 'chat';
-      document.getElementById('thinkPanel').classList.toggle('show', isChat);
       document.getElementById('chatFootbar').style.display = isChat ? 'flex' : 'none';
     }
 
@@ -1400,25 +1812,127 @@
       try {
         const d = await api('/api/tasks');
         state.tasks = d.tasks || [];
-        if (state.currentTaskId) renderTaskDetail(state.currentTaskId);
-
-        // 检测新完成的任务，追加结果到对话
-        for (const t of state.tasks) {
-          if (t.status === 'done' && !state.completedTaskIds.has(t.id)) {
-            state.completedTaskIds.add(t.id);
-            const result = t.result?.finalAnswer || '';
-            const icon = t.error ? '❌' : '✅';
-            appendMsg('sys', `${icon} 任务完成：${result || '无结果'}`);
-          }
+        renderSidebarTaskList();
+        // 首次进入自动选中最新任务（列表已按创建时间倒序）
+        if (!state.currentTaskId && state.tasks.length) {
+          state.currentTaskId = state.tasks[0].id;
+          renderSidebarTaskList();
+        }
+        if (state.currentTaskId) {
+          await refreshCurrentThread();
+        } else {
+          renderTaskThread(null);
         }
       }
       catch (e) { console.warn('加载任务失败', e); }
     }
     async function selectTask(id) {
       state.currentTaskId = id;
+      renderSidebarTaskList();
       renderTaskDetail(id);
-      renderThink(state.tasks.find((x) => x.id === id));
+      await refreshCurrentThread();
       switchRightTab('detail');
+    }
+    function renderSidebarTaskList() {
+      const container = document.getElementById('taskListContainer');
+      const section = document.getElementById('taskListSection');
+      const badge = document.getElementById('taskCountBadge');
+      if (!container || !section) return;
+
+      // 置顶任务排在前面，其余按时间倒序
+      const sortedTasks = [...state.tasks].sort((a, b) => {
+        if (state.pinnedTasks.has(a.id) && !state.pinnedTasks.has(b.id)) return -1;
+        if (!state.pinnedTasks.has(a.id) && state.pinnedTasks.has(b.id)) return 1;
+        return new Date(b.createdAt) - new Date(a.createdAt);
+      });
+
+      const activeTasks = sortedTasks.filter(t => t.status === 'queued' || t.status === 'running' || t.status === 'done' || t.status === 'failed');
+
+      if (activeTasks.length === 0) {
+        section.style.display = 'none';
+        return;
+      }
+
+      section.style.display = 'block';
+      badge.textContent = activeTasks.length;
+
+      let html = '';
+      activeTasks.slice(0, 15).forEach(t => {
+        const icon = t.status === 'running' ? '⏳' : t.status === 'queued' ? '📥' : t.error ? '❌' : '✅';
+        const title = t.goal.slice(0, 18) + (t.goal.length > 18 ? '…' : '');
+        const isPinned = state.pinnedTasks.has(t.id);
+        const activeClass = state.currentTaskId === t.id ? 'active' : '';
+        html += `<div class="task-item ${activeClass}" data-task-id="${t.id}" data-pinned="${isPinned}">
+          <span class="task-icon">${icon}</span>
+          <span class="task-title">${title}</span>
+          ${isPinned ? '<span class="task-pinned">📌</span>' : ''}
+          <div class="task-actions">
+            <button class="pin-btn" data-id="${t.id}" data-pinned="${isPinned}" title="${isPinned ? '取消置顶' : '置顶'}">${isPinned ? '📌' : '📍'}</button>
+            ${t.status === 'done' || t.status === 'failed' ? '<button class="delete-btn" data-id="' + t.id + '" title="删除任务">🗑️</button>' : ''}
+          </div>
+        </div>`;
+      });
+
+      container.innerHTML = html;
+
+      // 绑定点击事件
+      container.querySelectorAll('.task-item[data-task-id]').forEach(el => {
+        el.addEventListener('click', (e) => {
+          // 如果是点击pin按钮，不切换任务
+          if (e.target.classList.contains('pin-btn')) return;
+          const id = el.getAttribute('data-task-id');
+          selectTask(id);
+        });
+
+        // 右键菜单 - 置顶/取消置顶
+        el.addEventListener('contextmenu', (e) => {
+          e.preventDefault();
+          const id = el.getAttribute('data-task-id');
+          togglePinTask(id);
+        });
+      });
+
+      // 绑定pin按钮
+      container.querySelectorAll('.pin-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const id = btn.getAttribute('data-id');
+          togglePinTask(id);
+        });
+      });
+
+      // 绑定删除按钮
+      container.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const id = btn.getAttribute('data-id');
+          deleteTask(id);
+        });
+      });
+    }
+
+    // 切换置顶状态
+    function togglePinTask(taskId) {
+      if (state.pinnedTasks.has(taskId)) {
+        state.pinnedTasks.delete(taskId);
+        toast('已取消置顶');
+      } else {
+        state.pinnedTasks.add(taskId);
+        toast('已置顶');
+      }
+      renderSidebarTaskList();
+    }
+
+    // 删除任务
+    async function deleteTask(taskId) {
+      if (!confirm('确定要删除这个任务吗？')) return;
+      try {
+        await api('/api/tasks/' + taskId, 'DELETE');
+        toast('任务已删除');
+        renderSidebarTaskList();
+      } catch (e) {
+        toast('删除失败：' + e.message);
+      }
     }
     function renderTaskDetail(id) {
       const t = state.tasks.find((x) => x.id === id);
@@ -1461,23 +1975,105 @@
         switchRightTab('preview');
       }
     }
-    function renderThink(task) {
-      const body = document.getElementById('thinkBody');
-      const sub = document.getElementById('thinkSub');
-      if (!task) { body.innerHTML = '<div class="muted">暂无内容。提交一个任务后，推理过程与最终回复会实时显示在这里。</div>'; sub.textContent = '提交任务后将在此展示推理过程与结果'; return; }
-      sub.textContent = '任务：' + task.goal.slice(0, 40) + (task.goal.length > 40 ? '…' : '');
-      const r = task.result;
-      let html = '<div><b>目标</b><br>' + escapeHtml(task.goal) + '</div>';
-      if (task.status === 'running' || task.status === 'queued') {
-        html += '<div style="margin-top:8px;color:var(--warn);">⏳ 任务进行中，正在推理…</div>';
+    /* ========== 任务思维链路渲染 ========== */
+    // 拉取当前选中任务的完整详情（含思维链路步骤）并渲染
+    async function refreshCurrentThread() {
+      if (!state.currentTaskId) { renderTaskThread(null); return; }
+      try {
+        const d = await api('/api/tasks/' + state.currentTaskId);
+        const t = d.task;
+        const idx = state.tasks.findIndex((x) => x.id === t.id);
+        if (idx >= 0) state.tasks[idx] = t; else state.tasks.push(t);
+        renderTaskThread(t);
+      } catch (e) { console.warn('刷新当前任务线程失败', e); renderTaskThread(null); }
+    }
+
+    function renderTaskHeader(task) {
+      const titleEl = document.getElementById('tchTitle');
+      const statusEl = document.getElementById('tchStatus');
+      const timeEl = document.getElementById('tchTime');
+      const subEl = document.getElementById('tchSub');
+      if (!task) {
+        titleEl.textContent = '未选择任务';
+        statusEl.className = 'badge'; statusEl.textContent = '—';
+        timeEl.textContent = '';
+        subEl.textContent = '从左侧任务列表选择，或在下方输入指令发起新任务';
+        return;
       }
-      if (r) {
-        if (r.selfHealed) html += '<div style="margin-top:8px;color:var(--ok);">🔧 已自愈一次</div>';
-        html += '<div style="margin-top:8px;"><b>思考过程</b><br>' + escapeHtml(r.finalAnswer || '') + '</div>';
-        html += '<div style="margin-top:8px;"><b>迭代</b> ' + r.iterations + ' · <b>成本</b> $' + r.costUsd.toFixed(6) + '</div>';
+      titleEl.textContent = task.goal.length > 60 ? task.goal.slice(0, 60) + '…' : task.goal;
+      statusEl.className = 'badge ' + task.status;
+      statusEl.textContent = task.status;
+      timeEl.textContent = '创建于 ' + fmtTime(task.createdAt);
+      subEl.textContent = '思维链路全程追踪 · 共 ' + (task.steps ? task.steps.length : 0) + ' 个步骤';
+    }
+
+    // 将单个任务的思维链路渲染为对话流：创建时间 → 逐步推理 → 工具验证 → 最终回复
+    function renderTaskThread(task) {
+      const box = document.getElementById('messages');
+      const nearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
+      renderTaskHeader(task);
+      if (!task) {
+        box.innerHTML = '<div class="msg sys">从左侧任务列表选择任务，或在下方输入指令发起新任务。中部仅展示当前选中任务的完整思维链路（创建时间、逐步推理、工具验证、最终回复）。</div>';
+        return;
       }
-      if (task.error) html += '<div style="margin-top:8px;color:var(--err);"><b>错误</b><br>' + escapeHtml(task.error) + '</div>';
-      body.innerHTML = html;
+      const steps = task.steps || [];
+      let html = '';
+      // 对话流：该任务下所有多轮对话气泡（user 提问 / assistant 回复）
+      const conv = Array.isArray(task.conversation) ? task.conversation : [];
+      const convVisible = conv.filter((m) => m && (m.role === 'user' || m.role === 'assistant') && (m.content || '').trim());
+      if (convVisible.length) {
+        html += '<div class="conv-divider">🗨 对话流</div>';
+        for (const m of convVisible) {
+          if (m.role === 'user') html += '<div class="msg user">' + linkifyArtifacts(m.content) + '</div>';
+          else html += '<div class="msg assistant">' + linkifyArtifacts(m.content) + '</div>';
+        }
+      }
+      html += '<div class="conv-divider">🧠 思维链路</div>';
+      html += '<div class="step created">📌 <b>任务创建</b> · ' + escapeHtml(fmtTime(task.createdAt)) + ' · 状态 <b>' + escapeHtml(task.status) + '</b></div>';
+      for (const step of steps) {
+        const d = step.data || {};
+        if (step.type === 'model.response') {
+          const content = (d.content || '').toString();
+          const toolCalls = Array.isArray(d.toolCalls) ? d.toolCalls : [];
+          let inner = '<div class="reasoning-head">🧠 模型推理 · ' + escapeHtml(d.model || '') + '</div>';
+          if (content) inner += escapeHtml(content);
+          if (toolCalls.length) inner += '<div class="muted" style="margin-top:6px;">↳ 计划调用工具：' + toolCalls.map((t) => '<code>' + escapeHtml(t) + '</code>').join('、') + '</div>';
+          html += '<div class="step reasoning">' + inner + '</div>';
+        } else if (step.type === 'tool.call') {
+          const args = d.args ? JSON.stringify(d.args, null, 2) : '';
+          html += '<div class="step toolcall"><div class="tc-name">🔧 调用 ' + escapeHtml(d.name || '') + '</div>' + (args ? '<div class="tc-args">' + escapeHtml(args) + '</div>' : '') + '</div>';
+        } else if (step.type === 'tool.result') {
+          const ok = !!d.ok;
+          const out = (d.output || '').toString();
+          html += '<div class="step result ' + (ok ? 'ok' : 'fail') + '"><div class="res-head">' + (ok ? '✅' : '❌') + ' ' + escapeHtml(d.name || '') + ' ' + (ok ? '验证通过' : '验证失败') + '</div>' + (out ? '<div class="res-out">' + escapeHtml(out) + '</div>' : '') + '</div>';
+        } else if (step.type === 'self-heal') {
+          html += '<div class="step note">🩹 进入自愈：检测到 <b>' + escapeHtml(d.category || '') + '</b> 类错误，已注入反思重试（第 ' + (d.iteration != null ? d.iteration : '?') + ' 轮）</div>';
+        } else if (step.type === 'context.compact') {
+          html += '<div class="step note">📦 上下文压缩：从 ' + (d.originalLength != null ? d.originalLength : '?') + ' 条压缩至 ' + (d.compressedLength != null ? d.compressedLength : '?') + ' 条，保留首条目标与近期对话</div>';
+        }
+      }
+      // 终态：最终回复 / 失败
+      if (task.status === 'done') {
+        if (task.result && task.result.finalAnswer) {
+          const answerId = 'final-' + task.runId;
+          html += '<div class="step final" id="' + answerId + '">'
+            + '<div class="final-head">📬 最终回复</div>'
+            + '<div style="margin-top:8px;text-align:right;">'
+            + '<button onclick="bubbleActions(event, ' + JS.stringify(task.result.finalAnswer).replace(/'/g, "\\'") + ')" style="background:rgba(255,255,255,0.2);border:none;color:#fff;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;">⚙️ 操作</button>'
+            + '</div>'
+            + '<div style="margin-top:4px;">' + escapeHtml(task.result.finalAnswer) + '</div>'
+            + '</div>';
+        }
+      } else if (task.status === 'failed') {
+        if (task.result && task.result.finalAnswer) html += '<div class="step final"><div class="final-head">📬 部分回复</div>' + escapeHtml(task.result.finalAnswer) + '</div>';
+        html += '<div class="step error"><div class="final-head">⛔ 任务失败</div>' + escapeHtml(task.error || '未知错误') + '</div>';
+      } else if (task.status === 'running') {
+        html += '<div class="step note">⏳ 任务进行中，思维链路实时刷新…</div>';
+      } else if (task.status === 'queued') {
+        html += '<div class="step note">📥 任务已入队，等待执行…</div>';
+      }
+      box.innerHTML = html;
+      if (nearBottom) box.scrollTop = box.scrollHeight;
     }
     async function showArtifacts(dir) {
       try {
@@ -1528,6 +2124,27 @@
       const btn = document.getElementById('sendBtn');
       btn.disabled = true;
       try {
+        // autoResetOnOpen: 已有当前任务时自动开启全新对话
+        if (state.sessionConfig.autoResetOnOpen && state.currentTaskId) {
+          toast('自动新建对话，旧任务保留在历史');
+          state.currentTaskId = null;
+        }
+        // 已有当前任务 → 多轮续接：消息归属同一任务生命周期
+        if (state.currentTaskId) {
+          const cur = state.tasks.find((t) => t.id === state.currentTaskId);
+          if (cur && (cur.status === 'queued' || cur.status === 'running')) {
+            toast('当前任务执行中，请等待完成后再继续对话');
+            return;
+          }
+          const d = await api('/api/tasks/' + state.currentTaskId + '/messages', 'POST', { message: goal });
+          input.value = '';
+          renderSidebarTaskList();
+          renderTaskDetail(d.task.id);
+          renderTaskThread(d.task);
+          await loadTasks();
+          toast('已发送，继续当前任务对话');
+          return;
+        }
         const d = await api('/api/tasks', 'POST', {
           goal,
           agentType: state.agentType,
@@ -1535,13 +2152,16 @@
           workspaceDir: state.workspaceDir || undefined,
           modelId: state.modelId || undefined,
         });
-        appendMsg('user', goal);
-        appendMsg('sys', '任务已提交，ID: ' + d.task.id.slice(0, 8) + ' …');
-        state.submittedTaskIds.add(d.task.id);
         input.value = '';
-        const newTask = state.tasks.find((x) => x.id === d.task.id);
-        renderThink(newTask || { id: d.task.id, goal, status: 'queued' });
+        // 新任务即成为当前任务，中部围绕其单一生命周期可视化追踪
+        state.currentTaskId = d.task.id;
+        const taskListSection = document.getElementById('taskListSection');
+        if (taskListSection) taskListSection.style.display = 'block';
+        renderSidebarTaskList();
+        renderTaskDetail(d.task.id);
+        renderTaskThread({ id: d.task.id, goal, status: 'queued', createdAt: new Date().toISOString(), steps: [], conversation: [{ role: 'user', content: goal }] });
         await loadTasks();
+        toast('任务已提交，开始追踪思维链路');
       } catch (e) { toast('提交失败：' + e.message); }
       finally { btn.disabled = false; }
     }
@@ -1561,6 +2181,106 @@
     }
     document.getElementById('sendBtn').addEventListener('click', sendTask);
     document.getElementById('goalInput').addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) sendTask(); });
+    document.getElementById('tchRefresh').addEventListener('click', () => { refreshCurrentThread(); toast('已刷新当前任务'); });
+    document.getElementById('screenshotBtn').addEventListener('click', takeScreenshot);
+
+    /* ========== 输入框右键菜单 ========== */
+    const goalInput = document.getElementById('goalInput');
+    goalInput.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      // 移除旧菜单
+      const old = document.getElementById('textCtxMenu');
+      if (old) old.remove();
+      // 创建右键菜单
+      const menu = document.createElement('div');
+      menu.id = 'textCtxMenu';
+      menu.style.cssText = 'position:fixed;z-index:10000;background:var(--card);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);padding:4px 0;min-width:160px;';
+      const items = [
+        { label: '📋 复制', action: 'copy' },
+        { label: '✂️ 剪切', action: 'cut' },
+        { label: '📌 粘贴', action: 'paste' },
+        { label: '⬛ 全选', action: 'selectall' },
+      ];
+      items.forEach((it) => {
+        const el = document.createElement('div');
+        el.className = 'dropdown-item';
+        el.textContent = it.label;
+        el.style.cssText = 'padding:6px 16px;cursor:pointer;font-size:13px;';
+        el.addEventListener('mouseenter', () => { el.style.background = 'var(--brand-soft)'; });
+        el.addEventListener('mouseleave', () => { el.style.background = ''; });
+        el.addEventListener('click', () => {
+          menu.remove();
+          if (it.action === 'copy') document.execCommand('copy');
+          else if (it.action === 'cut') document.execCommand('cut');
+          else if (it.action === 'paste') navigator.clipboard.readText().then(t => { document.execCommand('insertText', false, t); });
+          else if (it.action === 'selectall') { goalInput.select(); }
+        });
+        menu.appendChild(el);
+      });
+      document.body.appendChild(menu);
+      menu.style.left = e.clientX + 'px';
+      menu.style.top = e.clientY + 'px';
+    });
+    // 点击其他地方关闭右键菜单
+    document.addEventListener('click', (e) => {
+      const menu = document.getElementById('textCtxMenu');
+      if (menu && !menu.contains(e.target)) menu.remove();
+    });
+
+    /* ========== 新建对话任务 ========== */
+    async function openNewTaskModal() {
+      // 智能体类型下拉
+      const agentSel = document.getElementById('ntAgentType');
+      agentSel.innerHTML = Object.entries(AGENT_TYPES)
+        .map(([k, v]) => '<option value="' + k + '"' + (state.agentType === k ? ' selected' : '') + '>' + v.icon + ' ' + v.label + '</option>')
+        .join('');
+      // 工作区下拉：默认（沿用当前底部所选）+ 磁盘根目录
+      const wsSel = document.getElementById('ntWorkspaceDir');
+      const cur = state.workspaceDir || '';
+      wsSel.innerHTML = '<option value="">默认（' + (cur || '服务器工作区') + '）</option>';
+      try {
+        const d = await api('/api/drives');
+        (d.drives || []).forEach((dr) => {
+          if (dr !== cur) wsSel.innerHTML += '<option value="' + escapeHtml(dr) + '">' + escapeHtml(dr) + '</option>';
+        });
+      } catch {}
+      document.getElementById('ntGoal').value = '';
+      openModal('newTaskModal');
+      setTimeout(() => document.getElementById('ntGoal').focus(), 60);
+    }
+    async function createNewTask() {
+      const goal = document.getElementById('ntGoal').value.trim();
+      if (!goal) { toast('请填写任务描述'); return; }
+      const btn = document.getElementById('ntCreateBtn');
+      btn.disabled = true;
+      try {
+        const wsVal = document.getElementById('ntWorkspaceDir').value;
+        const payload = {
+          goal,
+          agentType: document.getElementById('ntAgentType').value || state.agentType,
+          permissions: state.permissions,
+          modelId: state.modelId || undefined,
+        };
+        // 工作区：仅在明确选择了目录时覆盖
+        const d = await api('/api/tasks', 'POST', wsVal ? Object.assign(payload, { workspaceDir: wsVal }) : payload);
+        document.getElementById('goalInput').value = '';
+        state.currentTaskId = d.task.id;
+        const taskListSection = document.getElementById('taskListSection');
+        if (taskListSection) taskListSection.style.display = 'block';
+        renderSidebarTaskList();
+        renderTaskDetail(d.task.id);
+        renderTaskThread({ id: d.task.id, goal, status: 'queued', createdAt: new Date().toISOString(), steps: [], conversation: [{ role: 'user', content: goal }] });
+        switchView('chat');
+        closeModal('newTaskModal');
+        await loadTasks();
+        toast('新任务已创建，所有对话将归属该任务');
+      } catch (e) { toast('创建失败：' + e.message); }
+      finally { btn.disabled = false; }
+    }
+    document.getElementById('newTaskBtn')?.addEventListener('click', openNewTaskModal);
+    document.getElementById('tchNewTask')?.addEventListener('click', openNewTaskModal);
+    document.getElementById('ntCreateBtn')?.addEventListener('click', createNewTask);
+    document.getElementById('ntGoal')?.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) createNewTask(); });
 
     /* ========== 产物链接化 ========== */
     function linkifyArtifacts(text) {
@@ -1850,6 +2570,19 @@
         toast('已设为默认大模型');
       } catch (e) { toast('设置失败：' + e.message); }
     }
+    // 持久化会话配置到 localStorage
+    function persistSessionConfig() {
+      localStorage.setItem('fhcode.sessionConfig', JSON.stringify(state.sessionConfig));
+    }
+    // 切换会话模式（打开/发送时自动重置）
+    document.querySelectorAll('.session-toggle').forEach((el) => {
+      el.addEventListener('change', () => {
+        const key = el.dataset.key;
+        state.sessionConfig[key] = el.checked;
+        persistSessionConfig();
+        toast('会话配置已保存');
+      });
+    });
     document.getElementById('modelSaveBtn').addEventListener('click', saveModel);
     document.getElementById('modelResetBtn').addEventListener('click', resetModelForm);
     document.getElementById('modelSettingsShortcut').addEventListener('click', openModels);
@@ -2372,6 +3105,144 @@
       }
     });
     function startRefresh() { setInterval(loadTasks, 5000); }
+
+    /* ========== 记忆系统 ========== */
+    async function loadMemoryStats() {
+      try {
+        const d = await api('/api/memory/stats');
+        document.getElementById('statShortDays').textContent = d.shortTermFiles + ' 天';
+        document.getElementById('statLongNotes').textContent = d.longTermNotes + ' 条';
+        document.getElementById('statLastSum').textContent = d.lastSummarize || '暂无';
+        // 计算下次自动总结时间（今晚24:00）
+        const now = new Date();
+        const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0);
+        document.getElementById('statNextSum').textContent = next.toLocaleString('zh-CN', { hour12: false });
+      } catch (e) { console.warn('加载记忆统计失败', e); }
+    }
+
+    async function loadMemoryContent(dateStr) {
+      try {
+        const d = await api('/api/memory/short?date=' + dateStr);
+        const content = document.getElementById('memShortContent');
+        if (!d || !d.content) {
+          content.innerHTML = '<div class="empty">当天暂无记录</div>';
+          return;
+        }
+        content.innerHTML = formatMarkdown(d.content);
+        document.getElementById('memDateLabel').textContent = '📅 ' + dateStr;
+      } catch (e) { toast('加载失败：' + e.message); }
+    }
+
+    async function loadLongTermMemory() {
+      try {
+        const d = await api('/api/memory/long');
+        const content = document.getElementById('memLongContent');
+        if (!d || !d.content) {
+          content.innerHTML = '<div class="empty">长期记忆为空</div>';
+          return;
+        }
+        content.innerHTML = formatMarkdown(d.content);
+      } catch (e) { toast('加载失败：' + e.message); }
+    }
+
+    async function loadSummaryHistory() {
+      try {
+        const d = await api('/api/memory/history?limit=20');
+        const content = document.getElementById('memHistoryContent');
+        const list = d.history || [];
+        if (!list.length) {
+          content.innerHTML = '<div class="empty">暂无总结历史</div>';
+          return;
+        }
+        content.innerHTML = list.map(h =>
+          '<div style="padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;">' +
+          '<strong>' + h.date + '</strong> → ' + h.newEntries + ' 条新增, ' + h.updatedEntries + ' 条更新<br>' +
+          '<span class="muted">' + h.timestamp + '</span>' +
+          '</div>'
+        ).join('');
+      } catch (e) { toast('加载失败：' + e.message); }
+    }
+
+    function formatMarkdown(text) {
+      // 简单 Markdown 转换
+      return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/^### (.*$)/gm, '<h3>$1</h3>')
+        .replace(/^## (.*$)/gm, '<h2>$1</h2>')
+        .replace(/^# (.*$)/gm, '<h1>$1</h1>')
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/`(.*?)`/g, '<code>$1</code>')
+        .replace(/\n/g, '<br>');
+    }
+
+    function initMemoryUI() {
+      // 设置默认日期为今天
+      const today = new Date().toISOString().split('T')[0];
+      document.getElementById('memDateInput').value = today;
+      loadMemoryContent(today);
+
+      // Tab 切换
+      document.querySelectorAll('.mem-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          document.querySelectorAll('.mem-tab').forEach(t => t.classList.remove('active'));
+          document.querySelectorAll('.mem-panel').forEach(p => p.classList.toggle('active', false));
+          tab.classList.add('active');
+          const panelId = tab.getAttribute('data-memtab') + 'Panel';
+          document.getElementById(panelId)?.classList.add('active');
+        });
+      });
+
+      // 查看按钮
+      document.getElementById('memLoadDay')?.addEventListener('click', () => {
+        const dateStr = document.getElementById('memDateInput').value;
+        if (dateStr) loadMemoryContent(dateStr);
+      });
+
+      // 刷新按钮
+      document.getElementById('memRefreshBtn')?.addEventListener('click', () => {
+        loadMemoryStats();
+        const dateStr = document.getElementById('memDateInput').value;
+        if (dateStr) loadMemoryContent(dateStr);
+        loadLongTermMemory();
+      });
+
+      // 立即总结按钮
+      document.getElementById('memSummarizeBtn')?.addEventListener('click', async () => {
+        const btn = document.getElementById('memSummarizeBtn');
+        btn.disabled = true;
+        btn.textContent = '⏳ 总结中...';
+        try {
+          const dateStr = document.getElementById('memDateInput').value || today;
+          const d = await api('/api/memory/summarize', 'POST', { date: dateStr });
+          toast('✅ ' + (d.message || '总结完成'));
+          loadMemoryStats();
+          loadSummaryHistory();
+        } catch (e) {
+          toast('总结失败：' + e.message);
+        } finally {
+          btn.disabled = false;
+          btn.textContent = '✨ 立即总结';
+        }
+      });
+
+      // 初始加载
+      loadMemoryStats();
+      loadLongTermMemory();
+      loadSummaryHistory();
+    }
+
+    // 当切换到记忆页面时初始化
+    const origSwitchView = switchView;
+    window.switchView = function(nav) {
+      origSwitchView(nav);
+      if (nav === 'memory') {
+        setTimeout(initMemoryUI, 100);
+      }
+    };
+
     if (state.token && state.phone) {
       document.getElementById('loginOverlay').style.display = 'none';
       document.getElementById('appLayout').classList.add('show');

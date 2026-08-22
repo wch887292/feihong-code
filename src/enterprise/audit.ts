@@ -134,9 +134,37 @@ function sleepSync(ms: number): void {
 }
 
 /**
+ * 读取锁文件中的持有者 PID（无锁/损坏返回 null）。
+ * 锁文件内容为写入时的 process.pid 字符串。
+ */
+function readLockPid(lockPath: string): number | null {
+  try {
+    const raw = readFileSync(lockPath, 'utf8').trim();
+    const pid = Number(raw);
+    return Number.isInteger(pid) && pid > 0 ? pid : null;
+  } catch {
+    return null;
+  }
+}
+
+/** 探测 PID 是否仍存活（Windows/Linux 通用：发信号 0 不产生副作用） */
+function pidAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (e) {
+    return (e as NodeJS.ErrnoException)?.code === 'EPERM';
+  }
+}
+
+/**
  * M5 修复：跨进程 advisory 文件锁。
  * 用 `openSync(path,'wx')` 原子创建锁文件；持有期间执行 fn；
  * 锁超时/过期会被清理，避免挂死进程导致审计永久阻塞。
+ * 增强（P1 修复）：
+ *  - stale 判断 = 锁文件 mtime 过期 **或** 锁内 PID 已不存在（挂死进程立即识别）
+ *  - 清理/释放失败记录 warn 日志，不再静默吞掉（避免"审计写入锁等待超时"无从排查）
+ *  - 超时错误携带 lockPath/mtime/pid，便于诊断
  */
 function withAuditLock(dir: string, fn: () => void): void {
   mkdirSync(dir, { recursive: true });
@@ -157,26 +185,54 @@ function withAuditLock(dir: string, fn: () => void): void {
       } finally {
         try {
           unlinkSync(lockPath);
-        } catch {
-          /* 忽略清理失败 */
+        } catch (e) {
+          // 释放锁失败：保留文件，下个写入者会按 stale 逻辑清理；记录告警便于排查
+          logger.warn('审计锁释放失败（将按过期锁由下个写入者清理）', {
+            lockPath,
+            error: e instanceof Error ? e.message : String(e),
+          });
         }
       }
     } catch (e: unknown) {
       const code = (e as NodeJS.ErrnoException)?.code;
       if (code === 'EEXIST') {
-        // 锁被占用：检查是否过期（进程崩溃遗留）
+        // 锁被占用：检查是否过期（mtime 超时 或 锁内 PID 已死）
+        let stale = false;
+        let lockPid: number | null = null;
         try {
           const st = statSync(lockPath);
-          if (Date.now() - st.mtimeMs > AUDIT_LOCK_STALE_MS) {
-            unlinkSync(lockPath);
-            backoffMs = 10; // 锁已清理，重置退避
-            continue;
-          }
+          lockPid = readLockPid(lockPath);
+          stale =
+            Date.now() - st.mtimeMs > AUDIT_LOCK_STALE_MS ||
+            (lockPid !== null && !pidAlive(lockPid));
         } catch {
           /* 锁已消失，重试 */
         }
+        if (stale) {
+          try {
+            unlinkSync(lockPath);
+            backoffMs = 10; // 锁已清理，重置退避
+            continue;
+          } catch (ue) {
+            logger.warn('审计锁清理失败（stale 锁，等待重试）', {
+              lockPath,
+              lockPid,
+              error: ue instanceof Error ? ue.message : String(ue),
+            });
+          }
+        }
         if (Date.now() > deadline) {
-          throw new Error('审计写入锁等待超时（可能存在挂死的写进程）');
+          const st = (() => {
+            try {
+              return statSync(lockPath);
+            } catch {
+              return null;
+            }
+          })();
+          throw new Error(
+            '审计写入锁等待超时（可能存在挂死的写进程）' +
+              ` [lock=${lockPath}, pid=${lockPid ?? '?'}, mtime=${st ? new Date(st.mtimeMs).toISOString() : '?'}]`,
+          );
         }
         // 指数退避（10ms → 200ms），降低锁竞争下的 CPU 空转
         sleepSync(backoffMs);
