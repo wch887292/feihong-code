@@ -361,15 +361,16 @@
     .step.final .final-head { font-size: 11px; opacity: 0.85; margin-bottom: 4px; font-weight: 600; }
     .step.final .final-actions {
       position: absolute; top: 8px; right: 8px; display: flex; gap: 4px;
-      opacity: 0; transition: opacity 0.2s;
+      opacity: 0.85; transition: opacity 0.2s;
+      background: rgba(0,0,0,0.18); border-radius: 8px; padding: 2px 4px;
     }
-    .step.final:hover .final-actions { opacity: 1; }
+    .step.final:hover .final-actions { opacity: 1; background: rgba(0,0,0,0.32); }
     .step.final .final-actions button {
-      background: rgba(255,255,255,0.2); border: none; color: #fff;
-      border-radius: 6px; padding: 3px 8px; font-size: 11px; cursor: pointer;
+      background: transparent; border: none; color: #fff;
+      border-radius: 4px; padding: 3px 7px; font-size: 11px; cursor: pointer;
       transition: background 0.15s;
     }
-    .step.final .final-actions button:hover { background: rgba(255,255,255,0.35); }
+    .step.final .final-actions button:hover { background: rgba(255,255,255,0.28); }
     .step.error {
       align-self: flex-end; background: var(--err); color: #fff; border-radius: 12px;
       padding: 12px 16px; white-space: pre-wrap; word-break: break-word; max-width: 92%;
@@ -1548,6 +1549,319 @@
   <div class="toast" id="toast"></div>
 
   <script>
+    // i18n 双语字典
+    const I18N = {
+      zh: {
+        'app.title_login': '飞虹 Code 控制台',
+        'app.login_hint': '请输入手机号码直接登录',
+        'app.brand': '飞虹 Code',
+        'login.phone_label': '手机号码',
+        'login.btn_login': '手机号登录',
+        'nav.chat': '💬 对话',
+        'nav.automations': '⚡ 自动化',
+        'nav.templates': '📚 模板库',
+        'nav.market': '🧩 插件',
+        'nav.office': '📎 办公',
+        'nav.memory': '🧠 记忆',
+        'sidebar.nav': '导航',
+        'sidebar.chat': '对话任务',
+        'sidebar.automations': '自动化',
+        'sidebar.templates': '模板库',
+        'sidebar.market': '插件市场',
+        'sidebar.office': '办公助理',
+        'sidebar.memory': '记忆系统',
+        'sidebar.user': '用户',
+        'sidebar.settings': '设置',
+        'sidebar.task_list': '任务列表',
+        'btn.new_task': '＋ 新建任务',
+        'empty.no_tasks': '暂无任务',
+        'task.not_selected': '未选择任务',
+        'task.select_hint': '从左侧任务列表选择，或在下方输入指令发起新任务',
+        'task.refresh': '刷新当前任务',
+        'chat.welcome': '点击「＋ 新建任务」开启一个新任务，或直接在下方向当前任务发送消息——所有对话都会归属同一个任务运行。',
+        'chat.menu': '＋ 菜单',
+        'chat.screenshot': '📷 截图',
+        'chat.upload_file': '📄 上传文件',
+        'chat.upload_image': '🖼 上传图片',
+        'chat.direct_mode': '🖥 直接操作电脑',
+        'chat.voice': '🎤 语音输入',
+        'chat.agent_type': '🤖 选择智能体类型',
+        'chat.agent_default': '🤖 通用助手',
+        'chat.listening': '● 正在听…',
+        'chat.send': '▶ 发送',
+        'common.loading': '加载中…',
+        'perm.default': '默认权限',
+        'call.hint': '通话',
+        'call.voice': '📞 语音',
+        'call.video': '🎥 视频',
+        'call.hangup': '⛔ 挂断',
+        'page.automations.sub': '把常用目标存成指令，一键发起任务',
+        'btn.new_automation': '+ 新建指令',
+        'empty.no_automations': '还没有快捷指令',
+        'page.templates.sub': '点击模板即可填充到输入框',
+        'btn.save_template': '+ 保存当前为模板',
+        'tpl.builtin': '内置模板',
+        'tpl.my': '我的模板',
+        'empty.no_templates': '暂无自定义模板',
+        'page.market.sub': '聚合 ClawHub 与 Agent-Foundry 技能生态',
+        'market.search_placeholder': '搜索…',
+        'market.source_all': '全部来源',
+        'btn.refresh': '刷新',
+        'market.installed': '已安装',
+        'empty.no_installed': '暂无已安装技能',
+        'page.office.sub': '文档处理快捷入口，点击即生成提示词',
+        'page.memory.sub': '短期记忆每日自动整理，沉淀长期知识',
+        'btn.refresh_mem': '🔄 刷新',
+        'btn.summarize': '✨ 立即总结',
+        'mem.stat_short_days': '短期记忆天数',
+        'mem.stat_long_items': '长期记忆条目',
+        'mem.stat_last_summary': '上次总结',
+        'mem.stat_next_summary': '下次自动总结',
+        'mem.tab_short': '📅 短期记忆',
+        'mem.tab_long': '💾 长期记忆',
+        'mem.tab_history': '📜 总结历史',
+        'btn.view': '查看',
+        'mem.select_date': '选择日期查看短期记忆',
+        'empty.no_history': '暂无总结记录',
+        'footbar.title': '对话任务',
+        'footbar.desc': '提交自然语言需求，云端静默执行并回传结果',
+        'footbar.model': '大模型',
+        'footbar.model_title': '切换当前使用的大模型',
+        'footbar.model_settings': '大模型设置',
+        'footbar.model_default': '默认（系统路由）',
+        'right.detail': '📦 任务详情',
+        'right.preview': '👁 产物预览',
+        'right.detail_hint': '从顶部选择一个任务查看详情。',
+        'right.preview_title': '预览',
+        'right.preview_hint': '点击任务或对话中的文件/代码进行预览。',
+        'modal.auto_title': '新建快捷指令',
+        'modal.auto_hint': '保存后可在「自动化」页一键发起任务。',
+        'modal.auto_name': '指令名称',
+        'modal.auto_goal': '目标（提交给模型的需求）',
+        'modal.perm_title': '🔒 权限处理窗口',
+        'modal.perm_hint': '配置工作期间 AI 可读范围及可操作权限。',
+        'modal.perm_read_scope': '可读范围',
+        'modal.perm_workspace': '仅当前工作区',
+        'modal.perm_specified': '指定目录',
+        'modal.perm_all': '全部文件',
+        'modal.perm_actions': '操作权限',
+        'modal.perm_read': '读取文件',
+        'modal.perm_write': '写入文件',
+        'modal.perm_shell': '执行命令',
+        'modal.perm_network': '访问网络',
+        'modal.perm_browser': '浏览器控制',
+        'modal.agent_title': '🤖 选择智能体类型',
+        'modal.agent_hint': '不同智能体会自动调整提示词与执行策略。',
+        'modal.folder_title': '📂 选择工作区文件夹',
+        'btn.select_folder': '选择此文件夹',
+        'modal.model_title': '🧠 大模型设置',
+        'modal.model_hint': '配置自定义大模型，可保存多个并在对话中随时切换。勾选「默认」的项将作为对话默认模型。',
+        'modal.model_name': '模型名称 *',
+        'modal.model_api': 'API 地址',
+        'modal.model_key': '密钥（API Key）',
+        'modal.model_reasoning': '推理过程运行内容（中间环节）',
+        'btn.save_config': '保存配置',
+        'btn.clear_form': '清空表单',
+        'btn.close': '关闭',
+        'modal.new_task_title': '＋ 新建对话任务',
+        'modal.new_task_hint': '创建一个全新任务，中部对话栏的所有消息都将归属该任务运行（支持多轮连续对话）。',
+        'modal.new_task_label': '任务描述',
+        'modal.new_task_agent': '智能体类型',
+        'modal.new_task_workspace': '工作区',
+        'btn.create_task': '创建任务',
+        'modal.settings_title': '⚙️ 设置',
+        'settings.general': '通用',
+        'settings.layout': '栏目配置',
+        'settings.perm': '权限处理',
+        'settings.perm_desc': '配置工作期间可读范围与操作权限',
+        'settings.theme': '外观',
+        'settings.theme_desc': '切换浅色 / 深色主题',
+        'settings.session': '💬 会话管理',
+        'menu.version': '体验版',
+        'menu.current': '当前',
+        'menu.buddy': 'Buddy 加油站',
+        'menu.invite': '去邀约',
+        'menu.invite_right': '最高得会员',
+        'menu.points': '积分余额',
+        'menu.growth': '成长计划',
+        'menu.growth_right': '连登有奖',
+        'menu.help': '帮助与反馈',
+        'menu.update': '检查更新',
+        'menu.logout': '退出登录',
+      },
+      en: {
+        'app.title_login': 'Feihong Code Console',
+        'app.login_hint': 'Enter phone number to login directly',
+        'app.brand': 'Feihong Code',
+        'login.phone_label': 'Phone Number',
+        'login.btn_login': 'Login',
+        'nav.chat': '💬 Chat',
+        'nav.automations': '⚡ Automations',
+        'nav.templates': '📚 Templates',
+        'nav.market': '🧩 Market',
+        'nav.office': '📎 Office',
+        'nav.memory': '🧠 Memory',
+        'sidebar.nav': 'Nav',
+        'sidebar.chat': 'Chat',
+        'sidebar.automations': 'Automations',
+        'sidebar.templates': 'Templates',
+        'sidebar.market': 'Market',
+        'sidebar.office': 'Office',
+        'sidebar.memory': 'Memory',
+        'sidebar.user': 'User',
+        'sidebar.settings': 'Settings',
+        'sidebar.task_list': 'Tasks',
+        'btn.new_task': '＋ New Task',
+        'empty.no_tasks': 'No tasks',
+        'task.not_selected': 'No task selected',
+        'task.select_hint': 'Select from task list or enter commands below',
+        'task.refresh': 'Refresh',
+        'chat.welcome': 'Click ＋ New Task to start a new task, or send messages to continue the current task.',
+        'chat.menu': '＋ Menu',
+        'chat.screenshot': '📷 Screenshot',
+        'chat.upload_file': '📄 Upload File',
+        'chat.upload_image': '🖼 Upload Image',
+        'chat.direct_mode': '🖥 Direct Control',
+        'chat.voice': '🎤 Voice Input',
+        'chat.agent_type': '🤖 Agent Type',
+        'chat.agent_default': '🤖 Assistant',
+        'chat.listening': '● Listening…',
+        'chat.send': '▶ Send',
+        'common.loading': 'Loading…',
+        'perm.default': 'Default Permissions',
+        'call.hint': 'Call',
+        'call.voice': '📞 Voice',
+        'call.video': '🎥 Video',
+        'call.hangup': '⛔ Hang Up',
+        'page.automations.sub': 'Save common goals as shortcuts, launch tasks with one click',
+        'btn.new_automation': '+ New Command',
+        'empty.no_automations': 'No shortcuts yet',
+        'page.templates.sub': 'Click a template to fill the input box',
+        'btn.save_template': '+ Save as Template',
+        'tpl.builtin': 'Built-in Templates',
+        'tpl.my': 'My Templates',
+        'empty.no_templates': 'No custom templates',
+        'page.market.sub': 'Aggregating ClawHub & Agent-Foundry skill ecosystems',
+        'market.search_placeholder': 'Search…',
+        'market.source_all': 'All Sources',
+        'btn.refresh': 'Refresh',
+        'market.installed': 'Installed',
+        'empty.no_installed': 'No installed skills',
+        'page.office.sub': 'Document processing shortcuts, generate prompts instantly',
+        'page.memory.sub': 'Daily auto-summary of short-term memory, accumulate long-term knowledge',
+        'btn.refresh_mem': '🔄 Refresh',
+        'btn.summarize': '✨ Summarize Now',
+        'mem.stat_short_days': 'Short-term Memory Days',
+        'mem.stat_long_items': 'Long-term Memory Items',
+        'mem.stat_last_summary': 'Last Summary',
+        'mem.stat_next_summary': 'Next Summary',
+        'mem.tab_short': '📅 Short-term',
+        'mem.tab_long': '💾 Long-term',
+        'mem.tab_history': '📜 History',
+        'btn.view': 'View',
+        'mem.select_date': 'Select date to view',
+        'empty.no_history': 'No summary records',
+        'footbar.title': 'Chat Task',
+        'footbar.desc': 'Submit natural language requirements, cloud silent execution and return results',
+        'footbar.model': 'Model',
+        'footbar.model_title': 'Switch model',
+        'footbar.model_settings': 'Model Settings',
+        'footbar.model_default': 'Default (System Route)',
+        'right.detail': '📦 Task Detail',
+        'right.preview': '👁 Preview',
+        'right.detail_hint': 'Select a task from the top to view details.',
+        'right.preview_title': 'Preview',
+        'right.preview_hint': 'Click files/codes in task or chat to preview.',
+        'modal.auto_title': 'New Automation',
+        'modal.auto_hint': 'Save for one-click task launch on Automations page.',
+        'modal.auto_name': 'Command Name',
+        'modal.auto_goal': 'Goal (Requirements for model)',
+        'modal.perm_title': '🔒 Permission Window',
+        'modal.perm_hint': 'Configure AI readable scope and operable permissions.',
+        'modal.perm_read_scope': 'Read Scope',
+        'modal.perm_workspace': 'Current Workspace Only',
+        'modal.perm_specified': 'Specified Directory',
+        'modal.perm_all': 'All Files',
+        'modal.perm_actions': 'Operation Permissions',
+        'modal.perm_read': 'Read Files',
+        'modal.perm_write': 'Write Files',
+        'modal.perm_shell': 'Execute Commands',
+        'modal.perm_network': 'Access Network',
+        'modal.perm_browser': 'Browser Control',
+        'modal.agent_title': '🤖 Agent Type',
+        'modal.agent_hint': 'Different agents auto-adjust prompts and execution strategies.',
+        'modal.folder_title': '📂 Select Workspace Folder',
+        'btn.select_folder': 'Select This Folder',
+        'modal.model_title': '🧠 Model Settings',
+        'modal.model_hint': 'Configure custom models, save multiple and switch anytime. Default model will be used by default.',
+        'modal.model_name': 'Model Name *',
+        'modal.model_api': 'API URL',
+        'modal.model_key': 'API Key',
+        'modal.model_reasoning': 'Reasoning Content (Optional)',
+        'btn.save_config': 'Save Config',
+        'btn.clear_form': 'Clear Form',
+        'btn.close': 'Close',
+        'modal.new_task_title': '＋ New Chat Task',
+        'modal.new_task_hint': 'Create a brand new task. All messages in the chat will belong to this task (supports multi-turn conversation).',
+        'modal.new_task_label': 'Task Description',
+        'modal.new_task_agent': 'Agent Type',
+        'modal.new_task_workspace': 'Workspace',
+        'btn.create_task': 'Create Task',
+        'modal.settings_title': '⚙️ Settings',
+        'settings.general': 'General',
+        'settings.layout': 'Layout Config',
+        'settings.perm': 'Permissions',
+        'settings.perm_desc': 'Configure readable scope and operation permissions',
+        'settings.theme': 'Appearance',
+        'settings.theme_desc': 'Switch light/dark theme',
+        'settings.session': '💬 Session Management',
+        'menu.version': 'Trial Version',
+        'menu.current': 'Current',
+        'menu.buddy': 'Buddy Station',
+        'menu.invite': 'Invite',
+        'menu.invite_right': 'Get Premium',
+        'menu.points': 'Points Balance',
+        'menu.growth': 'Growth Plan',
+        'menu.growth_right': 'Streak Bonus',
+        'menu.help': 'Help & Feedback',
+        'menu.update': 'Check Update',
+        'menu.logout': 'Logout',
+      }
+    };
+    
+    let currentLang = localStorage.getItem('fhcode.lang') || 'zh';
+    
+    function t(key) {
+      const dict = I18N[currentLang] || I18N.zh;
+      return dict[key] || key;
+    }
+    
+    function switchLang(lang) {
+      currentLang = lang;
+      localStorage.setItem('fhcode.lang', lang);
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (el.tagName === 'INPUT' && el.placeholder) {
+          el.placeholder = t(key);
+        } else if (el.tagName === 'OPTION') {
+          el.textContent = t(key);
+        } else {
+          el.textContent = t(key);
+        }
+      });
+      document.querySelectorAll('.lang-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-lang') === lang);
+      });
+      document.documentElement.lang = lang;
+    }
+    
+    document.querySelectorAll('.lang-btn').forEach(btn => {
+      btn.addEventListener('click', () => switchLang(btn.getAttribute('data-lang')));
+    });
+    
+    // 初始化语言
+    switchLang(currentLang);
+    
     const AGENT_TYPES = {
       general: { label: '通用助手', icon: '🤖' },
       'fix-code': { label: '修复代码', icon: '🐛' },
@@ -2064,16 +2378,22 @@
       if (task.status === 'done') {
         if (task.result && task.result.finalAnswer) {
           const answerId = 'final-' + task.runId;
+          const safeText = JS.stringify(task.result.finalAnswer);
           html += '<div class="step final" id="' + answerId + '">'
             + '<div class="final-head">📬 最终回复</div>'
-            + '<div style="margin-top:8px;text-align:right;">'
-            + '<button onclick="bubbleActions(event, ' + JS.stringify(task.result.finalAnswer).replace(/'/g, "\\'") + ')" style="background:rgba(255,255,255,0.2);border:none;color:#fff;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;">⚙️ 操作</button>'
+            + '<div class="final-actions">'
+            + '<button onclick="bubbleActions(event, ' + safeText + ')" title="复制/编辑/分享/创建文档">⚙️ 操作</button>'
             + '</div>'
-            + '<div style="margin-top:4px;">' + escapeHtml(task.result.finalAnswer) + '</div>'
+            + '<div style="margin-top:4px;cursor:text;user-select:text;">' + escapeHtml(task.result.finalAnswer) + '</div>'
             + '</div>';
         }
       } else if (task.status === 'failed') {
-        if (task.result && task.result.finalAnswer) html += '<div class="step final"><div class="final-head">📬 部分回复</div>' + escapeHtml(task.result.finalAnswer) + '</div>';
+        if (task.result && task.result.finalAnswer) {
+          const safeText = JS.stringify(task.result.finalAnswer);
+          html += '<div class="step final"><div class="final-head">📬 部分回复</div>'
+            + '<div class="final-actions"><button onclick="bubbleActions(event, ' + safeText + ')" title="操作">⚙️</button></div>'
+            + '<div style="margin-top:4px;cursor:text;user-select:text;">' + escapeHtml(task.result.finalAnswer) + '</div></div>';
+        }
         html += '<div class="step error"><div class="final-head">⛔ 任务失败</div>' + escapeHtml(task.error || '未知错误') + '</div>';
       } else if (task.status === 'running') {
         html += '<div class="step note">⏳ 任务进行中，思维链路实时刷新…</div>';

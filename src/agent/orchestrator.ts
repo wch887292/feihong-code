@@ -131,7 +131,7 @@ export class Orchestrator {
       contextCompactEvery,
       experienceDir,
     } = this.deps;
-    const maxIter = this.deps.maxIterations ?? 25;
+    const maxIter = this.deps.maxIterations ?? 50;
     const maxCost = this.deps.maxCostUsd ?? 0;
     const compactThreshold = getCompactionThreshold({ compactEvery: contextCompactEvery });
 
@@ -287,9 +287,12 @@ export class Orchestrator {
     }
 
     if (baselineIterations + calls >= maxIter && !finalAnswer) {
-      finalAnswer = '已达到最大迭代次数，任务可能未完全完成，请检查工作区与日志。';
-      await eventLog.append('error', { reason: 'max-iterations-reached' });
-      logger.warn('orchestrator reached max iterations', { runId: session.runId });
+      const hint = touchedFiles.length > 0
+        ? `可在对话区继续发送"继续"二字，让任务以 resume 方式接着跑（已生成/修改的文件位于工作区）。`
+        : `可点击「继续」按钮让任务接着执行，或在对话区细化任务目标重新提交。`;
+      finalAnswer = `已达到最大迭代次数 ${maxIter} 轮，任务可能未完全完成。${hint}`;
+      await eventLog.append('error', { reason: 'max-iterations-reached', maxIter, touchedFiles });
+      logger.warn('orchestrator reached max iterations', { runId: session.runId, maxIter });
     }
 
     // M6: 提取经验并以 upsert 强化写入（同一模式多次验证会累积权重，而非无限追加）
