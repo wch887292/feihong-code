@@ -157,10 +157,13 @@
     .lang-btn:hover:not(.active) { background: var(--bg); }
 
     /* ========== 主体内容区 ========== */
+    /* overflow 必须为 hidden：约束内部 .messages / .sidebar 各自滚动，
+       原生 <select> 弹层由浏览器绘制在顶层，不受此裁剪影响。 */
     .main-area {
       flex: 1;
       display: flex;
-      overflow: visible;
+      min-height: 0;
+      overflow: hidden;
     }
 
     /* ========== 左侧侧边栏 ========== */
@@ -1144,7 +1147,7 @@
           <div class="page-head">
             <div data-i18n="nav.market"><h2>🧩 插件市场</h2><div class="sub">聚合 ClawHub 与 Agent-Foundry 技能生态</div></div>
             <div class="row" style="flex:0 0 auto; gap:8px;">
-              <input type="text" id="marketSearch" placeholder="搜索…" style="margin:0;width:160px;" / data-i18n="market.search_placeholder">
+              <input type="text" id="marketSearch" placeholder="搜索…" style="margin:0;width:160px;" data-i18n="market.search_placeholder" />
               <select id="marketSource" style="margin:0;width:130px;">
                 <option value="all" data-i18n="market.source_all">全部来源</option>
                 <option value="clawhub">ClawHub</option>
@@ -1269,7 +1272,7 @@
       <h3 data-i18n="modal.auto_title">新建快捷指令</h3>
       <p class="hint" data-i18n="sidebar.automations">保存后可在「自动化」页一键发起任务。</p>
       <label for="autoName" data-i18n="modal.auto_name">指令名称</label>
-      <input type="text" id="autoName" placeholder="如：每日构建检查" / data-i18n="modal.auto_name_ph">
+      <input type="text" id="autoName" placeholder="如：每日构建检查" data-i18n="modal.auto_name_ph" />
       <label for="autoGoal" data-i18n="modal.auto_goal">目标（提交给模型的需求）</label>
       <textarea id="autoGoal" placeholder="运行 npm test 并汇总失败用例…" data-i18n="modal.auto_goal_ph"></textarea>
       <div class="footer">
@@ -1284,9 +1287,9 @@
       <span class="close-x" data-close="tplModal">✕</span>
       <h3 data-i18n="btn.save">保存为模板</h3>
       <label for="tplTitle" data-i18n="modal.tpl_title_label">模板标题</label>
-      <input type="text" id="tplTitle" placeholder="如：SQL 优化" / data-i18n="modal.tpl_title_ph">
+      <input type="text" id="tplTitle" placeholder="如：SQL 优化" data-i18n="modal.tpl_title_ph" />
       <label for="tplCategory" data-i18n="modal.tpl_category">分类</label>
-      <input type="text" id="tplCategory" placeholder="自定义" / data-i18n="modal.tpl_category_ph">
+      <input type="text" id="tplCategory" placeholder="自定义" data-i18n="modal.tpl_category_ph" />
       <label for="tplGoal" data-i18n="modal.tpl_goal">目标内容</label>
       <textarea id="tplGoal" placeholder="粘贴要保存的需求文本…" data-i18n="btn.save"></textarea>
       <div class="footer">
@@ -1312,7 +1315,7 @@
           <label for="scopeSpecified" data-i18n="modal.perm_specified">指定目录</label>
         </div>
         <div class="perm-row">
-          <input type="text" id="permReadPath" placeholder="输入允许的目录路径" style="margin:0;" / data-i18n="modal.perm_path_ph">
+          <input type="text" id="permReadPath" placeholder="输入允许的目录路径" style="margin:0;" data-i18n="modal.perm_path_ph" />
         </div>
         <div class="perm-row">
           <input type="radio" name="readScope" id="scopeAll" value="all" />
@@ -1390,16 +1393,16 @@
         <div class="form-row">
           <div class="form-field">
             <label data-i18n="modal.model_name">模型名称 *</label>
-            <input type="text" id="modelName" placeholder="如 GPT-4o / 通义千问 / 自建模型" / data-i18n="modal.model_name_ph">
+            <input type="text" id="modelName" placeholder="如 GPT-4o / 通义千问 / 自建模型" data-i18n="modal.model_name_ph" />
           </div>
           <div class="form-field">
             <label data-i18n="modal.model_api">API 地址</label>
-            <input type="text" id="modelApiBase" placeholder="https://api.openai.com/v1" / data-i18n="modal.model_api_ph">
+            <input type="text" id="modelApiBase" placeholder="https://api.openai.com/v1" data-i18n="modal.model_api_ph" />
           </div>
         </div>
         <div class="form-field">
           <label data-i18n="modal.model_key">密钥（API Key）</label>
-          <input type="password" id="modelApiKey" placeholder="sk-..." autocomplete="off" / data-i18n="modal.model_key_ph">
+          <input type="password" id="modelApiKey" placeholder="sk-..." autocomplete="off" data-i18n="modal.model_key_ph" />
         </div>
         <div class="form-field">
           <label data-i18n="modal.model_reasoning">推理过程运行内容（中间环节）</label>
@@ -1498,8 +1501,8 @@
               <div class="mm-add">
                 <div class="mm-hint" data-i18n="footbar.model">添加新大模型（名称、API 地址、密钥、推理内容）：</div>
                 <div class="model-form-inline">
-                  <input type="text" id="imName" placeholder="模型名称 *" / data-i18n="modal.model_name">
-                  <input type="text" id="imBase" placeholder="API 地址" / data-i18n="modal.model_api">
+                  <input type="text" id="imName" placeholder="模型名称 *" data-i18n="modal.model_name" />
+                  <input type="text" id="imBase" placeholder="API 地址" data-i18n="modal.model_api" />
                   <input type="password" id="imKey" placeholder="密钥 API Key" autocomplete="off" />
                   <textarea id="imReasoning" rows="2" placeholder="推理过程运行内容（中间环节，可选）"></textarea>
                   <div class="mm-actions">
@@ -1688,6 +1691,24 @@
         'menu.help': '帮助与反馈',
         'menu.update': '检查更新',
         'menu.logout': '退出登录',
+        // ---- select 的 title 提示（键名固定为 title.<元素id>）----
+        'title.modelSelect': '切换当前使用的大模型',
+        // ---- 输入框占位符（键名固定为 ph.<元素id>）----
+        'ph.goalInput': '输入指令，消息将归属当前任务持续对话；点上方「＋ 新建任务」可开启新任务（创建 → 推理 → 工具验证 → 闭环全程追踪）',
+        'ph.marketSearch': '搜索…',
+        'ph.autoName': '如：每日构建检查',
+        'ph.autoGoal': '运行 npm test 并汇总失败用例…',
+        'ph.tplTitle': '如：SQL 优化',
+        'ph.tplCategory': '自定义',
+        'ph.tplGoal': '粘贴要保存的需求文本…',
+        'ph.permReadPath': '输入允许的目录路径',
+        'ph.modelName': '如 GPT-4o / 通义千问 / 自建模型',
+        'ph.modelApiBase': 'https://api.openai.com/v1',
+        'ph.modelApiKey': 'sk-...',
+        'ph.modelReasoning': '配置该模型在中间推理环节的运行内容，例如：先列出需求拆解，再给出实现方案，最后输出代码。',
+        'ph.ntGoal': '例如：请读取当前工作区 package.json，告诉我其中的 name 与 version 字段',
+        'ph.imName': '模型名称 *',
+        'ph.imBase': 'API 地址',
       },
       en: {
         'app.title_login': 'Feihong Code Console',
@@ -1826,6 +1847,24 @@
         'menu.help': 'Help & Feedback',
         'menu.update': 'Check Update',
         'menu.logout': 'Logout',
+        // ---- select title hints (key = title.<element id>) ----
+        'title.modelSelect': 'Switch the active LLM',
+        // ---- input placeholders (key = ph.<element id>) ----
+        'ph.goalInput': 'Type an instruction. Messages stay in the current task; click "+ New Task" above to start a new one (create → reason → verify → close the loop).',
+        'ph.marketSearch': 'Search…',
+        'ph.autoName': 'e.g. Daily build check',
+        'ph.autoGoal': 'Run npm test and summarize failing cases…',
+        'ph.tplTitle': 'e.g. SQL Optimization',
+        'ph.tplCategory': 'Custom',
+        'ph.tplGoal': 'Paste the requirement text to save…',
+        'ph.permReadPath': 'Enter an allowed directory path',
+        'ph.modelName': 'e.g. GPT-4o / Qwen / Self-hosted',
+        'ph.modelApiBase': 'https://api.openai.com/v1',
+        'ph.modelApiKey': 'sk-...',
+        'ph.modelReasoning': 'Define what this model does during intermediate reasoning, e.g. break down requirements first, then propose a plan, then output code.',
+        'ph.ntGoal': 'e.g. Read package.json in the current workspace and tell me its name and version fields',
+        'ph.imName': 'Model name *',
+        'ph.imBase': 'API endpoint',
       }
     };
     
@@ -1836,23 +1875,66 @@
       return dict[key] || key;
     }
     
+    /**
+     * 安全地把某个元素的 i18n 文案落地。
+     * 关键约束（曾导致「模型无法切换」「侧边栏图标消失」的线上问题）：
+     *  - <select> 绝对不能写 textContent，否则会把所有 <option> 一次性清空；
+     *  - <input>/<textarea> 只改 placeholder，且必须命中专用键，避免误翻；
+     *  - 含子元素的容器（图标 + 标签）只改 title / 直接文本节点，绝不整体覆盖。
+     */
+    function applyI18nToEl(el) {
+      const key = el.getAttribute('data-i18n');
+      if (!key) return;
+      const dict = I18N[currentLang] || I18N.zh;
+      const tag = el.tagName;
+
+      // 1) 输入类控件：只处理 placeholder，用 ph.<id> 专用键；缺失则保留中文原文
+      if (tag === 'INPUT' || tag === 'TEXTAREA') {
+        if (el._i18nPhZh === undefined) el._i18nPhZh = el.getAttribute('placeholder') || '';
+        const phKey = 'ph.' + (el.id || '');
+        if (dict[phKey] != null) el.placeholder = dict[phKey];
+        else el.placeholder = el._i18nPhZh;
+        return;
+      }
+
+      // 2) <select>：只翻 title，内容交给 renderModelSelect 等渲染函数管理
+      if (tag === 'SELECT') {
+        if (el._i18nTitleZh === undefined) el._i18nTitleZh = el.getAttribute('title') || '';
+        const tiKey = 'title.' + (el.id || '');
+        if (dict[tiKey] != null) el.title = dict[tiKey];
+        else el.title = el._i18nTitleZh;
+        return;
+      }
+
+      // 3) 含元素子节点：保留子元素，只替换 title 与直接文本节点
+      if (el.firstElementChild) {
+        if (el.hasAttribute('title')) el.title = t(key);
+        let done = false;
+        el.childNodes.forEach((node) => {
+          if (node.nodeType === 3 && node.nodeValue.trim()) {
+            node.nodeValue = done ? '' : t(key);
+            done = true;
+          }
+        });
+        return;
+      }
+
+      // 4) 纯文本元素：直接覆盖
+      el.textContent = t(key);
+    }
+
     function switchLang(lang) {
       currentLang = lang;
       localStorage.setItem('fhcode.lang', lang);
-      document.querySelectorAll('[data-i18n]').forEach(el => {
-        const key = el.getAttribute('data-i18n');
-        if (el.tagName === 'INPUT' && el.placeholder) {
-          el.placeholder = t(key);
-        } else if (el.tagName === 'OPTION') {
-          el.textContent = t(key);
-        } else {
-          el.textContent = t(key);
-        }
+      document.querySelectorAll('[data-i18n]').forEach((el) => {
+        try { applyI18nToEl(el); } catch (e) { console.warn('[i18n] 应用失败', el, e); }
       });
       document.querySelectorAll('.lang-btn').forEach(btn => {
         btn.classList.toggle('active', btn.getAttribute('data-lang') === lang);
       });
       document.documentElement.lang = lang;
+      // 语言切换后重建由 JS 动态渲染的下拉/列表，保证选项文案与选中值不丢失
+      try { if (typeof renderModelSelect === 'function') renderModelSelect(); } catch {}
     }
     
     document.querySelectorAll('.lang-btn').forEach(btn => {
@@ -1938,12 +2020,18 @@
       const res = await fetch(path, { method, headers: authHeaders(), body: body ? JSON.stringify(body) : undefined });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
-        // 401 时自动清除无效 token，跳转到登录
+        // 401：令牌确实被服务端拒绝，清除并回到登录页。
+        // 会话已落盘（web-sessions.json），正常重启不会再走到这里；
+        // 走到这里说明令牌真的过期或被吊销，此时给出明确提示，避免用户以为是"莫名跳回登录"。
         if (res.status === 401 && d.error === 'unauthorized') {
-          console.warn('[api] token 已失效，清除并跳转登录');
-          localStorage.removeItem('fhcode.token');
-          state.token = '';
-          document.getElementById('loginOverlay').style.display = 'flex';
+          if (state.token) {
+            console.warn('[api] token 已被服务端拒绝，清除并回到登录页:', path);
+            localStorage.removeItem('fhcode.token');
+            state.token = '';
+            try { toast('登录已过期，请重新登录'); } catch {}
+          }
+          const overlay = document.getElementById('loginOverlay');
+          if (overlay) overlay.style.display = 'flex';
           throw new Error('登录已过期，请重新登录');
         }
         throw new Error(d.error || ('HTTP ' + res.status));

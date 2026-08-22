@@ -95,6 +95,25 @@ function monthFile(dir: string, d = new Date()): string {
 }
 
 /**
+ * 备用审计文件：当主文件被外部进程独占锁定（Windows EPERM，如杀软/预览面板）
+ * 导致 append 失败时，降级写入 fallback，保证任务不被审计阻断（审计是记录，
+ * 不是操作的前置条件）。fallback 与主文件共享 seq/prevHash 链，仅物理分片。
+ */
+function fallbackFile(dir: string, d = new Date()): string {
+  const ym = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+  return join(dir, `audit-${ym}.fallback.jsonl`);
+}
+
+/** 跨主/备用文件取最后一条记录（取 seq 更大者，保证哈希链连续） */
+function readLastRecordAcross(dir: string): AuditRecord | null {
+  const a = readLastRecord(monthFile(dir));
+  const b = readLastRecord(fallbackFile(dir));
+  if (!a) return b;
+  if (!b) return a;
+  return a.seq >= b.seq ? a : b;
+}
+
+/**
  * M5 修复：读取审计文件最后一条有效记录（用于跨进程重算 seq/prevHash）。
  * 空文件或无有效行返回 null。
  */
@@ -244,12 +263,18 @@ function withAuditLock(dir: string, fn: () => void): void {
   }
 }
 
-/** 列出审计目录下按时间排序的全部分片文件 */
+/** 列出审计目录下按时间排序的全部分片文件（含 fallback 备用分片） */
 export function auditFiles(dir: string): string[] {
   if (!existsSync(dir)) return [];
   return readdirSync(dir)
-    .filter((f) => /^audit-\d{4}-\d{2}\.jsonl$/.test(f))
-    .sort()
+    .filter((f) => /^audit-\d{4}-\d{2}(\.fallback)?\.jsonl$/.test(f))
+    .sort((a, b) => {
+      // 主文件在前，fallback 在后（同月内保持链顺序）
+      const aFb = a.includes('.fallback') ? 1 : 0;
+      const bFb = b.includes('.fallback') ? 1 : 0;
+      if (aFb !== bFb) return aFb - bFb;
+      return a.localeCompare(b);
+    })
     .map((f) => join(dir, f));
 }
 
@@ -301,10 +326,13 @@ export class AuditLog {
   record(input: AuditInput): AuditRecord {
     // M5 修复：跨进程加锁，并在锁内从文件尾部重算 seq/prevHash，
     // 避免多进程各自维护的内存计数相互覆盖而破坏哈希链。
+    // P1.2：主文件被外部进程独占锁定（EPERM）时自动降级到 fallback 分片，
+    //       保证审计不阻断任务执行（审计是记录，不是操作前置条件）。
     let rec!: AuditRecord;
     withAuditLock(this.dir, () => {
       const file = monthFile(this.dir);
-      const last = readLastRecord(file);
+      const fbFile = fallbackFile(this.dir);
+      const last = readLastRecordAcross(this.dir);
       const seq = last ? last.seq : 0;
       const prevHash = last ? last.hash : GENESIS;
       const base: Omit<AuditRecord, 'hash'> = {
@@ -321,17 +349,36 @@ export class AuditLog {
         prevHash,
       };
       const next: AuditRecord = { ...base, hash: computeHash(base) };
-      try {
-        mkdirSync(this.dir, { recursive: true });
-        appendFileSync(file, JSON.stringify(next) + '\n', 'utf8');
+      const tryAppend = (target: string): boolean => {
+        try {
+          mkdirSync(this.dir, { recursive: true });
+          appendFileSync(target, JSON.stringify(next) + '\n', 'utf8');
+          return true;
+        } catch {
+          return false;
+        }
+      };
+      if (tryAppend(file)) {
         this.seq = next.seq;
         this.prevHash = next.hash;
         rec = next;
-      } catch (e) {
-        logger.error('审计写入失败（高危：操作将被拒绝）', {
-          error: e instanceof Error ? e.message : String(e),
+      } else if (tryAppend(fbFile)) {
+        logger.warn('审计主文件写入失败，已降级写入 fallback 分片', {
+          file: fbFile,
+          seq: next.seq,
+          error: 'EPERM-like lock on primary audit file',
         });
-        throw e;
+        this.seq = next.seq;
+        this.prevHash = next.hash;
+        rec = next;
+      } else {
+        logger.error('审计写入失败（主文件与 fallback 均不可写，操作将被拒绝）', {
+          primary: file,
+          fallback: fbFile,
+        });
+        throw new Error(
+          `审计写入失败：主文件与备用文件均不可写（${file}）`,
+        );
       }
     });
     return rec;
