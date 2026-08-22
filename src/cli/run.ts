@@ -18,6 +18,8 @@ import { loadConfig, loadConfigFile, resolveHomeDir } from '../shared/config';
 import { AppError } from '../shared/errors';
 import { ModelRouter } from '../models/model-router';
 import { ScriptedMockProvider, type MockStep } from '../models/providers/mock.provider';
+import { OpenAICompatibleProvider } from '../models/providers/openai-compatible.provider';
+import { OllamaProvider } from '../models/providers/ollama.provider';
 import { createDefaultRegistry } from '../tools';
 import { attachMcpTools, closeMcpClients } from '../tools/mcp';
 import type { McpClient } from '../tools/mcp/mcp-client';
@@ -72,6 +74,8 @@ export interface RunOptions {
   stream?: boolean;
   /** P3-1：自定义事件渲染器（TUI 用），优先于 stream */
   renderer?: (ev: OrchestratorEvent) => void;
+  /** 指定模型列表（由 Web 控制台传入，直接构建 ModelRouter，绕过 loadConfig 缓存） */
+  modelProviders?: Array<{ id: string; type: 'openai-compatible' | 'ollama'; baseURL: string; apiKey?: string }>;
 }
 
 /** 离线演示脚本：写文件 → 总结，跑通完整链路 */
@@ -192,7 +196,13 @@ export async function executeTask(goal: string, opts: RunOptions = {}): Promise<
 
   let router: ModelRouter;
   let pluginSkillDirs: string[] = [];
-  if (offline) {
+  // Web 控制台直接注入模型配置（绕过 loadConfig 缓存）
+  if (opts.modelProviders && opts.modelProviders.length > 0) {
+    const providers = opts.modelProviders.map((p) =>
+      p.type === 'ollama' ? new OllamaProvider({ id: p.id, type: 'ollama', baseURL: p.baseURL, model: 'default', tags: ['code-gen', 'reasoning'] }) : new OpenAICompatibleProvider({ id: p.id, type: 'openai-compatible', baseURL: p.baseURL, model: 'gpt-4o', apiKey: p.apiKey, tags: ['code-gen', 'reasoning'] }),
+    );
+    router = new ModelRouter(providers, 'cost', 0);
+  } else if (offline) {
     router = new ModelRouter([new ScriptedMockProvider(buildDemoSteps())], 'cost', 0);
   } else {
     const cfg = loadConfig();
