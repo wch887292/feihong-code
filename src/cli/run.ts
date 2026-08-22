@@ -76,6 +76,8 @@ export interface RunOptions {
   renderer?: (ev: OrchestratorEvent) => void;
   /** 指定模型列表（由 Web 控制台传入，直接构建 ModelRouter，绕过 loadConfig 缓存） */
   modelProviders?: Array<{ id: string; type: 'openai-compatible' | 'ollama'; baseURL: string; apiKey?: string; model?: string }>;
+  /** 安全配置（Web 控制台可覆盖默认值） */
+  security?: Partial<OrchestratorSecurity>;
 }
 
 /** 离线演示脚本：写文件 → 总结，跑通完整链路 */
@@ -183,6 +185,13 @@ export async function executeTask(goal: string, opts: RunOptions = {}): Promise<
 
   const security: OrchestratorSecurity = { shellAllowlist: [], requireApproval: true };
   const offline = opts.offline ?? isOfflineByDefault();
+
+  // Web 控制台可传入安全配置覆盖默认值
+  if (opts.security) {
+    security.shellAllowlist = opts.security.shellAllowlist ?? security.shellAllowlist;
+    security.requireApproval = opts.security.requireApproval ?? security.requireApproval;
+    security.sandboxMode = opts.security.sandboxMode ?? security.sandboxMode;
+  }
 
   // M4：企业上下文（租户隔离 / RBAC / 审计 / 配额），配额超限在此 fail-fast
   const rt = getEnterprise();
