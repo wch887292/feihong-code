@@ -1,0 +1,15 @@
+name: Feihong Code (fhcode)
+website_url: https://www.klai.top
+source_code_url: https://github.com/wch887292/feihong-code
+description: Terminal AI coding agent with multi-model routing, enterprise RBAC/audit/tenant, self-evolving healing loop, and offline private deployment. MIT open source.
+licenses:
+  - MIT
+platforms:
+  - Node.js >= 18
+  - TypeScript
+  - Docker
+tags:
+  - Software Development - IDE & Tools
+  - Generative AI
+demo_url: https://github.com/wch887292/feihong-code
+related_software_url: https://github.com/wch887292/feihong-code/blob/master/AGENT-GUIDE.md
