@@ -18,6 +18,7 @@ import {
   runPlanSkill,
   runGrillSkill,
   runGoalSkill,
+  runSelfHealSkill,
   runParallelGoal,
   runSessions,
   runResume,
@@ -114,6 +115,7 @@ async function main(): Promise<void> {
 async function dispatchSkill(skill: { kind: SkillCommand; arg: string }): Promise<void> {
   if (skill.kind === 'plan') console.log(runPlanSkill(skill.arg || ''));
   else if (skill.kind === 'grill') console.log(runGrillSkill(skill.arg || '.'));
+  else if (skill.kind === 'self-heal') console.log(runSelfHealSkill(skill.arg || ''));
   else console.log(runGoalSkill(skill.arg || ''));
 }
 

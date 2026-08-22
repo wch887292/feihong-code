@@ -46,15 +46,18 @@ import {
   type EnterpriseRuntime,
 } from '../enterprise';
 import { startWebServer } from '../web/server';
+import { scheduleDailySummary } from '../memory/auto-summarize';
 import { installPlugin, listPlugins } from '../plugins/plugin-loader';
 import { runTeam } from '../agent/team';
 import { fetchMarketIndex, searchMarket, installMarketSkill, isSchemaSupported } from '../skills/skill-market';
 import { discoverSkills } from '../skills/skill-loader';
-import { Orchestrator, type OrchestratorSecurity, type OrchestratorEvent } from '../agent/orchestrator';
+import { Orchestrator, type OrchestratorSecurity, type OrchestratorEvent, type ResumeContext } from '../agent/orchestrator';
+import type { ChatMessage } from '../models/model.interface';
 import { runParallel, defaultParallelMock } from '../agent/parallel-orchestrator';
 import { runPlan } from '../skills/plan';
 import { runGrill } from '../skills/grill';
 import { decomposeGoalToGoal, saveGoal, renderGoal } from '../skills/goal';
+import { runSelfHeal } from '../skills/self-heal';
 import { listExperiences, type Experience } from '../agent/experience';
 import { createCodeWriter } from '../agent/code-writer';
 import { createQualityGate } from '../agent/quality-gate';
@@ -78,6 +81,10 @@ export interface RunOptions {
   modelProviders?: Array<{ id: string; type: 'openai-compatible' | 'ollama'; baseURL: string; apiKey?: string; model?: string }>;
   /** 安全配置（Web 控制台可覆盖默认值） */
   security?: Partial<OrchestratorSecurity>;
+  /** M3 多轮续接：携带上一轮完整对话与计数，在同一任务内继续对话（Web 控制台任务续接用） */
+  resume?: ResumeContext;
+  /** Web 控制台：指定任务的工作目录（不传则用 process.cwd()） */
+  workspaceDir?: string;
 }
 
 /** 离线演示脚本：写文件 → 总结，跑通完整链路 */
@@ -179,6 +186,8 @@ export async function executeTask(goal: string, opts: RunOptions = {}): Promise<
   runId: string;
   selfHealed?: boolean;
   experiencesExtracted?: number;
+  /** M3 多轮续接：本轮执行后的完整消息历史（供下一轮 resume 使用） */
+  messages?: ChatMessage[];
 }> {
   const runId = randomUUID();
   setRunId(runId);
@@ -198,9 +207,14 @@ export async function executeTask(goal: string, opts: RunOptions = {}): Promise<
   if (rt) assertQuota(rt);
 
   // 离线模式用临时工作区，避免污染用户目录；并 git init 以支持 diff/rollback 演示
-  const cwd = offline ? mkdtempSync(join(tmpdir(), 'fhcode-demo-')) : process.cwd();
+  const targetCwd = opts.workspaceDir || process.cwd();
+  const originalCwd = process.cwd();
+  const cwd = offline ? mkdtempSync(join(tmpdir(), 'fhcode-demo-')) : targetCwd;
   if (offline) {
     await runCommand('git init -q', cwd).catch(() => undefined);
+  } else {
+    // 切换到目标工作区（Web 控制台任务队列会传入 workspaceDir）
+    try { process.chdir(targetCwd); } catch { /* 忽略切换失败，退回到原 cwd */ }
   }
 
   let router: ModelRouter;
@@ -234,6 +248,11 @@ export async function executeTask(goal: string, opts: RunOptions = {}): Promise<
   const logDir = getSessionHome(offline);
   const eventLog = new EventLog(runId, logDir);
   const session = new SessionStore(runId, cwd);
+
+  // M3 多轮续接：把上一轮历史消息补入会话，使 session.snapshot() 返回完整对话（供下一轮 resume 持久化）
+  if (opts.resume && opts.resume.messages.length > 0) {
+    for (const m of opts.resume.messages) session.append(m);
+  }
 
   const approve =
     opts.approve ??
@@ -272,7 +291,7 @@ export async function executeTask(goal: string, opts: RunOptions = {}): Promise<
   }
 
   try {
-    const result = await orchestrator.run(goal);
+    const result = await orchestrator.run(goal, opts.resume);
     if (rt) {
       rt.audit.record({
         tenantId: rt.tenant.tenantId,
@@ -285,10 +304,14 @@ export async function executeTask(goal: string, opts: RunOptions = {}): Promise<
         reason: `cost=$${result.costUsd.toFixed(6)}`,
       });
     }
-    return result;
+    // M3 多轮续接：把本轮完整消息历史带回调用方（任务队列持久化后供下一轮 resume）
+    const history = session.snapshot().messages;
+    return { ...result, messages: history };
   } finally {
     // P0-3：任务结束关闭 MCP 子进程
     await closeMcpClients(mcpClients);
+    // 恢复原始工作目录，避免影响后续任务
+    try { process.chdir(originalCwd); } catch { /* 忽略 */ }
   }
 }
 
@@ -400,6 +423,32 @@ export function runGoalSkill(title: string): string {
     });
   }
   return `【/goal】已保存\n${renderGoal(goal)}\n文件: ${file}`;
+}
+
+/** /self-heal 技能：系统化自我修复错误（分类 → 根因 → 修复建议 → 验证步骤） */
+export function runSelfHealSkill(errorText: string): string {
+  const out = runSelfHeal(errorText);
+  if (getEnterprise()) {
+    // 审计留痕（脱敏由 audit.ts 处理），便于追溯自愈诊断过程
+    try {
+      const rt = getEnterprise();
+      if (rt) {
+        rt.audit.record({
+          tenantId: rt.tenant.tenantId,
+          userId: rt.tenant.userId,
+          role: rt.tenant.role,
+          runId: randomUUID(),
+          action: 'skill:self-heal',
+          resource: out.category,
+          decision: out.known ? 'info' : 'deny',
+          reason: out.known ? '自动分类完成' : '未能自动分类，需人工介入',
+        });
+      }
+    } catch {
+      /* 审计失败不阻断技能输出 */
+    }
+  }
+  return out.text;
 }
 
 /** --parallel 并行多子代理执行（离线用 Mock；真实模式接入 FH_PROVIDERS 路由） */
@@ -966,6 +1015,8 @@ export function runServe(port?: number): void {
   console.log(t('serve.url', { url: handle.url }));
   console.log(t('serve.token', { token: handle.token }));
   console.log(t('serve.stop'));
+  // 启动每日记忆总结定时器（每天 00:00 UTC）
+  scheduleDailySummary();
   // 注意：app.listen 保持事件循环运行，进程持续存活直到收到 SIGINT；本函数返回后 main() 结束不影响服务。
 }
 
@@ -1143,7 +1194,7 @@ export async function runSwe(goal: string, opts: SweOptions = {}): Promise<void>
       security,
       approve,
       guard,
-      maxIterations: opts.maxIterations ?? 6,
+      maxIterations: opts.maxIterations ?? 15,
       maxCostUsd: rt?.maxCostUsd ?? 0,
       // P1-1：子任务用低成本模型分担（编排器主模型保持 code-gen，worker 加 cheap 优先）
       tags: ['code-gen', 'cheap'],

@@ -18,8 +18,20 @@ import { logger } from '../shared/logger';
 import { existsSync, readdirSync, readFileSync, writeFileSync, mkdirSync, renameSync, rmSync } from 'fs';
 import { join } from 'path';
 import type { MessageChannels } from './channels';
+import type { ChatMessage } from '../models/model.interface';
 
 export type TaskStatus = 'queued' | 'running' | 'done' | 'failed';
+
+/**
+ * 任务思维链路步骤：编排器实时事件 + 时间戳 + 序号。
+ * 用于前端按单一任务生命周期，可视化追踪「创建 → 逐步推理 → 工具验证 → 闭环」。
+ */
+export interface TaskStep {
+  seq: number;
+  ts: string;
+  type: string;
+  data: Record<string, unknown>;
+}
 
 export interface TaskPermissions {
   readScope: 'workspace' | 'specified' | 'all';
@@ -52,6 +64,10 @@ export interface TaskRecord {
     selfHealed?: boolean;
   };
   error?: string;
+  /** 思维链路步骤（编排器实时事件），按任务生命周期可视化追踪 */
+  steps?: TaskStep[];
+  /** 多轮对话历史（M3 resume 上下文），使「新建任务 → 对话栏所有消息归属同一任务」成为可能 */
+  conversation?: ChatMessage[];
 }
 
 /**
@@ -216,7 +232,32 @@ export class TaskQueue {
   }
 
   /**
-   * P5-2：任务状态变化回调（queued→running→done|failed 每个节点触发）。
+   * 多轮续接：向已完成/失败的任务追加一条用户消息并重新入队执行。
+   * 仅终态任务（done/failed）可续接；运行中的任务返回 null（由调用方提示）。
+   * 返回更新后的记录（已改为 queued）。
+   */
+  continueTask(id: string, message: string): TaskRecord | null {
+    const record = this.tasks.get(id);
+    if (!record) return null;
+    if (record.status === 'queued' || record.status === 'running') return null;
+    const text = message.trim();
+    if (!text) return null;
+    // 追加用户消息到对话历史（M3 resume 上下文）
+    if (!record.conversation) record.conversation = [];
+    record.conversation.push({ role: 'user', content: text });
+    record.status = 'queued';
+    record.updatedAt = new Date().toISOString();
+    // 保留上一轮 result（供 resume 累计迭代数/成本），终态由 run() 覆盖
+    record.error = undefined;
+    this.persist(record); // P6-4 落盘 queued
+    this.queue.push(id);
+    this.pump();
+    void this.fireWebhook(id, 'queued');
+    void this.channels?.notify(record, 'queued');
+    return record;
+  }
+
+  /** P6-4：任务状态变化回调（queued→running→done|failed 每个节点触发）。
    * 异步 fire-and-forget：webhook 失败不阻断任务执行，仅记录告警。
    * 注意：回调携带 status 快照而非读取当前状态——submit() 后 pump 会同步
    * 把状态改为 running，若读取当前值，queued 节点永远发不出去。
@@ -258,6 +299,29 @@ export class TaskQueue {
     return this.tasks.get(id);
   }
 
+  /** 删除任务（仅删除终态任务，运行中的任务不允许删除） */
+  delete(id: string): boolean {
+    const record = this.tasks.get(id);
+    if (!record) return false;
+    // 只允许删除终态任务（完成或失败）
+    if (record.status !== 'done' && record.status !== 'failed') return false;
+    this.tasks.delete(id);
+    this.clearPersisted(id);
+    return true;
+  }
+
+  /** 追加思维链路步骤（编排器事件），节流落盘，供前端按单一任务生命周期可视化追踪 */
+  appendStep(id: string, ev: { type: string; [k: string]: unknown }): void {
+    const record = this.tasks.get(id);
+    if (!record) return;
+    if (!record.steps) record.steps = [];
+    // 上限保护，避免超长任务撑爆存储
+    if (record.steps.length >= 400) record.steps.shift();
+    record.steps.push({ seq: record.steps.length, ts: new Date().toISOString(), type: ev.type, data: ev });
+    // 节流落盘：首步与每 10 步持久化一次（终态时 run() 会再落盘一次完整记录）
+    if (record.steps.length === 1 || record.steps.length % 10 === 0) this.persist(record);
+  }
+
   get count(): number {
     return this.tasks.size;
   }
@@ -285,8 +349,20 @@ export class TaskQueue {
 
       // 根据模型 ID 查找配置，传递给 executeTask 使用真实模型
       const modelId = record.modelId;
+      // 多轮续接：若已有对话历史，构造 M3 resume 上下文（同一任务内继续对话）
+      const history = record.conversation && record.conversation.length > 0 ? record.conversation : undefined;
+      const resume = history
+        ? {
+            messages: history,
+            iterations: record.result?.iterations ?? 0,
+            costUsd: record.result?.costUsd ?? 0,
+            touchedFiles: [],
+          }
+        : undefined;
       const result = await executeTask(taskGoal, {
         offline: false,
+        // 实时捕获编排器事件，写入该任务的思维链路步骤
+        renderer: (ev) => this.appendStep(id, ev),
         modelProviders: modelId && this.modelProviders
           ? this.modelProviders.filter(m => m.id === modelId)
           : undefined,
@@ -295,7 +371,12 @@ export class TaskQueue {
           sandboxMode: 'workspace-write',
           shellAllowlist: [],
         },
+        resume,
       });
+      // 多轮续接：持久化本轮完整消息历史（含上一轮），供下一轮 resume 与前端对话流展示
+      if (Array.isArray(result.messages) && result.messages.length > 0) {
+        record.conversation = result.messages.slice(-80); // 上限保护，保留最近 80 条
+      }
       record.status = result.ok ? 'done' : 'failed';
       record.result = {
         ok: result.ok,

@@ -5,13 +5,13 @@
  * 交互式 REPL：逐条需求交给编排器执行。未配置模型时走离线模式。
  * v0.5.0 增强：
  *  - Ctrl+D / EOF 优雅退出（此前 question Promise 永不 resolve，进程挂死）
- *  - 支持斜杠技能 /plan /grill /goal（与命令行行为一致）
+ *  - 支持斜杠技能 /plan /grill /goal /self-heal（与命令行行为一致）
  * P3-1 增强：
  *  - TUI 模式（TTY 时自动启用）：sticky header（模式/runId/迭代/成本/状态）+ 无闪烁渲染
  *  - 编排器事件实时驱动 header 与内容区；非 TTY 环境退化为普通输出
  */
 import * as readline from 'readline';
-import { runGoal, isOfflineByDefault, runPlanSkill, runGrillSkill, runGoalSkill } from './run';
+import { runGoal, isOfflineByDefault, runPlanSkill, runGrillSkill, runGoalSkill, runSelfHealSkill } from './run';
 import type { OrchestratorEvent } from '../agent/orchestrator';
 import { Tui } from './tui';
 import { t } from '../shared/i18n';
@@ -78,6 +78,7 @@ export async function startRepl(): Promise<void> {
         if (kind === 'plan') tui.log(runPlanSkill(rest.join(' ') || ''));
         else if (kind === 'grill') tui.log(runGrillSkill(rest.join(' ') || '.'));
         else if (kind === 'goal') tui.log(runGoalSkill(rest.join(' ') || ''));
+        else if (kind === 'self-heal') tui.log(runSelfHealSkill(rest.join(' ') || ''));
         else tui.log(t('repl.unknownSkill', { cmd: kind }));
       } catch (e) {
         tui.log(t('repl.errorPrefix') + (e instanceof Error ? e.message : String(e)));

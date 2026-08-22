@@ -10,6 +10,7 @@
  *  - /plan <目标>     生成实现计划（只读）
  *  - /grill [路径]    红队式代码审查（只读）
  *  - /goal <目标>     分解并保存高层目标（只读）
+ *  - /self-heal <错误> 系统化自我修复错误诊断（只读）
  *  - sessions         列出历史会话（M3）
  *  - resume <id>      从检查点恢复会话（M3）
  *  - diff [id]        展示会话/工作区变更（M3）
@@ -24,7 +25,7 @@
  *  - self-improve     自我改进统计（M8）
  *  - 其余文本          单命令需求
  */
-export type SkillCommand = 'plan' | 'grill' | 'goal';
+export type SkillCommand = 'plan' | 'grill' | 'goal' | 'self-heal';
 
 export type ManagementCommand =
   | { kind: 'sessions' }
@@ -84,7 +85,7 @@ export interface ParsedArgs {
   };
   /** 单命令模式下的需求文本（首个非 flag 参数） */
   command?: string;
-  /** 斜杠技能命令：/plan /grill /goal */
+  /** 斜杠技能命令：/plan /grill /goal /self-heal */
   skill?: { kind: SkillCommand; arg: string };
   /** M3 会话管理命令 */
   manage?: ManagementCommand;
@@ -151,7 +152,7 @@ function buildSweCommand(flags: ParsedArgs['flags'], rest: string[]): Management
     repo: flags.repo,
     maxTasks: flags.maxTasks ?? 8,
     maxRetries: flags.maxRetries ?? 2,
-    maxIterations: flags.maxIterations ?? 6,
+    maxIterations: flags.maxIterations ?? 15,
     verifyOnly: !!flags.verifyOnly,
     planOnly: !!flags.planOnly,
   };
@@ -236,7 +237,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
   // 斜杠技能
   if (head?.startsWith('/')) {
     const [kind, ...parts] = head.slice(1).split(/\s+/);
-    const valid = ['plan', 'grill', 'goal'] as const;
+    const valid = ['plan', 'grill', 'goal', 'self-heal'] as const;
     if (valid.includes(kind as (typeof valid)[number])) {
       return { flags, skill: { kind: kind as SkillCommand, arg: [...parts, ...rest].join(' ').trim() } };
     }
