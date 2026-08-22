@@ -21,6 +21,18 @@ import type { MessageChannels } from './channels';
 
 export type TaskStatus = 'queued' | 'running' | 'done' | 'failed';
 
+export interface TaskPermissions {
+  readScope: 'workspace' | 'specified' | 'all';
+  readPath?: string;
+  allowRead: boolean;
+  allowWrite: boolean;
+  allowShell: boolean;
+  allowNetwork: boolean;
+  allowBrowser: boolean;
+}
+
+export type AgentType = 'general' | 'fix-code' | 'write-code' | 'exec-command';
+
 export interface TaskRecord {
   id: string;
   goal: string;
@@ -29,6 +41,8 @@ export interface TaskRecord {
   updatedAt: string;
   workspaceDir?: string;
   modelId?: string;
+  agentType?: AgentType;
+  permissions?: TaskPermissions;
   result?: {
     ok: boolean;
     finalAnswer: string;
@@ -40,6 +54,34 @@ export interface TaskRecord {
   error?: string;
 }
 
+/**
+ * 根据智能体类型给原始目标加上前缀提示。
+ * 保持 record.goal 为用户原始输入，仅在实际执行时转换。
+ */
+export function buildAgentGoal(goal: string, agentType?: AgentType): string {
+  switch (agentType) {
+    case 'fix-code':
+      return '[修复代码] 请定位并修复以下问题，最后给出验证步骤：\n' + goal;
+    case 'write-code':
+      return '[编写代码] 请用 production-ready 代码实现以下需求，附必要测试与说明：\n' + goal;
+    case 'exec-command':
+      return '[执行命令] 请在安全前提下执行以下操作并返回结果：\n' + goal;
+    default:
+      return goal;
+  }
+}
+
+/**
+ * 将权限约束追加到目标中，让离线/真实执行层感知当前会话的可操作边界。
+ */
+export function buildPermissionPrefix(permissions?: TaskPermissions): string {
+  if (!permissions) return '';
+  const lines = ['[权限边界]'];
+  lines.push(`可读范围: ${permissions.readScope === 'workspace' ? '仅当前工作区' : permissions.readScope === 'specified' ? '指定目录: ' + (permissions.readPath || '') : '全部文件'}`);
+  lines.push(`允许操作: 读${permissions.allowRead ? '✓' : '✗'} 写${permissions.allowWrite ? '✓' : '✗'} 命令${permissions.allowShell ? '✓' : '✗'} 网络${permissions.allowNetwork ? '✓' : '✗'} 浏览器${permissions.allowBrowser ? '✓' : '✗'}`);
+  return lines.join('\n') + '\n\n';
+}
+
 export interface TaskQueueOptions {
   /** 并发执行上限（默认 2） */
   concurrency?: number;
@@ -49,6 +91,8 @@ export interface TaskQueueOptions {
   channels?: MessageChannels;
   /** P6-4：任务持久化目录（跨进程/重启恢复；不配置则纯内存） */
   persistDir?: string;
+  /** Web 控制台模型配置列表（models.json），供 executeTask 使用真实模型 */
+  modelProviders?: Array<{ id: string; type: 'openai-compatible' | 'ollama'; baseURL: string; apiKey?: string }>;
 }
 
 export class TaskQueue {
@@ -59,6 +103,8 @@ export class TaskQueue {
   private webhookUrl: string;
   private readonly channels?: MessageChannels;
   private readonly persistDir?: string;
+  /** Web 控制台配置的模型列表 */
+  private modelProviders?: Array<{ id: string; type: 'openai-compatible' | 'ollama'; baseURL: string; apiKey?: string }>;
 
   constructor(opts: TaskQueueOptions = {}) {
     this.concurrency = opts.concurrency ?? 2;
@@ -66,6 +112,11 @@ export class TaskQueue {
     this.channels = opts.channels;
     this.persistDir = opts.persistDir;
     if (this.persistDir) this.recover();
+  }
+
+  /** 在模型配置初始化后可更新（如 Web 控制台动态加载后） */
+  setModelProviders(providers: TaskQueueOptions['modelProviders']): void {
+    this.modelProviders = providers;
   }
 
   /** P6-4：启动恢复——queued 重新入队、running 标记 failed（僵尸任务）、终态直接载入 */
@@ -138,8 +189,11 @@ export class TaskQueue {
     return this.webhookUrl;
   }
 
-  /** 提交任务，立即返回任务 id（后台异步执行）；opts 可覆盖本次任务的 modelId / workspaceDir */
-  submit(goal: string, opts: { modelId?: string; workspaceDir?: string } = {}): TaskRecord {
+  /** 提交任务，立即返回任务 id（后台异步执行）；opts 可覆盖本次任务的 modelId / workspaceDir / agentType / permissions */
+  submit(
+    goal: string,
+    opts: { modelId?: string; workspaceDir?: string; agentType?: AgentType; permissions?: TaskPermissions } = {},
+  ): TaskRecord {
     const now = new Date().toISOString();
     const record: TaskRecord = {
       id: randomUUID(),
@@ -149,6 +203,8 @@ export class TaskQueue {
       updatedAt: now,
       workspaceDir: opts.workspaceDir,
       modelId: opts.modelId,
+      agentType: opts.agentType,
+      permissions: opts.permissions,
     };
     this.tasks.set(record.id, record);
     this.persist(record); // P6-4 落盘
@@ -225,7 +281,16 @@ export class TaskQueue {
     void this.fireWebhook(id, 'running'); // running 节点回调
     void this.channels?.notify(record, 'running'); // P5-6 消息渠道推送
     try {
-      const result = await executeTask(record.goal, { offline: true });
+      const taskGoal = buildPermissionPrefix(record.permissions) + buildAgentGoal(record.goal, record.agentType);
+
+      // 根据模型 ID 查找配置，传递给 executeTask 使用真实模型
+      const modelId = record.modelId;
+      const result = await executeTask(taskGoal, {
+        offline: false,
+        modelProviders: modelId && this.modelProviders
+          ? this.modelProviders.filter(m => m.id === modelId)
+          : undefined,
+      });
       record.status = result.ok ? 'done' : 'failed';
       record.result = {
         ok: result.ok,
