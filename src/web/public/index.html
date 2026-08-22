@@ -1219,6 +1219,8 @@
       phone: '',
       tasks: [],
       currentTaskId: null,
+      submittedTaskIds: new Set(),
+      completedTaskIds: new Set(),
       market: [],
       installed: new Set(),
       agentType: 'general',
@@ -1395,7 +1397,21 @@
     function statusBadge(s) { return '<span class="badge ' + s + '">' + s + '</span>'; }
     async function loadTasks() {
       if (!state.token) return;
-      try { const d = await api('/api/tasks'); state.tasks = d.tasks || []; if (state.currentTaskId) renderTaskDetail(state.currentTaskId); }
+      try {
+        const d = await api('/api/tasks');
+        state.tasks = d.tasks || [];
+        if (state.currentTaskId) renderTaskDetail(state.currentTaskId);
+
+        // 检测新完成的任务，追加结果到对话
+        for (const t of state.tasks) {
+          if (t.status === 'done' && !state.completedTaskIds.has(t.id)) {
+            state.completedTaskIds.add(t.id);
+            const result = t.result?.finalAnswer || '';
+            const icon = t.error ? '❌' : '✅';
+            appendMsg('sys', `${icon} 任务完成：${result || '无结果'}`);
+          }
+        }
+      }
       catch (e) { console.warn('加载任务失败', e); }
     }
     async function selectTask(id) {
@@ -1521,6 +1537,7 @@
         });
         appendMsg('user', goal);
         appendMsg('sys', '任务已提交，ID: ' + d.task.id.slice(0, 8) + ' …');
+        state.submittedTaskIds.add(d.task.id);
         input.value = '';
         const newTask = state.tasks.find((x) => x.id === d.task.id);
         renderThink(newTask || { id: d.task.id, goal, status: 'queued' });
