@@ -5,6 +5,8 @@ import { SelfEvolveManager } from './manager.js';
  * 集成到工具调用流程中
  */
 export class SelfEvolveHook {
+  private manager: SelfEvolveManager;
+
   constructor() {
     this.manager = new SelfEvolveManager();
     this.manager.init();

@@ -1,6 +1,6 @@
 {
   "name": "feihong-code",
-  "version": "0.2.1",
+  "version": "0.5.1",
   "description": "Terminal AI Coding Agent — 终端 AI 编程智能体",
   "tools": [
     {
@@ -9,13 +9,25 @@
       "parameters": {
         "type": "object",
         "properties": {
-          "path": { "type": "string", "description": "文件相对路径（相对于工作区根目录）" },
-          "content": { "type": "string", "description": "文件的完整内容" }
+          "path": {
+            "type": "string",
+            "description": "文件相对路径（相对于工作区根目录）"
+          },
+          "content": {
+            "type": "string",
+            "description": "文件的完整内容"
+          }
         },
-        "required": ["path", "content"],
+        "required": [
+          "path",
+          "content"
+        ],
         "additionalProperties": false
       },
-      "example": { "path": "src/main.ts", "content": "export function hello() { return 'world'; }" }
+      "example": {
+        "path": "src/main.ts",
+        "content": "export function hello() { return 'world'; }"
+      }
     },
     {
       "name": "edit_file",
@@ -23,14 +35,31 @@
       "parameters": {
         "type": "object",
         "properties": {
-          "path": { "type": "string", "description": "目标文件路径" },
-          "oldText": { "type": "string", "description": "待替换的原文本（必须唯一存在于文件中）" },
-          "newText": { "type": "string", "description": "替换后的新文本" }
+          "path": {
+            "type": "string",
+            "description": "目标文件路径"
+          },
+          "oldText": {
+            "type": "string",
+            "description": "待替换的原文本（必须唯一存在于文件中）"
+          },
+          "newText": {
+            "type": "string",
+            "description": "替换后的新文本"
+          }
         },
-        "required": ["path", "oldText", "newText"],
+        "required": [
+          "path",
+          "oldText",
+          "newText"
+        ],
         "additionalProperties": false
       },
-      "example": { "path": "src/calc.ts", "oldText": "return a - b;", "newText": "return a + b;" }
+      "example": {
+        "path": "src/calc.ts",
+        "oldText": "return a - b;",
+        "newText": "return a + b;"
+      }
     },
     {
       "name": "read_file",
@@ -38,12 +67,19 @@
       "parameters": {
         "type": "object",
         "properties": {
-          "path": { "type": "string", "description": "文件相对路径" }
+          "path": {
+            "type": "string",
+            "description": "文件相对路径"
+          }
         },
-        "required": ["path"],
+        "required": [
+          "path"
+        ],
         "additionalProperties": false
       },
-      "example": { "path": "package.json" }
+      "example": {
+        "path": "package.json"
+      }
     },
     {
       "name": "list_files",
@@ -51,11 +87,16 @@
       "parameters": {
         "type": "object",
         "properties": {
-          "path": { "type": "string", "description": "目录路径，默认为 '.'（工作区根）" }
+          "path": {
+            "type": "string",
+            "description": "目录路径，默认为 '.'（工作区根）"
+          }
         },
         "additionalProperties": false
       },
-      "example": { "path": "src/" }
+      "example": {
+        "path": "src/"
+      }
     },
     {
       "name": "grep",
@@ -63,13 +104,24 @@
       "parameters": {
         "type": "object",
         "properties": {
-          "pattern": { "type": "string", "description": "正则表达式模式" },
-          "path": { "type": "string", "description": "搜索起始目录，默认为工作区根" }
+          "pattern": {
+            "type": "string",
+            "description": "正则表达式模式"
+          },
+          "path": {
+            "type": "string",
+            "description": "搜索起始目录，默认为工作区根"
+          }
         },
-        "required": ["pattern"],
+        "required": [
+          "pattern"
+        ],
         "additionalProperties": false
       },
-      "example": { "pattern": "class.*Error", "path": "src/" }
+      "example": {
+        "pattern": "class.*Error",
+        "path": "src/"
+      }
     },
     {
       "name": "run_shell",
@@ -77,12 +129,19 @@
       "parameters": {
         "type": "object",
         "properties": {
-          "command": { "type": "string", "description": "要执行的完整命令（如 'npm test'、'node index.js'）" }
+          "command": {
+            "type": "string",
+            "description": "要执行的完整命令（如 'npm test'、'node index.js'）"
+          }
         },
-        "required": ["command"],
+        "required": [
+          "command"
+        ],
         "additionalProperties": false
       },
-      "example": { "command": "npm run typecheck" }
+      "example": {
+        "command": "npm run typecheck"
+      }
     },
     {
       "name": "build_check",
@@ -106,10 +165,22 @@
     }
   ],
   "toolCategories": {
-    "file": ["write_file", "edit_file", "read_file", "list_files"],
-    "search": ["grep"],
-    "shell": ["run_shell"],
-    "verify": ["build_check", "run_tests"]
+    "file": [
+      "write_file",
+      "edit_file",
+      "read_file",
+      "list_files"
+    ],
+    "search": [
+      "grep"
+    ],
+    "shell": [
+      "run_shell"
+    ],
+    "verify": [
+      "build_check",
+      "run_tests"
+    ]
   },
   "security": {
     "sandbox": "所有文件操作限制在工作区目录内",

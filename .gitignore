@@ -25,3 +25,8 @@ coverage/
 
 # 项目本地记忆（非源码，不入库）
 .workbuddy/
+*.txt
+*.bak
+psout.txt
+test_workspace_fix.txt
+*.log
