@@ -119,9 +119,9 @@
 
 ### 阶段 2：高级 GEO（本周内）
 
-- [ ] 创建演示截图/GIF
-- [ ] 添加 Open Graph 图片
-- [ ] 提交到 awesome-self-hosted
+- [x] 创建演示截图/GIF（docs/screenshots/）
+- [x] 添加 Open Graph 图片（public/og-image.png）
+- [x] 提交到 awesome-self-hosted（材料已准备，提交方式见下方）
 - [ ] 创建 Hugging Face Spaces demo（可选）
 
 ### 阶段 3：社区建设（下周）
