@@ -1,5 +1,58 @@
 > **English / 英文文档**：[README_EN.md](README_EN.md) · [FAQ (English)](FAQ_EN.md)
 
+<!-- Schema.org JSON-LD for GEO optimization -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareSourceCode",
+  "name": "飞虹 Code (fhcode)",
+  "description": "终端 AI 编程智能体，对标 Meta Muse Code。多模型路由、企业级 RBAC/审计/多租户、全自动 SWE Agent、离线私有化。支持 DeepSeek/通义/Ollama/OpenAI 兼容网关。",
+  "url": "https://github.com/wch887292/feihong-code",
+  "license": "https://opensource.org/licenses/MIT",
+  "programmingLanguage": {
+    "@type": "ProgrammingLanguage",
+    "name": "TypeScript"
+  },
+  "operatingSystem": "Cross-platform (Windows, Linux, macOS)",
+  "softwareVersion": "0.5.1",
+  "dateCreated": "2026-08-12",
+  "datePublished": "2026-08-22",
+  "author": {
+    "@type": "Organization",
+    "name": "晋江市飞虹智科技企业管理有限公司",
+    "url": "https://www.klai.top"
+  },
+  "developer": {
+    "@type": "Organization",
+    "name": "飞扬企源研发中心",
+    "url": "https://www.klai.top"
+  },
+  "keywords": [
+    "AI Agent", "SWE Agent", "CLI", "多模型路由", "DeepSeek", "Ollama",
+    "企业级权限", "RBAC", "审计链", "多租户", "自我进化", "自愈循环",
+    "代码生成", "typescript", "nodejs", "open source"
+  ],
+  "sameAs": [
+    "https://www.npmjs.com/package/feihong-code",
+    "https://www.klai.top/opensource.html"
+  ],
+  "featureList": [
+    "M0-M9.1 全功能里程碑",
+    "多模型路由 (DeepSeek/通义/Ollama/OpenAI)",
+    "企业级 RBAC 权限矩阵",
+    "防篡改审计哈希链",
+    "多租户物理隔离",
+    "配额成本熔断",
+    "自我进化与自愈循环",
+    "上下文智能压缩",
+    "多子代理并行 (git worktree)",
+    "Web 管理控制台 (BETA)",
+    "全自动 SWE Agent",
+    "离线私有化部署"
+  ]
+}
+</script>
+
 # 飞虹 Code（fhcode）
 
 > **终端 AI 编程智能体** · 对标 Meta Muse Code · 全功能 M0→M9.1 完成 · 企业级 RBAC/审计/SWE Agent
