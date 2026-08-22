@@ -694,6 +694,238 @@
     .tile .ops { display: flex; gap: 6px; margin-top: 12px; }
     .tile .ops button { padding: 6px 12px; font-size: 12px; flex: 1; }
 
+    /* ========== 产品发布故事页面 ========== */
+    .release-container { max-width: 900px; margin: 0 auto; }
+    .release-hero {
+      text-align: center;
+      padding: 48px 24px;
+      background: linear-gradient(135deg, var(--brand-soft) 0%, rgba(37,99,235,0.08) 100%);
+      border-radius: 20px;
+      margin-bottom: 40px;
+    }
+    .release-badge {
+      display: inline-block;
+      padding: 6px 16px;
+      background: var(--brand);
+      color: #fff;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+    .release-title {
+      font-size: 48px;
+      font-weight: 800;
+      margin: 0 0 12px;
+      background: linear-gradient(135deg, var(--brand), #6366f1);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .release-subtitle {
+      font-size: 18px;
+      color: var(--ink-2);
+      margin: 0 0 8px;
+    }
+    .release-tagline {
+      font-size: 16px;
+      color: var(--muted);
+      font-style: italic;
+      margin: 16px 0 32px;
+    }
+    .release-stats {
+      display: flex;
+      justify-content: center;
+      gap: 32px;
+      flex-wrap: wrap;
+    }
+    .stat-item {
+      text-align: center;
+    }
+    .stat-num {
+      display: block;
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--brand);
+    }
+    .stat-label {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .section-title {
+      font-size: 28px;
+      font-weight: 700;
+      margin: 48px 0 24px;
+      text-align: center;
+    }
+    .release-timeline { margin-bottom: 48px; }
+    .timeline {
+      position: relative;
+      padding-left: 40px;
+    }
+    .timeline::before {
+      content: '';
+      position: absolute;
+      left: 15px;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: linear-gradient(to bottom, var(--brand), var(--brand-soft));
+    }
+    .timeline-item {
+      position: relative;
+      margin-bottom: 32px;
+    }
+    .timeline-dot {
+      position: absolute;
+      left: -32px;
+      top: 4px;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--brand-soft);
+      border: 2px solid var(--brand);
+    }
+    .timeline-dot.active {
+      background: var(--brand);
+      box-shadow: 0 0 0 4px rgba(37,99,235,0.2);
+    }
+    .timeline-date {
+      font-size: 13px;
+      color: var(--brand);
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .timeline-content h3 {
+      margin: 0 0 8px;
+      font-size: 18px;
+    }
+    .timeline-content p {
+      color: var(--ink-2);
+      line-height: 1.6;
+      margin: 0 0 8px;
+    }
+    .timeline-quote {
+      font-style: italic;
+      color: var(--muted);
+      border-left: 3px solid var(--brand-soft);
+      padding-left: 12px;
+      margin: 12px 0;
+    }
+    .timeline-tags { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+    .tag {
+      padding: 4px 10px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .release-team { margin-bottom: 48px; }
+    .team-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+    }
+    .team-card {
+      text-align: center;
+      padding: 24px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+    }
+    .team-avatar { font-size: 48px; margin-bottom: 12px; }
+    .team-card h3 { margin: 0 0 8px; font-size: 16px; }
+    .team-card p { color: var(--ink-2); font-size: 13px; line-height: 1.5; margin: 0 0 12px; }
+    .team-role {
+      font-size: 12px;
+      color: var(--brand);
+      font-weight: 600;
+    }
+    .release-challenges { margin-bottom: 48px; }
+    .challenges-list { display: flex; flex-direction: column; gap: 16px; }
+    .challenge-item {
+      display: flex;
+      gap: 16px;
+      padding: 20px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+    .challenge-icon { font-size: 28px; flex-shrink: 0; }
+    .challenge-item h4 { margin: 0 0 4px; font-size: 15px; }
+    .challenge-item p { color: var(--ink-2); font-size: 13px; margin: 0; }
+    .release-features { margin-bottom: 48px; }
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 16px;
+    }
+    .feature-card {
+      text-align: center;
+      padding: 24px 16px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      transition: all 0.15s;
+    }
+    .feature-card:hover {
+      border-color: var(--brand);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(37,99,235,0.12);
+    }
+    .feature-icon { font-size: 32px; margin-bottom: 12px; }
+    .feature-card h4 { margin: 0 0 6px; font-size: 14px; }
+    .feature-card p { color: var(--muted); font-size: 12px; margin: 0; }
+    .release-quote {
+      text-align: center;
+      padding: 40px 24px;
+      background: linear-gradient(135deg, var(--brand-soft), rgba(99,102,241,0.1));
+      border-radius: 16px;
+      margin-bottom: 48px;
+    }
+    .release-quote blockquote {
+      font-size: 20px;
+      font-style: italic;
+      color: var(--ink);
+      margin: 0 0 16px;
+      line-height: 1.6;
+    }
+    .release-quote cite {
+      font-size: 14px;
+      color: var(--muted);
+    }
+    .release-cta {
+      text-align: center;
+      padding: 48px 24px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+    }
+    .release-cta h2 { margin: 0 0 24px; font-size: 28px; }
+    .cta-buttons { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; margin-bottom: 20px; }
+    .cta-btn {
+      display: inline-block;
+      padding: 12px 28px;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.15s;
+    }
+    .cta-btn.primary {
+      background: var(--brand);
+      color: #fff;
+    }
+    .cta-btn.primary:hover { filter: brightness(1.1); transform: translateY(-1px); }
+    .cta-btn.secondary {
+      background: transparent;
+      color: var(--brand);
+      border: 2px solid var(--brand);
+    }
+    .cta-btn.secondary:hover { background: var(--brand-soft); }
+    .cta-sub { color: var(--muted); font-size: 13px; }
+
     /* ========== 通用样式 ========== */
     .card {
       background: var(--card);
@@ -983,6 +1215,7 @@
         <div class="topbar-nav-item" data-nav="market" data-i18n="nav.market">🧩 插件</div>
         <div class="topbar-nav-item" data-nav="office" data-i18n="nav.office">📎 办公</div>
         <div class="topbar-nav-item" data-nav="memory" data-i18n="nav.memory">🧠 记忆</div>
+        <div class="topbar-nav-item" data-nav="release" data-i18n="nav.release">🚀 发布</div>
       </nav>
       <div class="topbar-spacer"></div>
       <div class="lang-switcher">
@@ -1025,6 +1258,10 @@
           <div class="sidebar-icon" data-nav="memory" title="记忆系统" data-i18n="sidebar.memory">
             <span class="icon">🧠</span>
             <span class="label" data-i18n="sidebar.memory">记忆系统</span>
+          </div>
+          <div class="sidebar-icon" data-nav="release" title="产品发布" data-i18n="sidebar.release">
+            <span class="icon">🚀</span>
+            <span class="label" data-i18n="sidebar.release">产品发布</span>
           </div>
         </div>
 
@@ -1229,6 +1466,181 @@
           <div class="mem-panel" id="memHistoryPanel" style="display:none;">
             <div class="card memory-content" id="memHistoryContent">
               <div class="empty" data-i18n="empty.no_history">暂无总结记录</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 产品发布故事页面 -->
+        <div class="page-view" data-view="release">
+          <div class="release-container">
+            <!-- Hero Section -->
+            <div class="release-hero">
+              <div class="release-badge">v0.5.1</div>
+              <h1 class="release-title">飞虹 Code</h1>
+              <p class="release-subtitle">终端 AI 编程智能体 · 自我进化 · 企业级安全</p>
+              <p class="release-tagline">三个人，三年，从零到一</p>
+              <div class="release-stats">
+                <div class="stat-item"><span class="stat-num">M0→M9.1</span><span class="stat-label">全功能里程碑</span></div>
+                <div class="stat-item"><span class="stat-num">42+</span><span class="stat-label">单元测试</span></div>
+                <div class="stat-item"><span class="stat-num">145</span><span class="stat-label">集成验证断言</span></div>
+                <div class="stat-item"><span class="stat-num">MIT</span><span class="stat-label">开源许可证</span></div>
+              </div>
+            </div>
+
+            <!-- Timeline Section -->
+            <div class="release-timeline">
+              <h2 class="section-title">三年历程</h2>
+              <div class="timeline">
+                <div class="timeline-item">
+                  <div class="timeline-dot"></div>
+                  <div class="timeline-content">
+                    <div class="timeline-date">2023 年 · 起点</div>
+                    <h3>三个开发者的初心</h3>
+                    <p>在泉州一家制造业AI服务公司的办公室里，三个开发者围着一台老旧的台式机，讨论着一个大胆的想法：做一个真正能自主写代码的AI助手。</p>
+                    <p class="timeline-quote">"为什么AI只能回答问题，而不能动手写代码？"</p>
+                    <div class="timeline-tags"><span class="tag">M0 脚手架</span><span class="tag">工程初始化</span></div>
+                  </div>
+                </div>
+
+                <div class="timeline-item">
+                  <div class="timeline-dot"></div>
+                  <div class="timeline-content">
+                    <div class="timeline-date">2024 年 · 探索</div>
+                    <h3>从 Mock 到真实模型</h3>
+                    <p>第一年，我们走了很多弯路。最初只能用 Mock 驱动，代码生成完全不可能。接入 DeepSeek、通义千问后，终于看到了希望。</p>
+                    <p class="timeline-quote">"每一次 API 超时都是一次教训，每一次报错都是成长的机会。"</p>
+                    <div class="timeline-tags"><span class="tag">M1 模型路由</span><span class="tag">M2 多代理</span></div>
+                  </div>
+                </div>
+
+                <div class="timeline-item">
+                  <div class="timeline-dot"></div>
+                  <div class="timeline-content">
+                    <div class="timeline-date">2025 年 · 突破</div>
+                    <h3>企业级能力与自我进化</h3>
+                    <p>第二年，客户需求倒逼我们做出企业级功能：RBAC权限、审计链、多租户隔离。同时，我们实现了自我进化——让AI从失败中学习。</p>
+                    <p class="timeline-quote">"一个不会自我修复的AI，只是一个高级脚本。"</p>
+                    <div class="timeline-tags"><span class="tag">M3 会话恢复</span><span class="tag">M4 企业级</span><span class="tag">M6 自我进化</span></div>
+                  </div>
+                </div>
+
+                <div class="timeline-item">
+                  <div class="timeline-dot active"></div>
+                  <div class="timeline-content">
+                    <div class="timeline-date">2026 年 · 发布</div>
+                    <h3>v0.5.1 正式发布</h3>
+                    <p>经过上千次测试迭代，飞虹 Code 终于完成 M0→M9.1 全部里程碑。从离线演示到企业部署，从个人开发到团队协用。</p>
+                    <p class="timeline-quote">"这不仅是代码，是三年心血的结晶。"</p>
+                    <div class="timeline-tags"><span class="tag">M9 全自动 SWE Agent</span><span class="tag">Web 控制台</span><span class="tag">MIT 开源</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Team Section -->
+            <div class="release-team">
+              <h2 class="section-title">核心团队</h2>
+              <div class="team-grid">
+                <div class="team-card">
+                  <div class="team-avatar">👨‍💻</div>
+                  <h3>架构师</h3>
+                  <p>负责整体架构设计，选型 TypeScript + Node.js，搭建工程体系。</p>
+                  <div class="team-role">首席架构师</div>
+                </div>
+                <div class="team-card">
+                  <div class="team-avatar">👩‍💻</div>
+                  <h3>算法工程师</h3>
+                  <p>主攻模型路由策略，实现多模型自动选优与降级机制。</p>
+                  <div class="team-role">AI 算法工程师</div>
+                </div>
+                <div class="team-card">
+                  <div class="team-avatar">🧑‍💻</div>
+                  <h3>后端开发</h3>
+                  <p>负责企业级安全模块，RBAC、审计链、多租户隔离的核心实现。</p>
+                  <div class="team-role">后端安全工程师</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Challenges Section -->
+            <div class="release-challenges">
+              <h2 class="section-title">走过的坑</h2>
+              <div class="challenges-list">
+                <div class="challenge-item">
+                  <span class="challenge-icon">🔥</span>
+                  <div>
+                    <h4>并发控制难题</h4>
+                    <p>多代理并行时，API 限流导致大量 429 错误。解决方案：引入队列机制 + 指数退避重试。</p>
+                  </div>
+                </div>
+                <div class="challenge-item">
+                  <span class="challenge-icon">🔒</span>
+                  <div>
+                    <h4>企业安全合规</h4>
+                    <p>客户要求审计链不可篡改。解决方案：实现 SHA-256 哈希链，每次写入强制追加。</p>
+                  </div>
+                </div>
+                <div class="challenge-item">
+                  <span class="challenge-icon">🧠</span>
+                  <div>
+                    <h4>上下文管理</h4>
+                    <p>长对话超出 Token 限制。解决方案：实现智能压缩算法，保留关键信息+摘要早期内容。</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Features Section -->
+            <div class="release-features">
+              <h2 class="section-title">核心能力</h2>
+              <div class="features-grid">
+                <div class="feature-card">
+                  <div class="feature-icon">🔄</div>
+                  <h4>自我进化</h4>
+                  <p>记录失败 → 学习经验 → 自动应用</p>
+                </div>
+                <div class="feature-card">
+                  <div class="feature-icon">🛡️</div>
+                  <h4>企业级安全</h4>
+                  <p>RBAC + 审计链 + 多租户隔离</p>
+                </div>
+                <div class="feature-card">
+                  <div class="feature-icon">🌐</div>
+                  <h4>多模型路由</h4>
+                  <p>DeepSeek / 通义 / Ollama / OpenAI</p>
+                </div>
+                <div class="feature-card">
+                  <div class="feature-icon">⚡</div>
+                  <h4>离线可用</h4>
+                  <p>本地 Ollama 支持，数据不出内网</p>
+                </div>
+                <div class="feature-card">
+                  <div class="feature-icon">🔧</div>
+                  <h4>SWE Agent</h4>
+                  <p>全自动软件工程，读仓→拆解→实现→验证</p>
+                </div>
+                <div class="feature-card">
+                  <div class="feature-icon">💬</div>
+                  <h4>Web 控制台</h4>
+                  <p>浏览器管理界面，可视化任务与审计</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Quote Section -->
+            <div class="release-quote">
+              <blockquote>"从三个人的小团队，到如今服务百余家制造业企业，飞虹 Code 见证了我们三年的坚持。我们相信，开源是最好的传播方式。"</blockquote>
+              <cite>— 吴赐虹，飞扬企源研发中心负责人</cite>
+            </div>
+
+            <!-- CTA Section -->
+            <div class="release-cta">
+              <h2>开始使用飞虹 Code</h2>
+              <div class="cta-buttons">
+                <a href="https://github.com/wch887292/feihong-code" target="_blank" class="cta-btn primary">⭐ GitHub Star</a>
+                <a href="https://www.npmjs.com/package/feihong-code" target="_blank" class="cta-btn secondary">📦 npm install</a>
+              </div>
+              <p class="cta-sub">MIT 开源 · 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心</p>
             </div>
           </div>
         </div>
@@ -1566,6 +1978,7 @@
         'nav.market': '🧩 插件',
         'nav.office': '📎 办公',
         'nav.memory': '🧠 记忆',
+        'nav.release': '🚀 发布',
         'sidebar.nav': '导航',
         'sidebar.chat': '对话任务',
         'sidebar.automations': '自动化',
@@ -1721,6 +2134,7 @@
         'nav.templates': '📚 Templates',
         'nav.market': '🧩 Market',
         'nav.office': '📎 Office',
+        'nav.release': '🚀 Release',
         'nav.memory': '🧠 Memory',
         'sidebar.nav': 'Nav',
         'sidebar.chat': 'Chat',
@@ -1728,6 +2142,7 @@
         'sidebar.templates': 'Templates',
         'sidebar.market': 'Market',
         'sidebar.office': 'Office',
+        'sidebar.release': 'Release',
         'sidebar.memory': 'Memory',
         'sidebar.user': 'User',
         'sidebar.settings': 'Settings',
