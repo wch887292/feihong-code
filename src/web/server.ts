@@ -766,11 +766,11 @@ export function startWebServer(opts: ServeOptions = {}): {
   function saveModels(list: ModelConfig[]): void {
     saveJsonFile(modelsFile, list);
     // 同步更新任务队列的模型配置，使后续任务使用最新配置
-    queue.setModelProviders(list.map(m => ({ id: m.id, type: 'openai-compatible' as const, baseURL: m.apiBase, apiKey: m.apiKey })));
+    queue.setModelProviders(list.map(m => ({ id: m.id, type: 'openai-compatible' as const, baseURL: m.apiBase, apiKey: m.apiKey, model: m.name })));
   }
   // 初始化模型提供列表，并注册到任务队列
   const initialModels = loadModels();
-  queue.setModelProviders(initialModels.map(m => ({ id: m.id, type: 'openai-compatible' as const, baseURL: m.apiBase, apiKey: m.apiKey })));
+  queue.setModelProviders(initialModels.map(m => ({ id: m.id, type: 'openai-compatible' as const, baseURL: m.apiBase, apiKey: m.apiKey, model: m.name })));
   app.get('/api/models', (_req: Request, res: Response) => {
     const list = loadModels();
     res.json({ ok: true, models: list, defaultId: (list.find((m) => m.default) || {}).id || null });

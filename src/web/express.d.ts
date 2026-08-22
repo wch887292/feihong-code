@@ -44,6 +44,8 @@ declare module 'express' {
     use(path: string, handler: Handler): Application;
     get(path: string, handler: Handler): Application;
     post(path: string, handler: Handler): Application;
+    put(path: string, handler: Handler): Application;
+    delete(path: string, handler: Handler): Application;
     listen(port: number, callback?: () => void): Server;
     [key: string]: unknown;
   }

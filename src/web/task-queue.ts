@@ -92,7 +92,7 @@ export interface TaskQueueOptions {
   /** P6-4：任务持久化目录（跨进程/重启恢复；不配置则纯内存） */
   persistDir?: string;
   /** Web 控制台模型配置列表（models.json），供 executeTask 使用真实模型 */
-  modelProviders?: Array<{ id: string; type: 'openai-compatible' | 'ollama'; baseURL: string; apiKey?: string }>;
+  modelProviders?: Array<{ id: string; type: 'openai-compatible' | 'ollama'; baseURL: string; apiKey?: string; model?: string }>;
 }
 
 export class TaskQueue {
