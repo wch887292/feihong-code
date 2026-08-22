@@ -151,6 +151,10 @@
       font-size: 16px;
     }
     .topbar-phone { font-size: 13px; font-weight: 500; color: var(--ink); }
+    .lang-switcher { display: flex; align-items: center; gap: 2px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    .lang-btn { padding: 4px 10px; font-size: 12px; cursor: pointer; border: none; background: transparent; color: var(--ink-2); font-weight: 500; transition: all 0.15s; }
+    .lang-btn.active { background: var(--brand); color: #fff; }
+    .lang-btn:hover:not(.active) { background: var(--bg); }
 
     /* ========== 主体内容区 ========== */
     .main-area {
@@ -977,6 +981,10 @@
         <div class="topbar-nav-item" data-nav="memory">🧠 记忆</div>
       </nav>
       <div class="topbar-spacer"></div>
+      <div class="lang-switcher">
+        <button class="lang-btn active" data-lang="zh">中文</button>
+        <button class="lang-btn" data-lang="en">EN</button>
+      </div>
       <div class="topbar-user" id="topbarUser">
         <div class="topbar-avatar">🦐</div>
         <span class="topbar-phone" id="topbarPhone">未登录</span>
