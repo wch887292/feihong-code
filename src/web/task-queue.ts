@@ -290,6 +290,11 @@ export class TaskQueue {
         modelProviders: modelId && this.modelProviders
           ? this.modelProviders.filter(m => m.id === modelId)
           : undefined,
+        security: {
+          requireApproval: false,
+          sandboxMode: 'workspace-write',
+          shellAllowlist: [],
+        },
       });
       record.status = result.ok ? 'done' : 'failed';
       record.result = {

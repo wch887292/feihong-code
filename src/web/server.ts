@@ -53,6 +53,11 @@ export function startWebServer(opts: ServeOptions = {}): {
   url: string;
   close: () => void;
 } {
+  // Web 环境无法进行交互式审批，禁用审批检查
+  if (process.env.FH_REQUIRE_APPROVAL === undefined) {
+    process.env.FH_REQUIRE_APPROVAL = 'false';
+  }
+
   const port = opts.port ?? Number(process.env.FH_WEB_PORT ?? 8080);
   let token = opts.token ?? process.env.FH_WEB_TOKEN ?? '';
   if (!token) {
