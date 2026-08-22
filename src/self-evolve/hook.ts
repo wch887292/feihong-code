@@ -1,4 +1,4 @@
-import { SelfEvolveManager } from './manager.js';
+import { SelfEvolveManager } from './manager';
 
 /**
  * Hook: 任务完成后自动检查是否需要记录失败
