@@ -8,14 +8,30 @@
  *   - 自动化：快捷指令集（一键发起任务）
  *   - 模板库：内置 + 用户自定义
  *   - 办公助理：文档处理能力清单
- * 鉴权：Bearer Token（fail-closed）。
+ *   - 登录：手机号直登（无短信验证，本地会话令牌）
+ *   - 文件/工作区：右侧任务详情可直接打开文件夹、浏览器、预览文件
+ * 鉴权：Bearer Token（fail-closed），主令牌（FH_WEB_TOKEN）与会话令牌并行。
  */
 import express, { type Request, type Response } from 'express';
 import { randomBytes, randomUUID } from 'crypto';
-import { join } from 'path';
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
-import { requireToken } from './auth';
-import { TaskQueue, type TaskRecord } from './task-queue';
+import { join, resolve, relative, isAbsolute, dirname } from 'path';
+import {
+  existsSync,
+  readFileSync,
+  writeFileSync,
+  mkdirSync,
+  readdirSync,
+  statSync,
+  lstatSync,
+} from 'fs';
+import { spawn } from 'child_process';
+import { requireToken, SessionStore, type Session } from './auth';
+import {
+  TaskQueue,
+  type TaskRecord,
+  type AgentType,
+  type TaskPermissions,
+} from './task-queue';
 import { VERSION, PRODUCT, SIGNATURE } from '../cli/version';
 import { t, getLang } from '../shared/i18n';
 import { isEnterpriseEnabled } from '../enterprise';
@@ -45,11 +61,17 @@ export function startWebServer(opts: ServeOptions = {}): {
   }
 
   const app = express();
-  // 限制请求体大小，防止超大 payload 触发内存耗尽（DoS 面）
-  app.use(express.json({ limit: '1mb' }));
+  // 放宽请求体上限以支持截图/图片 base64 上传（8MB），仍可有效防御内存耗尽
+  app.use(express.json({ limit: '8mb' }));
   // 静态仪表盘
   const publicDir = join(__dirname, 'public');
   app.use(express.static(publicDir));
+
+  // 登录会话存储（进程内）
+  const sessions = new SessionStore();
+  // 当前 Web 控制台工作区，任务提交缺省时使用
+  let serverWorkspaceDir = resolve(process.cwd());
+
   // 公开健康检查（仅暴露版本/状态等观测信息，无敏感数据）
   app.get('/api/health', (_req: Request, res: Response) => {
     res.json({
@@ -62,6 +84,19 @@ export function startWebServer(opts: ServeOptions = {}): {
       time: new Date().toISOString(),
     });
   });
+
+  // 手机号直登：无短信验证，生成本地会话令牌
+  app.post('/api/auth/login', (req: Request, res: Response) => {
+    const body = (req.body ?? {}) as Record<string, any>;
+    const phone = typeof body?.phone === 'string' ? body.phone.trim() : '';
+    if (!phone) {
+      res.status(400).json({ ok: false, error: '请输入手机号码' });
+      return;
+    }
+    const sessionToken = sessions.create(phone);
+    res.json({ ok: true, token: sessionToken, phone });
+  });
+
   // 任务队列（进程内；服务端静默执行）
   const persistDir =
     process.env.FH_TASK_PERSIST_DIR?.trim() ||
@@ -71,8 +106,17 @@ export function startWebServer(opts: ServeOptions = {}): {
     webhookUrl: process.env.FH_TASK_WEBHOOK_URL,
     persistDir,
   });
-  // 鉴权：其余 /api 需 Bearer token（静态资源除外）
-  app.use('/api', requireToken(token));
+  // 鉴权：其余 /api 需 Bearer token（静态资源与 login/health 除外）
+  // 公开 API（无需认证）
+  app.get('/api/drives', (_req: Request, res: Response) => {
+    res.json({ ok: true, drives: getAvailableDrives() });
+  });
+  app.use('/api', requireToken(token, sessions));
+
+  app.get('/api/auth/me', (req: Request, res: Response) => {
+    const session = (req as Request & { user?: Session }).user;
+    res.json({ ok: true, phone: session?.phone ?? null });
+  });
 
   app.post('/api/tasks', (req: Request, res: Response) => {
     const body = req.body as Record<string, any>;
@@ -81,7 +125,19 @@ export function startWebServer(opts: ServeOptions = {}): {
       res.status(400).json({ ok: false, error: '缺少 goal 字段' });
       return;
     }
-    const record = queue.submit(goal);
+    const agentType: AgentType | undefined =
+      typeof body?.agentType === 'string' ? (body.agentType as AgentType) : undefined;
+    const permissions: TaskPermissions | undefined =
+      typeof body?.permissions === 'object' && body?.permissions !== null
+        ? (body.permissions as TaskPermissions)
+        : undefined;
+    const workspaceDir =
+      typeof body?.workspaceDir === 'string' && body.workspaceDir.trim()
+        ? body.workspaceDir.trim()
+        : serverWorkspaceDir;
+    const modelId =
+      typeof body?.modelId === 'string' && body.modelId.trim() ? body.modelId.trim() : undefined;
+    const record = queue.submit(goal, { modelId, workspaceDir, agentType, permissions });
     res.status(201).json({ ok: true, task: publicTask(record) });
   });
   app.get('/api/tasks', (_req: Request, res: Response) => {
@@ -123,7 +179,7 @@ export function startWebServer(opts: ServeOptions = {}): {
   }
   async function saveJsonFile(file: string, data: unknown): Promise<void> {
     try {
-      mkdirSync(homeDir, { recursive: true });
+      mkdirSync(dirname(file), { recursive: true });
     } catch {
       /* ignore */
     }
@@ -137,6 +193,183 @@ export function startWebServer(opts: ServeOptions = {}): {
       /* ignore */
     }
   }
+
+  /* ========== 路径安全 ========== */
+  // 获取系统所有可用的 Windows 驱动器列表（同步，使用 fs.existsSync 检测）
+  function getAvailableDrives(): string[] {
+    if (process.platform !== 'win32') return ['/'];
+    const drives: string[] = [];
+    for (let code = 65; code <= 90; code++) {
+      const drive = String.fromCharCode(code) + ':\\';
+      if (existsSync(drive)) drives.push(drive);
+    }
+    return drives.length > 0 ? drives : [];
+  }
+
+  const allowedRoots = () => {
+    const roots: string[] = [
+      resolve(serverWorkspaceDir),
+      resolve(homeDir),
+      resolve(process.cwd()),
+    ];
+    // 在 Windows 上，动态检测所有可用的本地驱动器根目录
+    if (process.platform === 'win32') {
+      try {
+        const child = spawn('cmd', ['/c', 'wmic logicaldisk get device'], { stdio: ['ignore', 'pipe', 'ignore'] });
+        let output = '';
+        child.stdout.on('data', (d: Buffer) => { output += d.toString(); });
+        child.on('close', () => {
+          output.split('\n').forEach((line: string) => {
+            const m = line.trim().match(/^([A-Z])[:\\]$/);
+            if (m) roots.push(m[1] + ':\\');
+          });
+        });
+      } catch {}
+      // 兜底：至少包含 A-Z
+      for (let code = 65; code <= 90; code++) {
+        const drive = String.fromCharCode(code) + ':\\';
+        if (!roots.includes(drive)) roots.push(drive);
+      }
+    }
+    return roots;
+  };
+
+  function isPathAllowed(target: string): boolean {
+    const resolved = resolve(target);
+    for (const root of allowedRoots()) {
+      const rel = relative(root, resolved);
+      if (rel === '' || (!rel.startsWith('..') && !isAbsolute(rel))) {
+        return existsSync(resolved);
+      }
+    }
+    return false;
+  }
+
+  function assertPathAllowed(target: string, res: Response): boolean {
+    if (!isPathAllowed(target)) {
+      res.status(403).json({ ok: false, error: '路径不在允许范围内或不存在' });
+      return false;
+    }
+    return true;
+  }
+
+  /* ========== 工作区与文件浏览 ========== */
+  app.get('/api/workspace', (_req: Request, res: Response) => {
+    res.json({ ok: true, cwd: serverWorkspaceDir });
+  });
+  app.post('/api/workspace', (req: Request, res: Response) => {
+    const body = (req.body ?? {}) as Record<string, any>;
+    const cwd = typeof body?.cwd === 'string' ? body.cwd.trim() : '';
+    if (!cwd) {
+      res.status(400).json({ ok: false, error: '缺少 cwd 字段' });
+      return;
+    }
+    const resolved = resolve(cwd);
+    if (!existsSync(resolved) || !statSync(resolved).isDirectory()) {
+      res.status(400).json({ ok: false, error: '目录不存在' });
+      return;
+    }
+    serverWorkspaceDir = resolved;
+    res.json({ ok: true, cwd: serverWorkspaceDir });
+  });
+
+  app.get('/api/workspace/list', (req: Request, res: Response) => {
+    const rawPath = typeof req.query.path === 'string' ? req.query.path.trim() : serverWorkspaceDir;
+    const dir = resolve(rawPath);
+    if (!assertPathAllowed(dir, res)) return;
+    try {
+      const names = readdirSync(dir);
+      const entries = names
+        .map((name) => {
+          const full = join(dir, name);
+          try {
+            const st = lstatSync(full);
+            return {
+              name,
+              path: full,
+              type: st.isDirectory() ? 'dir' : st.isFile() ? 'file' : 'other',
+            };
+          } catch {
+            return null;
+          }
+        })
+        .filter(Boolean);
+      res.json({ ok: true, cwd: dir, entries });
+    } catch (e) {
+      res.status(500).json({ ok: false, error: '读取目录失败: ' + (e as Error).message });
+    }
+  });
+
+  app.post('/api/files/read', (req: Request, res: Response) => {
+    const body = (req.body ?? {}) as Record<string, any>;
+    const file = typeof body?.path === 'string' ? body.path.trim() : '';
+    if (!file || !assertPathAllowed(file, res)) return;
+    try {
+      const st = statSync(file);
+      if (!st.isFile()) {
+        res.status(400).json({ ok: false, error: '不是文件' });
+        return;
+      }
+      if (st.size > 2 * 1024 * 1024) {
+        res.status(400).json({ ok: false, error: '文件超过 2MB，建议用本地编辑器打开' });
+        return;
+      }
+      const content = readFileSync(file, 'utf8');
+      res.json({ ok: true, path: file, content });
+    } catch (e) {
+      res.status(500).json({ ok: false, error: '读取失败: ' + (e as Error).message });
+    }
+  });
+
+  /* ========== 打开本地文件夹/浏览器 ========== */
+  app.post('/api/open/folder', (req: Request, res: Response) => {
+    const body = (req.body ?? {}) as Record<string, any>;
+    const dir = typeof body?.path === 'string' ? body.path.trim() : serverWorkspaceDir;
+    if (!dir || !assertPathAllowed(dir, res)) return;
+    try {
+      openFolder(dir);
+      res.json({ ok: true });
+    } catch (e) {
+      res.status(500).json({ ok: false, error: '打开失败: ' + (e as Error).message });
+    }
+  });
+
+  app.post('/api/open/browser', (req: Request, res: Response) => {
+    const body = (req.body ?? {}) as Record<string, any>;
+    const url = typeof body?.url === 'string' ? body.url.trim() : '';
+    if (!url) {
+      res.status(400).json({ ok: false, error: '缺少 url 字段' });
+      return;
+    }
+    try {
+      openBrowser(url);
+      res.json({ ok: true });
+    } catch (e) {
+      res.status(500).json({ ok: false, error: '打开失败: ' + (e as Error).message });
+    }
+  });
+
+  /* ========== 上传文件/图片 ========== */
+  const uploadsDir = () => join(homeDir, 'uploads');
+  app.post('/api/upload', (req: Request, res: Response) => {
+    const body = (req.body ?? {}) as Record<string, any>;
+    const name = typeof body?.name === 'string' ? body.name.trim() : '';
+    const mime = typeof body?.mime === 'string' ? body.mime.trim() : 'application/octet-stream';
+    const data = typeof body?.dataBase64 === 'string' ? body.dataBase64.trim() : '';
+    if (!name || !data) {
+      res.status(400).json({ ok: false, error: '缺少 name 或 dataBase64 字段' });
+      return;
+    }
+    try {
+      mkdirSync(uploadsDir(), { recursive: true });
+      const safeName = name.replace(/[^a-zA-Z0-9_.\-]/g, '_');
+      const dest = join(uploadsDir(), `${Date.now()}_${safeName}`);
+      writeFileSync(dest, Buffer.from(data, 'base64'));
+      res.json({ ok: true, path: dest, name, mime });
+    } catch (e) {
+      res.status(500).json({ ok: false, error: '上传失败: ' + (e as Error).message });
+    }
+  });
 
   /* ========== 技能市场（插件市场）：聚合 ClawHub + Agent-Foundry ========== */
   const CLAWHUB_API = 'https://clawhub.ai/api/v1/skills';
@@ -516,6 +749,67 @@ export function startWebServer(opts: ServeOptions = {}): {
     });
   });
 
+  /* ========== 大模型配置 ========== */
+  const modelsFile = join(homeDir, 'models.json');
+  interface ModelConfig {
+    id: string;
+    name: string;
+    apiBase: string;
+    apiKey: string;
+    reasoning?: string;
+    default?: boolean;
+  }
+  function loadModels(): ModelConfig[] {
+    const list = loadJsonFile<ModelConfig[]>(modelsFile, []);
+    return Array.isArray(list) ? list : [];
+  }
+  function saveModels(list: ModelConfig[]): void {
+    saveJsonFile(modelsFile, list);
+  }
+  app.get('/api/models', (_req: Request, res: Response) => {
+    const list = loadModels();
+    res.json({ ok: true, models: list, defaultId: (list.find((m) => m.default) || {}).id || null });
+  });
+  app.post('/api/models', (req: Request, res: Response) => {
+    const body = req.body as Record<string, any>;
+    const name = typeof body?.name === 'string' ? body.name.trim() : '';
+    const apiBase = typeof body?.apiBase === 'string' ? body.apiBase.trim() : '';
+    const apiKey = typeof body?.apiKey === 'string' ? body.apiKey : '';
+    const reasoning = typeof body?.reasoning === 'string' ? body.reasoning : '';
+    if (!name) {
+      res.status(400).json({ ok: false, error: '请填写模型名称' });
+      return;
+    }
+    const list = loadModels();
+    const id = typeof body?.id === 'string' && body.id.trim() ? body.id.trim() : randomUUID();
+    const idx = list.findIndex((m) => m.id === id);
+    const cfg: ModelConfig = { id, name, apiBase, apiKey, reasoning };
+    if (idx >= 0) list[idx] = { ...list[idx], ...cfg };
+    else list.push(cfg);
+    saveModels(list);
+    res.json({ ok: true, model: cfg });
+  });
+  app.delete('/api/models/:id', (req: Request, res: Response) => {
+    let list = loadModels();
+    const target = list.find((m) => m.id === req.params.id);
+    list = list.filter((m) => m.id !== req.params.id);
+    // 若删除的是默认，且没有其它默认，则把第一个设为默认
+    if (target?.default && !list.some((m) => m.default) && list.length) list[0].default = true;
+    saveModels(list);
+    res.json({ ok: true });
+  });
+  app.post('/api/models/:id/default', (req: Request, res: Response) => {
+    const list = loadModels();
+    const target = list.find((m) => m.id === req.params.id);
+    if (!target) {
+      res.status(404).json({ ok: false, error: '模型不存在' });
+      return;
+    }
+    list.forEach((m) => (m.default = m.id === req.params.id));
+    saveModels(list);
+    res.json({ ok: true, defaultId: target.id });
+  });
+
   const server = app.listen(port, () => {
     console.log(t('serve.started', { port }));
   });
@@ -530,4 +824,26 @@ export function startWebServer(opts: ServeOptions = {}): {
 /** 对外暴露的任务视图（不含内部字段） */
 function publicTask(r: TaskRecord): TaskRecord {
   return r;
+}
+
+/** 使用系统默认程序打开本地文件夹 */
+function openFolder(dir: string): void {
+  if (process.platform === 'win32') {
+    spawn('explorer', [dir], { detached: true, stdio: 'ignore' }).unref();
+  } else if (process.platform === 'darwin') {
+    spawn('open', [dir], { detached: true, stdio: 'ignore' }).unref();
+  } else {
+    spawn('xdg-open', [dir], { detached: true, stdio: 'ignore' }).unref();
+  }
+}
+
+/** 使用系统默认浏览器打开 URL */
+function openBrowser(url: string): void {
+  if (process.platform === 'win32') {
+    spawn('cmd', ['/c', 'start', '', url], { detached: true, stdio: 'ignore' }).unref();
+  } else if (process.platform === 'darwin') {
+    spawn('open', [url], { detached: true, stdio: 'ignore' }).unref();
+  } else {
+    spawn('xdg-open', [url], { detached: true, stdio: 'ignore' }).unref();
+  }
 }
