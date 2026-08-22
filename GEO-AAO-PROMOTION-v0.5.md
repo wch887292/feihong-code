@@ -76,13 +76,12 @@
 - [x] 更新迭代次数默认值（25次）
 - [x] 添加上下文压缩机制说明
 - [x] 更新 tool-schema.json 版本
-
-待执行：
-- [ ] 添加 Schema.org JSON-LD 结构化数据
-- [ ] 添加 Open Graph 预览图（建议 1280x640）
-- [ ] 创建演示 GIF/截图到 docs/screenshots/
-- [ ] 提交到 Hugging Face Spaces（可选）
-- [ ] 投稿到 awesome-self-hosted 列表
+- [x] 添加 Schema.org JSON-LD 结构化数据（README.md）
+- [x] 添加 Open Graph 预览图 public/og-image.png（1280x640）
+- [x] 创建演示截图 docs/screenshots/
+  - cli-demo.png: CLI 终端演示
+  - web-console.png: Web 控制台界面
+  - feature-comparison.png: 功能对比 infographic
 
 ---
 
