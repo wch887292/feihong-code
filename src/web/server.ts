@@ -278,33 +278,19 @@ export function startWebServer(opts: ServeOptions = {}): {
     return drives.length > 0 ? drives : [];
   }
 
-  const allowedRoots = () => {
-    const roots: string[] = [
-      resolve(serverWorkspaceDir),
-      resolve(homeDir),
-      resolve(process.cwd()),
-    ];
-    // 在 Windows 上，动态检测所有可用的本地驱动器根目录
-    if (process.platform === 'win32') {
-      try {
-        const child = spawn('cmd', ['/c', 'wmic logicaldisk get device'], { stdio: ['ignore', 'pipe', 'ignore'] });
-        let output = '';
-        child.stdout.on('data', (d: Buffer) => { output += d.toString(); });
-        child.on('close', () => {
-          output.split('\n').forEach((line: string) => {
-            const m = line.trim().match(/^([A-Z])[:\\]$/);
-            if (m) roots.push(m[1] + ':\\');
-          });
-        });
-      } catch {}
-      // 兜底：至少包含 A-Z
-      for (let code = 65; code <= 90; code++) {
-        const drive = String.fromCharCode(code) + ':\\';
-        if (!roots.includes(drive)) roots.push(drive);
-      }
-    }
-    return roots;
-  };
+  // 驱动器根目录只在启动时探测一次并缓存。
+  // 历史缺陷：此处曾对每次路径校验 spawn 一个 `cmd /c wmic logicaldisk`，
+  // 而 wmic 的 close 回调在函数 return 之后才触发（结果根本用不上），
+  // 等于每次浏览目录都白起一个进程；Win11 已移除 wmic，spawn 失败还会拖慢/打断请求。
+  // 现改为同步 existsSync 探测 + 进程级缓存，零子进程。
+  const driveRootsCache: string[] = getAvailableDrives();
+
+  const allowedRoots = (): string[] => [
+    resolve(serverWorkspaceDir),
+    resolve(homeDir),
+    resolve(process.cwd()),
+    ...driveRootsCache,
+  ];
 
   function isPathAllowed(target: string): boolean {
     const resolved = resolve(target);
@@ -346,10 +332,13 @@ export function startWebServer(opts: ServeOptions = {}): {
   });
 
   app.get('/api/workspace/list', (req: Request, res: Response) => {
-    const rawPath = typeof req.query.path === 'string' ? req.query.path.trim() : serverWorkspaceDir;
+    const raw = typeof req.query.path === 'string' ? req.query.path.trim() : '';
+    // path 为空 / '.' 时回落到服务端工作区，避免 resolve('.') 指向进程 cwd 造成困惑
+    const rawPath = !raw || raw === '.' ? serverWorkspaceDir : raw;
     const dir = resolve(rawPath);
     if (!assertPathAllowed(dir, res)) return;
     try {
+      // withFileTypes 失败时（部分网络盘/权限目录）退回普通 readdir
       const names = readdirSync(dir);
       const entries = names
         .map((name) => {

@@ -146,6 +146,12 @@ export FH_ROLE=developer
 
 > 最适合：**数据不出内网**、需要**企业权限审计**、希望**混合调度多家大模型**的团队与个人开发者。
 
+### 📸 产品截图
+
+| CLI 终端 | Web 控制台 | 功能对比 |
+|---------|-----------|---------|
+| ![CLI Demo](docs/screenshots/cli-demo.png) | ![Web Console](docs/screenshots/web-console.png) | ![Feature Comparison](docs/screenshots/feature-comparison.png) |
+
 ## 二、核心特性
 
 ### 🔥 主要亮点
