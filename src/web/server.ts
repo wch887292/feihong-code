@@ -23,9 +23,11 @@ import {
   readdirSync,
   statSync,
   lstatSync,
+  renameSync,
+  unlinkSync,
 } from 'fs';
 import { spawn } from 'child_process';
-import { requireToken, SessionStore, type Session } from './auth';
+import { requireToken, SessionStore, type Session, WELCOME_TASKS } from './auth';
 import {
   TaskQueue,
   type TaskRecord,
@@ -47,6 +49,14 @@ import {
   getSummaryHistory,
   summarizeMemory,
 } from '../memory/auto-summarize';
+import {
+  encryptText,
+  decryptText,
+  isEncrypted,
+  getMasterKey,
+  getRsaKeys,
+  rsaDecrypt,
+} from '../shared/secure-store';
 
 export interface ServeOptions {
   port?: number;
@@ -89,6 +99,16 @@ export function startWebServer(opts: ServeOptions = {}): {
   // 当前 Web 控制台工作区，任务提交缺省时使用
   let serverWorkspaceDir = resolve(process.cwd());
 
+  // 任务队列（进程内；服务端静默执行）— 需在登录接口前初始化
+  const persistDir =
+    process.env.FH_TASK_PERSIST_DIR?.trim() ||
+    join(process.env.FH_HOME?.trim() || join(require('os').homedir(), '.feihong-code'), 'tasks');
+  const queue = new TaskQueue({
+    concurrency: Number(process.env.FH_TASK_CONCURRENCY ?? 2),
+    webhookUrl: process.env.FH_TASK_WEBHOOK_URL,
+    persistDir,
+  });
+
   // 公开健康检查（仅暴露版本/状态等观测信息，无敏感数据）
   app.get('/api/health', (_req: Request, res: Response) => {
     res.json({
@@ -110,18 +130,39 @@ export function startWebServer(opts: ServeOptions = {}): {
       res.status(400).json({ ok: false, error: '请输入手机号码' });
       return;
     }
-    const sessionToken = sessions.create(phone);
-    res.json({ ok: true, token: sessionToken, phone });
-  });
-
-  // 任务队列（进程内；服务端静默执行）
-  const persistDir =
-    process.env.FH_TASK_PERSIST_DIR?.trim() ||
-    join(process.env.FH_HOME?.trim() || join(require('os').homedir(), '.feihong-code'), 'tasks');
-  const queue = new TaskQueue({
-    concurrency: Number(process.env.FH_TASK_CONCURRENCY ?? 2),
-    webhookUrl: process.env.FH_TASK_WEBHOOK_URL,
-    persistDir,
+    // 使用新的登录方法，支持首次登录检测
+    const result = sessions.login(phone);
+    const session = sessions.get(result.token);
+    
+    // 如果是首次登录，自动创建引导任务
+    let welcomeTasks: any[] = [];
+    if (result.isFirstLogin) {
+      // 标记会话为首次登录（用于后续接口识别）
+      if (session) {
+        session.isFirstLogin = true;
+      }
+      
+      // 创建引导任务
+      for (const task of WELCOME_TASKS) {
+        const record = queue.submit(task.goal, {
+          workspaceDir: serverWorkspaceDir,
+          agentType: 'general' as const,
+        });
+        welcomeTasks.push({
+          ...task,
+          taskId: record.id,
+          status: record.status,
+        });
+      }
+    }
+    
+    res.json({ 
+      ok: true, 
+      token: result.token, 
+      phone,
+      isFirstLogin: result.isFirstLogin,
+      welcomeTasks,
+    });
   });
   // 鉴权：其余 /api 需 Bearer token（静态资源与 login/health 除外）
   // 公开 API（无需认证）
@@ -164,7 +205,11 @@ export function startWebServer(opts: ServeOptions = {}): {
 
   app.get('/api/auth/me', (req: Request, res: Response) => {
     const session = (req as Request & { user?: Session }).user;
-    res.json({ ok: true, phone: session?.phone ?? null });
+    res.json({ 
+      ok: true, 
+      phone: session?.phone ?? null,
+      isFirstLogin: session?.isFirstLogin ?? false,
+    });
   });
 
   app.post('/api/tasks', (req: Request, res: Response) => {
@@ -186,7 +231,11 @@ export function startWebServer(opts: ServeOptions = {}): {
         : serverWorkspaceDir;
     const modelId =
       typeof body?.modelId === 'string' && body.modelId.trim() ? body.modelId.trim() : undefined;
-    const record = queue.submit(goal, { modelId, workspaceDir, agentType, permissions });
+    // 附件：前端暂存区统一上传后的文件路径列表
+    const attachments: string[] = Array.isArray(body?.attachments)
+      ? (body.attachments as unknown[]).filter((x) => typeof x === 'string' && x.trim()).map((x) => (x as string).trim())
+      : [];
+    const record = queue.submit(goal, { modelId, workspaceDir, agentType, permissions, attachments });
     res.status(201).json({ ok: true, task: publicTask(record, true) });
   });
   app.get('/api/tasks', (_req: Request, res: Response) => {
@@ -208,7 +257,11 @@ export function startWebServer(opts: ServeOptions = {}): {
       res.status(400).json({ ok: false, error: '缺少 message 字段' });
       return;
     }
-    const record = queue.continueTask(req.params.id, message);
+    // 附件：前端暂存区统一上传后的文件路径列表
+    const attachments: string[] = Array.isArray(body?.attachments)
+      ? (body.attachments as unknown[]).filter((x) => typeof x === 'string' && x.trim()).map((x) => (x as string).trim())
+      : [];
+    const record = queue.continueTask(req.params.id, message, attachments);
     if (!record) {
       res.status(409).json({ ok: false, error: '任务不存在或正在执行中，请等待完成后再继续对话' });
       return;
@@ -221,6 +274,20 @@ export function startWebServer(opts: ServeOptions = {}): {
       res.status(400).json({ ok: false, error: '无法删除运行中的任务' });
       return;
     }
+    res.json({ ok: true });
+  });
+  // P9：停止单个指定任务（精准中止，不影响其他运行中的任务）
+  app.post('/api/tasks/:id/stop', (req: Request, res: Response) => {
+    const ok = queue.cancelTask(req.params.id);
+    if (!ok) {
+      res.status(409).json({ ok: false, error: '任务不存在或已结束，无法停止' });
+      return;
+    }
+    res.json({ ok: true, taskId: req.params.id, status: 'failed' });
+  });
+  // P9：停止所有任务（中断运行 + 清空队列，后续可继续提交新任务）
+  app.post('/api/tasks/stop', (_req: Request, res: Response) => {
+    queue.cancel();
     res.json({ ok: true });
   });
 
@@ -241,6 +308,9 @@ export function startWebServer(opts: ServeOptions = {}): {
 
   /* ========== 持久化辅助 ========== */
   const homeDir = resolveHomeDir();
+  // 三重加密密钥体系：主密钥（AES 存储加密）+ RSA 密钥对（通信加密）
+  const masterKey = getMasterKey(homeDir);
+  const rsaKeys = getRsaKeys(homeDir);
   function loadJsonFile<T>(file: string, fallback: T): T {
     try {
       if (!existsSync(file)) return fallback;
@@ -249,21 +319,47 @@ export function startWebServer(opts: ServeOptions = {}): {
       return fallback;
     }
   }
-  async function saveJsonFile(file: string, data: unknown): Promise<void> {
+  /** 同步睡眠（避免引入异步复杂度；用 Atomics.wait 兼容 Node 12+） */
+  function sleepSync(ms: number): void {
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+  }
+
+  /**
+   * 原子写入 JSON 文件（tmp → renameSync）。
+   * - 真原子替换：rename 成功即生效，tmp 不会残留（区别于旧的"写 tmp 再写 file 再删 tmp"，
+   *   旧方案在 Windows 下高频写会偶发 EPERM：Defender/句柄锁住 .tmp 文件导致 open 失败，
+   *   且崩溃时 tmp 残留，下次 open 又被锁 → 连锁失败）。
+   * - EPERM 瞬时锁：重试 3 次（50ms/100ms/150ms 退避）。
+   * - 绝不向上抛：失败返回 false，由调用方决定降级策略（内存态 / 500 响应）。
+   */
+  function saveJsonFile(file: string, data: unknown): boolean {
     try {
       mkdirSync(dirname(file), { recursive: true });
     } catch {
       /* ignore */
     }
-    const tmp = file + '.tmp';
-    writeFileSync(tmp, JSON.stringify(data, null, 2), 'utf8');
-    // 原子替换，避免并发读写损坏
-    writeFileSync(file, JSON.stringify(data, null, 2), 'utf8');
-    try {
-      require('fs').unlinkSync(tmp);
-    } catch {
-      /* ignore */
+    // tmp 文件名带 PID：进程唯一，避免与历史残留（如被外部句柄锁住的 .tmp）或并发进程冲突
+    const tmp = file + '.' + process.pid + '.tmp';
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        writeFileSync(tmp, JSON.stringify(data, null, 2), 'utf8');
+        renameSync(tmp, file);
+        return true;
+      } catch (e) {
+        // 清理残留 tmp（unlink 也可能 EPERM，忽略）
+        try {
+          unlinkSync(tmp);
+        } catch {
+          /* ignore */
+        }
+        if (attempt === 2) {
+          console.warn('[fhcode] 配置文件写入失败（已重试 3 次，保持内存态）', file, (e as Error)?.message);
+          return false;
+        }
+        sleepSync(50 * (attempt + 1));
+      }
     }
+    return false;
   }
 
   /* ========== 路径安全 ========== */
@@ -564,11 +660,17 @@ export function startWebServer(opts: ServeOptions = {}): {
     try {
       const dir = join(homeDir, 'skills', body.id.replace(/[^a-zA-Z0-9_-]/g, '_'));
       mkdirSync(dir, { recursive: true });
-      await saveJsonFile(join(dir, 'meta.json'), { ...body, installedAt: new Date().toISOString() });
+      if (!saveJsonFile(join(dir, 'meta.json'), { ...body, installedAt: new Date().toISOString() })) {
+        res.status(500).json({ ok: false, error: '技能元数据写入失败' });
+        return;
+      }
       const installed = loadJsonFile<Array<Record<string, any>>>(installedSkillsFile, []);
       if (!installed.find((s) => s.id === body.id)) {
         installed.push(body);
-        await saveJsonFile(installedSkillsFile, installed);
+        if (!saveJsonFile(installedSkillsFile, installed)) {
+          res.status(500).json({ ok: false, error: '已安装列表写入失败' });
+          return;
+        }
       }
       res.json({ ok: true, message: `技能「${body.name}」已记录为已安装` });
     } catch (e) {
@@ -617,7 +719,10 @@ export function startWebServer(opts: ServeOptions = {}): {
       runCount: 0,
     };
     list.push(rule);
-    await saveJsonFile(automationsFile, list);
+    if (!saveJsonFile(automationsFile, list)) {
+      res.status(500).json({ ok: false, error: '指令保存失败（磁盘不可写）' });
+      return;
+    }
     res.status(201).json({ ok: true, automation: rule });
   });
   // 注：当前 @types/express 版本缺失 delete 方法类型声明，运行时 Express 完全支持，故局部断言
@@ -630,7 +735,10 @@ export function startWebServer(opts: ServeOptions = {}): {
         res.status(404).json({ ok: false, error: '指令不存在' });
         return;
       }
-      await saveJsonFile(automationsFile, next);
+      if (!saveJsonFile(automationsFile, next)) {
+        res.status(500).json({ ok: false, error: '指令删除失败（磁盘不可写）' });
+        return;
+      }
       res.json({ ok: true });
     },
   );
@@ -647,8 +755,14 @@ export function startWebServer(opts: ServeOptions = {}): {
     });
     rule.runCount += 1;
     rule.lastRunAt = new Date().toISOString();
-    await saveJsonFile(automationsFile, list);
-    res.status(201).json({ ok: true, task: publicTask(record, true), runCount: rule.runCount });
+    // 任务已入队，runCount 持久化失败不阻塞响应（带 persistWarning 提示）
+    const persistWarning = !saveJsonFile(automationsFile, list);
+    res.status(201).json({
+      ok: true,
+      task: publicTask(record, true),
+      runCount: rule.runCount,
+      persistWarning: persistWarning || undefined,
+    });
   });
 
   /* ========== 模板库 ========== */
@@ -742,7 +856,10 @@ export function startWebServer(opts: ServeOptions = {}): {
       builtin: false,
     };
     list.push(tpl);
-    await saveJsonFile(templatesFile, list);
+    if (!saveJsonFile(templatesFile, list)) {
+      res.status(500).json({ ok: false, error: '模板保存失败（磁盘不可写）' });
+      return;
+    }
     res.status(201).json({ ok: true, template: tpl });
   });
   (app.delete as (p: string, h: (req: Request, res: Response) => void) => void)(
@@ -754,7 +871,10 @@ export function startWebServer(opts: ServeOptions = {}): {
         res.status(404).json({ ok: false, error: '模板不存在或不可删除' });
         return;
       }
-      await saveJsonFile(templatesFile, next);
+      if (!saveJsonFile(templatesFile, next)) {
+        res.status(500).json({ ok: false, error: '模板删除失败（磁盘不可写）' });
+        return;
+      }
       res.json({ ok: true });
     },
   );
@@ -810,13 +930,13 @@ export function startWebServer(opts: ServeOptions = {}): {
     });
   });
 
-  /* ========== 大模型配置 ========== */
+  /* ========== 大模型配置（三重加密：apiKey AES-256-GCM 落盘加密 + RSA 加密传输） ========== */
   const modelsFile = join(homeDir, 'models.json');
   interface ModelConfig {
     id: string;
     name: string;
     apiBase: string;
-    apiKey: string;
+    apiKey: string; // 存储层为 AES-256-GCM 密文（v1:...），对外永不明文返回
     reasoning?: string;
     default?: boolean;
   }
@@ -824,23 +944,58 @@ export function startWebServer(opts: ServeOptions = {}): {
     const list = loadJsonFile<ModelConfig[]>(modelsFile, []);
     return Array.isArray(list) ? list : [];
   }
-  function saveModels(list: ModelConfig[]): void {
-    saveJsonFile(modelsFile, list);
-    // 同步更新任务队列的模型配置，使后续任务使用最新配置
-    queue.setModelProviders(list.map(m => ({ id: m.id, type: 'openai-compatible' as const, baseURL: m.apiBase, apiKey: m.apiKey, model: m.name })));
+  /** 解析真实（解密）apiKey，供任务执行器使用 */
+  function resolveApiKey(m: ModelConfig): string {
+    if (!m.apiKey) return '';
+    return isEncrypted(m.apiKey) ? decryptText(m.apiKey, masterKey) : m.apiKey;
+  }
+  /** 对外脱敏视图：任何接口都不返回密钥（明文或密文） */
+  function publicModel(m: ModelConfig): ModelConfig {
+    return { ...m, apiKey: '' };
+  }
+  function saveModels(list: ModelConfig[]): boolean {
+    // 明文 key 加密后再落盘（已加密的跳过，避免二次加密）
+    const encList = list.map((m) =>
+      m.apiKey && !isEncrypted(m.apiKey) ? { ...m, apiKey: encryptText(m.apiKey, masterKey) } : m,
+    );
+    const ok = saveJsonFile(modelsFile, encList);
+    // 同步更新任务队列的模型配置，使用解密后的真实 key（即使落盘失败也更新内存态）
+    queue.setModelProviders(encList.map((m) => ({
+      id: m.id,
+      type: 'openai-compatible' as const,
+      baseURL: m.apiBase,
+      apiKey: resolveApiKey(m),
+      model: m.name,
+    })));
+    return ok;
   }
   // 初始化模型提供列表，并注册到任务队列
   const initialModels = loadModels();
-  queue.setModelProviders(initialModels.map(m => ({ id: m.id, type: 'openai-compatible' as const, baseURL: m.apiBase, apiKey: m.apiKey, model: m.name })));
+  queue.setModelProviders(initialModels.map((m) => ({
+    id: m.id,
+    type: 'openai-compatible' as const,
+    baseURL: m.apiBase,
+    apiKey: resolveApiKey(m),
+    model: m.name,
+  })));
+  // 第二重（通信层）：向客户端下发 RSA 公钥，用于加密敏感参数（如模型 API Key）传输
+  app.get('/api/security/public-key', (_req: Request, res: Response) => {
+    res.json({ ok: true, publicKey: rsaKeys.publicKey, algorithm: 'RSA-OAEP-2048-SHA256' });
+  });
   app.get('/api/models', (_req: Request, res: Response) => {
-    const list = loadModels();
+    const list = loadModels().map(publicModel);
     res.json({ ok: true, models: list, defaultId: (list.find((m) => m.default) || {}).id || null });
   });
   app.post('/api/models', (req: Request, res: Response) => {
     const body = req.body as Record<string, any>;
     const name = typeof body?.name === 'string' ? body.name.trim() : '';
     const apiBase = typeof body?.apiBase === 'string' ? body.apiBase.trim() : '';
-    const apiKey = typeof body?.apiKey === 'string' ? body.apiKey : '';
+    let apiKey = typeof body?.apiKey === 'string' ? body.apiKey : '';
+    // 支持 RSA 公钥加密传输的密钥（App 端使用，防窃听/防中间人截取明文 Key）
+    if (typeof body?.apiKeyEnc === 'string' && body.apiKeyEnc) {
+      const dec = rsaDecrypt(body.apiKeyEnc, rsaKeys.privateKey);
+      if (dec) apiKey = dec;
+    }
     const reasoning = typeof body?.reasoning === 'string' ? body.reasoning : '';
     if (!name) {
       res.status(400).json({ ok: false, error: '请填写模型名称' });
@@ -849,11 +1004,25 @@ export function startWebServer(opts: ServeOptions = {}): {
     const list = loadModels();
     const id = typeof body?.id === 'string' && body.id.trim() ? body.id.trim() : randomUUID();
     const idx = list.findIndex((m) => m.id === id);
-    const cfg: ModelConfig = { id, name, apiBase, apiKey, reasoning };
-    if (idx >= 0) list[idx] = { ...list[idx], ...cfg };
-    else list.push(cfg);
-    saveModels(list);
-    res.json({ ok: true, model: cfg });
+    let saved: ModelConfig;
+    if (idx >= 0) {
+      // 编辑场景：未提供新 key 则保留原密钥（前端不再回填明文）
+      const cfg: ModelConfig = {
+        id, name, apiBase,
+        apiKey: apiKey || list[idx].apiKey,
+        reasoning,
+      };
+      list[idx] = { ...list[idx], ...cfg };
+      saved = list[idx];
+    } else {
+      saved = { id, name, apiBase, apiKey, reasoning };
+      list.push(saved);
+    }
+    if (!saveModels(list)) {
+      res.status(500).json({ ok: false, error: '模型配置保存失败（磁盘不可写，已保留内存态）' });
+      return;
+    }
+    res.json({ ok: true, model: publicModel(saved) });
   });
   app.delete('/api/models/:id', (req: Request, res: Response) => {
     let list = loadModels();
@@ -861,7 +1030,10 @@ export function startWebServer(opts: ServeOptions = {}): {
     list = list.filter((m) => m.id !== req.params.id);
     // 若删除的是默认，且没有其它默认，则把第一个设为默认
     if (target?.default && !list.some((m) => m.default) && list.length) list[0].default = true;
-    saveModels(list);
+    if (!saveModels(list)) {
+      res.status(500).json({ ok: false, error: '模型配置保存失败（磁盘不可写，已保留内存态）' });
+      return;
+    }
     res.json({ ok: true });
   });
   app.post('/api/models/:id/default', (req: Request, res: Response) => {
@@ -872,7 +1044,10 @@ export function startWebServer(opts: ServeOptions = {}): {
       return;
     }
     list.forEach((m) => (m.default = m.id === req.params.id));
-    saveModels(list);
+    if (!saveModels(list)) {
+      res.status(500).json({ ok: false, error: '模型配置保存失败（磁盘不可写，已保留内存态）' });
+      return;
+    }
     res.json({ ok: true, defaultId: target.id });
   });
 

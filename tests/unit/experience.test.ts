@@ -11,6 +11,7 @@ import type { ChatMessage } from '../../src/models/model.interface';
 import {
   extractExperience,
   saveExperience,
+  upsertExperience,
   loadExperiences,
   updateExperienceUsage,
   generateExperiencePrompt,
@@ -142,4 +143,124 @@ test('listExperiences: 按 sessionCount 降序', async () => {
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('upsertExperience: 同 id 多次 upsert 仅保留一条，sessionCount 累加', async () => {
+  const dir = tmpDir();
+  try {
+    const exp = sampleExperience('dup-1', 0.8);
+    await upsertExperience(dir, exp);
+    // 第二次相同 id：更新 successRate 而非追加
+    const exp2 = sampleExperience('dup-1', 1.0);
+    await upsertExperience(dir, exp2);
+    const list = await listExperiences(dir);
+    assert.strictEqual(list.length, 1, '同 id 应只保留一条记录');
+    assert.strictEqual(list[0].metadata.sessionCount, 2, 'sessionCount 应累加为 2');
+    // successRate 应为加权平均 (0.8*1 + 1.0*1) / 2 = 0.9
+    const expectedRate = (0.8 * 1 + 1.0 * 1) / 2;
+    assert.ok(Math.abs(list[0].metadata.successRate - expectedRate) < 0.001,
+      `successRate 应为 ${expectedRate}，实际 ${list[0].metadata.successRate}`);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('upsertExperience: 不同 id 各自独立存储', async () => {
+  const dir = tmpDir();
+  try {
+    await upsertExperience(dir, sampleExperience('a', 0.9));
+    await upsertExperience(dir, sampleExperience('b', 0.7));
+    const list = await listExperiences(dir);
+    assert.strictEqual(list.length, 2);
+    assert.ok(list.some(e => e.id === 'a'));
+    assert.ok(list.some(e => e.id === 'b'));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('upsertExperience: 同一 id 合并 sessionCount，不产生重复记录', async () => {
+  const dir = tmpDir();
+  try {
+    const exp1 = sampleExperience('dedup-1', 0.8);
+    await upsertExperience(dir, exp1);
+
+    // 第二次以相同 id 插入，successRate 不同的经验
+    const exp2 = sampleExperience('dedup-1', 1.0);
+    await upsertExperience(dir, exp2);
+
+    const list = await listExperiences(dir);
+    // 只应有一条记录，而非两条
+    assert.strictEqual(list.length, 1, `应只有 1 条记录，实际 ${list.length}`);
+    // sessionCount 应为 2（原 1 + 本次 1）
+    assert.strictEqual(list[0].metadata.sessionCount, 2, 'sessionCount 应累加为 2');
+    // 成功率应加权平均：(0.8 * 1 + 1.0 * 1) / 2 = 0.9
+    assert.ok(Math.abs(list[0].metadata.successRate - 0.9) < 0.01, 'successRate 应为加权平均');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('upsertExperience: 新 id 正常新增', async () => {
+  const dir = tmpDir();
+  try {
+    const exp = sampleExperience('new-id', 0.7);
+    await upsertExperience(dir, exp);
+    const list = await listExperiences(dir);
+    assert.strictEqual(list.length, 1);
+    assert.strictEqual(list[0].id, 'new-id');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('upsertExperience: 并发同 id 写入不丢失（文件锁竞态修复）', async () => {
+  const dir = tmpDir();
+  try {
+    const base = sampleExperience('concurrent-id', 0.5);
+    await upsertExperience(dir, base);
+    // 同时发起 5 个相同 id 的 upsert，文件锁应串行化，最终 sessionCount=6
+    const concurrent = Array.from({ length: 5 }, (_, i) =>
+      upsertExperience(dir, sampleExperience('concurrent-id', 0.5 + i * 0.1)),
+    );
+    await Promise.all(concurrent);
+    const list = await listExperiences(dir);
+    assert.strictEqual(list.length, 1, '并发写入应只保留一条记录');
+    assert.strictEqual(list[0].metadata.sessionCount, 6, 'sessionCount 应为 1+5=6，不应丢失并发写入');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('extractExperience: toolCallId 精确匹配工具调用与结果', () => {
+  const messages: ChatMessage[] = [
+    { role: 'assistant', content: '', toolCalls: [
+      { id: 'call-1', name: 'read_file', arguments: {} },
+      { id: 'call-2', name: 'write_file', arguments: {} },
+      { id: 'call-3', name: 'run_shell', arguments: {} },
+    ]},
+    // call-2 先返回（乱序），且失败
+    { role: 'tool', content: '错误: 写入失败', toolCallId: 'call-2' },
+    // call-1 后返回，成功
+    { role: 'tool', content: '文件内容', toolCallId: 'call-1' },
+    // call-3 成功
+    { role: 'tool', content: 'ok', toolCallId: 'call-3' },
+  ];
+  const exps = extractExperience(messages, 'run-toolcallid');
+  const toolExp = exps.find((e) => e.type === 'tool-efficiency');
+  // call-1 成功，call-2 失败，call-3 成功，成功数=2，总数=3
+  assert.ok(toolExp, '应提取工具效率经验');
+  assert.ok(Math.abs(toolExp!.metadata.successRate - 2/3) < 0.01,
+    `successRate 应为 2/3，实际 ${toolExp!.metadata.successRate}`);
+});
+
+test('extractExperience: 无 toolCallId 时回退到最后一个调用（兼容旧数据）', () => {
+  const messages: ChatMessage[] = [
+    { role: 'assistant', content: '', toolCalls: [{ name: 'read_file', arguments: {} }] },
+    { role: 'tool', content: '错误: 无 id 的失败结果' },
+    { role: 'assistant', content: '完成', toolCalls: [] },
+  ];
+  const exps = extractExperience(messages, 'run-noid');
+  const errExp = exps.find((e) => e.type === 'error-pattern');
+  assert.ok(errExp, '无 toolCallId 时应回退匹配并提取错误模式');
 });

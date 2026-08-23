@@ -14,7 +14,7 @@ function wait(ms: number): Promise<void> {
 }
 
 test('TaskQueue: 提交任务后异步执行到 done', async () => {
-  const queue = new TaskQueue({ concurrency: 1 });
+  const queue = new TaskQueue({ concurrency: 1, offline: true });
   const record = queue.submit('写一个 hello.ts');
   // 并发未满时 submit 会立即 pump 启动任务，因此状态可能是 queued 或 running
   assert.ok(['queued', 'running'].includes(record.status), `应为 queued/running，实际 ${record.status}`);
@@ -36,7 +36,7 @@ test('TaskQueue: 提交任务后异步执行到 done', async () => {
 });
 
 test('TaskQueue: 列表按提交时间倒序', async () => {
-  const queue = new TaskQueue({ concurrency: 4 });
+  const queue = new TaskQueue({ concurrency: 4, offline: true });
   queue.submit('任务A');
   queue.submit('任务B');
   queue.submit('任务C');
@@ -48,14 +48,14 @@ test('TaskQueue: 列表按提交时间倒序', async () => {
 });
 
 test('TaskQueue: 按 id 查询，未知 id 返回 undefined', async () => {
-  const queue = new TaskQueue();
+  const queue = new TaskQueue({ offline: true });
   const record = queue.submit('查询测试');
   assert.equal(queue.get(record.id)?.goal, '查询测试');
   assert.equal(queue.get('no-such-id'), undefined);
 });
 
 test('TaskQueue: 并发上限限制同时执行数', async () => {
-  const queue = new TaskQueue({ concurrency: 2 });
+  const queue = new TaskQueue({ concurrency: 2, offline: true });
   for (let i = 0; i < 6; i++) queue.submit(`批量任务${i}`);
   // 立即检查：任一时刻 running 不得超过并发上限 2
   const running = queue.list().filter((t) => t.status === 'running').length;
@@ -67,4 +67,32 @@ test('TaskQueue: 并发上限限制同时执行数', async () => {
   }
   assert.equal(queue.count, 6);
   assert.ok(queue.list().every((t) => t.status === 'done' || t.status === 'failed'));
+});
+
+test('TaskQueue: cancel() 停止后清空队列并标记排队任务为失败', async () => {
+  const queue = new TaskQueue({ concurrency: 1, offline: true });
+  queue.submit('任务A'); // 立即启动（running）
+  const recB = queue.submit('任务B'); // 排队（queued）
+  // 立即取消：排队中的任务B应被标记失败，队列清空
+  queue.cancel();
+  const b = queue.get(recB.id)!;
+  assert.equal(b.status, 'failed', `排队任务应被标记失败，实际 ${b.status}`);
+  assert.ok(b.error?.includes('停止') || b.error?.includes('取消'), `错误应说明停止原因，实际 ${b.error}`);
+  // 取消后可继续提交新任务
+  const recC = queue.submit('任务C（取消后新提交）');
+  assert.ok(['queued', 'running'].includes(recC.status));
+});
+
+test('TaskQueue: cancelTask() 精准停止单个排队任务', async () => {
+  const queue = new TaskQueue({ concurrency: 1, offline: true });
+  const recA = queue.submit('任务A');
+  const recB = queue.submit('任务B（待停止）');
+  // 停止指定的排队任务 B（不影响 A）
+  const ok = queue.cancelTask(recB.id);
+  assert.equal(ok, true);
+  const b = queue.get(recB.id)!;
+  assert.equal(b.status, 'failed', `被停止的任务应标记失败，实际 ${b.status}`);
+  // A 不应受影响（仍在运行或已完成）
+  const a = queue.get(recA.id)!;
+  assert.ok(['queued', 'running', 'done', 'failed'].includes(a.status));
 });

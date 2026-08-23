@@ -38,6 +38,8 @@ export interface ChatRequest {
   temperature?: number;
   maxTokens?: number;
   timeoutMs?: number;
+  /** 外部中断信号（如任务队列的停止按钮），触发后中断当前网络请求与编排循环 */
+  signal?: AbortSignal;
 }
 
 export interface TokenUsage {
