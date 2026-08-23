@@ -1,21 +1,21 @@
-{
+﻿{
   "name": "feihong-code",
-  "version": "0.5.1",
-  "description": "Terminal AI Coding Agent — 终端 AI 编程智能体",
+  "version": "0.6.0",
+  "description": "Terminal AI Coding Agent 鈥?缁堢 AI 缂栫▼鏅鸿兘浣?,
   "tools": [
     {
       "name": "write_file",
-      "description": "写入或覆盖文件内容。如果文件不存在则创建，如果已存在则完全替换。",
+      "description": "鍐欏叆鎴栬鐩栨枃浠跺唴瀹广€傚鏋滄枃浠朵笉瀛樺湪鍒欏垱寤猴紝濡傛灉宸插瓨鍦ㄥ垯瀹屽叏鏇挎崲銆?,
       "parameters": {
         "type": "object",
         "properties": {
           "path": {
             "type": "string",
-            "description": "文件相对路径（相对于工作区根目录）"
+            "description": "鏂囦欢鐩稿璺緞锛堢浉瀵逛簬宸ヤ綔鍖烘牴鐩綍锛?
           },
           "content": {
             "type": "string",
-            "description": "文件的完整内容"
+            "description": "鏂囦欢鐨勫畬鏁村唴瀹?
           }
         },
         "required": [
@@ -31,21 +31,21 @@
     },
     {
       "name": "edit_file",
-      "description": "在文件中插入、删除或替换文本块。使用 oldText/newText 精确匹配。",
+      "description": "鍦ㄦ枃浠朵腑鎻掑叆銆佸垹闄ゆ垨鏇挎崲鏂囨湰鍧椼€備娇鐢?oldText/newText 绮剧‘鍖归厤銆?,
       "parameters": {
         "type": "object",
         "properties": {
           "path": {
             "type": "string",
-            "description": "目标文件路径"
+            "description": "鐩爣鏂囦欢璺緞"
           },
           "oldText": {
             "type": "string",
-            "description": "待替换的原文本（必须唯一存在于文件中）"
+            "description": "寰呮浛鎹㈢殑鍘熸枃鏈紙蹇呴』鍞竴瀛樺湪浜庢枃浠朵腑锛?
           },
           "newText": {
             "type": "string",
-            "description": "替换后的新文本"
+            "description": "鏇挎崲鍚庣殑鏂版枃鏈?
           }
         },
         "required": [
@@ -63,13 +63,13 @@
     },
     {
       "name": "read_file",
-      "description": "读取文件的全部内容。",
+      "description": "璇诲彇鏂囦欢鐨勫叏閮ㄥ唴瀹广€?,
       "parameters": {
         "type": "object",
         "properties": {
           "path": {
             "type": "string",
-            "description": "文件相对路径"
+            "description": "鏂囦欢鐩稿璺緞"
           }
         },
         "required": [
@@ -83,13 +83,13 @@
     },
     {
       "name": "list_files",
-      "description": "列出目录下的文件和子目录。",
+      "description": "鍒楀嚭鐩綍涓嬬殑鏂囦欢鍜屽瓙鐩綍銆?,
       "parameters": {
         "type": "object",
         "properties": {
           "path": {
             "type": "string",
-            "description": "目录路径，默认为 '.'（工作区根）"
+            "description": "鐩綍璺緞锛岄粯璁や负 '.'锛堝伐浣滃尯鏍癸級"
           }
         },
         "additionalProperties": false
@@ -100,17 +100,17 @@
     },
     {
       "name": "grep",
-      "description": "使用正则表达式在项目中搜索文本。",
+      "description": "浣跨敤姝ｅ垯琛ㄨ揪寮忓湪椤圭洰涓悳绱㈡枃鏈€?,
       "parameters": {
         "type": "object",
         "properties": {
           "pattern": {
             "type": "string",
-            "description": "正则表达式模式"
+            "description": "姝ｅ垯琛ㄨ揪寮忔ā寮?
           },
           "path": {
             "type": "string",
-            "description": "搜索起始目录，默认为工作区根"
+            "description": "鎼滅储璧峰鐩綍锛岄粯璁や负宸ヤ綔鍖烘牴"
           }
         },
         "required": [
@@ -125,13 +125,13 @@
     },
     {
       "name": "run_shell",
-      "description": "在工作区内执行 shell 命令。命令需通过白名单验证。",
+      "description": "鍦ㄥ伐浣滃尯鍐呮墽琛?shell 鍛戒护銆傚懡浠ら渶閫氳繃鐧藉悕鍗曢獙璇併€?,
       "parameters": {
         "type": "object",
         "properties": {
           "command": {
             "type": "string",
-            "description": "要执行的完整命令（如 'npm test'、'node index.js'）"
+            "description": "瑕佹墽琛岀殑瀹屾暣鍛戒护锛堝 'npm test'銆?node index.js'锛?
           }
         },
         "required": [
@@ -145,7 +145,7 @@
     },
     {
       "name": "build_check",
-      "description": "检查项目是否能成功编译（运行 tsc --noEmit）。",
+      "description": "妫€鏌ラ」鐩槸鍚﹁兘鎴愬姛缂栬瘧锛堣繍琛?tsc --noEmit锛夈€?,
       "parameters": {
         "type": "object",
         "properties": {},
@@ -155,7 +155,7 @@
     },
     {
       "name": "run_tests",
-      "description": "运行测试套件并返回结果。",
+      "description": "杩愯娴嬭瘯濂椾欢骞惰繑鍥炵粨鏋溿€?,
       "parameters": {
         "type": "object",
         "properties": {},
@@ -183,16 +183,16 @@
     ]
   },
   "security": {
-    "sandbox": "所有文件操作限制在工作区目录内",
-    "approval": "危险操作（shell 命令、写入敏感文件）可能需要人工审批",
-    "audit": "所有工具调用记录到 JSONL 事件日志"
+    "sandbox": "鎵€鏈夋枃浠舵搷浣滈檺鍒跺湪宸ヤ綔鍖虹洰褰曞唴",
+    "approval": "鍗遍櫓鎿嶄綔锛坰hell 鍛戒护銆佸啓鍏ユ晱鎰熸枃浠讹級鍙兘闇€瑕佷汉宸ュ鎵?,
+    "audit": "鎵€鏈夊伐鍏疯皟鐢ㄨ褰曞埌 JSONL 浜嬩欢鏃ュ織"
   },
   "errorCodes": {
-    "FH_4001": "配额超限 — 日预算已耗尽，等待次日重置或申请配额",
-    "FH_4003": "权限拒绝 — 当前角色无权执行此操作，检查 RBAC 策略",
-    "FH_5001": "模型调用失败 — 网络问题或 API Key 无效，检查 provider 配置",
-    "FH_5002": "上下文压缩失败 — 对话过长，尝试使用 /plan 重新规划",
-    "FH_6001": "文件路径越权 — 路径包含 '..' 或符号链接，检查沙箱规则"
+    "FH_4001": "閰嶉瓒呴檺 鈥?鏃ラ绠楀凡鑰楀敖锛岀瓑寰呮鏃ラ噸缃垨鐢宠閰嶉",
+    "FH_4003": "鏉冮檺鎷掔粷 鈥?褰撳墠瑙掕壊鏃犳潈鎵ц姝ゆ搷浣滐紝妫€鏌?RBAC 绛栫暐",
+    "FH_5001": "妯″瀷璋冪敤澶辫触 鈥?缃戠粶闂鎴?API Key 鏃犳晥锛屾鏌?provider 閰嶇疆",
+    "FH_5002": "涓婁笅鏂囧帇缂╁け璐?鈥?瀵硅瘽杩囬暱锛屽皾璇曚娇鐢?/plan 閲嶆柊瑙勫垝",
+    "FH_6001": "鏂囦欢璺緞瓒婃潈 鈥?璺緞鍖呭惈 '..' 鎴栫鍙烽摼鎺ワ紝妫€鏌ユ矙绠辫鍒?
   },
-  "authoredBy": "晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹"
+  "authoredBy": "鏅嬫睙甯傞铏规櫤绉戞妧浼佷笟绠＄悊鏈夐檺鍏徃 路 椋炴壃浼佹簮鐮斿彂涓績 路 璐熻矗浜猴細鍚磋祼铏?
 }
