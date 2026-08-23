@@ -65,7 +65,7 @@
 
     function renderMarketGrid() {
       const grid = document.getElementById('marketGrid');
-      if (!state.market.length) { grid.innerHTML = '<div class="empty">没有找到技能</div>'; return; }
+      if (!state.market.length) { renderEmpty(grid, t('empty.no_skills')); return; }
       grid.innerHTML = state.market.map((s) => {
         const installed = state.installed.has(s.id);
         const btn = installed
@@ -97,14 +97,14 @@
 
     function renderUserTpl(list) {
       const grid = document.getElementById('userTplGrid');
-      if (!list.length) { grid.innerHTML = '<div class="empty">暂无自定义模板</div>'; return; }
+      if (!list.length) { renderEmpty(grid, t('empty.no_templates')); return; }
       grid.innerHTML = list.map((t) => tplCard(t, true)).join('');
       bindTplCards(grid);
     }
 
     function renderBuiltin(list) {
       const grid = document.getElementById('builtinGrid');
-      if (!list.length) { grid.innerHTML = '<div class="empty">无内置模板</div>'; return; }
+      if (!list.length) { renderEmpty(grid, t('empty.no_builtin_templates')); return; }
       grid.innerHTML = list.map((t) => tplCard(t, false)).join('');
       bindTplCards(grid);
     }
@@ -115,7 +115,7 @@
 
     function renderAutoGrid(list) {
       const grid = document.getElementById('autoGrid');
-      if (!list.length) { grid.innerHTML = '<div class="empty">还没有快捷指令</div>'; return; }
+      if (!list.length) { renderEmpty(grid, t('empty.no_automations')); return; }
       grid.innerHTML = list.map((a) => '<div class="tile" data-id="' + a.id + '"><div class="icon">⚡</div><div class="title">' + escapeHtml(a.name) + '</div><div class="desc">' + escapeHtml(a.goal).slice(0, 60) + (a.goal.length > 60 ? '…' : '') + '<br>已运行 ' + a.runCount + ' 次</div><div class="ops"><button class="run" data-id="' + a.id + '">▶ 运行</button><button class="ghost del" data-id="' + a.id + '">删除</button></div></div>').join('');
       grid.querySelectorAll('button.run').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); runAuto(b.getAttribute('data-id')); }));
       grid.querySelectorAll('button.del').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); delAuto(b.getAttribute('data-id')); }));
@@ -265,7 +265,7 @@
     function renderModelList() {
       const list = document.getElementById('modelList');
       if (!state.models.length) {
-        list.innerHTML = '<div class="empty">还没有大模型配置，请在下方添加。</div>';
+        renderEmpty(list, t('empty.no_models'));
         return;
       }
       list.innerHTML = state.models.map((m) => (
@@ -818,7 +818,7 @@
             });
           });
         } else {
-          listEl.innerHTML = '<div class="empty-welcome">正在为您准备引导任务，请稍候…</div>';
+          listEl.innerHTML = '<div class="empty-welcome">' + t('empty.preparing_welcome') + '</div>';
         }
       }
       

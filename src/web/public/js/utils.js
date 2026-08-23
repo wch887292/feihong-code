@@ -18,31 +18,25 @@
     }
 
     function getDirectoryName(path) {
-      console.log('[getDirectoryName] input:', path);
-      // 处理 Windows 驱动器根目录: C:, D:, H: 等
       if (!path || path === '' || path === '/') return '/';
-      // 检查是否是纯驱动器字母（如 H:）
-      if (/^[A-Za-z]:$/.test(path)) { const r = path + '\\'; console.log('[getDirectoryName] result:', r); return r; }
-      // 检查是否是驱动器根目录（如 H:\）
-      if (/^[A-Za-z]:\\$/.test(path)) { console.log('[getDirectoryName] result:', path); return path; }
+      if (/^[A-Za-z]:$/.test(path)) return path + '\\';
+      if (/^[A-Za-z]:\\$/.test(path)) return path;
       const parts = path.split(/[/\\]/).filter(Boolean);
-      console.log('[getDirectoryName] parts:', parts);
       if (parts.length <= 1) {
         const driveMatch = parts[0].match(/^([A-Za-z]):$/);
-        if (driveMatch) { const r = driveMatch[1] + ':' + '\\'; console.log('[getDirectoryName] result:', r); return r; }
+        if (driveMatch) return driveMatch[1] + ':\\';
         return parts[0] || '/';
       }
       const parentParts = parts.slice(0, -1);
-      const firstPart = parentParts[0];
-      if (/^[A-Za-z]:$/.test(firstPart)) {
-        // Windows 驱动器根目录特殊处理
-        const r = firstPart + '\\' + parentParts.slice(1).join('\\');
-        console.log('[getDirectoryName] result:', r, '(parentParts:', parentParts + ')');
-        return r;
+      if (/^[A-Za-z]:$/.test(parentParts[0])) {
+        return parentParts[0] + '\\' + parentParts.slice(1).join('\\');
       }
-      const r = parentParts.join('\\');
-      console.log('[getDirectoryName] result:', r);
-      return r;
+      return parentParts.join('\\');
+    }
+
+    /** 渲染空状态提示，减少重复的 innerHTML 赋值代码 */
+    function renderEmpty(el, text) {
+      if (el) el.innerHTML = '<div class="empty">' + (text || '') + '</div>';
     }
 
     function extractUrl(text) {
