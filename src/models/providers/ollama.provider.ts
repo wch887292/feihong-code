@@ -43,6 +43,11 @@ export class OllamaProvider implements ModelProvider {
     if (req.timeoutMs && req.timeoutMs > 0) {
       timer = setTimeout(() => controller.abort(), req.timeoutMs);
     }
+    const onExternalAbort = (): void => controller.abort();
+    if (req.signal) {
+      if (req.signal.aborted) controller.abort();
+      else req.signal.addEventListener('abort', onExternalAbort, { once: true });
+    }
 
     let res: Response;
     try {
@@ -53,9 +58,12 @@ export class OllamaProvider implements ModelProvider {
         signal: controller.signal,
       });
     } catch (e) {
+      const aborted = controller.signal.aborted;
+      if (aborted) throw new ModelError('任务已被用户中断', this.id);
       throw new ModelError(`网络请求失败: ${e instanceof Error ? e.message : String(e)}`, this.id);
     } finally {
       if (timer) clearTimeout(timer);
+      if (req.signal) req.signal.removeEventListener('abort', onExternalAbort);
     }
 
     if (!res.ok) {

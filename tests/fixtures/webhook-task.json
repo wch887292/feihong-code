@@ -1,0 +1,9 @@
+{
+  "enabled": true,
+  "url": "http://localhost:9100/api/webhooks/task",
+  "events": ["task.created", "task.completed", "task.failed", "task.ended"],
+  "timeoutMs": 5000,
+  "retries": 3,
+  "retryDelayMs": 1000,
+  "headers": {}
+}

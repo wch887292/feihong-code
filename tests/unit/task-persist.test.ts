@@ -19,7 +19,7 @@ function wait(ms: number): Promise<void> {
 test('TaskQueue: 提交任务后落盘（每任务一文件，原子写）', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'fhcode-persist-'));
   try {
-    const queue = new TaskQueue({ concurrency: 1, persistDir: dir });
+    const queue = new TaskQueue({ concurrency: 1, persistDir: dir, offline: true });
     const record = queue.submit('持久化任务');
     // 等待终态
     for (let i = 0; i < 100; i++) {
@@ -52,7 +52,7 @@ test('TaskQueue: 新实例恢复——queued 任务重新入队并执行', async
     writeFileSync(join(dir, `${id}.json`), JSON.stringify(record), 'utf8');
 
     // 新实例：应恢复该任务并自动执行到终态
-    const queue = new TaskQueue({ concurrency: 1, persistDir: dir });
+    const queue = new TaskQueue({ concurrency: 1, persistDir: dir, offline: true });
     assert.equal(queue.count, 1);
     for (let i = 0; i < 100; i++) {
       if (queue.get(id)!.status === 'done' || queue.get(id)!.status === 'failed') break;
@@ -79,7 +79,7 @@ test('TaskQueue: running 僵尸任务重启后标记 failed（防僵尸）', asy
     };
     writeFileSync(join(dir, `${id}.json`), JSON.stringify(record), 'utf8');
 
-    const queue = new TaskQueue({ concurrency: 1, persistDir: dir });
+    const queue = new TaskQueue({ concurrency: 1, persistDir: dir, offline: true });
     const zombie = queue.get(id)!;
     assert.equal(zombie.status, 'failed', 'running 僵尸应被标记 failed');
     assert.match(zombie.error ?? '', /进程重启/);
@@ -94,7 +94,7 @@ test('TaskQueue: running 僵尸任务重启后标记 failed（防僵尸）', asy
 test('TaskQueue: clearPersisted 清理任务文件', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'fhcode-persist-'));
   try {
-    const queue = new TaskQueue({ concurrency: 1, persistDir: dir });
+    const queue = new TaskQueue({ concurrency: 1, persistDir: dir, offline: true });
     const record = queue.submit('清理测试');
     assert.ok(existsSync(join(dir, `${record.id}.json`)));
     queue.clearPersisted(record.id);
@@ -107,7 +107,7 @@ test('TaskQueue: clearPersisted 清理任务文件', async () => {
 test('TaskQueue: 未配置 persistDir 时纯内存不落盘', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'fhcode-persist-'));
   try {
-    const queue = new TaskQueue({ concurrency: 1 }); // 无 persistDir
+    const queue = new TaskQueue({ concurrency: 1, offline: true }); // 无 persistDir
     queue.submit('内存任务');
     await wait(50);
     assert.equal(readdirSync(dir).length, 0, '无 persistDir 不应写任何文件');

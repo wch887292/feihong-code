@@ -119,21 +119,41 @@ export class McpClient {
     return tools;
   }
 
-  /** 调用服务器工具（参数自动序列化，文本结果拼接返回） */
+  /** 调用服务器工具（参数自动序列化，文本结果拼接返回），含瞬态错误指数退避重试 */
   async callTool(toolName: string, args: Record<string, unknown>): Promise<McpCallResult> {
-    const resp = await this.request('tools/call', { name: toolName, arguments: args }, this.cfg.callTimeoutMs ?? 120000);
-    if (!resp.result) {
-      return { ok: false, output: '', error: `tools/call 失败: ${resp.error?.message ?? '无响应'}` };
+    const maxRetries = 3;
+    let lastErr: Error | undefined;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const resp = await this.request('tools/call', { name: toolName, arguments: args }, this.cfg.callTimeoutMs ?? 120000);
+        if (!resp.result) {
+          return { ok: false, output: '', error: `tools/call 失败: ${resp.error?.message ?? '无响应'}` };
+        }
+        const result = resp.result as { content?: Array<{ type?: string; text?: string }>; isError?: boolean };
+        const text = (result.content ?? [])
+          .map((c) => c.text ?? '')
+          .join('\n');
+        return {
+          ok: !result.isError,
+          output: text,
+          error: result.isError ? text.slice(0, 500) : undefined,
+        };
+      } catch (e) {
+        lastErr = e instanceof Error ? e : new Error(String(e));
+        const msg = lastErr.message;
+        // 进程退出/连接断开是终结性错误，直接抛出；仅对瞬态超时/网络错误重试
+        if (/MCP 进程退出|MCP 进程启动失败|MCP 请求未运行/i.test(msg)) {
+          throw lastErr;
+        }
+        const transient = /MCP 请求超时|ECONNRESET|ECONNREFUSED|ETIMEDOUT|network/i.test(msg);
+        if (!transient || attempt === maxRetries) break;
+        logger.warn(`MCP callTool 瞬态错误，指数退避重试 ${attempt + 1}/${maxRetries}`, {
+          tool: toolName, error: msg,
+        });
+        await new Promise((r) => setTimeout(r, 500 * Math.pow(2, attempt)));
+      }
     }
-    const result = resp.result as { content?: Array<{ type?: string; text?: string }>; isError?: boolean };
-    const text = (result.content ?? [])
-      .map((c) => c.text ?? '')
-      .join('\n');
-    return {
-      ok: !result.isError,
-      output: text,
-      error: result.isError ? text.slice(0, 500) : undefined,
-    };
+    return { ok: false, output: '', error: lastErr?.message ?? 'tools/call 失败' };
   }
 
   /** 关闭连接（结束子进程） */

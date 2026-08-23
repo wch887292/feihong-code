@@ -16,6 +16,26 @@ import type { ChatMessage } from '../models/model.interface';
 import { logger } from '../shared/logger';
 import { classifyError } from './self-heal';
 
+/**
+ * 文件级 Promise 锁：防止两个 run 同时完成时 upsertExperience 互相覆盖。
+ * 同一 experiences.jsonl 路径的写入串行化，不同路径互不阻塞。
+ */
+const fileLocks = new Map<string, Promise<unknown>>();
+async function withFileLock<T>(filePath: string, fn: () => Promise<T>): Promise<T> {
+  const prev = fileLocks.get(filePath) ?? Promise.resolve();
+  let release!: () => void;
+  const next = new Promise<void>((resolve) => { release = resolve; });
+  fileLocks.set(filePath, prev.then(() => next, () => next));
+  try {
+    await prev;
+    return await fn();
+  } finally {
+    release();
+    // 锁队列空时清理 Map 条目，避免内存泄漏
+    if (fileLocks.get(filePath) === next) fileLocks.delete(filePath);
+  }
+}
+
 export type ExperienceType =
   | 'tool-efficiency'      // 高效工具调用模式
   | 'error-pattern'        // 错误模式与规避
@@ -120,19 +140,27 @@ const EXTRACTORS: ExperienceExtractor[] = [
 
 export function extractExperience(messages: ChatMessage[], runId: string): Experience[] {
   const experiences: Experience[] = [];
+  // 通过 toolCallId 精确关联工具调用与结果，替代脆弱的顺序匹配
+  const toolCallMap = new Map<string, { name: string; args: unknown; success: boolean }>();
   const toolCalls: Array<{ name: string; args: unknown; success: boolean }> = [];
 
-  // 提取工具调用序列及成败
   for (const msg of messages) {
     if (msg.role === 'assistant' && msg.toolCalls) {
       for (const tc of msg.toolCalls) {
-        toolCalls.push({ name: tc.name, args: tc.arguments, success: true });
+        const entry = { name: tc.name, args: tc.arguments, success: true };
+        toolCalls.push(entry);
+        if (tc.id) toolCallMap.set(tc.id, entry);
       }
     }
     if (msg.role === 'tool') {
-      const lastCall = toolCalls[toolCalls.length - 1];
-      if (lastCall && (msg.content || '').startsWith('错误:')) {
-        lastCall.success = false;
+      // 优先通过 toolCallId 精确匹配；无 id 时回退到最后一个调用（兼容旧数据）
+      const matched = msg.toolCallId ? toolCallMap.get(msg.toolCallId) : toolCalls[toolCalls.length - 1];
+      if (matched) {
+        const content = msg.content || '';
+        // 工具失败标记：内容以"错误:"开头，或包含 exit code 非 0
+        if (content.startsWith('错误:') || /exit code [1-9]/.test(content)) {
+          matched.success = false;
+        }
       }
     }
   }
@@ -176,46 +204,49 @@ export async function saveExperience(experienceDir: string, experience: Experien
  */
 export async function upsertExperience(experienceDir: string, experience: Experience): Promise<void> {
   const file = join(experienceDir, 'experiences.jsonl');
-  if (!existsSync(file)) {
-    await saveExperience(experienceDir, experience);
-    return;
-  }
-  try {
-    const content = await readFile(file, 'utf8');
-    const lines = content.split('\n').filter(Boolean);
-    let merged = false;
-    const out: string[] = [];
-    for (const line of lines) {
-      try {
-        const e = JSON.parse(line) as Experience;
-        if (e.id === experience.id) {
-          const prev = e.metadata.sessionCount;
-          const mergedExp: Experience = {
-            ...e,
-            content: experience.content.length >= e.content.length ? experience.content : e.content,
-            metadata: {
-              sessionCount: prev + 1,
-              successRate: (e.metadata.successRate * prev + experience.metadata.successRate) / (prev + 1),
-              tags: [...new Set([...e.metadata.tags, ...experience.metadata.tags])],
-              createdAt: e.metadata.createdAt,
-              lastUsedAt: new Date().toISOString(),
-            },
-          };
-          out.push(JSON.stringify(mergedExp));
-          merged = true;
-        } else {
+  // 文件锁：防止并发 run 同时读写导致互相覆盖
+  await withFileLock(file, async () => {
+    if (!existsSync(file)) {
+      await saveExperience(experienceDir, experience);
+      return;
+    }
+    try {
+      const content = await readFile(file, 'utf8');
+      const lines = content.split('\n').filter(Boolean);
+      let merged = false;
+      const out: string[] = [];
+      for (const line of lines) {
+        try {
+          const e = JSON.parse(line) as Experience;
+          if (e.id === experience.id) {
+            const prev = e.metadata.sessionCount;
+            const mergedExp: Experience = {
+              ...e,
+              content: experience.content.length >= e.content.length ? experience.content : e.content,
+              metadata: {
+                sessionCount: prev + 1,
+                successRate: (e.metadata.successRate * prev + experience.metadata.successRate) / (prev + 1),
+                tags: [...new Set([...e.metadata.tags, ...experience.metadata.tags])],
+                createdAt: e.metadata.createdAt,
+                lastUsedAt: new Date().toISOString(),
+              },
+            };
+            out.push(JSON.stringify(mergedExp));
+            merged = true;
+          } else {
+            out.push(line);
+          }
+        } catch {
           out.push(line);
         }
-      } catch {
-        out.push(line);
       }
+      if (!merged) out.push(JSON.stringify(experience));
+      await writeFile(file, out.join('\n') + '\n', 'utf8');
+      logger.info('experience upserted', { id: experience.id, merged, type: experience.type });
+    } catch {
+      await saveExperience(experienceDir, experience);
     }
-    if (!merged) out.push(JSON.stringify(experience));
-    await writeFile(file, out.join('\n') + '\n', 'utf8');
-    logger.info('experience upserted', { id: experience.id, merged, type: experience.type });
-  } catch {
-    await saveExperience(experienceDir, experience);
-  }
+  });
 }
 
 /** 关键词分词的轻量实现（用于检索打分） */
@@ -332,32 +363,34 @@ export async function updateExperienceUsage(experienceDir: string, experienceId:
   const file = join(experienceDir, 'experiences.jsonl');
   if (!existsSync(file)) return;
 
-  try {
-    const content = await readFile(file, 'utf8');
-    const lines = content.split('\n').filter(Boolean);
-    const updatedLines = lines.map((line) => {
-      try {
-        const exp: Experience = JSON.parse(line);
-        if (exp.id === experienceId) {
-          return JSON.stringify({
-            ...exp,
-            metadata: {
-              ...exp.metadata,
-              sessionCount: exp.metadata.sessionCount + 1,
-              lastUsedAt: new Date().toISOString(),
-            },
-          });
+  await withFileLock(file, async () => {
+    try {
+      const content = await readFile(file, 'utf8');
+      const lines = content.split('\n').filter(Boolean);
+      const updatedLines = lines.map((line) => {
+        try {
+          const exp: Experience = JSON.parse(line);
+          if (exp.id === experienceId) {
+            return JSON.stringify({
+              ...exp,
+              metadata: {
+                ...exp.metadata,
+                sessionCount: exp.metadata.sessionCount + 1,
+                lastUsedAt: new Date().toISOString(),
+              },
+            });
+          }
+          return line;
+        } catch {
+          return line;
         }
-        return line;
-      } catch {
-        return line;
-      }
-    });
+      });
 
-    await writeFile(file, updatedLines.join('\n') + '\n', 'utf8');
-  } catch {
-    // 静默失败
-  }
+      await writeFile(file, updatedLines.join('\n') + '\n', 'utf8');
+    } catch {
+      // 静默失败
+    }
+  });
 }
 
 /**

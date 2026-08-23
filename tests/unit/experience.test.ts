@@ -11,6 +11,7 @@ import type { ChatMessage } from '../../src/models/model.interface';
 import {
   extractExperience,
   saveExperience,
+  upsertExperience,
   loadExperiences,
   updateExperienceUsage,
   generateExperiencePrompt,
@@ -139,6 +140,75 @@ test('listExperiences: 按 sessionCount 降序', async () => {
     await saveExperience(dir, b);
     const list = await listExperiences(dir);
     assert.strictEqual(list[0].id, 'b');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('upsertExperience: 同 id 多次 upsert 仅保留一条，sessionCount 累加', async () => {
+  const dir = tmpDir();
+  try {
+    const exp = sampleExperience('dup-1', 0.8);
+    await upsertExperience(dir, exp);
+    // 第二次相同 id：更新 successRate 而非追加
+    const exp2 = sampleExperience('dup-1', 1.0);
+    await upsertExperience(dir, exp2);
+    const list = await listExperiences(dir);
+    assert.strictEqual(list.length, 1, '同 id 应只保留一条记录');
+    assert.strictEqual(list[0].metadata.sessionCount, 2, 'sessionCount 应累加为 2');
+    // successRate 应为加权平均 (0.8*1 + 1.0*1) / 2 = 0.9
+    const expectedRate = (0.8 * 1 + 1.0 * 1) / 2;
+    assert.ok(Math.abs(list[0].metadata.successRate - expectedRate) < 0.001,
+      `successRate 应为 ${expectedRate}，实际 ${list[0].metadata.successRate}`);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('upsertExperience: 不同 id 各自独立存储', async () => {
+  const dir = tmpDir();
+  try {
+    await upsertExperience(dir, sampleExperience('a', 0.9));
+    await upsertExperience(dir, sampleExperience('b', 0.7));
+    const list = await listExperiences(dir);
+    assert.strictEqual(list.length, 2);
+    assert.ok(list.some(e => e.id === 'a'));
+    assert.ok(list.some(e => e.id === 'b'));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('upsertExperience: 同一 id 合并 sessionCount，不产生重复记录', async () => {
+  const dir = tmpDir();
+  try {
+    const exp1 = sampleExperience('dedup-1', 0.8);
+    await upsertExperience(dir, exp1);
+
+    // 第二次以相同 id 插入，successRate 不同的经验
+    const exp2 = sampleExperience('dedup-1', 1.0);
+    await upsertExperience(dir, exp2);
+
+    const list = await listExperiences(dir);
+    // 只应有一条记录，而非两条
+    assert.strictEqual(list.length, 1, `应只有 1 条记录，实际 ${list.length}`);
+    // sessionCount 应为 2（原 1 + 本次 1）
+    assert.strictEqual(list[0].metadata.sessionCount, 2, 'sessionCount 应累加为 2');
+    // 成功率应加权平均：(0.8 * 1 + 1.0 * 1) / 2 = 0.9
+    assert.ok(Math.abs(list[0].metadata.successRate - 0.9) < 0.01, 'successRate 应为加权平均');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('upsertExperience: 新 id 正常新增', async () => {
+  const dir = tmpDir();
+  try {
+    const exp = sampleExperience('new-id', 0.7);
+    await upsertExperience(dir, exp);
+    const list = await listExperiences(dir);
+    assert.strictEqual(list.length, 1);
+    assert.strictEqual(list[0].id, 'new-id');
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

@@ -8,8 +8,36 @@ import { z } from 'zod';
 import type { Tool, ToolContext, ToolResult } from '../tool.interface';
 import { runCommand, runCommandInContainer, commandHead } from './exec';
 
-/** Shell 注入元字符 — 命中则需额外审批 */
-const SHELL_INJECTION_RE = /[;&|`$(){}<>!]|&&|\|\||\b(alias|eval|exec|source)\b/;
+/**
+ * 真正危险的 shell 模式（命令注入/任意代码执行/破坏性操作/提权）。
+ * 只拦截这些高风险模式，允许正常的管道(|)、命令链(&&/||)、变量($VAR)、
+ * 重定向(>)、子shell等常用语法。命中任意一条即拦截。
+ */
+const DANGEROUS_SHELL_PATTERNS: RegExp[] = [
+  /\$\(/,                              // 命令替换 $(...) — 可执行任意命令
+  /`/,                                 // 反引号命令替换
+  /\|\s*(sh|bash|zsh|fish|dash)\b/i, // 管道直接喂给 shell 解释器
+  /(curl|wget)\b[^\n]*\|\s*(sh|bash)/i, // 网络下载后管道执行（典型 RCE）
+  /\b(sudo|su)\b/,                    // 权限提升
+  /\b(eval|exec)\b/,                  // 代码动态执行 / 进程替换
+  /\brm\s+-rf\b/i,                    // 递归强制删除
+  /\b(mkfs|dd\s+if=|mkswap)\b/i,     // 破坏性磁盘操作
+  /\b(nc|netcat|telnet|ncat)\b/i,     // 反向 shell / 网络工具
+  />\s*\/dev\/(sd|hd|nvme)/i,        // 直接写块设备
+];
+
+function isDangerousShellCommand(cmd: string): boolean {
+  return DANGEROUS_SHELL_PATTERNS.some((re) => re.test(cmd));
+}
+
+/** 智能截断：保留头部和尾部，中间用省略标记替换（错误信息通常在末尾） */
+function smartTruncate(text: string, maxLen = 6000, headLen = 2000, tailLen = 3000): string {
+  if (text.length <= maxLen) return text;
+  const head = text.slice(0, headLen);
+  const tail = text.slice(-tailLen);
+  const omitted = text.length - headLen - tailLen;
+  return `${head}\n…[已省略中间 ${omitted} 字符]…\n${tail}`;
+}
 
 export const runShellTool: Tool = {
   name: 'run_shell',
@@ -29,9 +57,9 @@ export const runShellTool: Tool = {
         return { ok: false, output: '', error: `命令不在白名单: ${head}` };
       }
     }
-    // 注入元字符校验独立于白名单，始终执行（防止白名单关闭后命令注入逃逸）
-    if (SHELL_INJECTION_RE.test(command)) {
-      return { ok: false, output: '', error: `命令含 shell 注入风险，已被拦截: ${command.slice(0, 100)}` };
+    // 危险模式检测：只拦截真正危险的注入/破坏性操作，允许正常管道/命令链/变量
+    if (isDangerousShellCommand(command)) {
+      return { ok: false, output: '', error: `命令含高风险操作，已被拦截: ${command.slice(0, 100)}。如需执行请确认安全性后手动运行。` };
     }
     if (ctx.security.requireApproval) {
       const approved = ctx.approve ? await ctx.approve(`run_shell: ${command}`) : false;
@@ -44,7 +72,7 @@ export const runShellTool: Tool = {
         : await runCommand(command, ctx.cwd);
     return {
       ok: res.code === 0,
-      output: `${res.stdout}${res.stderr}`.slice(0, 4000),
+      output: smartTruncate(`${res.stdout}${res.stderr}`),
       error: res.code === 0 ? undefined : `exit code ${res.code}`,
     };
   },

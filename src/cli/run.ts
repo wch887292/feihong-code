@@ -85,6 +85,10 @@ export interface RunOptions {
   resume?: ResumeContext;
   /** Web 控制台：指定任务的工作目录（不传则用 process.cwd()） */
   workspaceDir?: string;
+  /** P9：外部中断信号（任务停止按钮），触发即终止编排循环与进行中的模型请求 */
+  signal?: AbortSignal;
+  /** 用户本轮上传的附件路径列表（截图/文件/图片），执行层可读取 */
+  attachments?: string[];
 }
 
 /** 离线演示脚本：写文件 → 总结，跑通完整链路 */
@@ -208,14 +212,12 @@ export async function executeTask(goal: string, opts: RunOptions = {}): Promise<
 
   // 离线模式用临时工作区，避免污染用户目录；并 git init 以支持 diff/rollback 演示
   const targetCwd = opts.workspaceDir || process.cwd();
-  const originalCwd = process.cwd();
   const cwd = offline ? mkdtempSync(join(tmpdir(), 'fhcode-demo-')) : targetCwd;
   if (offline) {
     await runCommand('git init -q', cwd).catch(() => undefined);
-  } else {
-    // 切换到目标工作区（Web 控制台任务队列会传入 workspaceDir）
-    try { process.chdir(targetCwd); } catch { /* 忽略切换失败，退回到原 cwd */ }
   }
+  // 注意：不再使用 process.chdir(targetCwd) —— 所有工具通过 ctx.cwd 显式传参，
+  // 全局切换 cwd 会导致并发任务互相覆盖工作目录。移除后可安全提高并发数。
 
   let router: ModelRouter;
   let pluginSkillDirs: string[] = [];
@@ -254,6 +256,16 @@ export async function executeTask(goal: string, opts: RunOptions = {}): Promise<
     for (const m of opts.resume.messages) session.append(m);
   }
 
+  // 用户附件上下文：把本轮附件路径以系统提示形式注入到本次目标的前缀，
+  // 让模型知道有哪些文件可读取；具体处理由 LLM 决定（如读取图片/读文件等）。
+  let effectiveGoal = goal;
+  if (opts.attachments && opts.attachments.length > 0) {
+    const list = opts.attachments.map((p, i) => `  ${i + 1}. ${p}`).join('\n');
+    effectiveGoal =
+      `[用户附件] 本轮上传了 ${opts.attachments.length} 个文件，请按需读取：\n${list}\n\n` +
+      goal;
+  }
+
   const approve =
     opts.approve ??
     (process.stdin.isTTY ? interactiveApprover() : defaultApproverFor(security));
@@ -275,6 +287,7 @@ export async function executeTask(goal: string, opts: RunOptions = {}): Promise<
     persist: (cp: SessionCheckpoint) => saveCheckpoint(logDir, cp),
     onEvent: opts.renderer ?? (opts.stream ? streamRenderer() : undefined),
     pluginSkillDirs,
+    signal: opts.signal,
   });
 
   if (rt) {
@@ -291,7 +304,7 @@ export async function executeTask(goal: string, opts: RunOptions = {}): Promise<
   }
 
   try {
-    const result = await orchestrator.run(goal, opts.resume);
+    const result = await orchestrator.run(effectiveGoal, opts.resume);
     if (rt) {
       rt.audit.record({
         tenantId: rt.tenant.tenantId,
@@ -310,8 +323,6 @@ export async function executeTask(goal: string, opts: RunOptions = {}): Promise<
   } finally {
     // P0-3：任务结束关闭 MCP 子进程
     await closeMcpClients(mcpClients);
-    // 恢复原始工作目录，避免影响后续任务
-    try { process.chdir(originalCwd); } catch { /* 忽略 */ }
   }
 }
 

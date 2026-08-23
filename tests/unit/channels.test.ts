@@ -72,7 +72,7 @@ test('MessageChannels: 配置渠道后 enabled=true（fetch 由 mock 拦截不�
 test('TaskQueue: 注入 channels 后任务状态变化触发 notify（mock 渠道计数）', async () => {
   let notified = 0;
   const ch = { enabled: true, notify: async () => { notified++; } };
-  const queue = new TaskQueue({ concurrency: 1, channels: ch as never });
+  const queue = new TaskQueue({ concurrency: 1, channels: ch as never, offline: true });
   const record = queue.submit('渠道推送测试');
   // 等待完成
   for (let i = 0; i < 100; i++) {
