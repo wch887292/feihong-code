@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "task-webhook",
+  "title": "Task Webhook",
+  "description": "Sends webhook notifications for task lifecycle events",
+  "type": "object",
+  "properties": {
+    "config": {
+      "type": "object",
+      "description": "Webhook configuration",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether webhook is enabled"
+        },
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "description": "Webhook endpoint URL"
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["task.created", "task.completed", "task.failed", "task.ended"]
+          },
+          "description": "Events to listen for"
+        },
+        "timeoutMs": {
+          "type": "number",
+          "description": "Request timeout in milliseconds",
+          "default": 5000
+        },
+        "retries": {
+          "type": "number",
+          "description": "Number of retry attempts",
+          "default": 3
+        },
+        "headers": {
+          "type": "object",
+          "description": "Custom headers to include in webhook requests"
+        }
+      },
+      "required": ["enabled", "url", "events"]
+    }
+  },
+  "required": ["config"]
+}

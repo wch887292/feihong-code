@@ -1,6 +1,7 @@
 # 依赖与构建产物
 node_modules/
 dist/
+dist_tmp/
 *.tsbuildinfo
 
 # 日志与本地运行产物（事件日志、离线 demo 目录等）
@@ -30,3 +31,20 @@ coverage/
 psout.txt
 test_workspace_fix.txt
 *.log
+
+# 部署包（dist 副本，构建产物）
+deploy_pkg/
+
+# 二进制与独立项目
+*.apk
+fhcode-android/
+fhcode_pptx/
+website/
+
+# FAQ 一次性生成脚本与数据（非源码）
+faq_*
+gen_faq*.py
+gen_all_faq.py
+generate_*.py
+add_remaining_faq.py
+faq_generated/

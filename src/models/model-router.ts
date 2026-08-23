@@ -9,6 +9,11 @@
  *  - 模型性能追踪（成功/失败统计）
  *  - 自动择优（基于历史成功率）
  *  - model-stats 命令支持
+ *
+ * 模型异常自动轮换：
+ *  - 上游返回 400/401/403/404（模型/鉴权类）：立即轮换到下一个可用模型，不重试同一模型
+ *  - 上游返回 429/500/502/503/504（瞬时/服务端）：轮换下个模型并退避后重试整轮，直到任务完成或达到上限
+ *  - 网络/未知错误：按可重试处理，同样触发轮换与重试
  */
 import { mkdir, readFile, writeFile } from 'fs/promises';
 import { existsSync } from 'fs';
@@ -42,12 +47,18 @@ export interface ModelStatsCache {
 const STATS_VERSION = 1;
 const DEFAULT_STATS_FILE = 'model-stats.jsonl';
 
+/** 模型/鉴权类错误：直接轮换到下一个可用模型，重试无意义 */
+const ROTATE_ONLY_STATUS = new Set<number>([400, 401, 403, 404]);
+/** 其余状态码（429/500/502/503/504 等瞬时错误）均视为可退避重试 */
+
 export class ModelRouter {
   private readonly providers: ModelProvider[];
   private readonly strategy: ModelStrategy;
   private readonly budget: number;
   private readonly statsFile: string;
   private readonly statsHomeDir: string;
+  private readonly maxRetries: number;
+  private readonly backoffMs: number;
   private statsCache: ModelStatsCache | null = null;
 
   constructor(
@@ -56,12 +67,16 @@ export class ModelRouter {
     budget: number,
     statsFile: string = '',
     statsHomeDir: string = '',
+    maxRetries: number = 3,
+    backoffMs: number = 1000,
   ) {
     this.providers = providers;
     this.strategy = strategy;
     this.budget = budget;
     this.statsFile = statsFile || DEFAULT_STATS_FILE;
     this.statsHomeDir = statsHomeDir;
+    this.maxRetries = Math.max(1, maxRetries);
+    this.backoffMs = Math.max(0, backoffMs);
   }
 
   /** 从 AppConfig 构建（默认路由，联调真实模型时使用）；homeDir 用于统计自动落盘 */
@@ -75,6 +90,7 @@ export class ModelRouter {
       cfg.models.budgetPerTaskUsd,
       statsFile,
       cfg.app.homeDir,
+      cfg.runtime.maxRetries,
     );
   }
 
@@ -184,36 +200,86 @@ export class ModelRouter {
     return base;
   }
 
-  /** 调用并自动 fallback；全部失败抛出最后错误 */
+  /**
+   * 从错误中提取上游 HTTP 状态码（优先 ModelError.statusCode，兼容从消息解析 "HTTP <n>"）。
+   * 网络/未知错误返回 undefined。
+   */
+  private statusOf(e: unknown): number | undefined {
+    if (e instanceof ModelError) return e.statusCode;
+    if (e instanceof Error) {
+      const m = /HTTP\s+(\d{3})/.exec(e.message);
+      if (m) return Number(m[1]);
+    }
+    return undefined;
+  }
+
+  /** 该错误是否值得退避重试（模型/鉴权类 400/401/403/404 不重试，其余默认重试） */
+  private isRetryable(e: unknown): boolean {
+    const status = this.statusOf(e);
+    if (status === undefined) return true; // 网络/未知错误默认可重试
+    return !ROTATE_ONLY_STATUS.has(status);
+  }
+
+  private sleep(ms: number): Promise<void> {
+    return ms > 0 ? new Promise((r) => setTimeout(r, ms)) : Promise.resolve();
+  }
+
+  /**
+   * 调用并自动轮换。按状态码分类：
+   *  - 400/401/403/404（模型/鉴权类）：立即轮换下个可用模型，不做退避重试
+   *  - 429/500/502/503/504（瞬时/服务端）：轮换下个模型，整轮结束后退避重试，直到任务完成或达到上限
+   *  - 网络/未知错误：按可重试处理
+   * 全部 provider 均不可用时抛出最后错误。
+   */
   async chat(req: ChatRequest, tags?: CapabilityTag[]): Promise<ChatResponse> {
     const order = this.rank(tags);
+    if (order.length === 0) {
+      throw new ModelError('未配置任何可用模型 provider', 'router', 500);
+    }
+
+    const maxCycles = this.maxRetries;
     let lastErr: unknown;
+    let lastRetryable = true;
 
-    for (const p of order) {
-      const startTime = Date.now();
-      try {
-        const resp = await p.chat(req);
-        const latency = Date.now() - startTime;
+    for (let cycle = 0; cycle < maxCycles; cycle++) {
+      for (const p of order) {
+        const startTime = Date.now();
+        try {
+          const resp = await p.chat(req);
+          const latency = Date.now() - startTime;
 
-        // M6: 更新性能统计（成功记录响应模型名）
-        await this.updateStat(p.id, resp.model, true, resp.costUsd, latency);
+          // M6: 更新性能统计（成功记录响应模型名）
+          await this.updateStat(p.id, resp.model, true, resp.costUsd, latency);
 
-        if (this.budget > 0 && resp.costUsd > this.budget) {
-          logger.warn('cost over budget', { provider: p.id, cost: resp.costUsd, budget: this.budget });
+          if (this.budget > 0 && resp.costUsd > this.budget) {
+            logger.warn('cost over budget', { provider: p.id, cost: resp.costUsd, budget: this.budget });
+          }
+          return resp;
+        } catch (e) {
+          const latency = Date.now() - startTime;
+          // M6: 记录失败（用 provider 配置的模型名，避免统计出 model='' 的空条目）
+          await this.updateStat(p.id, p.model, false, 0, latency);
+          const status = this.statusOf(e);
+          lastErr = e;
+          lastRetryable = this.isRetryable(e);
+          logger.warn('模型调用失败，自动轮换下个模型', {
+            provider: p.id,
+            status,
+            cycle: cycle + 1,
+            error: e instanceof Error ? e.message : String(e),
+          });
         }
-        return resp;
-      } catch (e) {
-        const latency = Date.now() - startTime;
-        // M6: 记录失败（用 provider 配置的模型名，避免统计出 model='' 的空条目）
-        await this.updateStat(p.id, p.model, false, 0, latency);
-        logger.warn('provider failed, try next', {
-          provider: p.id,
-          error: e instanceof Error ? e.message : String(e),
-        });
-        lastErr = e;
+      }
+
+      // 整轮结束：若原因是模型/鉴权类（400/401 等），退避重试无意义，直接终止
+      if (!lastRetryable) break;
+      // 瞬时错误（429/500 等）：退避后重试下一轮，直到任务完成或达到上限
+      if (cycle < maxCycles - 1) {
+        await this.sleep(this.backoffMs * Math.pow(2, cycle));
       }
     }
-    throw lastErr instanceof Error ? lastErr : new ModelError('所有 provider 均不可用', 'router');
+
+    throw lastErr instanceof Error ? lastErr : new ModelError('所有可用模型均调用失败', 'router', 500);
   }
 }
 

@@ -349,14 +349,25 @@ export class AuditLog {
         prevHash,
       };
       const next: AuditRecord = { ...base, hash: computeHash(base) };
+      // 瞬时锁（Windows Defender/杀软扫描新写入文件）偶发 EPERM：重试 3 次，30ms 退避
       const tryAppend = (target: string): boolean => {
-        try {
-          mkdirSync(this.dir, { recursive: true });
-          appendFileSync(target, JSON.stringify(next) + '\n', 'utf8');
-          return true;
-        } catch {
-          return false;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            mkdirSync(this.dir, { recursive: true });
+            appendFileSync(target, JSON.stringify(next) + '\n', 'utf8');
+            return true;
+          } catch (e) {
+            if (attempt === 2) {
+              logger.warn('审计写入重试耗尽，追加失败', {
+                file: target,
+                error: e instanceof Error ? e.message : String(e),
+              });
+              return false;
+            }
+            sleepSync(30 * (attempt + 1));
+          }
         }
+        return false;
       };
       if (tryAppend(file)) {
         this.seq = next.seq;

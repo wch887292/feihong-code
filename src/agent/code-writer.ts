@@ -102,7 +102,8 @@ export class CodeWriter {
     }
     code = result.content;
     if (template === 'api-route') {
-      filename = params.path.replace(/^\//, '').replace(/\//g, '-') + '.ts';
+      // Windows 文件名不含 ':'，将路径段中非法字符替换为 '-'
+      filename = params.path.replace(/^\//, '').replace(/[^a-zA-Z0-9-]/g, '-').replace(/-+/g, '-').replace(/-$/, '') + '.ts';
     } else if (template === 'model') {
       filename = params.name + '.ts';
     } else {
@@ -313,9 +314,11 @@ export class CodeWriter {
    */
   private issueToSafeFix(issue: ReviewIssue): SafeFix | null {
     if (/硬编码|密码|密钥|secret|token|api[_-]?key/i.test(issue.message)) {
+      // 匹配变量名含敏感关键词（password/secret/token/apiKey）且赋值为字符串字面量的模式
+      // 例如：const dbPassword = "password-abc-123";  或  const apiKey = 'sk-123';
       return {
-        pattern: /(['"`])[^'"`]*(?:password|secret|(?:api[_-]?)?key|token)[^'"`]*\1/gi,
-        replacement: 'process.env.FH_SECRET',
+        pattern: /(\w*[Pp]assword\w*|\w*[Ss]ecret\w*|\w*[Tt]oken\w*|\w*[Aa][Pp][Ii]?\w*[Kk]ey\w*)\s*=\s*(['"`])([^'"`]+)\2/gi,
+        replacement: '$1 = process.env.FH_SECRET',
       };
     }
     if (/sql/i.test(issue.message)) {

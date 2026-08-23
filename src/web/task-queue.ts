@@ -68,6 +68,8 @@ export interface TaskRecord {
   steps?: TaskStep[];
   /** 多轮对话历史（M3 resume 上下文），使「新建任务 → 对话栏所有消息归属同一任务」成为可能 */
   conversation?: ChatMessage[];
+  /** 附件路径列表（用户在前端暂存区暂存、点发送时统一上传后的文件绝对路径），供执行层读取 */
+  attachments?: string[];
 }
 
 /**
@@ -98,6 +100,27 @@ export function buildPermissionPrefix(permissions?: TaskPermissions): string {
   return lines.join('\n') + '\n\n';
 }
 
+/**
+ * 从任务权限构建安全设置（沙箱模式/审批/命令白名单）。
+ * 未配置权限时默认工作区可写、无需审批（向后兼容旧任务）。
+ */
+function buildSecurityFromPermissions(permissions?: TaskPermissions): {
+  requireApproval: boolean;
+  sandboxMode: 'read-only' | 'workspace-write' | 'danger-full-access' | 'container';
+  shellAllowlist: string[];
+} {
+  if (!permissions) {
+    return { requireApproval: false, sandboxMode: 'workspace-write', shellAllowlist: [] };
+  }
+  // 禁止写 → read-only 沙箱；允许写 → workspace-write
+  const sandboxMode = permissions.allowWrite ? 'workspace-write' : 'read-only';
+  // 禁止 shell → 需要审批（所有命令都需用户确认）
+  const requireApproval = !permissions.allowShell;
+  // 禁止 shell 时仅允许只读命令作为白名单
+  const shellAllowlist = permissions.allowShell ? [] : ['echo', 'ls', 'cat', 'pwd', 'dir', 'type'];
+  return { requireApproval, sandboxMode, shellAllowlist };
+}
+
 export interface TaskQueueOptions {
   /** 并发执行上限（默认 2） */
   concurrency?: number;
@@ -109,6 +132,8 @@ export interface TaskQueueOptions {
   persistDir?: string;
   /** Web 控制台模型配置列表（models.json），供 executeTask 使用真实模型 */
   modelProviders?: Array<{ id: string; type: 'openai-compatible' | 'ollama'; baseURL: string; apiKey?: string; model?: string }>;
+  /** 离线模式：使用内置 mock 模型（无需任何 API key），用于 Web 控制台演示与单元测试 */
+  offline?: boolean;
 }
 
 export class TaskQueue {
@@ -121,12 +146,21 @@ export class TaskQueue {
   private readonly persistDir?: string;
   /** Web 控制台配置的模型列表 */
   private modelProviders?: Array<{ id: string; type: 'openai-compatible' | 'ollama'; baseURL: string; apiKey?: string }>;
+  /** 离线模式标志（内置 mock 模型，无需 API key） */
+  private readonly offline: boolean;
+  /** 运行中任务的 AbortController 表：cancelTask 时精准中止对应任务（含进行中的模型请求） */
+  private readonly controllers = new Map<string, AbortController>();
+  /** 全局停止标志：cancel() 后清空队列并阻止新任务启动；标记的任务在 run() 入口即失败 */
+  private stopAll = false;
 
   constructor(opts: TaskQueueOptions = {}) {
+    // 并发默认 2：executeTask 已移除 process.chdir，所有工具通过 ctx.cwd 传参，
+    // 并发任务不会互相覆盖工作目录。如需更高并发可通过 opts.concurrency 覆盖。
     this.concurrency = opts.concurrency ?? 2;
     this.webhookUrl = opts.webhookUrl ?? '';
     this.channels = opts.channels;
     this.persistDir = opts.persistDir;
+    this.offline = opts.offline ?? false;
     if (this.persistDir) this.recover();
   }
 
@@ -174,7 +208,8 @@ export class TaskQueue {
     try {
       mkdirSync(this.persistDir, { recursive: true });
       const file = join(this.persistDir, `${record.id}.json`);
-      const tmp = file + '.tmp';
+      // tmp 名带 PID：规避 Windows 下历史残留 .tmp 被外部句柄锁住导致的 EPERM
+      const tmp = `${file}.${process.pid}.tmp`;
       writeFileSync(tmp, JSON.stringify(record), 'utf8');
       renameSync(tmp, file);
     } catch (e) {
@@ -190,7 +225,7 @@ export class TaskQueue {
     if (!this.persistDir) return;
     try {
       rmSync(join(this.persistDir, `${id}.json`), { force: true });
-      rmSync(join(this.persistDir, `${id}.json.tmp`), { force: true });
+      rmSync(join(this.persistDir, `${id}.json.${process.pid}.tmp`), { force: true });
     } catch {
       /* 忽略清理失败 */
     }
@@ -205,10 +240,10 @@ export class TaskQueue {
     return this.webhookUrl;
   }
 
-  /** 提交任务，立即返回任务 id（后台异步执行）；opts 可覆盖本次任务的 modelId / workspaceDir / agentType / permissions */
+  /** 提交任务，立即返回任务 id（后台异步执行）；opts 可覆盖本次任务的 modelId / workspaceDir / agentType / permissions / attachments */
   submit(
     goal: string,
-    opts: { modelId?: string; workspaceDir?: string; agentType?: AgentType; permissions?: TaskPermissions } = {},
+    opts: { modelId?: string; workspaceDir?: string; agentType?: AgentType; permissions?: TaskPermissions; attachments?: string[] } = {},
   ): TaskRecord {
     const now = new Date().toISOString();
     const record: TaskRecord = {
@@ -221,6 +256,7 @@ export class TaskQueue {
       modelId: opts.modelId,
       agentType: opts.agentType,
       permissions: opts.permissions,
+      attachments: opts.attachments && opts.attachments.length ? opts.attachments : undefined,
     };
     this.tasks.set(record.id, record);
     this.persist(record); // P6-4 落盘
@@ -235,8 +271,9 @@ export class TaskQueue {
    * 多轮续接：向已完成/失败的任务追加一条用户消息并重新入队执行。
    * 仅终态任务（done/failed）可续接；运行中的任务返回 null（由调用方提示）。
    * 返回更新后的记录（已改为 queued）。
+   * attachments 为本轮新增的附件路径列表（与上一轮合并去重）。
    */
-  continueTask(id: string, message: string): TaskRecord | null {
+  continueTask(id: string, message: string, attachments: string[] = []): TaskRecord | null {
     const record = this.tasks.get(id);
     if (!record) return null;
     if (record.status === 'queued' || record.status === 'running') return null;
@@ -245,6 +282,11 @@ export class TaskQueue {
     // 追加用户消息到对话历史（M3 resume 上下文）
     if (!record.conversation) record.conversation = [];
     record.conversation.push({ role: 'user', content: text });
+    // 合并附件（去重）：新附件追加到已有附件列表，保留顺序
+    if (attachments.length) {
+      const set = new Set(record.attachments || []);
+      for (const a of attachments) if (a && !set.has(a)) { set.add(a); record.attachments?.push(a) || (record.attachments = [a]); }
+    }
     record.status = 'queued';
     record.updatedAt = new Date().toISOString();
     // 保留上一轮 result（供 resume 累计迭代数/成本），终态由 run() 覆盖
@@ -326,17 +368,95 @@ export class TaskQueue {
     return this.tasks.size;
   }
 
+  /** P9：停止所有任务——中断运行中的执行、清空等待队列、重置停止标志（后续可继续提交新任务） */
+  cancel(): void {
+    this.stopAll = true;
+    // 中断所有运行中的任务（AbortController 触发 fetch 与编排循环即时中止）
+    for (const [id, controller] of this.controllers) {
+      controller.abort();
+      const record = this.tasks.get(id);
+      if (record && record.status === 'running') {
+        record.status = 'failed';
+        record.error = '用户主动停止任务';
+        record.updatedAt = new Date().toISOString();
+        this.persist(record);
+        void this.fireWebhook(id, 'failed');
+        void this.channels?.notify(record, 'failed');
+      }
+    }
+    this.controllers.clear();
+    // 队列中尚未启动的任务也标记为失败（避免永久停留在 queued）
+    for (const id of this.queue) {
+      const record = this.tasks.get(id);
+      if (record && record.status === 'queued') {
+        record.status = 'failed';
+        record.error = '用户主动停止任务';
+        record.updatedAt = new Date().toISOString();
+        this.persist(record);
+        void this.fireWebhook(id, 'failed');
+        void this.channels?.notify(record, 'failed');
+      }
+    }
+    this.queue.length = 0; // 清空等待队列
+    this.stopAll = false; // 重置：允许后续提交新任务
+    logger.info('task queue stopped by user');
+  }
+
+  /** P9：停止单个指定任务（精准中止，不影响其他运行中的任务） */
+  cancelTask(id: string): boolean {
+    const record = this.tasks.get(id);
+    if (!record) return false;
+    if (record.status !== 'running' && record.status !== 'queued') return false;
+    // 中断进行中的执行（若在运行）
+    const controller = this.controllers.get(id);
+    if (controller) {
+      controller.abort();
+      this.controllers.delete(id);
+    }
+    // 从等待队列移除（若仍在排队）
+    const qi = this.queue.indexOf(id);
+    if (qi >= 0) this.queue.splice(qi, 1);
+    record.status = 'failed';
+    record.error = '用户主动停止任务';
+    record.updatedAt = new Date().toISOString();
+    this.persist(record);
+    void this.fireWebhook(id, 'failed');
+    void this.channels?.notify(record, 'failed');
+    return true;
+  }
+
   /** 消费队列：并发未满时启动下一个任务 */
   private pump(): void {
     while (this.running < this.concurrency && this.queue.length > 0) {
       const id = this.queue.shift()!;
       const record = this.tasks.get(id);
       if (!record) continue;
+      // 检查是否全局停止
+      if (this.stopAll) {
+        record.status = 'failed';
+        record.error = '任务队列已停止';
+        record.updatedAt = new Date().toISOString();
+        this.persist(record);
+        void this.fireWebhook(id, 'failed');
+        continue;
+      }
       void this.run(id, record);
     }
   }
 
   private async run(id: string, record: TaskRecord): Promise<void> {
+    // 全局停止：直接标记失败，不启动执行
+    if (this.stopAll) {
+      record.status = 'failed';
+      record.error = '任务队列已停止';
+      record.updatedAt = new Date().toISOString();
+      this.persist(record);
+      void this.fireWebhook(id, 'failed');
+      return;
+    }
+    // 为当前任务创建 AbortController，供 cancelTask 精准中止进行中的执行（含模型请求）
+    const controller = new AbortController();
+    this.controllers.set(id, controller);
     this.running++;
     record.status = 'running';
     record.updatedAt = new Date().toISOString();
@@ -360,18 +480,19 @@ export class TaskQueue {
           }
         : undefined;
       const result = await executeTask(taskGoal, {
-        offline: false,
+        offline: this.offline,
         // 实时捕获编排器事件，写入该任务的思维链路步骤
         renderer: (ev) => this.appendStep(id, ev),
         modelProviders: modelId && this.modelProviders
           ? this.modelProviders.filter(m => m.id === modelId)
           : undefined,
-        security: {
-          requireApproval: false,
-          sandboxMode: 'workspace-write',
-          shellAllowlist: [],
-        },
+        // 从任务权限映射安全设置，不再硬编码全权限
+        security: buildSecurityFromPermissions(record.permissions),
+        // 修复：必须把用户选择的工作区传给执行器，否则 executeTask 会落到进程 cwd（服务启动目录）
+        workspaceDir: record.workspaceDir || undefined,
         resume,
+        signal: controller.signal, // P9：中断信号——停止按钮触发时中止模型请求与编排循环
+        attachments: record.attachments, // 用户本轮上传的附件（截图/文件/图片），执行层可读取
       });
       // 多轮续接：持久化本轮完整消息历史（含上一轮），供下一轮 resume 与前端对话流展示
       if (Array.isArray(result.messages) && result.messages.length > 0) {
@@ -392,6 +513,7 @@ export class TaskQueue {
       record.error = e instanceof Error ? e.message : String(e);
       logger.error('task failed', { taskId: id, error: record.error });
     } finally {
+      this.controllers.delete(id); // 清理中断控制器
       record.updatedAt = new Date().toISOString();
       this.persist(record); // P6-4 落盘终态
       void this.fireWebhook(id, record.status); // done|failed 节点回调
