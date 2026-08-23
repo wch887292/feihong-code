@@ -50,6 +50,32 @@ export class ToolRegistry {
     }
     const args = parsed.data as Record<string, unknown>;
 
+    // 处理 parseToolArgs 返回的解析错误（模型返回了完全无法解析的参数）
+    if (rawArgs && typeof rawArgs === 'object' && '__parse_error__' in (rawArgs as Record<string, unknown>)) {
+      const rawText = String((rawArgs as Record<string, unknown>).__parse_error__).slice(0, 300);
+      logger.warn('tool args parse error', { tool: name, raw: rawText });
+      return {
+        ok: false,
+        output: '',
+        error: `工具参数解析失败：你返回的 arguments 不是合法 JSON。原始内容: ${rawText}。请返回合法的 JSON 对象作为工具参数。`,
+      };
+    }
+
+    // 检测并警告被 zod 静默丢弃的未知参数（模型常把 A 工具的参数传给 B 工具）
+    const rawKeys = rawArgs && typeof rawArgs === 'object' ? Object.keys(rawArgs as Record<string, unknown>) : [];
+    const knownKeys = Object.keys(args);
+    const droppedKeys = rawKeys.filter((k) => !knownKeys.includes(k));
+    if (droppedKeys.length > 0) {
+      const validHint = tool.jsonSchema && typeof tool.jsonSchema === 'object' && tool.jsonSchema.properties
+        ? '，该工具仅接受参数: ' + Object.keys(tool.jsonSchema.properties as Record<string, unknown>).join(', ')
+        : '';
+      logger.warn('tool args dropped unknown keys', { tool: name, dropped: droppedKeys });
+      // 不阻止执行，但在输出中注入警告，让模型知道参数传错了
+      const warning = `[参数警告] 以下参数被忽略（不属于工具 ${name}）: ${droppedKeys.join(', ')}${validHint}。请检查工具名称与参数是否匹配。\n`;
+      // 延迟到执行后拼接，这里先存到 ctx 上
+      (ctx as ToolContext & { _argWarning?: string })._argWarning = warning;
+    }
+
     // P0-2：沙箱技术边界（先于 RBAC 守卫执行 —— 沙箱是"能否做"的硬边界，
     // 审批/策略都无权放行被沙箱拦截的动作）
     if (ctx.security.sandboxMode) {
@@ -103,6 +129,15 @@ export class ToolRegistry {
       const msg = e instanceof Error ? e.message : String(e);
       logger.error('tool execution failed', { tool: name, error: msg });
       return { ok: false, output: '', error: msg };
+    }
+
+    // 如果有参数警告，注入到输出开头（让模型知道自己参数传错了）
+    const argWarning = (ctx as ToolContext & { _argWarning?: string })._argWarning;
+    if (argWarning) {
+      result = {
+        ...result,
+        output: argWarning + (result.output || ''),
+      };
     }
 
     // P2-1：PostToolUse / PostEdit hook（记录结果；编辑成功时对文件触发）

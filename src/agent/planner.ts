@@ -56,17 +56,39 @@ export function decomposeGoal(goal: string): SubTask[] {
   }));
 }
 
-/** 按中文/英文常见并列连词与标点拆分 */
+/** 按中文/英文常见并列连词与标点拆分。
+ *  拆分后会合并过短的片段（< MIN_FRAGMENT_LEN 字）回前一个，避免连贯句子被撕碎。 */
+const MIN_FRAGMENT_LEN = 12;
+
 function splitByConjunctions(text: string): string[] {
-  const parts = text
+  const raw = text
     .split(/\n+/)
     .flatMap((line) => line.split(/(?:；|;|。|并且|同时|分别|以及|还有|另外|一方面|另一方面)/))
     .map((s) => s.trim())
     .filter(Boolean);
-  // 若拆分后只有一段，尝试按「做X和Y」式并列再拆
-  if (parts.length <= 1) {
-    const alt = text.split(/(?:和|与|、|以及|并|加上)/).map((s) => s.trim()).filter(Boolean);
-    if (alt.length > 1) return alt;
+  // 合并过短片段：长度 < MIN_FRAGMENT_LEN 的片段合并回前一个，避免"先读文件"被拆成独立子任务
+  const merged: string[] = [];
+  for (const frag of raw) {
+    if (merged.length > 0 && frag.length < MIN_FRAGMENT_LEN) {
+      merged[merged.length - 1] += '，' + frag;
+    } else {
+      merged.push(frag);
+    }
   }
-  return parts;
+  // 若合并后只有一段，尝试按「做X和Y」式并列再拆
+  if (merged.length <= 1) {
+    const alt = text.split(/(?:和|与|、|以及|并|加上)/).map((s) => s.trim()).filter(Boolean);
+    if (alt.length > 1) {
+      const mergedAlt: string[] = [];
+      for (const frag of alt) {
+        if (mergedAlt.length > 0 && frag.length < MIN_FRAGMENT_LEN) {
+          mergedAlt[mergedAlt.length - 1] += '和' + frag;
+        } else {
+          mergedAlt.push(frag);
+        }
+      }
+      if (mergedAlt.length > 1) return mergedAlt;
+    }
+  }
+  return merged;
 }

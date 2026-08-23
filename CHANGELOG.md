@@ -2,6 +2,66 @@
 
 本文件遵循 [Keep a Changelog](https://keepachangelog.com/) 约定，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.6.0] — 2026-08-23（全面修复与前端架构升级：验证死循环修复 + 前端分模块 + 竞态条件修复 + 双语优化）
+
+> **飞虹 Code v0.6.0**，全面复盘后落地 20+ 项修复与架构升级：修复验证死循环（self-heal null 绕过熔断）、Shell 正则过度拦截、Web 安全硬编码全权限、并发硬编码为 1、upsertExperience 竞态条件等严重问题；前端从 5043 行单文件拆分为 HTML+CSS+JS 四模块架构；补全双语支持与单元测试；代码精简优化。
+
+### 亮点（Highlights）
+- **验证死循环修复**：`classifyError` 未匹配错误时返回 `null` 导致 orchestrator 跳过 maxRetry 熔断，连续失败 50+ 次不停止 → 改为 `unknown` 兜底永不返回 null，反思提示注入工具名+参数，新增 4 类错误规则（file-not-found/build-error/command-not-found/invalid-args）。
+- **前端架构升级**：5043 行单文件 `index.html` → `index.html`(46KB) + `css/style.css`(52KB) + `js/`(utils.js 8KB + api.js 14KB + ui.js 40KB + app.js 70KB)，职责分离、可并行加载、可维护性大幅提升；app-mobile 同步分模块。
+- **竞态条件修复**：`upsertExperience` 读-改-写无锁，两个 run 同时完成互相覆盖 → 文件级 Promise 锁串行化，同路径写入互斥、不同路径不阻塞、锁队列空自动清理。
+- **Shell 安全正则精准化**：广谱正则 `/[;&|`$(){}<>!]/` 拦截正常管道/命令链/变量 → 精准危险模式检测（仅拦 `$()`、反引号、curl|bash、sudo/eval/exec、rm -rf、nc/telnet 等），允许正常操作。
+
+### 修复（Fixed）
+- **🔴 严重**：Web 任务安全设置硬编码全权限（`requireApproval:false`、无白名单）→ `buildSecurityFromPermissions()` 按任务 permissions 映射（禁写→read-only 沙箱，禁shell→需审批+只读命令白名单）。
+- **🔴 严重**：并发硬编码为 1（`process.chdir()` 全局切换导致互踩）→ 移除全局 chdir（所有工具已通过 `ctx.cwd` 传参），默认并发从 1 提高到 2。
+- **🟠 高优**：`decomposeGoal` 按`。`/`并且`拆分，连贯句子被撕碎成无意义子任务 → `MIN_FRAGMENT_LEN=12` 过短片段合并回前一个。
+- **🟠 高优**：`extractExperience` 用顺序匹配+`startsWith('错误:')`判断工具成败，多工具并行时匹配错误 → `toolCallId` 建立 Map 精确关联，无 id 时回退顺序匹配（兼容旧数据），增加 `exit code [1-9]` 失败检测。
+- **🟠 高优**：`spawn timeout` 只杀 shell 不杀子进程，npm/node 构建超时后继续运行占资源 → 手动 setTimeout：先 SIGTERM，5 秒后 SIGKILL；Unix 下尝试杀整个进程组（`-pid`），Windows 退化为杀单进程。
+- **🟠 高优**：工具参数被 zod `safeParse` 静默 strip（模型把 A 工具参数传给 B 工具，zod 丢掉未知 key，模型完全不知道传错）→ 解析后对比原始参数与解析结果，被丢弃的 key 注入 `[参数警告]` 到输出开头；处理 `__parse_error__` 特殊标记。
+- **🟠 高优**：`parseToolArgs` 在 JSON.parse 失败时直接返回 `{}`，无日志无反馈 → 3 级降级解析（直接解析→从 markdown 代码块提取→提取第一个 `{...}` 块），全部失败返回 `{__parse_error__:原始文本}` 而非 `{}`。
+- **🟡 中优**：shell 输出截断到 4000 字符，末尾关键错误信息被截 → `smartTruncate()`（maxLen=6000，保留前 2000+后 3000，中间标`[已省略 N 字符]`）。
+- **🟡 中优**：模型空 content + 重复工具调用（GLM-Z1-9B 弱模型只发 tool_calls 不输出思考，`list_dir` 被调用 10+ 次返回相同结果）→ prompts.ts 新增"思考与输出规范"（每次工具调用前输出 1-3 句思考，禁止 content 为空）；orchestrator 新增 `toolResultCache`（命中已成功缓存直接返回并注入`[重复调用警告]`）。
+- **🟡 中优**：根目录 23 个垃圾文件（各类 .log、_probe_* 临时文件、hello.ts/txt/sh 测试文件、134MB 的 gradle-8.7-bin.zip）→ 已清理。
+- **🌐 双语**：ui.js 6 处硬编码中文空状态 → `renderEmpty()` + `t()` i18n；新增 4 个 i18n key 中英文翻译（empty.no_skills/empty.no_builtin_templates/empty.no_models/empty.preparing_welcome）。
+
+### 新增（Added）
+- **前端模块拆分工具**：`scripts/split-frontend.cjs`（单文件→HTML+CSS+JS）、`scripts/split-app-js.cjs`（app.js→utils/api/ui/app 四模块，函数名分类+括号计数精确提取）。
+- **`renderEmpty(el, text)` 辅助函数**：统一 6 处重复的空状态 innerHTML 赋值模式，每处从 3 行压缩为 1 行。
+- **文件级 Promise 锁 `withFileLock(filePath, fn)`**：防止并发读写同一 JSONL 文件互相覆盖。
+- **`smartTruncate(text, maxLen)`**：智能截断保留首尾，避免末尾关键错误丢失。
+- **`DANGEROUS_SHELL_PATTERNS` 精准危险模式检测**：替代广谱正则，允许正常管道/命令链/变量引用。
+- **`buildSecurityFromPermissions(permissions)`**：从任务权限映射安全沙箱设置。
+
+### 前端（Frontend）
+- **回复格式优化**：移除"🗨 对话"分隔线、移除底部"🔧 执行过程（内部步骤·共 N 步）"大段展开区；助手正文从 `linkifyArtifacts`（纯转义+链接）改为 `renderMarkdown`（支持粗体/标题/列表/代码块/换行）；工具参数从 `JSON.stringify` 原始输出改为 key:value 列表格式化；对话与步骤合并为单一时序流确保最新在底部。
+- **分模块架构**：主站 6 文件（index.html + css/style.css + js/utils.js + js/api.js + js/ui.js + js/app.js）；移动端 3 文件（index.html + css/style.css + js/app.js）。
+- **i18n 双语**：前端词典 176 个 key，中英文全覆盖；语言切换时所有 UI 文本自动切换。
+
+### 测试（Tests）
+- 新增 `tests/unit/agent-self-heal.test.ts`（9 用例）：classifyError 新增 4 类规则验证 + unknown 兜底永不返回 null + 空输入不崩溃 + 返回值结构校验。
+- 新增 `tests/unit/planner.test.ts`（8 用例）：decomposeGoal 空目标/单句/多句拆分 + MIN_FRAGMENT_LEN=12 过短片段合并修复验证 + 足够长片段正常拆分。
+- `tests/unit/experience.test.ts` 新增 4 用例：upsertExperience 并发同 id 写入不丢失（文件锁竞态修复验证）+ toolCallId 精确匹配（乱序返回）+ 无 toolCallId 回退最后一个调用（兼容旧数据）。
+- 全部新增测试通过（40 tests, 0 failures）。
+
+### 代码优化（Refactored）
+- `utils.js getDirectoryName`：移除 7 个调试 `console.log`，简化冗余变量和注释（-28 行）。
+- 6 处空状态模式从 3 行压缩为 1 行 `renderEmpty()` 调用。
+- 3 files changed, +25 / -23（代码量基本持平，可维护性和双语支持大幅提升）。
+
+### 校验（Verified）
+- typecheck ✅ · build ✅（tsc + copy-web）
+- 新增单元测试 **40/40** ✅
+- 前端分模块后页面加载正常，CSS/JS 加载顺序正确（utils→api→ui→app）
+- 敏感信息扫描：`.env`（含真实 API key）未被 git 跟踪，已跟踪文件中无硬编码密钥/token/密码
+
+### 安全（Security）
+- `.env` 已在 `.gitignore` 中排除，含真实 API key 不会被提交。
+- Shell 注入检测从广谱正则改为精准危险模式，减少误拦截的同时保持安全。
+- Web 任务安全从硬编码全权限改为按任务 permissions 动态映射。
+
+---
+
 ## [0.5.0] — 2026-08-17（正式发布：IDE 深度集成首轮 + SWE-bench 基准接入 + eval 回归门禁）
 
 > **飞虹 Code v0.5.0 正式发布版本**，整合 v0.5.0-a（IDE 深度集成首轮）与 v0.5.0-b（SWE-bench 基准接入）的全部能力，并统一收口版本号（此前 package.json / version.ts 停留在 0.4.0）。

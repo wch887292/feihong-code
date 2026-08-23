@@ -27,8 +27,13 @@ export class ConfigError extends AppError {
 
 /** 模型调用失败 */
 export class ModelError extends AppError {
-  constructor(message: string, public readonly provider: string) {
-    super(`模型调用失败[${provider}]: ${message}`, 'MODEL_ERROR', 502);
+  constructor(
+    message: string,
+    public readonly provider: string,
+    /** 上游 HTTP 状态码（如 429/500/401/400），供路由层按状态码决定轮换/重试策略 */
+    public readonly statusCode?: number,
+  ) {
+    super(`模型调用失败[${provider}]: ${message}`, 'MODEL_ERROR', statusCode ?? 502);
   }
 }
 

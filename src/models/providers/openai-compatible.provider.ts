@@ -57,6 +57,12 @@ export class OpenAICompatibleProvider implements ModelProvider {
     if (req.timeoutMs && req.timeoutMs > 0) {
       timer = setTimeout(() => controller.abort(), req.timeoutMs);
     }
+    // 外部中断信号（任务停止）：链接到本地 controller，触发即中断 fetch
+    const onExternalAbort = (): void => controller.abort();
+    if (req.signal) {
+      if (req.signal.aborted) controller.abort();
+      else req.signal.addEventListener('abort', onExternalAbort, { once: true });
+    }
 
     let res: Response;
     try {
@@ -70,14 +76,17 @@ export class OpenAICompatibleProvider implements ModelProvider {
         signal: controller.signal,
       });
     } catch (e) {
+      const aborted = controller.signal.aborted;
+      if (aborted) throw new ModelError('任务已被用户中断', this.id);
       throw new ModelError(`网络请求失败: ${e instanceof Error ? e.message : String(e)}`, this.id);
     } finally {
       if (timer) clearTimeout(timer);
+      if (req.signal) req.signal.removeEventListener('abort', onExternalAbort);
     }
 
     if (!res.ok) {
       const text = await res.text().catch(() => '');
-      throw new ModelError(`HTTP ${res.status} ${text.slice(0, 200)}`, this.id);
+      throw new ModelError(`HTTP ${res.status} ${text.slice(0, 200)}`, this.id, res.status);
     }
 
     const json: unknown = await res.json().catch(() => undefined);

@@ -98,6 +98,10 @@ export interface OrchestratorDeps {
   tags?: CapabilityTag[];
   /** P3-3：插件技能目录（合并进技能发现） */
   pluginSkillDirs?: string[];
+  /** P9：外部中断信号（任务停止按钮），触发后中断编排循环与进行中的模型请求 */
+  signal?: AbortSignal;
+  /** P9：模型调用失败重试上限（默认 3 次，指数退避应对 429 限流） */
+  maxModelRetries?: number;
 }
 
 /** M3 resume 上下文：携带已完成的对话与计数，避免重复执行 */
@@ -124,6 +128,9 @@ export interface RunResult {
 export class Orchestrator {
   constructor(private readonly deps: OrchestratorDeps) {}
 
+  /** 成功工具调用结果缓存：key = toolName + JSON.stringify(args)，防止模型重复调用相同工具 */
+  private toolResultCache = new Map<string, { ok: boolean; output: string; error?: string }>();
+
   async run(goal: string, resume?: ResumeContext): Promise<RunResult> {
     const {
       router, tools, eventLog, session, cwd, security, approve, persist, guard,
@@ -134,6 +141,8 @@ export class Orchestrator {
     const maxIter = this.deps.maxIterations ?? 50;
     const maxCost = this.deps.maxCostUsd ?? 0;
     const compactThreshold = getCompactionThreshold({ compactEvery: contextCompactEvery });
+    // 每次 run 重置工具结果缓存
+    this.toolResultCache.clear();
 
     let messages: ChatMessage[];
     let loadedExperiences: Experience[] = [];
@@ -194,11 +203,60 @@ export class Orchestrator {
     if (!resume) await emitCheckpoint('running');
 
     for (; calls < maxIter; calls++) {
+      // P9：任务停止——检查外部中断信号，触发即终止编排循环
+      if (this.deps.signal?.aborted) {
+        await emitCheckpoint('crashed');
+        return {
+          ok: false,
+          finalAnswer: '任务已被用户中断',
+          iterations: baselineIterations + calls,
+          costUsd: cost,
+          logFile: '',
+          runId: session.snapshot().runId,
+          selfHealed,
+        };
+      }
       const startTime = Date.now();
-      const resp: ChatResponse = await router.chat(
-        { messages, tools: tools.definitions(), temperature: 0, timeoutMs: 180000 },
-        this.deps.tags ?? ['code-gen'],
-      );
+      // P9：模型调用失败轮询重试（应对 429 限流 / 瞬时网络抖动），最多 maxModelRetries 次，指数退避
+      let resp: ChatResponse | undefined;
+      let lastChatErr: unknown;
+      const maxModelRetries = this.deps.maxModelRetries ?? 3;
+      for (let attempt = 0; attempt <= maxModelRetries; attempt++) {
+        // 重试前再次检查中断信号
+        if (this.deps.signal?.aborted) {
+          await emitCheckpoint('crashed');
+          return {
+            ok: false,
+            finalAnswer: '任务已被用户中断',
+            iterations: baselineIterations + calls,
+            costUsd: cost,
+            logFile: '',
+            runId: session.snapshot().runId,
+            selfHealed,
+          };
+        }
+        try {
+          resp = await router.chat(
+            { messages, tools: tools.definitions(), temperature: 0, timeoutMs: 180000, signal: this.deps.signal },
+            this.deps.tags ?? ['code-gen'],
+          );
+          break; // 成功，跳出重试
+        } catch (e) {
+          lastChatErr = e;
+          logger.warn('model call failed, will retry', {
+            attempt: attempt + 1,
+            maxRetries: maxModelRetries,
+            error: e instanceof Error ? e.message : String(e),
+          });
+          if (attempt < maxModelRetries) {
+            // 指数退避：1s, 2s, 4s...
+            await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, attempt)));
+          }
+        }
+      }
+      if (!resp) {
+        throw lastChatErr instanceof Error ? lastChatErr : new Error('模型调用失败');
+      }
       const latency = Date.now() - startTime;
       cost += resp.costUsd;
       const msg = resp.message;
@@ -387,19 +445,35 @@ export class Orchestrator {
       }
       await ctx.eventLog.append('tool.call', { name: tc.name, args: tc.arguments });
       this.deps.onEvent?.({ type: 'tool.call', name: tc.name, args: tc.arguments });
-      const result = await ctx.tools.execute(tc.name, tc.arguments, {
-        runId: ctx.session.runId,
-        cwd: ctx.cwd,
-        security: ctx.security,
-        approve: ctx.approve,
-        guard: ctx.guard,
-      });
-      await ctx.eventLog.append('tool.result', {
-        name: tc.name,
-        ok: result.ok,
-        output: result.output.slice(0, 500),
-      });
-      this.deps.onEvent?.({ type: 'tool.result', name: tc.name, ok: result.ok, output: result.output.slice(0, 500) });
+
+      // 去重检测：相同工具+相同参数如果之前已成功，直接返回缓存结果并警告模型不要重复调用
+      const cacheKey = tc.name + '::' + JSON.stringify(tc.arguments ?? {});
+      const cached = this.toolResultCache.get(cacheKey);
+      let result: { ok: boolean; output: string; error?: string };
+      if (cached && cached.ok) {
+        const warning = `[重复调用警告] 工具 ${tc.name} 用相同参数之前已成功执行过，以下是缓存的结果。请不要重复调用相同工具，直接利用已有信息推进任务。\n`;
+        result = { ok: true, output: warning + cached.output };
+        await ctx.eventLog.append('tool.result', { name: tc.name, ok: true, output: result.output.slice(0, 500) });
+        this.deps.onEvent?.({ type: 'tool.result', name: tc.name, ok: true, output: result.output.slice(0, 500) });
+      } else {
+        result = await ctx.tools.execute(tc.name, tc.arguments, {
+          runId: ctx.session.runId,
+          cwd: ctx.cwd,
+          security: ctx.security,
+          approve: ctx.approve,
+          guard: ctx.guard,
+        });
+        // 成功结果写入缓存（失败的不缓存，允许模型重试修复）
+        if (result.ok) {
+          this.toolResultCache.set(cacheKey, { ok: result.ok, output: result.output, error: result.error });
+        }
+        await ctx.eventLog.append('tool.result', {
+          name: tc.name,
+          ok: result.ok,
+          output: result.output.slice(0, 500),
+        });
+        this.deps.onEvent?.({ type: 'tool.result', name: tc.name, ok: result.ok, output: result.output.slice(0, 500) });
+      }
       const content = result.ok ? result.output : `错误: ${result.error}`;
       const toolMsg: ChatMessage = { role: 'tool', content, toolCallId: tc.id };
       messages.push(toolMsg);
@@ -429,9 +503,18 @@ export class Orchestrator {
       return { signal: 'none', messages, consecutiveErrors: input.consecutiveErrors, selfHealed: false, finalAnswer: '' };
     }
     const lastToolMsg = messages[messages.length - 1];
+    // classifyError 现在对未匹配错误返回 'unknown' 兜底，永不返回 null，
+    // 确保达到 maxRetryErrors 时 failed 分支一定能 break，不会被绕过。
     const errorAnalysis = classifyError(lastToolMsg.content || '', '');
-    if (!errorAnalysis) {
-      return { signal: 'none', messages, consecutiveErrors: input.consecutiveErrors, selfHealed: false, finalAnswer: '' };
+    // 从消息历史中提取最后一次工具调用（工具名+参数），用于生成更精准的反思提示
+    let lastToolCall: { name: string; args: Record<string, unknown> } | undefined;
+    for (let i = messages.length - 2; i >= 0; i--) {
+      const m = messages[i];
+      if (m.role === 'assistant' && m.toolCalls && m.toolCalls.length > 0) {
+        const tc = m.toolCalls[m.toolCalls.length - 1];
+        lastToolCall = { name: tc.name, args: tc.arguments ?? {} };
+        break;
+      }
     }
     input.errorHistory.push(errorAnalysis);
     await logRecoveryAttempt(input.eventLog, input.iteration, errorAnalysis, false);
@@ -443,7 +526,7 @@ export class Orchestrator {
       return { signal: 'break', messages, consecutiveErrors, selfHealed: false, finalAnswer };
     }
     const selfHealed = true;
-    const newMessages = injectReflection(messages, errorAnalysis, input.goal);
+    const newMessages = injectReflection(messages, errorAnalysis, input.goal, lastToolCall);
     await input.eventLog.append('self-heal', { category: errorAnalysis.category, iteration: input.iteration });
     this.deps.onEvent?.({ type: 'self-heal', category: errorAnalysis.category, iteration: input.iteration });
     logger.info('self-heal: injected reflection', { iteration: input.iteration, category: errorAnalysis.category });

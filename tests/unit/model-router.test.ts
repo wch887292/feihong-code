@@ -11,6 +11,7 @@ import { mkdtempSync, rmSync, existsSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { ModelRouter } from '../../src/models/model-router';
+import { ModelError } from '../../src/shared/errors';
 import type { ModelProvider, ChatRequest, ChatResponse } from '../../src/models/model.interface';
 
 function mockProvider(id: string, opts: { fail?: boolean; costPer1k?: number; tags?: string[] } = {}): ModelProvider {
@@ -75,7 +76,8 @@ test('updateStat: 未配置 homeDir 时不落盘（兼容纯内存用法）', as
 });
 
 test('chat: 全部 provider 失败时抛出最后错误', async () => {
-  const router = new ModelRouter([mockProvider('a', { fail: true }), mockProvider('b', { fail: true })], 'cost', 0);
+  // maxRetries=1 表示单轮遍历（原始语义）；瞬时错误默认重试 3 轮，见下方专项用例
+  const router = new ModelRouter([mockProvider('a', { fail: true }), mockProvider('b', { fail: true })], 'cost', 0, '', '', 1, 0);
   await assert.rejects(() => router.chat({ messages: [] }), /mock provider down/);
   // 失败也应记录统计（模型名非空）
   const stats = router.getStats();
@@ -95,6 +97,56 @@ test('chat: fallback 到第二个 provider 并记录成功统计', async () => {
   const good = stats.find((s) => s.providerId === 'good');
   assert.ok(good);
   assert.equal(good.successfulCalls, 1);
+});
+
+test('chat: 瞬时 429 自动退避重试轮换直到成功', async () => {
+  let bCalls = 0;
+  const a: ModelProvider = {
+    id: 'a',
+    model: 'a',
+    tags: ['code-gen'],
+    chat: async () => {
+      throw new ModelError('HTTP 429 rate limited', 'a', 429);
+    },
+  };
+  const b: ModelProvider = {
+    id: 'b',
+    model: 'b',
+    tags: ['code-gen'],
+    chat: async () => {
+      bCalls++;
+      if (bCalls < 2) throw new ModelError('HTTP 429 rate limited', 'b', 429);
+      return {
+        providerId: 'b',
+        model: 'b',
+        costUsd: 0.001,
+        usage: { promptTokens: 1, completionTokens: 1, totalTokens: 2 },
+        message: { role: 'assistant', content: 'ok from b', toolCalls: [] },
+      };
+    },
+  };
+  // maxRetries=3, backoff=0（跳过真实退避等待）
+  const router = new ModelRouter([a, b], 'cost', 0, '', '', 3, 0);
+  const resp = await router.chat({ messages: [] });
+  assert.equal(resp.providerId, 'b');
+  assert.equal(bCalls, 2, '首次 429 后应自动重试轮换直到成功');
+});
+
+test('chat: 鉴权 401 错误仅轮换不重试', async () => {
+  let calls = 0;
+  const p: ModelProvider = {
+    id: 'p',
+    model: 'p',
+    tags: ['code-gen'],
+    chat: async () => {
+      calls++;
+      throw new ModelError('HTTP 401 unauthorized', 'p', 401);
+    },
+  };
+  // maxRetries=3，但 401 属鉴权类应立即终止，不触发退避重试
+  const router = new ModelRouter([p], 'cost', 0, '', '', 3, 0);
+  await assert.rejects(() => router.chat({ messages: [] }), /401/);
+  assert.equal(calls, 1, '401 不应退避重试同一模型');
 });
 
 test('rank: cost 策略优先低成本 provider', () => {
