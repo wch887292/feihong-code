@@ -16,6 +16,7 @@ import {
   type Worktree,
 } from '../runtime/worktree';
 import type { MockStep } from '../models/providers/mock.provider';
+import { runWithConcurrencySettled } from '../shared/concurrency';
 
 export interface ParallelOptions {
   offline?: boolean;
@@ -26,6 +27,8 @@ export interface ParallelOptions {
   mockFor?: (task: SubTask, index: number) => MockStep[];
   /** 任务完成后是否清理 worktree（默认 true，子代理产物不进主仓库） */
   cleanup?: boolean;
+  /** 最大并发子代理数（默认 3，防止 API 限流和资源耗尽） */
+  maxConcurrent?: number;
 }
 
 export interface ParallelResult {
@@ -40,11 +43,12 @@ export async function runParallel(goal: string, opts: ParallelOptions = {}): Pro
   const offline = opts.offline ?? true;
   const repoRoot = opts.repoRoot ?? (await getRepoRoot(process.cwd()));
   const cleanup = opts.cleanup ?? true;
+  const maxConcurrent = opts.maxConcurrent ?? 3;
 
   const tasks = decomposeGoal(goal);
   const router = opts.router ?? new ModelRouter([], 'cost', 0); // 离线时子代理自带 mock
 
-  logger.info('parallel start', { repoRoot, tasks: tasks.length, offline });
+  logger.info('parallel start', { repoRoot, tasks: tasks.length, offline, maxConcurrent });
 
   const worktrees: Worktree[] = [];
   const subResults: Array<SubAgentResult & { task: SubTask }> = [];
@@ -54,7 +58,8 @@ export async function runParallel(goal: string, opts: ParallelOptions = {}): Pro
     for (const task of tasks) {
       worktrees.push(await createWorktree(repoRoot, task.id));
     }
-    const runs = tasks.map((task, i) =>
+    // 使用并发限制执行子代理，防止同时发起大量模型调用导致 API 限流
+    const taskFns = tasks.map((task, i) => () =>
       runSubAgent({
         worktree: worktrees[i],
         goal: task.goal,
@@ -65,7 +70,7 @@ export async function runParallel(goal: string, opts: ParallelOptions = {}): Pro
       }).then((r) => ({ ...r, task })),
     );
 
-    const settled = await Promise.allSettled(runs);
+    const settled = await runWithConcurrencySettled(taskFns, maxConcurrent);
     for (const s of settled) {
       if (s.status === 'fulfilled') subResults.push(s.value);
       else logger.error('subagent failed', { error: String(s.reason) });
