@@ -16,26 +16,29 @@ import type { OrchestratorEvent } from '../agent/orchestrator';
 import { Tui } from './tui';
 import { t } from '../shared/i18n';
 
-/** 把编排器事件渲染进 TUI（header 状态 + 内容日志） */
+/** 把编排器事件渲染进 TUI，只展示思考内容，不展示工具调用等技术细节 */
 function tuiEventRenderer(tui: Tui): (ev: OrchestratorEvent) => void {
   return (ev) => {
     switch (ev.type) {
       case 'model.response':
-        if (ev.content.trim()) tui.log(`🧠 ${ev.content.trim().slice(0, 300)}`);
-        else if (ev.toolCalls.length > 0) tui.log(`🔧 ${t('stream.toolCalling', { tools: ev.toolCalls.join(', ') })}`);
+        if (ev.content.trim()) {
+          tui.log(ev.content.trim());
+          tui.log('');
+        }
         break;
+      case 'tool.call':
       case 'tool.result':
-        tui.log(ev.ok ? `  ✅ ${ev.name} ${t('stream.toolOk')}` : `  ❌ ${ev.name} ${t('stream.toolFail')} — ${ev.output.slice(0, 120)}`);
+        // 工具调用和结果不展示
         break;
       case 'self-heal':
-        tui.log(`🩹 ${t('stream.selfHeal', { category: ev.category })}`);
+        tui.log('刚才遇到点小问题，我调整一下思路再试试。');
+        tui.log('');
         break;
       case 'context.compact':
-        tui.log(`📦 ${t('stream.compact', { from: ev.originalLength, to: ev.compressedLength })}`);
+        // 内部机制，不展示
         break;
       case 'session.end':
         tui.setStatus({ iteration: ev.iterations, cost: '$' + ev.costUsd.toFixed(6), state: ev.ok ? '完成' : '未完成' });
-        tui.log(`🏁 ${t('stream.done', { iter: ev.iterations, cost: '$' + ev.costUsd.toFixed(6) })}`);
         break;
     }
   };

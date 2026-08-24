@@ -456,19 +456,18 @@
         box.innerHTML = '<div class="msg sys">从左侧「任务列表」选择历史任务查看对话，或在下方输入指令发起新任务。刷新页面会自动清空当前对话视图，历史对话已保存在任务列表中。</div>';
         return;
       }
-      const steps = task.steps || [];
       const finalAnswer = (task.result && task.result.finalAnswer || '').trim();
       let html = '';
       const conv = Array.isArray(task.conversation) ? task.conversation : [];
+      const steps = Array.isArray(task.steps) ? task.steps : [];
 
       if (conv.length > 0) {
-        // 分组处理：连续 assistant 消息合并为一个思考过程
         let i = 0;
         while (i < conv.length) {
           const m = conv[i];
           if (!m) { i++; continue; }
-          // 过滤 tool 消息
-          if (m.role === 'tool') { i++; continue; }
+          // 过滤 tool 消息和 system 消息，用户只看得到人和助手的对话
+          if (m.role === 'tool' || m.role === 'system') { i++; continue; }
 
           if (m.role === 'user') {
             html += '<div class="msg user">' + linkifyArtifacts(m.content || '') + '</div>';
@@ -483,54 +482,64 @@
               assistantMsgs.push(conv[i]);
               i++;
             }
-
             const hasToolCalls = assistantMsgs.some(msg => (msg.toolCalls || []).length > 0);
             const allText = assistantMsgs.map(msg => (msg.content || '').trim()).filter(Boolean).join('\n\n');
-
-            if (hasToolCalls) {
-              // 有工具调用 → 渲染为豆包风格思考过程（默认折叠）
+            if (hasToolCalls && allText) {
+              // 有工具调用且有思考文本 → 展示思考过程（直接显示，不折叠）
               html += renderThinkingProcess(assistantMsgs);
             } else if (allText) {
-              // 纯文本回复 → 普通气泡，markdown 渲染
-              html += '<div class="msg assistant">' + renderMarkdown(allText) + '</div>';
+              // 纯文本回复 → 普通气泡，这就是最终回复
+              html += '<div class="msg assistant">'
+                + '<div style="white-space:pre-wrap;word-break:break-word;line-height:1.7;">' + renderPlainText(allText) + '</div>'
+                + '</div>';
             }
           } else {
             i++;
           }
+        }
+      } else if (steps.length > 0) {
+        // 任务运行中 conversation 还没生成，从 steps 里提取思考文本实时显示
+        if (task.goal) {
+          html += '<div class="msg user">' + linkifyArtifacts(task.goal) + '</div>';
+        }
+        const thinkingTexts = [];
+        for (const s of steps) {
+          if (s.type === 'model.response' && s.data && s.data.content && s.data.content.trim()) {
+            thinkingTexts.push(s.data.content.trim());
+          } else if (s.type === 'self-heal') {
+            thinkingTexts.push('刚才遇到点小问题，我调整一下思路再试试。');
+          }
+        }
+        if (thinkingTexts.length > 0) {
+          html += '<div class="msg assistant" style="opacity:0.9;">'
+            + '<div style="white-space:pre-wrap;word-break:break-word;line-height:1.7;">' + renderPlainText(thinkingTexts.join('\n\n')) + '</div>'
+            + '</div>';
         }
       } else if (task.goal) {
         // 首轮尚未产生对话流时，至少呈现用户原始指令
         html += '<div class="msg user">' + linkifyArtifacts(task.goal) + '</div>';
       }
 
-      // 终态：最终回复（干净气泡）/ 失败提示
-      if (task.status === 'done') {
-        if (task.result && task.result.finalAnswer) {
-          const safeText = JSON.stringify(task.result.finalAnswer);
-          html += '<div class="msg assistant final-msg">'
-            + '<div class="final-head">📬 最终回复</div>'
-            + '<div class="final-actions">'
-            + '<button onclick="bubbleActions(event, ' + safeText + ')" title="复制/编辑/分享/创建文档">⚙️ 操作</button>'
-            + '</div>'
-            + '<div style="margin-top:4px;cursor:text;user-select:text;">' + renderMarkdown(task.result.finalAnswer) + '</div>'
+      // 终态：如果对话流里没有最终回复（旧任务或被中断），再显示 finalAnswer
+      const hasFinalInConv = conv.some(m => m.role === 'assistant' && !(m.toolCalls || []).length && (m.content || '').trim());
+      if (task.status === 'done' && finalAnswer && !hasFinalInConv) {
+        html += '<div class="msg assistant">'
+          + '<div style="white-space:pre-wrap;word-break:break-word;line-height:1.7;">' + renderPlainText(finalAnswer) + '</div>'
+          + '</div>';
+      } else if (task.status === 'failed') {
+        if (finalAnswer && !hasFinalInConv) {
+          html += '<div class="msg assistant">'
+            + '<div style="white-space:pre-wrap;word-break:break-word;line-height:1.7;">' + renderPlainText(finalAnswer) + '</div>'
             + '</div>';
         }
-      } else if (task.status === 'failed') {
-        if (task.result && task.result.finalAnswer) {
-          const safeText = JSON.stringify(task.result.finalAnswer);
-          html += '<div class="msg assistant final-msg"><div class="final-head">📬 部分回复</div>'
-            + '<div class="final-actions"><button onclick="bubbleActions(event, ' + safeText + ')" title="操作">⚙️</button></div>'
-            + '<div style="margin-top:4px;cursor:text;user-select:text;">' + renderMarkdown(task.result.finalAnswer) + '</div></div>';
-        }
-        html += '<div class="msg assistant error-msg">⛔ 任务失败：' + escapeHtml(task.error || '未知错误') + '</div>';
+        html += '<div class="msg assistant error-msg">任务遇到问题：' + escapeHtml(task.error || '未知错误') + '</div>';
       } else if (task.status === 'running') {
-        // 运行中：在最后添加思考中指示
         html += '<div class="thinking-indicator">'
           + '<span class="dot"></span><span class="dot"></span><span class="dot"></span>'
           + '<span>思考中...</span>'
           + '</div>';
       } else if (task.status === 'queued') {
-        html += '<div class="msg sys">📥 任务已入队，等待执行…</div>';
+        html += '<div class="msg sys">任务已入队，等待执行…</div>';
       }
       box.innerHTML = html;
       if (nearBottom) box.scrollTop = box.scrollHeight;
@@ -559,95 +568,18 @@
     }
 
     function renderThinkingProcess(msgs) {
-      // 收集所有工具调用和文本内容
-      const allToolCalls = [];
+      // 收集所有思考文本，直接展示，不折叠、不显示工具调用
       const textParts = [];
       for (const m of msgs) {
-        const calls = m.toolCalls || [];
-        allToolCalls.push(...calls);
         const text = (m.content || '').trim();
         if (text) textParts.push(text);
       }
       const textContent = textParts.join('\n\n');
-
-      // 构建工具调用摘要（按工具名称分组统计）
-      const toolCounts = {};
-      for (const tc of allToolCalls) {
-        const name = tc.name || 'unknown';
-        toolCounts[name] = (toolCounts[name] || 0) + 1;
-      }
-      // 工具名称 → 友好中文描述
-      const toolLabels = {
-        'read': '读取文件', 'write': '写入文件', 'edit': '编辑文件',
-        'search': '搜索文件', 'grep': '搜索文件', 'glob': '搜索文件',
-        'run': '执行命令', 'execute': '执行命令', 'command': '执行命令',
-        'web_search': '搜索网络', 'web_fetch': '访问网页',
-        'list': '列出目录', 'ls': '列出目录',
-        'delete': '删除文件', 'remove': '删除文件',
-      };
-      const summaryParts = Object.entries(toolCounts).map(([name, count]) => {
-        const label = toolLabels[name] || name;
-        return label + ' ' + count + ' 次';
-      });
-      const summaryText = summaryParts.join('、');
-
-      // 工具调用 → 带图标的一行描述
-      const stepIcons = {
-        'read': '📖', 'write': '✏️', 'edit': '✏️',
-        'search': '🔍', 'grep': '🔍', 'glob': '🔍',
-        'run': '⚡', 'execute': '⚡', 'command': '⚡',
-        'web_search': '🌐', 'web_fetch': '🌐',
-        'list': '📂', 'ls': '📂',
-        'delete': '🗑️', 'remove': '🗑️',
-      };
-
-      let html = '<div class="msg assistant thinking-msg">';
-
-      // 可折叠的思考过程头部
-      html += '<div class="thinking-header" onclick="toggleThinking(this)">';
-      html += '<span class="thinking-arrow">▶</span>';
-      html += '<span class="thinking-label">思考过程</span>';
-      if (summaryText) {
-        html += '<span class="thinking-summary"> · ' + escapeHtml(summaryText) + '</span>';
-      }
-      html += '</div>';
-
-      // 可折叠的思考过程主体
-      html += '<div class="thinking-body" style="display:none;">';
-      for (const tc of allToolCalls) {
-        const name = tc.name || 'unknown';
-        const icon = stepIcons[name] || '🔧';
-        const label = toolLabels[name] || name;
-        const args = tc.arguments ? JSON.stringify(tc.arguments, null, 2) : '';
-        // 从参数中提取关键信息显示
-        let brief = escapeHtml(label);
-        if (tc.arguments) {
-          const arg = tc.arguments;
-          if (arg.path) brief += ' <code>' + escapeHtml(arg.path) + '</code>';
-          else if (arg.query) brief += ' <code>' + escapeHtml(String(arg.query).slice(0, 60)) + '</code>';
-          else if (arg.url) brief += ' <code>' + escapeHtml(arg.url) + '</code>';
-          else if (arg.command) brief += ' <code>' + escapeHtml(String(arg.command).slice(0, 60)) + '</code>';
-        }
-        html += '<div class="thinking-step">';
-        html += '<span class="thinking-step-icon">' + icon + '</span>';
-        html += '<span class="thinking-step-text">' + brief + '</span>';
-        if (args) {
-          html += '<span class="thinking-step-detail" onclick="toggleArgs(this)">查看参数</span>';
-        }
-        html += '</div>';
-        if (args) {
-          html += '<pre class="thinking-args">' + escapeHtml(args) + '</pre>';
-        }
-      }
-      html += '</div>';
-
-      // 回复内容
-      if (textContent) {
-        html += '<div class="thinking-reply">' + renderMarkdown(textContent) + '</div>';
-      }
-
-      html += '</div>';
-      return html;
+      if (!textContent) return '';
+      // 用普通 assistant 气泡样式展示思考过程，让用户看到模型在想什么
+      return '<div class="msg assistant thinking-msg" style="opacity:0.85;">'
+        + '<div style="white-space:pre-wrap;word-break:break-word;line-height:1.7;">' + renderPlainText(textContent) + '</div>'
+        + '</div>';
     }
 
     function toggleArgs(el) {

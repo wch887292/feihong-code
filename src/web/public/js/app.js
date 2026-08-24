@@ -1447,7 +1447,18 @@
         previewFile(path);
       }
     });
-    function startRefresh() { setInterval(loadTasks, 5000); }
+    function startRefresh() {
+      setInterval(async () => {
+        await loadTasks();
+        // 如果当前有正在运行的任务，自动刷新对话流，让用户实时看到思考过程
+        if (state.currentTaskId) {
+          const cur = state.tasks.find((t) => t.id === state.currentTaskId);
+          if (cur && (cur.status === 'running' || cur.status === 'queued')) {
+            await refreshCurrentThread();
+          }
+        }
+      }, 3000);
+    }
 
     /* ========== 记忆系统 ========== */
 
