@@ -107,6 +107,50 @@
       return html;
     }
 
+    // 纯文本渲染：只转义HTML、换行和链接，不转标题/列表/加粗/代码块等格式
+    // 用于对话流展示，让输出像普通人聊天一样清爽
+    function renderPlainText(text) {
+      let html = escapeHtml(stripMarkdown(text == null ? '' : text));
+      html = html.replace(/(https?:\/\/[^\s<>"'()]+)/g, '<a href="$1" style="color:var(--brand,#4f6ef7);text-decoration:underline;" target="_blank">$1</a>');
+      html = html.replace(/\n/g, '<br>');
+      return html;
+    }
+
+    // 把 Markdown 格式符号全部去掉，只保留纯文本内容
+    function stripMarkdown(text) {
+      let s = String(text);
+      // 去掉代码块 ```...``` 里的标记，保留内容
+      s = s.replace(/```[\w]*\n?([\s\S]*?)```/g, '$1');
+      // 去掉行内代码 `code` 的反引号，保留内容
+      s = s.replace(/`([^`]+)`/g, '$1');
+      // 去掉加粗 **text** 和 __text__
+      s = s.replace(/\*\*([^*]+)\*\*/g, '$1');
+      s = s.replace(/__([^_]+)__/g, '$1');
+      // 去掉斜体 *text* 和 _text_（注意不要和列表冲突）
+      s = s.replace(/\*([^*\n]+)\*/g, '$1');
+      s = s.replace(/_([^_\n]+)_/g, '$1');
+      // 去掉标题 # ## ### 等，保留标题文字
+      s = s.replace(/^#{1,6}\s+/gm, '');
+      // 去掉无序列表符号 * - + （行首）
+      s = s.replace(/^[\s]*[-*+]\s+/gm, '');
+      // 去掉有序列表符号 1. 2. 等（行首）
+      s = s.replace(/^[\s]*\d+\.\s+/gm, '');
+      // 去掉引用符号 > （行首）
+      s = s.replace(/^[\s]*>\s?/gm, '');
+      // 去掉链接 [text](url) 只保留 text
+      s = s.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+      // 去掉图片 ![alt](url) 只保留 alt
+      s = s.replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1');
+      // 去掉分割线 --- *** ___
+      s = s.replace(/^[-*_]{3,}\s*$/gm, '');
+      // 去掉行号引用 L123、ln 456、第789行这种
+      s = s.replace(/\b[Ll][nN]?\s*\d+(-\d+)?/g, '');
+      s = s.replace(/第\d+行/g, '');
+      // 去掉多余的空行（连续3个以上换行变成2个）
+      s = s.replace(/\n{3,}/g, '\n\n');
+      return s.trim();
+    }
+
     function statusBadge(s) { return '<span class="badge ' + s + '">' + s + '</span>'; }
 
     function closeModal(id) { document.getElementById(id).classList.remove('show'); }

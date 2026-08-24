@@ -352,16 +352,22 @@ export class TaskQueue {
     return true;
   }
 
-  /** 追加思维链路步骤（编排器事件），节流落盘，供前端按单一任务生命周期可视化追踪 */
+  /** 追加思维链路步骤（编排器事件），只存模型思考内容，过滤工具调用等技术细节 */
   appendStep(id: string, ev: { type: string; [k: string]: unknown }): void {
     const record = this.tasks.get(id);
     if (!record) return;
+    // 只保留模型思考内容，工具调用/结果/上下文压缩等内部细节不存储
+    if (ev.type !== 'model.response' && ev.type !== 'self-heal') return;
+    if (ev.type === 'model.response') {
+      const content = (ev as { content?: string }).content;
+      if (!content || !content.trim()) return; // 纯工具调用没有思考文本，跳过
+    }
     if (!record.steps) record.steps = [];
     // 上限保护，避免超长任务撑爆存储
-    if (record.steps.length >= 400) record.steps.shift();
+    if (record.steps.length >= 200) record.steps.shift();
     record.steps.push({ seq: record.steps.length, ts: new Date().toISOString(), type: ev.type, data: ev });
-    // 节流落盘：首步与每 10 步持久化一次（终态时 run() 会再落盘一次完整记录）
-    if (record.steps.length === 1 || record.steps.length % 10 === 0) this.persist(record);
+    // 节流落盘：首步与每 5 步持久化一次（终态时 run() 会再落盘一次完整记录）
+    if (record.steps.length === 1 || record.steps.length % 5 === 0) this.persist(record);
   }
 
   get count(): number {

@@ -146,27 +146,30 @@ function getSessionHome(offline: boolean): string {
   return join(home, 'sessions');
 }
 
-/** P0-1：把编排器事件流增量渲染到 stdout（流式输出）。抑制换行噪音：仅打印关键节点。 */
+/** 流式输出：只展示模型的思考内容，不展示工具调用等技术细节，让普通人看懂。 */
 function renderStreamEvent(ev: OrchestratorEvent): void {
   switch (ev.type) {
     case 'model.response':
-      // 有文本内容时直接流式打印（模拟 token 流）；仅工具调用时打印调用摘要
-      if (ev.content.trim()) console.log(`🧠 ${ev.content.trim().slice(0, 300)}`);
-      else if (ev.toolCalls.length > 0) console.log(`🔧 ${t('stream.toolCalling', { tools: ev.toolCalls.join(', ') })}`);
+      // 有思考内容就完整打印，这是用户最关心的部分
+      if (ev.content.trim()) {
+        console.log(ev.content.trim());
+        console.log('');
+      }
+      // 纯工具调用没有思考文本时，不输出任何东西，避免噪音
       break;
     case 'tool.call':
-      break; // 已在上层 model.response 摘要，避免重复
     case 'tool.result':
-      console.log(ev.ok ? `  ✅ ${ev.name} ${t('stream.toolOk')}` : `  ❌ ${ev.name} ${t('stream.toolFail')} — ${ev.output.slice(0, 120)}`);
+      // 工具调用和结果不展示，用户不需要知道内部在调什么工具
       break;
     case 'self-heal':
-      console.log(`🩹 ${t('stream.selfHeal', { category: ev.category })}`);
+      console.log('刚才遇到点小问题，我调整一下思路再试试。');
+      console.log('');
       break;
     case 'context.compact':
-      console.log(`📦 ${t('stream.compact', { from: ev.originalLength, to: ev.compressedLength })}`);
+      // 上下文压缩是内部机制，不打扰用户
       break;
     case 'session.end':
-      console.log(`🏁 ${t('stream.done', { iter: ev.iterations, cost: '$' + ev.costUsd.toFixed(6) })}`);
+      // 结束状态不单独打印，最终答案会在 runGoal 里输出
       break;
   }
 }
@@ -329,21 +332,20 @@ export async function executeTask(goal: string, opts: RunOptions = {}): Promise<
 export async function runGoal(goal: string, opts: RunOptions = {}): Promise<void> {
   const result = await executeTask(goal, opts);
   const offline = opts.offline ?? isOfflineByDefault();
-  const logDir = getSessionHome(offline);
 
-  console.log('\n' + t('run.resultTitle'));
-  console.log(result.finalAnswer);
-  console.log('\n' + t('run.summary', { iter: result.iterations, cost: '$' + result.costUsd.toFixed(6), log: result.logFile }));
-  console.log(t('run.checkpoint', { path: join(logDir, `${result.runId}.session.json`) }));
+  // 只输出最终答案，不打印迭代数、成本、日志路径等技术信息
+  if (result.finalAnswer.trim()) {
+    console.log('');
+    console.log(result.finalAnswer.trim());
+    console.log('');
+  }
+
   if (offline) {
-    // 演示文件可能因策略拒绝而未生成，据实播报，避免误导
     const demoFile = join(process.cwd(), 'demo-output.txt');
     logger.info('offline-run done', { cwd: process.cwd(), demoFile });
-    console.log(
-      existsSync(demoFile)
-        ? t('run.offlineFileYes', { file: demoFile })
-        : t('run.offlineFileNo', { cwd: process.cwd() }),
-    );
+    if (existsSync(demoFile)) {
+      console.log(t('run.offlineFileYes', { file: demoFile }));
+    }
   }
 }
 
@@ -593,9 +595,11 @@ export async function runResume(runId: string): Promise<void> {
     touchedFiles: cp.touchedFiles,
   });
 
-  console.log('\n' + t('run.resultTitle'));
-  console.log(result.finalAnswer);
-  console.log(t('run.summary', { iter: result.iterations, cost: '$' + result.costUsd.toFixed(6), log: result.logFile }));
+  if (result.finalAnswer.trim()) {
+    console.log('');
+    console.log(result.finalAnswer.trim());
+    console.log('');
+  }
 }
 
 /** 展示会话作用域的 diff（缺省为本工作区全量 diff） */
