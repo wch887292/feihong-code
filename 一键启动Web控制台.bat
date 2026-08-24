@@ -32,26 +32,15 @@ for /f "tokens=5" %%i in ('netstat -ano ^| findstr :%PORT% ^| findstr LISTENING'
   echo [Clean] Port %PORT% cleared (PID %%i)
 )
 
-REM === 3. Start server ===
+REM === 3. Start server (run directly, only one window) ===
 echo.
 echo [Start] Starting web server...
-start "" node start-web.js --port %PORT%
+node start-web.js --port %PORT%
 
-REM === 4. Wait for ready ===
-echo [Wait] Waiting for service ready...
-timeout /t 6 /nobreak >nul
-
-REM === 5. Open browser ===
-echo [Open] Opening browser...
-start http://127.0.0.1:%PORT%/
-
+REM === If node exits, show message ===
 echo.
 echo ============================================================
-echo   OK - Web console started!
-echo   URL: http://127.0.0.1:%PORT%/
+echo   Web console stopped.
 echo ============================================================
 echo.
-echo Hint: Close this window will NOT stop the service.
-echo Hint: To stop, run: taskkill /F /IM node.exe
-echo.
-pause >nul
+pause

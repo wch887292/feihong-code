@@ -48,11 +48,139 @@
             toast('✅ ' + (d.message || '总结完成'));
             loadMemoryStats();
             loadSummaryHistory();
+            loadLongTermMemory();
           } catch (e) {
             toast('总结失败：' + e.message);
           } finally {
             btn.disabled = false;
             btn.textContent = '✨ 立即总结';
+          }
+        });
+
+        // 短期记忆：添加记录按钮（展开文本框）
+        document.getElementById('memAddShort')?.addEventListener('click', () => {
+          const editor = document.getElementById('memShortEditor');
+          const input = document.getElementById('memShortInput');
+          if (editor) {
+            editor.style.display = editor.style.display === 'none' ? 'block' : 'none';
+            if (editor.style.display !== 'none' && input) {
+              input.value = '';
+              input.focus();
+            }
+          }
+        });
+        // 短期记忆：取消
+        document.getElementById('memShortCancel')?.addEventListener('click', () => {
+          const editor = document.getElementById('memShortEditor');
+          if (editor) editor.style.display = 'none';
+        });
+        // 短期记忆：保存
+        document.getElementById('memShortSave')?.addEventListener('click', async () => {
+          const input = document.getElementById('memShortInput');
+          const content = input ? input.value.trim() : '';
+          if (!content) { toast('请输入记录内容'); return; }
+          try {
+            await api('/api/memory/short', 'POST', {
+              title: content.slice(0, 30) + (content.length > 30 ? '...' : ''),
+              type: 'note',
+              content: content,
+            });
+            toast('已添加到短期记忆');
+            const editor = document.getElementById('memShortEditor');
+            if (editor) editor.style.display = 'none';
+            const dateStr = document.getElementById('memDateInput').value;
+            if (dateStr) loadMemoryContent(dateStr);
+            loadMemoryStats();
+          } catch (e) {
+            toast('添加失败：' + e.message);
+          }
+        });
+
+        // 长期记忆：编辑按钮
+        document.getElementById('memEditLong')?.addEventListener('click', () => {
+          const content = document.getElementById('memLongContent');
+          const editor = document.getElementById('memLongEditor');
+          const editBtn = document.getElementById('memEditLong');
+          const saveBtn = document.getElementById('memSaveLong');
+          const cancelBtn = document.getElementById('memCancelLong');
+          const appendBtn = document.getElementById('memAppendLong');
+          const appendEditor = document.getElementById('memLongAppendEditor');
+          // 把当前内容放到编辑器
+          if (editor && content) {
+            editor.value = content.innerText || content.textContent || '';
+          }
+          if (content) content.style.display = 'none';
+          if (editor) editor.style.display = 'block';
+          if (editBtn) editBtn.style.display = 'none';
+          if (appendBtn) appendBtn.style.display = 'none';
+          if (appendEditor) appendEditor.style.display = 'none';
+          if (saveBtn) saveBtn.style.display = '';
+          if (cancelBtn) cancelBtn.style.display = '';
+        });
+        // 长期记忆：取消编辑
+        document.getElementById('memCancelLong')?.addEventListener('click', () => {
+          const content = document.getElementById('memLongContent');
+          const editor = document.getElementById('memLongEditor');
+          const editBtn = document.getElementById('memEditLong');
+          const saveBtn = document.getElementById('memSaveLong');
+          const cancelBtn = document.getElementById('memCancelLong');
+          const appendBtn = document.getElementById('memAppendLong');
+          if (content) content.style.display = '';
+          if (editor) editor.style.display = 'none';
+          if (editBtn) editBtn.style.display = '';
+          if (appendBtn) appendBtn.style.display = '';
+          if (saveBtn) saveBtn.style.display = 'none';
+          if (cancelBtn) cancelBtn.style.display = 'none';
+        });
+        // 长期记忆：保存编辑
+        document.getElementById('memSaveLong')?.addEventListener('click', async () => {
+          const editor = document.getElementById('memLongEditor');
+          const content = editor ? editor.value : '';
+          try {
+            await api('/api/memory/long', 'POST', { content });
+            toast('长期记忆已保存');
+            document.getElementById('memCancelLong')?.click();
+            loadLongTermMemory();
+            loadMemoryStats();
+          } catch (e) {
+            toast('保存失败：' + e.message);
+          }
+        });
+        // 长期记忆：追加按钮（展开文本框）
+        document.getElementById('memAppendLong')?.addEventListener('click', () => {
+          const editor = document.getElementById('memLongAppendEditor');
+          const titleInput = document.getElementById('memAppendTitle');
+          const contentInput = document.getElementById('memAppendContent');
+          if (editor) {
+            editor.style.display = editor.style.display === 'none' ? 'block' : 'none';
+            if (editor.style.display !== 'none') {
+              if (titleInput) titleInput.value = '';
+              if (contentInput) contentInput.value = '';
+              if (titleInput) titleInput.focus();
+            }
+          }
+        });
+        // 长期记忆：取消追加
+        document.getElementById('memAppendCancel')?.addEventListener('click', () => {
+          const editor = document.getElementById('memLongAppendEditor');
+          if (editor) editor.style.display = 'none';
+        });
+        // 长期记忆：确认追加
+        document.getElementById('memAppendSave')?.addEventListener('click', async () => {
+          const titleInput = document.getElementById('memAppendTitle');
+          const contentInput = document.getElementById('memAppendContent');
+          const title = titleInput ? titleInput.value.trim() : '';
+          const content = contentInput ? contentInput.value.trim() : '';
+          if (!title || !content) { toast('请输入标题和内容'); return; }
+          try {
+            await api('/api/memory/long/append', 'POST', { title, category: '自定义', content });
+            toast('已追加到长期记忆');
+            const editor = document.getElementById('memLongAppendEditor');
+            if (editor) editor.style.display = 'none';
+            loadLongTermMemory();
+            loadMemoryStats();
+          } catch (e) {
+            toast('追加失败：' + e.message);
           }
         });
       }
@@ -113,12 +241,123 @@
       return '<div class="tile" data-goal="' + encodeURIComponent(t.goal) + '"><div class="icon">' + (t.icon || '📄') + '</div><div class="title">' + escapeHtml(t.title) + '</div><div class="desc">' + escapeHtml(t.category || '') + ' · ' + escapeHtml(t.goal).slice(0, 40) + '…</div><div class="ops"><button class="use" data-goal="' + encodeURIComponent(t.goal) + '">填入输入框</button>' + (deletable ? '<button class="ghost del" data-id="' + t.id + '">删除</button>' : '') + '</div></div>';
     }
 
+    function renderBuiltinAutomations(list) {
+      const grid = document.getElementById('builtinAutoGrid');
+      if (!grid) return;
+      if (!list.length) { renderEmpty(grid, '暂无预置指令'); return; }
+      grid.innerHTML = list.map((a) => {
+        const icon = a.icon || '⚡';
+        const category = a.category || '常用';
+        const goalPreview = (a.goal || '').slice(0, 50) + ((a.goal || '').length > 50 ? '…' : '');
+        return '<div class="tile builtin-tile" data-id="' + escapeHtml(a.id) + '">'
+          + '<div class="icon">' + icon + '</div>'
+          + '<div class="title">' + escapeHtml(a.name) + '</div>'
+          + '<div class="desc"><span style="color:var(--brand);font-weight:500;">' + escapeHtml(category) + '</span> · ' + escapeHtml(goalPreview) + '</div>'
+          + '<div class="ops">'
+          + '<button class="run builtin-run" data-id="' + escapeHtml(a.id) + '">▶ 运行</button>'
+          + '<button class="ghost builtin-save" data-id="' + escapeHtml(a.id) + '" data-name="' + escapeHtml(a.name) + '" data-goal="' + encodeURIComponent(a.goal || '') + '">＋ 保存为我的</button>'
+          + '</div></div>';
+      }).join('');
+      grid.querySelectorAll('button.builtin-run').forEach((b) => b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        runAuto(b.getAttribute('data-id'));
+      }));
+      grid.querySelectorAll('button.builtin-save').forEach((b) => b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const name = b.getAttribute('data-name') || '';
+        const goal = decodeURIComponent(b.getAttribute('data-goal') || '');
+        saveBuiltinAsMine(name, goal);
+      }));
+    }
+
+    async function saveBuiltinAsMine(name, goal) {
+      try {
+        await api('/api/automations', 'POST', { name, goal });
+        await loadAutomations();
+        toast('已保存到「我的指令」，可在那里编辑');
+      } catch (e) { toast('保存失败：' + e.message); }
+    }
+
     function renderAutoGrid(list) {
       const grid = document.getElementById('autoGrid');
       if (!list.length) { renderEmpty(grid, t('empty.no_automations')); return; }
-      grid.innerHTML = list.map((a) => '<div class="tile" data-id="' + a.id + '"><div class="icon">⚡</div><div class="title">' + escapeHtml(a.name) + '</div><div class="desc">' + escapeHtml(a.goal).slice(0, 60) + (a.goal.length > 60 ? '…' : '') + '<br>已运行 ' + a.runCount + ' 次</div><div class="ops"><button class="run" data-id="' + a.id + '">▶ 运行</button><button class="ghost del" data-id="' + a.id + '">删除</button></div></div>').join('');
+      grid.innerHTML = list.map((a) => {
+        const icon = a.icon || '⚡';
+        const category = a.category ? ' · ' + escapeHtml(a.category) : '';
+        return '<div class="tile" data-id="' + a.id + '">'
+          + '<div class="icon">' + icon + '</div>'
+          + '<div class="title">' + escapeHtml(a.name) + category + '</div>'
+          + '<div class="desc">' + escapeHtml(a.goal).slice(0, 60) + (a.goal.length > 60 ? '…' : '') + '<br>已运行 ' + a.runCount + ' 次</div>'
+          + '<div class="ops"><button class="run" data-id="' + a.id + '">▶ 运行</button><button class="ghost del" data-id="' + a.id + '">删除</button></div></div>';
+      }).join('');
       grid.querySelectorAll('button.run').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); runAuto(b.getAttribute('data-id')); }));
       grid.querySelectorAll('button.del').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); delAuto(b.getAttribute('data-id')); }));
+    }
+
+    /* ========== 节点模板 & 自定义来源模板 ========== */
+    function renderNodeTpl(list) {
+      const grid = document.getElementById('nodeTplGrid');
+      const title = document.getElementById('nodeTplTitle');
+      if (!grid) return;
+      if (!list.length) { if (title) title.style.display = 'none'; grid.innerHTML = ''; return; }
+      if (title) title.style.display = '';
+      grid.innerHTML = list.map((t) => tplCard(t, false)).join('');
+      bindTplCards(grid);
+    }
+    function renderCustomTpl(list) {
+      const grid = document.getElementById('customTplGrid');
+      const title = document.getElementById('customTplTitle');
+      if (!grid) return;
+      if (!list.length) { if (title) title.style.display = 'none'; grid.innerHTML = ''; return; }
+      if (title) title.style.display = '';
+      grid.innerHTML = list.map((t) => tplCard(t, false)).join('');
+      bindTplCards(grid);
+    }
+
+    /* ========== 节点管理渲染 ========== */
+    function renderNodesGrid(list) {
+      const grid = document.getElementById('nodesGrid');
+      if (!grid) return;
+      window._nodesCache = list;
+      if (!list.length) { grid.innerHTML = '<div class="empty">还没有添加节点，点击上方「添加节点」连接外部服务</div>'; return; }
+      grid.innerHTML = list.map((n) => {
+        const statusColor = n.status === 'connected' ? 'var(--ok)' : n.status === 'error' ? 'var(--err)' : 'var(--muted)';
+        const statusText = n.status === 'connected' ? '已连接' : n.status === 'error' ? '连接失败' : '未连接';
+        const caps = (n.capabilities || []).map((c) => c === 'templates' ? '模板' : c === 'skills' ? '插件' : '办公').join('、');
+        return '<div class="tile node-tile" data-id="' + n.id + '">'
+          + '<div class="icon">' + (n.type === 'http' ? '🌐' : n.type === 'local' ? '📁' : '📦') + '</div>'
+          + '<div class="title">' + escapeHtml(n.name) + ' <span style="font-size:11px;color:' + statusColor + ';">● ' + statusText + '</span></div>'
+          + '<div class="desc">' + escapeHtml(n.url).slice(0, 50) + '…<br>能力：' + caps + (n.lastSyncAt ? '<br>上次同步：' + fmtTime(n.lastSyncAt) : '') + (n.lastError ? '<br style="color:var(--err);">错误：' + escapeHtml(n.lastError) : '') + '</div>'
+          + '<div class="ops" style="flex-wrap:wrap;">'
+          + '<button class="run node-sync" data-id="' + n.id + '">🔄 同步</button>'
+          + '<button class="ghost node-test" data-id="' + n.id + '">测试</button>'
+          + '<button class="ghost node-edit" data-id="' + n.id + '">编辑</button>'
+          + '<button class="ghost del node-del" data-id="' + n.id + '">删除</button>'
+          + '</div></div>';
+      }).join('');
+      grid.querySelectorAll('button.node-sync').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); syncNode(b.getAttribute('data-id')); }));
+      grid.querySelectorAll('button.node-test').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); testNode(b.getAttribute('data-id')); }));
+      grid.querySelectorAll('button.node-edit').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); editNode(b.getAttribute('data-id')); }));
+      grid.querySelectorAll('button.node-del').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); if (confirm('确定删除此节点？')) deleteNode(b.getAttribute('data-id')); }));
+    }
+
+    /* ========== 自定义来源渲染 ========== */
+    function renderSourcesGrid(list) {
+      const grid = document.getElementById('sourcesGrid');
+      if (!grid) return;
+      window._sourcesCache = list;
+      if (!list.length) { grid.innerHTML = '<div class="empty">还没有自定义来源，点击上方「自定义来源」添加远程数据源</div>'; return; }
+      const typeMap = { templates: '模板', skills: '插件', office: '办公' };
+      grid.innerHTML = list.map((s) => '<div class="tile" data-id="' + s.id + '">'
+        + '<div class="icon">🔗</div>'
+        + '<div class="title">' + escapeHtml(s.name) + ' <span style="font-size:11px;color:var(--brand);">' + (typeMap[s.type] || s.type) + '</span></div>'
+        + '<div class="desc">' + escapeHtml(s.url).slice(0, 60) + '…<br>状态：' + (s.enabled ? '已启用' : '已禁用') + '</div>'
+        + '<div class="ops">'
+        + '<button class="ghost source-edit" data-id="' + s.id + '">编辑</button>'
+        + '<button class="ghost del source-del" data-id="' + s.id + '">删除</button>'
+        + '</div></div>').join('');
+      grid.querySelectorAll('button.source-edit').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); editSource(b.getAttribute('data-id')); }));
+      grid.querySelectorAll('button.source-del').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); if (confirm('确定删除此来源？')) deleteSource(b.getAttribute('data-id')); }));
     }
 
     function renderWorkspaceBar() {
@@ -313,7 +552,18 @@
     function toggleDirectMode() {
       state.directMode = !state.directMode;
       document.getElementById('directModePill').style.display = state.directMode ? 'inline-flex' : 'none';
-      toast(state.directMode ? '已开启「直接操作电脑」模式' : '已关闭「直接操作电脑」模式');
+      const computerTab = document.getElementById('computerTab');
+      if (computerTab) {
+        computerTab.style.display = state.directMode ? '' : 'none';
+        if (state.directMode) {
+          // 切换到电脑操作标签页
+          document.querySelectorAll('.right-tab').forEach(t => t.classList.remove('active'));
+          computerTab.classList.add('active');
+          document.querySelectorAll('.preview-panel').forEach(p => p.classList.remove('active'));
+          document.getElementById('computerPanel')?.classList.add('active');
+        }
+      }
+      toast(state.directMode ? '已开启「电脑操作」模式，可以用语言控制电脑' : '已关闭「电脑操作」模式');
     }
 
     function previewImage(path) {
@@ -448,6 +698,14 @@
       return '';
     }
 
+    // 消息操作按钮（复制、创建文档）
+    function renderMsgActions() {
+      return '<div class="msg-actions">'
+        + '<button class="msg-action-btn" data-action="copy" title="复制整条消息">📋 复制</button>'
+        + '<button class="msg-action-btn" data-action="create-doc" title="创建文档">📄 建文档</button>'
+        + '</div>';
+    }
+
     function renderTaskThread(task) {
       const box = document.getElementById('messages');
       const nearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
@@ -461,82 +719,95 @@
       const conv = Array.isArray(task.conversation) ? task.conversation : [];
       const steps = Array.isArray(task.steps) ? task.steps : [];
 
+      // 统一处理：先显示用户消息，再从 steps 提取思考过程（实时更新），最后显示最终回复
+      // 这样确保思考过程能实时显示，不会因为 conversation 有内容就跳过 steps
+
+      // 1. 显示用户消息
+      let userMsgShown = false;
       if (conv.length > 0) {
-        let i = 0;
-        while (i < conv.length) {
-          const m = conv[i];
-          if (!m) { i++; continue; }
-          // 过滤 tool 消息和 system 消息，用户只看得到人和助手的对话
-          if (m.role === 'tool' || m.role === 'system') { i++; continue; }
+        for (const m of conv) {
+          if (m && m.role === 'user' && m.content) {
+            html += '<div class="msg user">' + renderMsgActions() + linkifyArtifacts(m.content) + '</div>';
+            userMsgShown = true;
+            break; // 只显示第一条用户消息，后续的在多轮对话中处理
+          }
+        }
+      }
+      if (!userMsgShown && task.goal) {
+        html += '<div class="msg user">' + renderMsgActions() + linkifyArtifacts(task.goal) + '</div>';
+      }
 
-          if (m.role === 'user') {
-            html += '<div class="msg user">' + linkifyArtifacts(m.content || '') + '</div>';
-            i++;
-            continue;
-          }
+      // 2. 从 steps 提取思考过程（实时更新，这是关键）
+      const thinkingTexts = [];
+      for (const s of steps) {
+        if (s.type === 'model.response' && s.data && s.data.content && s.data.content.trim()) {
+          thinkingTexts.push(s.data.content.trim());
+        } else if (s.type === 'self-heal') {
+          thinkingTexts.push('刚才遇到点小问题，我调整一下思路再试试。');
+        }
+      }
+      if (thinkingTexts.length > 0) {
+        html += '<div class="msg assistant">'
+          + renderMsgActions()
+          + '<div style="white-space:pre-wrap;word-break:break-word;line-height:1.7;">' + renderPlainText(thinkingTexts.join('\n\n')) + '</div>'
+          + '</div>';
+      }
 
-          if (m.role === 'assistant') {
-            // 收集连续 assistant 消息
-            const assistantMsgs = [];
-            while (i < conv.length && conv[i] && conv[i].role === 'assistant') {
-              assistantMsgs.push(conv[i]);
-              i++;
-            }
-            const hasToolCalls = assistantMsgs.some(msg => (msg.toolCalls || []).length > 0);
-            const allText = assistantMsgs.map(msg => (msg.content || '').trim()).filter(Boolean).join('\n\n');
-            if (hasToolCalls && allText) {
-              // 有工具调用且有思考文本 → 展示思考过程（直接显示，不折叠）
-              html += renderThinkingProcess(assistantMsgs);
-            } else if (allText) {
-              // 纯文本回复 → 普通气泡，这就是最终回复
-              html += '<div class="msg assistant">'
-                + '<div style="white-space:pre-wrap;word-break:break-word;line-height:1.7;">' + renderPlainText(allText) + '</div>'
-                + '</div>';
-            }
-          } else {
-            i++;
+      // 3. 如果 conversation 中有完整的 assistant 文本回复（任务完成后），也显示出来
+      if (conv.length > 0) {
+        const assistantTexts = [];
+        for (const m of conv) {
+          if (m && m.role === 'assistant' && m.content && m.content.trim() && !(m.toolCalls && m.toolCalls.length > 0)) {
+            assistantTexts.push(m.content.trim());
           }
         }
-      } else if (steps.length > 0) {
-        // 任务运行中 conversation 还没生成，从 steps 里提取思考文本实时显示
-        if (task.goal) {
-          html += '<div class="msg user">' + linkifyArtifacts(task.goal) + '</div>';
-        }
-        const thinkingTexts = [];
-        for (const s of steps) {
-          if (s.type === 'model.response' && s.data && s.data.content && s.data.content.trim()) {
-            thinkingTexts.push(s.data.content.trim());
-          } else if (s.type === 'self-heal') {
-            thinkingTexts.push('刚才遇到点小问题，我调整一下思路再试试。');
+        // 避免和 steps 重复：只显示 steps 中没有的最终回复
+        if (assistantTexts.length > 0) {
+          const lastAssistantText = assistantTexts[assistantTexts.length - 1];
+          const alreadyInSteps = thinkingTexts.some(t => t === lastAssistantText || lastAssistantText.includes(t) || t.includes(lastAssistantText));
+          if (!alreadyInSteps && lastAssistantText !== finalAnswer) {
+            html += '<div class="msg assistant">'
+              + renderMsgActions()
+              + '<div style="white-space:pre-wrap;word-break:break-word;line-height:1.7;">' + renderPlainText(lastAssistantText) + '</div>'
+              + '</div>';
           }
         }
-        if (thinkingTexts.length > 0) {
-          html += '<div class="msg assistant" style="opacity:0.9;">'
-            + '<div style="white-space:pre-wrap;word-break:break-word;line-height:1.7;">' + renderPlainText(thinkingTexts.join('\n\n')) + '</div>'
-            + '</div>';
-        }
-      } else if (task.goal) {
-        // 首轮尚未产生对话流时，至少呈现用户原始指令
-        html += '<div class="msg user">' + linkifyArtifacts(task.goal) + '</div>';
       }
 
       // 终态：如果对话流里没有最终回复（旧任务或被中断），再显示 finalAnswer
       const hasFinalInConv = conv.some(m => m.role === 'assistant' && !(m.toolCalls || []).length && (m.content || '').trim());
       if (task.status === 'done' && finalAnswer && !hasFinalInConv) {
         html += '<div class="msg assistant">'
+          + renderMsgActions()
           + '<div style="white-space:pre-wrap;word-break:break-word;line-height:1.7;">' + renderPlainText(finalAnswer) + '</div>'
           + '</div>';
       } else if (task.status === 'failed') {
         if (finalAnswer && !hasFinalInConv) {
           html += '<div class="msg assistant">'
+            + renderMsgActions()
             + '<div style="white-space:pre-wrap;word-break:break-word;line-height:1.7;">' + renderPlainText(finalAnswer) + '</div>'
             + '</div>';
         }
         html += '<div class="msg assistant error-msg">任务遇到问题：' + escapeHtml(task.error || '未知错误') + '</div>';
       } else if (task.status === 'running') {
+        // 计算已运行时间，让用户知道等了多久
+        let waitTip = '';
+        if (task.createdAt) {
+          const elapsed = Math.floor((Date.now() - new Date(task.createdAt).getTime()) / 1000);
+          if (elapsed > 5) {
+            const mins = Math.floor(elapsed / 60);
+            const secs = elapsed % 60;
+            const timeStr = mins > 0 ? `${mins}分${secs}秒` : `${secs}秒`;
+            waitTip = `<span style="color:var(--muted);font-size:12px;margin-left:8px;">已等待 ${timeStr}</span>`;
+          }
+          if (elapsed > 60) {
+            waitTip += '<div style="color:var(--muted);font-size:12px;margin-top:6px;line-height:1.5;">模型正在深度思考或执行复杂操作，请耐心等待...<br>如果等待超过3分钟，可以尝试点击「停止」后重新提交。</div>';
+          }
+        }
         html += '<div class="thinking-indicator">'
           + '<span class="dot"></span><span class="dot"></span><span class="dot"></span>'
           + '<span>思考中...</span>'
+          + waitTip
           + '</div>';
       } else if (task.status === 'queued') {
         html += '<div class="msg sys">任务已入队，等待执行…</div>';
@@ -578,6 +849,7 @@
       if (!textContent) return '';
       // 用普通 assistant 气泡样式展示思考过程，让用户看到模型在想什么
       return '<div class="msg assistant thinking-msg" style="opacity:0.85;">'
+        + renderMsgActions()
         + '<div style="white-space:pre-wrap;word-break:break-word;line-height:1.7;">' + renderPlainText(textContent) + '</div>'
         + '</div>';
     }
@@ -714,6 +986,29 @@
       // 切换时显示/隐藏底部工具栏（任务上下文头部始终可见）
       const isChat = nav === 'chat';
       document.getElementById('chatFootbar').style.display = isChat ? 'flex' : 'none';
+      // 切换到对话视图时，如果当前任务已完成或不存在，自动开启新对话
+      if (isChat) {
+        const cur = state.tasks.find((t) => t.id === state.currentTaskId);
+        if (!cur || cur.status === 'done' || cur.status === 'failed') {
+          startNewChat();
+        }
+      }
+    }
+
+    // 开启新对话：清空当前任务选中，显示空状态，聚焦输入框
+    function startNewChat() {
+      state.currentTaskId = null;
+      renderTaskThread(null);
+      renderTaskDetail(null);
+      renderSidebarTaskList();
+      // 显示任务列表区域
+      const taskListSection = document.getElementById('taskListSection');
+      if (taskListSection) taskListSection.style.display = 'block';
+      // 聚焦输入框
+      setTimeout(() => {
+        const input = document.getElementById('goalInput');
+        if (input) input.focus();
+      }, 100);
     }
 
     function updateUserBar() {
