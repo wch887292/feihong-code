@@ -37,7 +37,7 @@
         'chat.screenshot': '📷 截图',
         'chat.upload_file': '📄 上传文件',
         'chat.upload_image': '🖼 上传图片',
-        'chat.direct_mode': '🖥 直接操作电脑',
+        'chat.direct_mode': '🖥 电脑操作',
         'chat.voice': '🎤 语音输入',
         'chat.agent_type': '🤖 选择智能体类型',
         'chat.agent_default': '🤖 通用助手',
@@ -49,6 +49,25 @@
         'call.voice': '📞 语音',
         'call.video': '🎥 视频',
         'call.hangup': '⛔ 挂断',
+        'call.voice_call': '语音通话',
+        'call.video_call': '视频通话',
+        'call.voice_hint': '语音通话中，说话内容实时转文字',
+        'call.video_hint': '视频通话中，可截取画面发送',
+        'call.ended': '通话已结束，识别的文字已保留在输入框',
+        'computer.tab': '🖥 电脑操作',
+        'computer.capture': '📷 截取屏幕',
+        'computer.mouse_pos': '坐标',
+        'computer.click_left': '左键点击',
+        'computer.click_right': '右键点击',
+        'computer.double_click': '双击',
+        'computer.type_hint': '输入文字后回车发送',
+        'computer.screenshot_added': '摄像头画面已添加到输入框，可直接发送',
+        'computer.screenshot_not_ready': '视频还没准备好，请稍等',
+        'msg.copy': '📋 复制',
+        'msg.create_doc': '📄 建文档',
+        'msg.copied': '已复制到剪贴板',
+        'msg.doc_downloaded': '文档已下载',
+        'msg.no_content': '没有可复制的内容',
         'crop.tip': '按住鼠标拖拽选择截图区域 · 松开确认 · ESC 取消',
         'page.automations.sub': '把常用目标存成指令，一键发起任务',
         'btn.new_automation': '+ 新建指令',
@@ -218,7 +237,7 @@
         'chat.screenshot': '📷 Screenshot',
         'chat.upload_file': '📄 Upload File',
         'chat.upload_image': '🖼 Upload Image',
-        'chat.direct_mode': '🖥 Direct Control',
+        'chat.direct_mode': '🖥 Computer Control',
         'chat.voice': '🎤 Voice Input',
         'chat.agent_type': '🤖 Agent Type',
         'chat.agent_default': '🤖 Assistant',
@@ -230,6 +249,25 @@
         'call.voice': '📞 Voice',
         'call.video': '🎥 Video',
         'call.hangup': '⛔ Hang Up',
+        'call.voice_call': 'Voice Call',
+        'call.video_call': 'Video Call',
+        'call.voice_hint': 'Voice call in progress, speech transcribed in real-time',
+        'call.video_hint': 'Video call in progress, capture frames to send',
+        'call.ended': 'Call ended, transcribed text kept in input box',
+        'computer.tab': '🖥 Computer Control',
+        'computer.capture': '📷 Capture Screen',
+        'computer.mouse_pos': 'Pos',
+        'computer.click_left': 'Left Click',
+        'computer.click_right': 'Right Click',
+        'computer.double_click': 'Double Click',
+        'computer.type_hint': 'Type text and press Enter to send',
+        'computer.screenshot_added': 'Camera frame added to input box, ready to send',
+        'computer.screenshot_not_ready': 'Video not ready yet, please wait',
+        'msg.copy': '📋 Copy',
+        'msg.create_doc': '📄 New Doc',
+        'msg.copied': 'Copied to clipboard',
+        'msg.doc_downloaded': 'Document downloaded',
+        'msg.no_content': 'No content to copy',
         'crop.tip': 'Drag to select a screenshot area · Release to confirm · ESC to cancel',
         'page.automations.sub': 'Save common goals as shortcuts, launch tasks with one click',
         'btn.new_automation': '+ New Command',
@@ -440,6 +478,16 @@
     };
 
     (function initSession() {
+      // 提前检测登录状态，给 html 加 class，配合 CSS 避免登录页闪烁（感觉像打开两次）
+      try {
+        const urlToken = new URLSearchParams(location.search).get('token');
+        if (urlToken) localStorage.setItem('fhcode.token', urlToken);
+        const t = localStorage.getItem('fhcode.token');
+        const p = localStorage.getItem('fhcode.phone');
+        if (t && p) {
+          document.documentElement.classList.add('logged-in');
+        }
+      } catch(e) {}
       const urlToken = new URLSearchParams(location.search).get('token');
       if (urlToken) localStorage.setItem('fhcode.token', urlToken);
       const savedModel = localStorage.getItem('fhcode.model');
@@ -539,6 +587,40 @@
       }
     }
 
+    // 消息操作按钮事件委托（复制、创建文档）
+    document.getElementById('messages')?.addEventListener('click', (e) => {
+      const btn = e.target.closest('.msg-action-btn');
+      if (!btn) return;
+      e.stopPropagation();
+      const action = btn.getAttribute('data-action');
+      const msgEl = btn.closest('.msg');
+      if (!msgEl) return;
+      // 获取消息文本内容（排除操作按钮）
+      const actionsEl = msgEl.querySelector('.msg-actions');
+      let content = '';
+      if (actionsEl) {
+        // 临时移除操作按钮，获取文本，再放回去
+        const parent = actionsEl.parentNode;
+        const nextSibling = actionsEl.nextSibling;
+        parent.removeChild(actionsEl);
+        content = msgEl.textContent || '';
+        if (nextSibling) parent.insertBefore(actionsEl, nextSibling);
+        else parent.appendChild(actionsEl);
+      } else {
+        content = msgEl.textContent || '';
+      }
+      content = content.trim();
+      if (!content) {
+        toast('没有可复制的内容');
+        return;
+      }
+      if (action === 'copy') {
+        handleBubbleAction('copy', content);
+      } else if (action === 'create-doc') {
+        handleBubbleAction('doc', content);
+      }
+    });
+
     /* ========== 登录 ========== */
     document.getElementById('loginBtn').addEventListener('click', doLogin);
     document.getElementById('loginPhone').addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
@@ -561,7 +643,7 @@
         }
         showWelcomeGuide([]);
       }
-      await Promise.allSettled([loadTasks(), loadAutomations(), loadTemplates(), loadMarket(), loadOffice(), loadWorkspace(), loadModels(), loadMemoryStats()]);
+      await Promise.allSettled([loadTasks(), loadAutomations(), loadTemplates(), loadMarket(), loadOffice(), loadWorkspace(), loadModels(), loadMemoryStats(), loadNodes(), loadSources()]);
       startRefresh();
     }
 
@@ -786,7 +868,7 @@
       // 允许只发送文件（无文本）
       if (!goal && !state.stagedFiles.length) return;
       if (!state.token) { toast('请先登录'); return; }
-      if (state.directMode) goal = goal ? ('[直接操作电脑] ' + goal) : '[直接操作电脑]（仅附件）';
+      if (state.directMode) goal = goal ? ('[电脑操作] ' + goal) : '[电脑操作]（仅附件）';
       const btn = document.getElementById('sendBtn');
       btn.disabled = true;
       try {
@@ -883,6 +965,25 @@
     }
     document.getElementById('sendBtn').addEventListener('click', sendTask);
     document.getElementById('goalInput').addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) sendTask(); });
+    // 粘贴图片：用户用 Win+Shift+S 截图后可直接粘贴到输入框
+    document.getElementById('goalInput').addEventListener('paste', (e) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const item of items) {
+        if (item.type.startsWith('image/')) {
+          e.preventDefault();
+          const file = item.getAsFile();
+          if (!file) continue;
+          const reader = new FileReader();
+          reader.onload = () => {
+            stageFile({ name: 'paste-' + Date.now() + '.png', mime: file.type || 'image/png', dataUrl: String(reader.result) });
+            toast('图片已粘贴到输入框，可直接输入文字发送');
+          };
+          reader.readAsDataURL(file);
+          break;
+        }
+      }
+    });
     document.getElementById('tchRefresh').addEventListener('click', () => { refreshCurrentThread(); toast('已刷新当前任务'); });
     document.getElementById('tchStop').addEventListener('click', async () => {
       if (!state.currentTaskId) return;
@@ -894,6 +995,7 @@
     });
     document.getElementById('tchNewTask').addEventListener('click', () => { try { openNewTaskModal(); } catch { toast('新建任务面板不可用'); } });
     document.getElementById('screenshotBtn').addEventListener('click', takeScreenshot);
+    document.getElementById('voiceBtn')?.addEventListener('click', startVoice);
 
     /* ========== 输入框右键菜单（复制/剪切/粘贴/全选） ========== */
     const goalInput = document.getElementById('goalInput');
@@ -1047,8 +1149,8 @@
       } catch (e) { toast('创建失败：' + e.message); }
       finally { btn.disabled = false; }
     }
-    document.getElementById('newTaskBtn')?.addEventListener('click', openNewTaskModal);
-    document.getElementById('tchNewTask')?.addEventListener('click', openNewTaskModal);
+    document.getElementById('newTaskBtn')?.addEventListener('click', () => { switchView('chat'); startNewChat(); });
+    document.getElementById('tchNewTask')?.addEventListener('click', startNewChat);
     document.getElementById('ntCreateBtn')?.addEventListener('click', createNewTask);
     document.getElementById('ntGoal')?.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) createNewTask(); });
 
@@ -1076,17 +1178,63 @@
     });
 
 
+    // 截图锁，防止重复触发
+    let screenshotRunning = false;
+
     async function takeScreenshot() {
+      if (screenshotRunning) {
+        toast('正在截图中，请稍候...');
+        return;
+      }
+      screenshotRunning = true;
       try {
         const overlay = document.getElementById('cropOverlay');
         const selection = document.getElementById('cropSelection');
         const video = document.getElementById('cropVideo');
-        const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-        video.srcObject = stream;
-        await video.play();
+
+        let srcImage = null; // 用于裁剪的源图像（Image 对象）
+        let stream = null;   // 浏览器模式下的视频流
+
+        // Electron 环境：用主进程截图，更稳定
+        if (window.isElectron && window.electronAPI && window.electronAPI.screenshot) {
+          toast('正在截取屏幕...');
+          const result = await window.electronAPI.screenshot.capture();
+          if (!result || !result.success) {
+            toast('截图失败：' + (result?.error || '未知错误'));
+            return;
+          }
+          // 加载截图为 Image 对象
+          srcImage = new Image();
+          srcImage.src = result.dataUrl;
+          await new Promise((resolve, reject) => {
+            srcImage.onload = resolve;
+            srcImage.onerror = () => reject(new Error('截图加载失败'));
+          });
+          // 把截图显示到 video 元素的位置（用一个 img 覆盖）
+          video.style.display = 'none';
+          let bgImg = document.getElementById('cropBgImg');
+          if (!bgImg) {
+            bgImg = document.createElement('img');
+            bgImg.id = 'cropBgImg';
+            bgImg.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;object-fit:cover;z-index:9998;';
+            overlay.appendChild(bgImg);
+          }
+          bgImg.src = result.dataUrl;
+          bgImg.style.display = 'block';
+        } else {
+          // 浏览器模式：用 getDisplayMedia
+          stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+          video.srcObject = stream;
+          await video.play();
+          video.style.display = 'block';
+          const bgImg = document.getElementById('cropBgImg');
+          if (bgImg) bgImg.style.display = 'none';
+        }
+
         overlay.style.display = 'block';
         selection.style.display = 'none';
         let startX = 0, startY = 0, drawing = false;
+
         const onDown = (e) => {
           drawing = true;
           startX = e.clientX; startY = e.clientY;
@@ -1114,36 +1262,59 @@
           const x = Math.min(e.clientX, startX), y = Math.min(e.clientY, startY);
           const w = Math.abs(e.clientX - startX), h = Math.abs(e.clientY - startY);
           overlay.style.display = 'none';
-          if (w < 8 || h < 8) { stream.getTracks().forEach((t) => t.stop()); return; }
+          if (w < 8 || h < 8) {
+            if (stream) stream.getTracks().forEach((t) => t.stop());
+            return;
+          }
           try {
-            const srcW = video.videoWidth, srcH = video.videoHeight;
+            let srcW, srcH, source;
+            if (srcImage) {
+              // Electron 模式：从 Image 裁剪
+              srcW = srcImage.naturalWidth;
+              srcH = srcImage.naturalHeight;
+              source = srcImage;
+            } else {
+              // 浏览器模式：从 video 裁剪
+              srcW = video.videoWidth;
+              srcH = video.videoHeight;
+              source = video;
+            }
             const scaleX = srcW / window.innerWidth, scaleY = srcH / window.innerHeight;
             const sx = Math.round(x * scaleX), sy = Math.round(y * scaleY);
             const sw = Math.round(w * scaleX), sh = Math.round(h * scaleY);
             const canvas = document.createElement('canvas');
             canvas.width = sw; canvas.height = sh;
-            canvas.getContext('2d').drawImage(video, sx, sy, sw, sh, 0, 0, sw, sh);
-            stream.getTracks().forEach((t) => t.stop());
+            canvas.getContext('2d').drawImage(source, sx, sy, sw, sh, 0, 0, sw, sh);
+            if (stream) stream.getTracks().forEach((t) => t.stop());
             const dataUrl = canvas.toDataURL('image/png');
             stageFile({ name: 'screenshot.png', mime: 'image/png', dataUrl });
-            toast('截图已加入暂存，点发送时一起发给 AI');
+            toast('截图已添加到输入框，可直接输入文字发送');
           } catch (err) { toast('截图失败：' + err.message); }
+          screenshotRunning = false;
         };
         const onKey = (e) => {
           if (e.key === 'Escape') {
             overlay.style.display = 'none';
-            stream.getTracks().forEach((t) => t.stop());
+            if (stream) stream.getTracks().forEach((t) => t.stop());
             window.removeEventListener('mousedown', onDown);
             window.removeEventListener('mousemove', onMove);
             window.removeEventListener('mouseup', finish);
             window.removeEventListener('keydown', onKey);
+            screenshotRunning = false;
           }
         };
         window.addEventListener('mousedown', onDown);
         window.addEventListener('mousemove', onMove);
         window.addEventListener('mouseup', finish);
         window.addEventListener('keydown', onKey);
-      } catch (e) { toast('截图失败：' + e.message); }
+      } catch (e) {
+        if (e.name === 'NotAllowedError') {
+          toast('已取消截图。也可以用 Win+Shift+S 截图后直接粘贴到输入框');
+        } else {
+          toast('截图失败：' + e.message);
+        }
+        screenshotRunning = false;
+      }
     }
 
     function handleUpload(input, mimePrefix) {
@@ -1225,48 +1396,336 @@
     document.getElementById('imReset').addEventListener('click', resetInlineForm);
     document.getElementById('modelManageClose')?.addEventListener('click', () => { document.getElementById('modelManage').style.display = 'none'; });
 
-    /* ========== 通话控件 ========== */
+    /* ========== 通话控件（语音/视频通话 + 实时语音识别） ========== */
     let callStream = null;
+    let callKind = null;
+
     async function startCall(kind) {
       const status = document.getElementById('callStatus');
       try {
-        const constraints = kind === 'video' ? { audio: true, video: true } : { audio: true };
+        const constraints = kind === 'video'
+          ? { audio: true, video: { width: 640, height: 480 } }
+          : { audio: true };
         callStream = await navigator.mediaDevices.getUserMedia(constraints);
-        status.textContent = (kind === 'video' ? '视频通话中' : '语音通话中') + '…';
+        callKind = kind;
+
+        // 视频通话：显示摄像头画面
+        if (kind === 'video') {
+          const videoWindow = document.getElementById('videoCallWindow');
+          const localVideo = document.getElementById('localVideo');
+          localVideo.srcObject = callStream;
+          videoWindow.style.display = 'block';
+        }
+
+        status.textContent = (kind === 'video' ? '视频通话中' : '语音通话中') + '（语音实时转文字）';
         document.getElementById('hangupCallBtn').style.display = 'inline-block';
-        toast('已发起' + (kind === 'video' ? '视频' : '语音') + '通话（演示）');
+        document.getElementById('voiceCallBtn').style.display = 'none';
+        document.getElementById('videoCallBtn').style.display = 'none';
+
+        // 开启语音识别（复用语音输入模块）
+        if (!voiceState.isListening) {
+          voiceState.finalText = '';
+          voiceState.interimText = '';
+          voiceState.originalText = document.getElementById('goalInput').value;
+          voiceState.manuallyStopped = false;
+          voiceState.restartCount = 0;
+          updateVoiceUI(true);
+          startRecognition();
+        }
+
+        toast('已发起' + (kind === 'video' ? '视频' : '语音') + '通话，说话内容会实时转成文字');
       } catch (e) {
         status.textContent = '';
-        toast('无法发起通话：' + e.message);
+        if (e.name === 'NotAllowedError') {
+          toast('请允许浏览器使用麦克风和摄像头权限');
+        } else if (e.name === 'NotFoundError') {
+          toast('未找到麦克风或摄像头设备');
+        } else {
+          toast('无法发起通话：' + e.message);
+        }
       }
     }
+
     function hangupCall() {
-      if (callStream) { callStream.getTracks().forEach((t) => t.stop()); callStream = null; }
+      // 先保存识别的文字到输入框（确保内容不会丢失）
+      if (voiceState.finalText) {
+        updateVoiceInput();
+      }
+
+      // 停止媒体流
+      if (callStream) {
+        callStream.getTracks().forEach((t) => t.stop());
+        callStream = null;
+      }
+      callKind = null;
+
+      // 隐藏视频窗口
+      const videoWindow = document.getElementById('videoCallWindow');
+      const localVideo = document.getElementById('localVideo');
+      if (videoWindow) videoWindow.style.display = 'none';
+      if (localVideo) localVideo.srcObject = null;
+
+      // 停止语音识别
+      if (voiceState.isListening) {
+        stopVoiceInput();
+      }
+
       document.getElementById('callStatus').textContent = '';
       document.getElementById('hangupCallBtn').style.display = 'none';
-      toast('已挂断');
+      document.getElementById('voiceCallBtn').style.display = 'inline-block';
+      document.getElementById('videoCallBtn').style.display = 'inline-block';
+      toast('通话已结束，识别的文字已保留在输入框');
     }
+
     document.getElementById('voiceCallBtn').addEventListener('click', () => startCall('voice'));
     document.getElementById('videoCallBtn').addEventListener('click', () => startCall('video'));
     document.getElementById('hangupCallBtn').addEventListener('click', hangupCall);
+    document.getElementById('videoCallClose')?.addEventListener('click', hangupCall);
 
-    function startVoice() {
+    // 视频通话截图：把当前摄像头画面截取下来放到输入框
+    document.getElementById('videoSnapshotBtn')?.addEventListener('click', () => {
+      const video = document.getElementById('localVideo');
+      if (!video || !video.videoWidth) {
+        toast('视频还没准备好，请稍等');
+        return;
+      }
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.getContext('2d').drawImage(video, 0, 0);
+        const dataUrl = canvas.toDataURL('image/png');
+        stageFile({
+          name: 'camera-' + Date.now() + '.png',
+          mime: 'image/png',
+          dataUrl: dataUrl,
+        });
+        toast('摄像头画面已添加到输入框，可直接发送');
+      } catch (e) {
+        toast('截图失败：' + e.message);
+      }
+    });
+
+    /* ========== 语音输入模块 ========== */
+    const voiceState = {
+      recognition: null,
+      finalText: '',
+      interimText: '',
+      originalText: '',
+      isListening: false,
+      manuallyStopped: false,
+      restartTimer: null,
+      restartCount: 0,
+      maxRestarts: 10000, // 基本无限制，长时间通话也不会停
+    };
+
+    // 优化语音识别文本：去掉多余空格、自动加标点、清理重复
+    function optimizeVoiceText(text) {
+      if (!text) return '';
+      let result = text.trim();
+      // 去掉多余空格
+      result = result.replace(/\s+/g, ' ');
+      // 去掉首尾空格
+      result = result.trim();
+      // 中文标点优化：如果末尾是中文且没有标点，自动加句号
+      if (result && /[\u4e00-\u9fa5]$/.test(result) && !/[。！？，、；：""''（）]$/.test(result)) {
+        result += '。';
+      }
+      return result;
+    }
+
+    // 更新输入框显示
+    function updateVoiceInput() {
+      const input = document.getElementById('goalInput');
+      const finalOptimized = optimizeVoiceText(voiceState.finalText);
+      const displayText = voiceState.originalText
+        ? (voiceState.originalText + ' ' + finalOptimized + voiceState.interimText)
+        : (finalOptimized + voiceState.interimText);
+      input.value = displayText;
+      input.scrollTop = input.scrollHeight;
+    }
+
+    // 更新UI状态
+    function updateVoiceUI(listening) {
+      const badge = document.getElementById('voiceBadge');
+      const voiceBtn = document.getElementById('voiceBtn');
+      if (listening) {
+        badge.style.display = 'inline-flex';
+        badge.textContent = '● 正在听…（再次点击停止）';
+        if (voiceBtn) {
+          voiceBtn.style.background = 'var(--brand)';
+          voiceBtn.style.color = '#fff';
+          voiceBtn.textContent = '● 听…';
+        }
+      } else {
+        badge.style.display = 'none';
+        if (voiceBtn) {
+          voiceBtn.style.background = '';
+          voiceBtn.style.color = '';
+          voiceBtn.textContent = '🎤 语音';
+        }
+      }
+    }
+
+    // 创建新的语音识别对象
+    function createRecognition() {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SpeechRecognition) { toast('当前浏览器不支持语音输入'); return; }
+      if (!SpeechRecognition) return null;
+
       const rec = new SpeechRecognition();
       rec.lang = 'zh-CN';
-      rec.continuous = false;
-      rec.interimResults = false;
-      const badge = document.getElementById('voiceBadge');
-      badge.style.display = 'inline-flex';
+      rec.continuous = true;
+      rec.interimResults = true;
+      rec.maxAlternatives = 1;
+
+      // 识别结果处理
       rec.onresult = (e) => {
-        const text = e.results[0][0].transcript;
-        const input = document.getElementById('goalInput');
-        input.value = (input.value ? input.value + ' ' : '') + text;
+        let interim = '';
+        let finalDelta = '';
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const transcript = e.results[i][0].transcript;
+          if (e.results[i].isFinal) {
+            finalDelta += transcript;
+          } else {
+            interim += transcript;
+          }
+        }
+        if (finalDelta) {
+          voiceState.finalText += finalDelta;
+          voiceState.restartCount = 0; // 有新结果，重置重启计数
+        }
+        voiceState.interimText = interim;
+        updateVoiceInput();
       };
-      rec.onerror = (e) => { toast('语音识别失败：' + e.error); badge.style.display = 'none'; };
-      rec.onend = () => { badge.style.display = 'none'; };
-      rec.start();
+
+      // 错误处理
+      rec.onerror = (e) => {
+        console.warn('[语音识别] 错误:', e.error);
+        if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+          toast('请允许浏览器使用麦克风权限（点击地址栏左侧锁图标）');
+          voiceState.manuallyStopped = true;
+          stopVoiceInput();
+        } else if (e.error === 'network') {
+          toast('语音识别网络错误！Chrome用的是Google服务，国内建议用Edge浏览器，或检查网络/代理');
+          voiceState.manuallyStopped = true;
+          stopVoiceInput();
+        } else if (e.error === 'audio-capture') {
+          toast('未检测到麦克风设备，请检查麦克风连接和系统设置');
+          voiceState.manuallyStopped = true;
+          stopVoiceInput();
+        } else if (e.error === 'no-speech') {
+          // 没检测到语音，继续等待，不停止
+          console.log('[语音识别] 未检测到语音，继续等待...');
+          toast('没听到声音，请检查麦克风是否开启，离麦克风近一点说话');
+        } else if (e.error === 'aborted') {
+          // 手动停止，不处理
+        } else {
+          console.warn('[语音识别] 其他错误:', e.error);
+          toast('语音识别出错: ' + e.error);
+        }
+      };
+
+      // 识别结束处理
+      rec.onend = () => {
+        voiceState.recognition = null;
+        voiceState.interimText = '';
+
+        // 如果不是手动停止，自动重启（基本无限制）
+        if (!voiceState.manuallyStopped && voiceState.restartCount < voiceState.maxRestarts) {
+          voiceState.restartCount++;
+          // 只在调试时打印，避免控制台太多日志
+          if (voiceState.restartCount % 50 === 0) {
+            console.log(`[语音识别] 自动重启 (${voiceState.restartCount})`);
+          }
+          voiceState.restartTimer = setTimeout(() => {
+            if (!voiceState.manuallyStopped) {
+              startRecognition();
+            }
+          }, 50); // 50ms快速重启，减少停顿感
+        } else if (voiceState.manuallyStopped) {
+          // 手动停止，最终处理
+          updateVoiceUI(false);
+          if (voiceState.finalText) {
+            updateVoiceInput();
+            toast('语音输入完成，文字已在输入框中，可直接发送');
+          }
+        } else {
+          // 超过最大重启次数（基本不会发生）
+          updateVoiceUI(false);
+          toast('语音输入已自动停止，可再次点击开启');
+        }
+      };
+
+      return rec;
+    }
+
+    // 启动识别
+    function startRecognition() {
+      const rec = createRecognition();
+      if (!rec) {
+        toast('当前浏览器不支持语音输入，请使用 Chrome 或 Edge 浏览器');
+        return false;
+      }
+      try {
+        rec.start();
+        voiceState.recognition = rec;
+        voiceState.isListening = true;
+        return true;
+      } catch (e) {
+        console.error('[语音识别] 启动失败:', e);
+        return false;
+      }
+    }
+
+    // 停止语音输入
+    function stopVoiceInput() {
+      voiceState.manuallyStopped = true;
+      voiceState.isListening = false;
+      if (voiceState.restartTimer) {
+        clearTimeout(voiceState.restartTimer);
+        voiceState.restartTimer = null;
+      }
+      if (voiceState.recognition) {
+        try { voiceState.recognition.stop(); } catch(e) {}
+        voiceState.recognition = null;
+      }
+      updateVoiceUI(false);
+    }
+
+    // 开始/停止语音输入（入口函数）
+    function startVoice() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        toast('当前环境不支持语音输入，请使用 Chrome 或 Edge 浏览器打开网页版');
+        return;
+      }
+
+      // 如果正在识别，就停止
+      if (voiceState.isListening) {
+        stopVoiceInput();
+        toast('已停止语音输入');
+        return;
+      }
+
+      // Electron 桌面版特殊提示
+      if (window.isElectron) {
+        toast('桌面版语音输入可能不稳定，建议用网页版（Edge浏览器）');
+      }
+
+      // 开始识别
+      voiceState.finalText = '';
+      voiceState.interimText = '';
+      voiceState.originalText = document.getElementById('goalInput').value;
+      voiceState.manuallyStopped = false;
+      voiceState.restartCount = 0;
+
+      updateVoiceUI(true);
+      toast('语音输入已开启，请说话，再次点击停止');
+
+      if (!startRecognition()) {
+        updateVoiceUI(false);
+        toast('启动语音输入失败，请刷新页面重试');
+      }
     }
 
     /* ========== 智能体选择 ========== */
@@ -1298,90 +1757,217 @@
     });
 
     let fpCurrent = '';
+    let fpSelected = '';
+
     async function openFolderPicker() {
-      console.log('[folderPicker] 打开文件夹选择器');
-      console.log('[folderPicker] 当前 state.workspaceDir:', state.workspaceDir);
-      console.log('[folderPicker] 当前 state.token:', state.token ? '已登录' : '未登录');
-
-      // 如果 workspaceDir 为空，尝试从 localStorage 恢复或询问用户
-      let initialDir = state.workspaceDir;
-      if (!initialDir) {
-        // 尝试从 localStorage 恢复
-        const savedCwd = localStorage.getItem('fhcode.workspaceDir');
-        if (savedCwd) {
-          initialDir = savedCwd;
-          console.log('[folderPicker] 从 localStorage 恢复工作区:', initialDir);
-        } else {
-          // 使用默认路径
-          initialDir = '.';
-          console.log('[folderPicker] 使用默认路径:', initialDir);
-        }
-      }
-
-      fpCurrent = initialDir || '.';
-      const fpPathEl = document.getElementById('fpPath');
-      if (fpPathEl) fpPathEl.textContent = fpCurrent || '（根目录）';
-
-      try {
-        console.log('[folderPicker] 加载目录列表:', fpCurrent);
-        await loadFolderPicker(fpCurrent);
-        console.log('[folderPicker] 目录加载成功');
-      } catch (e) {
-        console.error('[folderPicker] 加载失败:', e);
-        toast('读取目录失败：' + e.message);
-        return;
-      }
+      fpCurrent = '';
+      fpSelected = '';
+      document.getElementById('fpDrivesView').style.display = '';
+      document.getElementById('fpFoldersView').style.display = 'none';
+      document.getElementById('fpMkdirBar').style.display = 'none';
+      document.getElementById('fpRenameBar').style.display = 'none';
+      document.getElementById('fpConfirm').disabled = true;
+      document.getElementById('fpRenameFolder').disabled = true;
+      document.getElementById('fpTitle').textContent = '📂 选择驱动器';
       openModal('folderPickerModal');
-      console.log('[folderPicker] 模态框已打开');
+      await loadDrives();
     }
-    async function loadFolderPicker(dir) {
-      console.log('[folderPicker] 加载:', dir);
-      const d = await api('/api/workspace/list?path=' + encodeURIComponent(dir));
-      fpCurrent = d.cwd;
-      const fpPathEl = document.getElementById('fpPath');
-      if (fpPathEl) fpPathEl.textContent = fpCurrent;
-      const tree = document.getElementById('fpTree');
-      if (!tree) {
-        console.error('[folderPicker] fpTree 元素不存在');
+
+    async function loadDrives() {
+      try {
+        const d = await api('/api/drives');
+        const drives = d.drives || [];
+        const grid = document.getElementById('fpDrivesGrid');
+        grid.innerHTML = drives.map(drv => {
+          const label = drv.replace('\\', '');
+          return '<div class="fp-drive-card" data-drive="' + escapeHtml(drv) + '" style="padding:16px;text-align:center;border:1px solid var(--line);border-radius:8px;cursor:pointer;transition:all .15s;">'
+            + '<div style="font-size:28px;margin-bottom:6px;">💽</div>'
+            + '<div style="font-weight:600;font-size:14px;">' + escapeHtml(label) + '</div>'
+            + '<div style="font-size:11px;color:var(--ink-2);margin-top:2px;">本地磁盘</div>'
+            + '</div>';
+        }).join('');
+        grid.querySelectorAll('.fp-drive-card').forEach(el => {
+          el.addEventListener('click', () => selectDrive(el.getAttribute('data-drive')));
+          el.addEventListener('mouseenter', () => { el.style.borderColor = 'var(--brand)'; el.style.background = 'var(--brand-soft)'; });
+          el.addEventListener('mouseleave', () => { el.style.borderColor = 'var(--line)'; el.style.background = ''; });
+        });
+      } catch (e) {
+        toast('加载驱动器失败：' + e.message);
+      }
+    }
+
+    async function selectDrive(drive) {
+      fpCurrent = drive;
+      fpSelected = '';
+      document.getElementById('fpDrivesView').style.display = 'none';
+      document.getElementById('fpFoldersView').style.display = '';
+      document.getElementById('fpTitle').textContent = '📂 选择文件夹';
+      document.getElementById('fpConfirm').disabled = true;
+      document.getElementById('fpRenameFolder').disabled = true;
+      await loadFolderPicker(drive);
+    }
+
+    function backToDrives() {
+      fpCurrent = '';
+      fpSelected = '';
+      document.getElementById('fpDrivesView').style.display = '';
+      document.getElementById('fpFoldersView').style.display = 'none';
+      document.getElementById('fpMkdirBar').style.display = 'none';
+      document.getElementById('fpRenameBar').style.display = 'none';
+      document.getElementById('fpTitle').textContent = '📂 选择驱动器';
+      document.getElementById('fpConfirm').disabled = true;
+      document.getElementById('fpRenameFolder').disabled = true;
+    }
+
+    async function upDir() {
+      if (!fpCurrent) return;
+      // 驱动器根目录不能再往上
+      if (/^[A-Za-z]:\\$/.test(fpCurrent)) {
+        backToDrives();
         return;
       }
-      const parentPath = getDirectoryName(d.cwd);
-      // 如果在驱动器根目录，不显示".."，改为显示驱动器列表
-      const isDriveRoot = /^[A-Za-z]:\\$/.test(d.cwd);
-      let upButtonHtml = '';
-      if (!isDriveRoot && parentPath && parentPath !== d.cwd) {
-        upButtonHtml = '<div class="file-item" data-path="' + escapeHtml(parentPath) + '" data-type="up">⬆ ..</div>';
-      } else if (isDriveRoot) {
-        // 动态获取可用驱动器列表
-        const drives = await getDrivesList();
-        upButtonHtml = '<div class="file-item drive-switcher">' +
-          '<span>🖥 切换驱动器</span>' +
-          drives.map(d => '<div class="drive-option" data-drive="' + d + '">' + d + '</div>').join('') +
-          '</div>';
+      const parent = getDirectoryName(fpCurrent);
+      if (parent && parent !== fpCurrent) {
+        fpCurrent = parent;
+        fpSelected = '';
+        document.getElementById('fpConfirm').disabled = true;
+        document.getElementById('fpRenameFolder').disabled = true;
+        await loadFolderPicker(fpCurrent);
       }
-      tree.innerHTML = upButtonHtml +
-        d.entries.map((e) => '<div class="file-item ' + (e.type === 'dir' ? 'dir' : '') + '" data-path="' + escapeHtml(e.path) + '" data-type="' + e.type + '">' + (e.type === 'dir' ? '📁' : '📄') + ' ' + escapeHtml(e.name) + '</div>').join('');
-      console.log('[folderPicker] 目录渲染完成, 条目数:', d.entries.length);
     }
-    // 驱动器列表缓存
-    let _drivesCache = null;
+
+    async function loadFolderPicker(dir) {
+      try {
+        const d = await api('/api/workspace/list?path=' + encodeURIComponent(dir));
+        fpCurrent = d.cwd;
+        const pathEl = document.getElementById('fpPath');
+        pathEl.textContent = d.cwd;
+        pathEl.title = d.cwd;
+        const tree = document.getElementById('fpTree');
+        // 只显示文件夹，不显示文件
+        const dirs = (d.entries || []).filter(e => e.type === 'dir');
+        if (dirs.length === 0) {
+          tree.innerHTML = '<div style="padding:20px;text-align:center;color:var(--ink-2);font-size:13px;">此目录下没有文件夹</div>';
+        } else {
+          tree.innerHTML = dirs.map(e => {
+            const selected = fpSelected === e.path ? 'background:var(--brand-soft);border-color:var(--brand);' : '';
+            return '<div class="file-item fp-folder-item" data-path="' + escapeHtml(e.path) + '" data-name="' + escapeHtml(e.name) + '" style="' + selected + 'padding:8px 10px;border:1px solid transparent;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:8px;">'
+              + '<span style="font-size:16px;">📁</span>'
+              + '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(e.name) + '</span>'
+              + '</div>';
+          }).join('');
+        }
+        tree.querySelectorAll('.fp-folder-item').forEach(el => {
+          el.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const path = el.getAttribute('data-path');
+            const name = el.getAttribute('data-name');
+            // 单击选中
+            fpSelected = path;
+            document.getElementById('fpConfirm').disabled = false;
+            document.getElementById('fpRenameFolder').disabled = false;
+            document.getElementById('fpRenameName').value = name;
+            // 高亮选中项
+            tree.querySelectorAll('.fp-folder-item').forEach(item => {
+              item.style.background = '';
+              item.style.borderColor = 'transparent';
+            });
+            el.style.background = 'var(--brand-soft)';
+            el.style.borderColor = 'var(--brand)';
+          });
+          el.addEventListener('dblclick', () => {
+            const path = el.getAttribute('data-path');
+            fpSelected = '';
+            document.getElementById('fpConfirm').disabled = true;
+            document.getElementById('fpRenameFolder').disabled = true;
+            loadFolderPicker(path);
+          });
+        });
+      } catch (e) {
+        toast('读取目录失败：' + e.message);
+      }
+    }
 
     document.getElementById('fpConfirm')?.addEventListener('click', async () => {
-      console.log('[folderPicker] 点击确认, 当前选择:', fpCurrent);
+      if (!fpSelected) { toast('请先选择一个文件夹'); return; }
       try {
-        console.log('[folderPicker] 提交切换工作区...');
-        const result = await api('/api/workspace', 'POST', { cwd: fpCurrent });
-        console.log('[folderPicker] API 返回:', result);
-        state.workspaceDir = fpCurrent;
-        // 持久化到 localStorage
-        localStorage.setItem('fhcode.workspaceDir', fpCurrent);
+        const result = await api('/api/workspace', 'POST', { cwd: fpSelected });
+        state.workspaceDir = result.cwd;
+        localStorage.setItem('fhcode.workspaceDir', result.cwd);
         renderWorkspaceBar();
         closeModal('folderPickerModal');
-        toast('已切换工作区：' + fpCurrent);
+        toast('已切换工作区：' + result.cwd);
       } catch (e) {
-        console.error('[folderPicker] 切换失败:', e);
         toast('设置失败：' + e.message);
       }
+    });
+
+    // 返回驱动器选择
+    document.getElementById('fpBackToDrives')?.addEventListener('click', backToDrives);
+    // 返回上级目录
+    document.getElementById('fpUpDir')?.addEventListener('click', upDir);
+
+    // 新建文件夹
+    document.getElementById('fpNewFolder')?.addEventListener('click', () => {
+      document.getElementById('fpMkdirBar').style.display = 'flex';
+      document.getElementById('fpRenameBar').style.display = 'none';
+      document.getElementById('fpMkdirName').value = '';
+      setTimeout(() => document.getElementById('fpMkdirName').focus(), 50);
+    });
+    document.getElementById('fpMkdirCancel')?.addEventListener('click', () => {
+      document.getElementById('fpMkdirBar').style.display = 'none';
+    });
+    document.getElementById('fpMkdirConfirm')?.addEventListener('click', async () => {
+      const name = document.getElementById('fpMkdirName').value.trim();
+      if (!name) { toast('请输入文件夹名称'); return; }
+      try {
+        const result = await api('/api/workspace/mkdir', 'POST', { parent: fpCurrent, name });
+        toast('文件夹已创建：' + name);
+        document.getElementById('fpMkdirBar').style.display = 'none';
+        fpSelected = result.path;
+        await loadFolderPicker(fpCurrent);
+        document.getElementById('fpConfirm').disabled = false;
+        document.getElementById('fpRenameFolder').disabled = false;
+      } catch (e) {
+        toast('创建失败：' + e.message);
+      }
+    });
+    document.getElementById('fpMkdirName')?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') document.getElementById('fpMkdirConfirm').click();
+      if (e.key === 'Escape') document.getElementById('fpMkdirCancel').click();
+    });
+
+    // 重命名文件夹
+    document.getElementById('fpRenameFolder')?.addEventListener('click', () => {
+      if (!fpSelected) { toast('请先选择一个文件夹'); return; }
+      document.getElementById('fpRenameBar').style.display = 'flex';
+      document.getElementById('fpMkdirBar').style.display = 'none';
+      const name = fpSelected.split(/[\\/]/).filter(Boolean).pop() || '';
+      document.getElementById('fpRenameName').value = name;
+      setTimeout(() => document.getElementById('fpRenameName').focus(), 50);
+    });
+    document.getElementById('fpRenameCancel')?.addEventListener('click', () => {
+      document.getElementById('fpRenameBar').style.display = 'none';
+    });
+    document.getElementById('fpRenameConfirm')?.addEventListener('click', async () => {
+      const newName = document.getElementById('fpRenameName').value.trim();
+      if (!newName) { toast('请输入新名称'); return; }
+      if (!fpSelected) { toast('请先选择一个文件夹'); return; }
+      try {
+        const result = await api('/api/workspace/rename', 'POST', { path: fpSelected, newName });
+        toast('文件夹已重命名为：' + newName);
+        document.getElementById('fpRenameBar').style.display = 'none';
+        fpSelected = result.path;
+        await loadFolderPicker(fpCurrent);
+        document.getElementById('fpConfirm').disabled = false;
+        document.getElementById('fpRenameFolder').disabled = false;
+      } catch (e) {
+        toast('重命名失败：' + e.message);
+      }
+    });
+    document.getElementById('fpRenameName')?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') document.getElementById('fpRenameConfirm').click();
+      if (e.key === 'Escape') document.getElementById('fpRenameCancel').click();
     });
 
     /* ========== 自动化、模板、市场、办公助理 ========== */
@@ -1423,30 +2009,76 @@
     document.getElementById('marketSearch')?.addEventListener('input', () => { clearTimeout(marketTimer); marketTimer = setTimeout(loadMarket, 400); });
     document.getElementById('marketSource')?.addEventListener('change', loadMarket);
 
+    /* ========== 节点管理 & 自定义来源 ========== */
+    document.getElementById('addNodeBtn')?.addEventListener('click', () => openNodeModal());
+    document.getElementById('addSourceBtn')?.addEventListener('click', () => openSourceModal());
+    document.getElementById('nodeSaveBtn')?.addEventListener('click', async () => {
+      const id = document.getElementById('nodeEditId').value || '';
+      const name = document.getElementById('nodeName').value.trim();
+      const type = document.getElementById('nodeType').value;
+      const url = document.getElementById('nodeUrl').value.trim();
+      const apiKey = document.getElementById('nodeApiKey').value;
+      const capabilities = [];
+      if (document.getElementById('nodeCapTemplates').checked) capabilities.push('templates');
+      if (document.getElementById('nodeCapSkills').checked) capabilities.push('skills');
+      if (document.getElementById('nodeCapOffice').checked) capabilities.push('office');
+      if (!name || !url) { toast('请填写名称和地址'); return; }
+      if (!capabilities.length) { toast('请至少选择一种能力'); return; }
+      const data = { name, type, url, capabilities };
+      if (apiKey) data.apiKey = apiKey;
+      if (id) data.id = id;
+      await saveNode(data);
+      closeModal('nodeModal');
+    });
+    document.getElementById('sourceSaveBtn')?.addEventListener('click', async () => {
+      const id = document.getElementById('sourceEditId').value || '';
+      const name = document.getElementById('sourceName').value.trim();
+      const type = document.getElementById('sourceType').value;
+      const url = document.getElementById('sourceUrl').value.trim();
+      if (!name || !url) { toast('请填写名称和地址'); return; }
+      const data = { name, type, url };
+      if (id) data.id = id;
+      await saveSource(data);
+      closeModal('sourceModal');
+      // 刷新相关数据
+      if (type === 'templates') await loadTemplates();
+      else if (type === 'skills') await loadMarket();
+      else if (type === 'office') await loadOffice();
+    });
+
+    function openNodeModal(node) {
+      document.getElementById('nodeModalTitle').textContent = node ? '编辑节点' : '添加节点';
+      document.getElementById('nodeEditId').value = node?.id || '';
+      document.getElementById('nodeName').value = node?.name || '';
+      document.getElementById('nodeType').value = node?.type || 'http';
+      document.getElementById('nodeUrl').value = node?.url || '';
+      document.getElementById('nodeApiKey').value = '';
+      document.getElementById('nodeCapTemplates').checked = node?.capabilities?.includes('templates') ?? true;
+      document.getElementById('nodeCapSkills').checked = node?.capabilities?.includes('skills') ?? true;
+      document.getElementById('nodeCapOffice').checked = node?.capabilities?.includes('office') ?? true;
+      openModal('nodeModal');
+    }
+    function editNode(id) {
+      const node = (window._nodesCache || []).find((n) => n.id === id);
+      openNodeModal(node || { id });
+    }
+    function openSourceModal(source) {
+      document.getElementById('sourceModalTitle').textContent = source ? '编辑自定义来源' : '添加自定义来源';
+      document.getElementById('sourceEditId').value = source?.id || '';
+      document.getElementById('sourceName').value = source?.name || '';
+      document.getElementById('sourceType').value = source?.type || 'templates';
+      document.getElementById('sourceUrl').value = source?.url || '';
+      openModal('sourceModal');
+    }
+    function editSource(id) {
+      const source = (window._sourcesCache || []).find((s) => s.id === id);
+      openSourceModal(source || { id });
+    }
+
 
     document.querySelectorAll('[data-close]').forEach((el) => el.addEventListener('click', () => closeModal(el.getAttribute('data-close'))));
     document.querySelectorAll('.mask').forEach((m) => m.addEventListener('click', (e) => { if (e.target === m) m.classList.remove('show'); }));
-    // 文件夹选择器点击事件（只绑定一次，避免累积）
-    document.getElementById('fpTree')?.addEventListener('click', async (e) => {
-      const driveOption = e.target.closest('.drive-option');
-      if (driveOption) {
-        e.stopPropagation();
-        const drive = driveOption.getAttribute('data-drive');
-        console.log('[folderPicker] 选择驱动器:', drive);
-        try { await loadFolderPicker(drive); } catch (err) { toast('读取失败：' + err.message); }
-        return;
-      }
-      const item = e.target.closest('.file-item');
-      if (!item) return;
-      const type = item.getAttribute('data-type');
-      const path = item.getAttribute('data-path');
-      console.log('[folderPicker] 点击:', type, path);
-      if (type === 'dir' || type === 'up') {
-        try { await loadFolderPicker(path); } catch (e) { toast('读取失败：' + e.message); }
-      } else if (type) {
-        previewFile(path);
-      }
-    });
+    // 文件夹选择器事件已在 loadFolderPicker / loadDrives 内直接绑定，此处保留空壳避免旧引用报错
     function startRefresh() {
       setInterval(async () => {
         await loadTasks();
@@ -1457,8 +2089,103 @@
             await refreshCurrentThread();
           }
         }
-      }, 3000);
+      }, 1000); // 1秒轮询，确保思考过程实时显示
     }
+
+    /* ========== 电脑操作（鼠标/键盘/截图） ========== */
+    let selectedMousePos = { x: 0, y: 0 };
+
+    // 截取屏幕
+    async function captureScreen() {
+      try {
+        const d = await api('/api/computer/screenshot', 'POST', {});
+        if (d.ok && d.image) {
+          const preview = document.getElementById('screenPreview');
+          preview.innerHTML = `<img id="screenImg" src="${d.image}" alt="屏幕截图" />`;
+          const img = document.getElementById('screenImg');
+          // 点击图片获取坐标
+          img.addEventListener('click', (e) => {
+            const rect = img.getBoundingClientRect();
+            const scaleX = (d.width || 1920) / rect.width;
+            const scaleY = (d.height || 1080) / rect.height;
+            selectedMousePos.x = Math.round((e.clientX - rect.left) * scaleX);
+            selectedMousePos.y = Math.round((e.clientY - rect.top) * scaleY);
+            document.getElementById('mousePos').textContent = `坐标: ${selectedMousePos.x}, ${selectedMousePos.y}`;
+            toast(`已选择坐标: ${selectedMousePos.x}, ${selectedMousePos.y}，点击操作按钮执行`);
+          });
+          toast('屏幕截图已更新，点击图片选择坐标');
+        } else {
+          toast('截图失败: ' + (d.error || '未知错误'));
+        }
+      } catch (e) {
+        toast('截图失败: ' + e.message);
+      }
+    }
+
+    // 鼠标点击
+    async function mouseClick(button, doubleClick = false) {
+      try {
+        const d = await api('/api/computer/mouse/click', 'POST', {
+          button,
+          x: selectedMousePos.x,
+          y: selectedMousePos.y,
+          double: doubleClick,
+        });
+        if (d.ok) {
+          toast(`${doubleClick ? '双击' : (button === 'right' ? '右键点击' : '左键点击')} (${selectedMousePos.x}, ${selectedMousePos.y})`);
+        } else {
+          toast('操作失败: ' + (d.error || '未知错误'));
+        }
+      } catch (e) {
+        toast('操作失败: ' + e.message);
+      }
+    }
+
+    // 输入文字
+    async function typeText(text) {
+      try {
+        const d = await api('/api/computer/keyboard/type', 'POST', { text });
+        if (d.ok) {
+          toast('已输入文字');
+        } else {
+          toast('输入失败: ' + (d.error || '未知错误'));
+        }
+      } catch (e) {
+        toast('输入失败: ' + e.message);
+      }
+    }
+
+    // 按键
+    async function pressKey(key) {
+      try {
+        const d = await api('/api/computer/keyboard/press', 'POST', { key });
+        if (d.ok) {
+          toast('已按键: ' + key);
+        } else {
+          toast('按键失败: ' + (d.error || '未知错误'));
+        }
+      } catch (e) {
+        toast('按键失败: ' + e.message);
+      }
+    }
+
+    // 绑定电脑操作事件
+    document.getElementById('screenCaptureBtn')?.addEventListener('click', captureScreen);
+    document.getElementById('clickLeftBtn')?.addEventListener('click', () => mouseClick('left'));
+    document.getElementById('clickRightBtn')?.addEventListener('click', () => mouseClick('right'));
+    document.getElementById('doubleClickBtn')?.addEventListener('click', () => mouseClick('left', true));
+    document.getElementById('typeTextInput')?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        const text = e.target.value.trim();
+        if (text) {
+          typeText(text);
+          e.target.value = '';
+        }
+      }
+    });
+    document.querySelectorAll('.computer-actions [data-key]').forEach((btn) => {
+      btn.addEventListener('click', () => pressKey(btn.getAttribute('data-key') || ''));
+    });
 
     /* ========== 记忆系统 ========== */
 

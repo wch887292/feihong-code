@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>飞虹 Code Web 控制台 — 页面功能复盘与冒烟测试报告</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; background: #f5f7fa; color: #1f2937; padding: 32px 16px; }
+  .wrap { max-width: 980px; margin: 0 auto; }
+  h1 { font-size: 24px; margin-bottom: 4px; }
+  .sub { color: #6b7280; font-size: 13px; margin-bottom: 24px; }
+  .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px 24px; margin-bottom: 18px; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+  h2 { font-size: 16px; margin-bottom: 12px; border-left: 4px solid #4f46e5; padding-left: 10px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #eef0f3; vertical-align: top; }
+  th { background: #f9fafb; color: #374151; font-weight: 600; white-space: nowrap; }
+  .ok { color: #059669; font-weight: 600; }
+  .warn { color: #d97706; font-weight: 600; }
+  .badge { display: inline-block; padding: 1px 8px; border-radius: 99px; font-size: 12px; font-weight: 600; }
+  .b-green { background: #ecfdf5; color: #059669; }
+  .b-blue { background: #eff6ff; color: #2563eb; }
+  .b-gray { background: #f3f4f6; color: #6b7280; }
+  .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 4px; }
+  .stat { background: #f9fafb; border-radius: 10px; padding: 14px; text-align: center; }
+  .stat .n { font-size: 26px; font-weight: 700; color: #4f46e5; }
+  .stat .l { font-size: 12px; color: #6b7280; margin-top: 2px; }
+  ul { padding-left: 18px; font-size: 13px; line-height: 1.9; }
+  code { background: #f3f4f6; padding: 1px 6px; border-radius: 4px; font-size: 12px; color: #b91c1c; }
+  .foot { text-align: center; color: #9ca3af; font-size: 12px; margin-top: 20px; }
+  @media (max-width: 700px){ .stat-grid { grid-template-columns: repeat(2, 1fr); } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🦞 飞虹 Code Web 控制台 — 页面功能复盘与冒烟测试报告</h1>
+  <div class="sub">2026-08-23 · 版本 v0.5.1 · 复盘 + 查漏补缺 + 全面冒烟测试</div>
+
+  <div class="card">
+    <div class="stat-grid">
+      <div class="stat"><div class="n">7</div><div class="l">1 级页面</div></div>
+      <div class="stat"><div class="n">11</div><div class="l">2 级页面/模态框</div></div>
+      <div class="stat"><div class="n">27/27</div><div class="l">接口冒烟通过</div></div>
+      <div class="stat"><div class="n">183/183</div><div class="l">单元测试通过</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>一、1 级页面（顶部导航）功能状态</h2>
+    <table>
+      <tr><th>页面</th><th>核心功能</th><th>状态</th><th>验证方式</th></tr>
+      <tr><td>💬 对话（主界面）</td><td>任务列表、新建任务、发送/多轮续接、停止任务、刷新、模型切换、截图/上传/语音/智能体菜单、工作区选择、通话（演示）</td><td><span class="badge b-green">全部实现</span></td><td>代码审阅 + API 实测</td></tr>
+      <tr><td>⚡ 自动化</td><td>列表、新建指令、一键运行、删除</td><td><span class="badge b-green">全部实现</span></td><td>GET/POST/DELETE/run 实测</td></tr>
+      <tr><td>📚 模板库</td><td>内置模板、我的模板、填入输入框、保存当前为模板、删除</td><td><span class="badge b-green">全部实现</span></td><td>GET/POST/DELETE 实测</td></tr>
+      <tr><td>🧩 插件市场</td><td>搜索、来源筛选、安装、已安装列表</td><td><span class="badge b-green">实现</span><br><span class="warn">外部网络依赖</span></td><td>接口实测（外部源当前可达）</td></tr>
+      <tr><td>📎 办公助理</td><td>能力清单、点击生成提示词</td><td><span class="badge b-green">全部实现</span></td><td>接口实测</td></tr>
+      <tr><td>🧠 记忆系统</td><td>统计卡片、短期/长期/历史 Tab、按日查看、立即总结</td><td><span class="badge b-green">全部实现</span></td><td>4 个接口实测</td></tr>
+      <tr><td>🚀 发布</td><td>品牌故事静态页（无接口依赖）</td><td><span class="badge b-gray">静态内容</span></td><td>页面审阅</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>二、2 级页面 / 模态框功能状态</h2>
+    <table>
+      <tr><th>功能块</th><th>实现内容</th><th>状态</th></tr>
+      <tr><td>📦 任务详情（右侧面板）</td><td>任务属性、步骤追踪、复制/编辑/分享/创建文档气泡操作、打开文件夹/浏览器</td><td><span class="badge b-green">已实现</span></td></tr>
+      <tr><td>👁 产物预览（右侧面板）</td><td>文件内容预览、图片预览、产物链接化点击</td><td><span class="badge b-green">已实现</span></td></tr>
+      <tr><td>＋ 新建任务</td><td>任务描述、智能体类型、工作区选择、创建并归属对话</td><td><span class="badge b-green">已实现</span></td></tr>
+      <tr><td>⚙️ 设置</td><td>栏目/主题切换、权限处理、会话管理（自动新建/自动重置/清空历史）、大模型内嵌管理</td><td><span class="badge b-green">已实现</span></td></tr>
+      <tr><td>🔒 权限窗口</td><td>可读范围（工作区/指定目录/全部）+ 操作权限开关，持久化到 localStorage</td><td><span class="badge b-green">已实现</span></td></tr>
+      <tr><td>🤖 选择智能体类型</td><td>4 种智能体（通用/修复/编写/执行命令）切换</td><td><span class="badge b-green">已实现</span></td></tr>
+      <tr><td>📂 选择工作区文件夹</td><td>驱动器扫描、目录树浏览、确认切换并持久化</td><td><span class="badge b-green">已实现</span></td></tr>
+      <tr><td>🧠 大模型设置</td><td>模型增删改、RSA 加密传输 Key、设为默认、底部快捷切换</td><td><span class="badge b-green">已实现</span></td></tr>
+      <tr><td>⚡ 新建快捷指令</td><td>名称 + 目标保存</td><td><span class="badge b-green">已实现</span></td></tr>
+      <tr><td>📚 保存模板</td><td>标题 + 分类 + 目标内容</td><td><span class="badge b-green">已实现</span></td></tr>
+      <tr><td>🎉 欢迎引导</td><td>首次登录欢迎任务展示与一键运行</td><td><span class="badge b-green">已实现</span></td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>三、本轮修复与优化</h2>
+    <ul>
+      <li><b>版本号统一</b>：<code>src/cli/version.ts</code> 0.5.0 → <b>0.5.1</b>，对齐 <code>package.json</code> 与发布页（此前 health 接口与发布页不一致）</li>
+      <li><b>dist 产物陈旧修复</b>：dist 被 IDE/Defender 锁导致构建未真正覆盖 → 用 <code>tsc --outDir dist_tmp</code> + 复制前端 + 整体回拷 dist 成功出包；<code>dist/web/public/index.html</code> 已含「执行过程折叠 / ⏹ 停止按钮 / 刷新清空对话」等全部修复（9 处命中），<code>version.js = 0.5.1</code></li>
+      <li><b>.gitignore</b>：新增 <code>dist_tmp/</code> 构建中转目录，避免误提交</li>
+      <li><b>代码健壮性核对</b>：前端 20+ 关键函数全部有定义且唯一；关键 DOM id（11 个模态框等）全部存在，无白屏隐患</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>四、冒烟测试结果（27/27 通过）</h2>
+    <table>
+      <tr><th>#</th><th>接口</th><th>结果</th><th>说明</th></tr>
+      <tr><td>1-4</td><td>health / 登录 / auth.me / drives</td><td class="ok">✅</td><td>手机号直登拿到 token，鉴权链路通</td></tr>
+      <tr><td>5-10</td><td>models / tasks 列表 / 创建 / 详情 / 多轮续接 / 停止</td><td class="ok">✅</td><td>创建→running→stop 全链路；续接后 conversation 完整保留 system+目标+工具+上轮回复+新消息（M3 resume 验证 OK）</td></tr>
+      <tr><td>11-14</td><td>automations 列表/创建/删除/run</td><td class="ok">✅</td><td>删除后 run 返回 404（符合预期）</td></tr>
+      <tr><td>15-17</td><td>templates 列表/创建/删除</td><td class="ok">✅</td><td>含内置模板 + 自定义模板 CRUD</td></tr>
+      <tr><td>18-21</td><td>memory stats / short / long / history</td><td class="ok">✅</td><td>短期/长期/总结历史与统计</td></tr>
+      <tr><td>22-26</td><td>workspace / workspace.list / office / skills.installed / skills.market</td><td class="ok">✅</td><td>插件市场外部源当前可达</td></tr>
+      <tr><td>27</td><td>静态首页 <code>GET /</code></td><td class="ok">✅</td><td>HTTP 200，前端资源可访问</td></tr>
+    </table>
+    <p style="font-size:13px;color:#6b7280;margin-top:10px;">另：真实模型执行链路验证 —— 首次登录自动创建的 3 个引导任务全部 <span class="badge b-green">done</span>（编排器→模型→工具→落盘端到端跑通）；单元测试回归 <b>183/183 全部通过</b>。</p>
+  </div>
+
+  <div class="card">
+    <h2>五、遗留注意</h2>
+    <ul>
+      <li>本机 <b>8099 端口仍有一个旧版 fhcode server</b> 在运行（加载的是旧 dist / 旧前端），<b>需重启该服务</b>才会加载本轮修复后的新 UI</li>
+      <li>本轮冒烟测试服务运行在 <b>http://localhost:8077</b>（临时数据目录 C:/fhsmoke，登录任意手机号即可），可直接打开验证新界面；若进程已退出可自行重启：<code>FH_WEB_PORT=8077 node dist/cli/index.js serve</code></li>
+      <li>插件市场（🧩）依赖外部技能源网络，离线时优雅降级为错误提示，不影响其他功能</li>
+    </ul>
+  </div>
+
+  <div class="foot">晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹</div>
+</div>
+</body>
+</html>

@@ -70,8 +70,8 @@ const ERROR_RULES: ErrorRule[] = [
   },
   {
     category: 'build-error',
-    keywords: ['missing script', 'npm error', 'build failed', '编译失败', '构建失败', 'exit code 1', 'command failed'],
-    fixHint: '构建命令执行失败。检查 package.json 是否存在对应 script、工作目录是否正确、依赖是否已安装。先用 list_dir 确认目录结构，再决定用什么构建命令。',
+    keywords: ['missing script', 'npm error', 'build failed', '编译失败', '构建失败', 'exit code 1', 'command failed', 'npm err'],
+    fixHint: '构建命令执行失败。请按以下步骤排查：1) 先用 list_dir 确认当前工作目录和 package.json 位置；2) 检查 package.json 的 scripts 字段是否存在对应命令；3) 运行 npm install 确保依赖已安装；4) 直接运行构建命令查看完整错误信息（如 npm run build）；5) 根据具体错误信息修复代码后再重试。不要盲目重复相同的构建命令。',
   },
   {
     category: 'command-not-found',

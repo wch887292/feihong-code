@@ -502,10 +502,30 @@ export class Orchestrator {
     if (errors <= input.consecutiveErrors) {
       return { signal: 'none', messages, consecutiveErrors: input.consecutiveErrors, selfHealed: false, finalAnswer: '' };
     }
+
+    // 收集所有连续错误消息并分类（修复 errorHistory 计数不一致问题）
+    const consecutiveErrorMsgs: ChatMessage[] = [];
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i];
+      if (m.role === 'tool' && m.content.startsWith('错误:')) {
+        consecutiveErrorMsgs.unshift(m);
+      } else if (m.role === 'tool') {
+        break;
+      }
+    }
+
+    // 对新增的错误进行分类并记录
+    const newErrors = consecutiveErrorMsgs.slice(input.consecutiveErrors);
+    for (const errMsg of newErrors) {
+      const analysis = classifyError(errMsg.content || '', '');
+      input.errorHistory.push(analysis);
+      await logRecoveryAttempt(input.eventLog, input.iteration, analysis, false);
+    }
+
+    // 用最后一个错误生成反思提示词
     const lastToolMsg = messages[messages.length - 1];
-    // classifyError 现在对未匹配错误返回 'unknown' 兜底，永不返回 null，
-    // 确保达到 maxRetryErrors 时 failed 分支一定能 break，不会被绕过。
-    const errorAnalysis = classifyError(lastToolMsg.content || '', '');
+    const errorAnalysis = input.errorHistory[input.errorHistory.length - 1] || classifyError(lastToolMsg.content || '', '');
+
     // 从消息历史中提取最后一次工具调用（工具名+参数），用于生成更精准的反思提示
     let lastToolCall: { name: string; args: Record<string, unknown> } | undefined;
     for (let i = messages.length - 2; i >= 0; i--) {
@@ -516,11 +536,22 @@ export class Orchestrator {
         break;
       }
     }
-    input.errorHistory.push(errorAnalysis);
-    await logRecoveryAttempt(input.eventLog, input.iteration, errorAnalysis, false);
+
     const consecutiveErrors = errors;
     if (failed) {
-      const finalAnswer = `任务执行遇到连续 ${input.maxRetryErrors} 次错误，已尝试自动修复但未能成功。错误类型: ${input.errorHistory.map((e) => e.category).join(', ')}。请检查工作区与日志，或使用 resume 续跑。`;
+      const errorTypes = input.errorHistory.map((e) => e.category).join(', ');
+      const lastError = input.errorHistory[input.errorHistory.length - 1];
+      const fixHint = lastError?.fixHint || '请检查工作区和日志，定位具体错误原因后修复。';
+      const finalAnswer = `任务执行遇到连续 ${input.maxRetryErrors} 次错误，已尝试自动修复但未能成功。
+
+错误类型: ${errorTypes}
+最后错误: ${lastError?.message || '未知'}
+修复建议: ${fixHint}
+
+你可以：
+1. 在对话区发送"继续"让任务以 resume 方式接着跑
+2. 或发送新的指令，告知具体需要修复的内容
+3. 检查工作区文件，手动修复后重新提交任务`;
       await input.eventLog.append('error', { reason: 'max-retry-errors', errors: input.errorHistory });
       logger.warn('orchestrator hit max retry errors', { runId: input.sessionRunId, errors: input.errorHistory });
       return { signal: 'break', messages, consecutiveErrors, selfHealed: false, finalAnswer };

@@ -363,8 +363,8 @@ export class TaskQueue {
       if (!content || !content.trim()) return; // 纯工具调用没有思考文本，跳过
     }
     if (!record.steps) record.steps = [];
-    // 上限保护，避免超长任务撑爆存储
-    if (record.steps.length >= 200) record.steps.shift();
+    // 上限保护，避免超长任务撑爆存储（原来200条太少，长任务思考过程被截断）
+    if (record.steps.length >= 500) record.steps.shift();
     record.steps.push({ seq: record.steps.length, ts: new Date().toISOString(), type: ev.type, data: ev });
     // 节流落盘：首步与每 5 步持久化一次（终态时 run() 会再落盘一次完整记录）
     if (record.steps.length === 1 || record.steps.length % 5 === 0) this.persist(record);
@@ -502,7 +502,7 @@ export class TaskQueue {
       });
       // 多轮续接：持久化本轮完整消息历史（含上一轮），供下一轮 resume 与前端对话流展示
       if (Array.isArray(result.messages) && result.messages.length > 0) {
-        record.conversation = result.messages.slice(-80); // 上限保护，保留最近 80 条
+        record.conversation = result.messages.slice(-300); // 上限保护，保留最近 300 条（原来80条太少，长任务前面内容被截断）
       }
       record.status = result.ok ? 'done' : 'failed';
       record.result = {
