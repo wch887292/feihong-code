@@ -107,8 +107,80 @@
     }
 
     async function loadTemplates() {
-      try { const d = await api('/api/templates'); renderBuiltin(d.builtin || []); renderUserTpl(d.user || []); }
-      catch (e) { console.warn('加载模板失败', e); }
+      try {
+        const d = await api('/api/templates');
+        renderBuiltin(d.builtin || []);
+        renderNodeTpl(d.node || []);
+        renderCustomTpl(d.custom || []);
+        renderUserTpl(d.user || []);
+      } catch (e) { console.warn('加载模板失败', e); }
+    }
+
+    /* ========== 节点管理 ========== */
+    async function loadNodes() {
+      try {
+        const d = await api('/api/nodes');
+        renderNodesGrid(d.nodes || []);
+      } catch (e) { console.warn('加载节点失败', e); }
+    }
+    async function saveNode(data) {
+      try {
+        const d = data.id
+          ? await api('/api/nodes/' + data.id, 'PUT', data)
+          : await api('/api/nodes', 'POST', data);
+        await loadNodes();
+        toast(data.id ? '节点已更新' : '节点已添加，连接状态：' + (d.connection?.ok ? '成功' : '失败'));
+        return d;
+      } catch (e) { toast('保存失败：' + e.message); }
+    }
+    async function deleteNode(id) {
+      try { await api('/api/nodes/' + id, 'DELETE'); await loadNodes(); toast('已删除节点'); }
+      catch (e) { toast('删除失败：' + e.message); }
+    }
+    async function testNode(id) {
+      try {
+        const d = await api('/api/nodes/' + id + '/test', 'POST');
+        toast(d.ok ? '连接成功' : '连接失败：' + (d.error || ''));
+        await loadNodes();
+        return d;
+      } catch (e) { toast('测试失败：' + e.message); }
+    }
+    async function syncNode(id) {
+      try {
+        const d = await api('/api/nodes/' + id + '/sync', 'POST');
+        toast(d.ok ? '同步完成：' + (d.synced || []).join('、') : '同步失败：' + (d.error || ''));
+        await loadNodes();
+        await loadTemplates();
+        await loadMarket();
+        await loadOffice();
+        return d;
+      } catch (e) { toast('同步失败：' + e.message); }
+    }
+    async function toggleNode(id, enabled) {
+      try { await api('/api/nodes/' + id, 'PUT', { enabled }); await loadNodes(); }
+      catch (e) { toast('操作失败：' + e.message); }
+    }
+
+    /* ========== 自定义来源 ========== */
+    async function loadSources() {
+      try {
+        const d = await api('/api/sources');
+        renderSourcesGrid(d.sources || []);
+      } catch (e) { console.warn('加载来源失败', e); }
+    }
+    async function saveSource(data) {
+      try {
+        const d = data.id
+          ? await api('/api/sources/' + data.id, 'PUT', data)
+          : await api('/api/sources', 'POST', data);
+        await loadSources();
+        toast(data.id ? '来源已更新' : '来源已添加');
+        return d;
+      } catch (e) { toast('保存失败：' + e.message); }
+    }
+    async function deleteSource(id) {
+      try { await api('/api/sources/' + id, 'DELETE'); await loadSources(); toast('已删除来源'); }
+      catch (e) { toast('删除失败：' + e.message); }
     }
 
     async function delAuto(id) {
@@ -122,7 +194,7 @@
     }
 
     async function loadAutomations() {
-      try { const d = await api('/api/automations'); renderAutoGrid(d.automations || []); }
+      try { const d = await api('/api/automations'); renderBuiltinAutomations(d.builtin || []); renderAutoGrid(d.automations || []); }
       catch (e) { console.warn('加载自动化失败', e); }
     }
 
@@ -272,6 +344,7 @@
         status.classList.remove('err');
         document.getElementById('loginOverlay').style.display = 'none';
         document.getElementById('appLayout').classList.add('show');
+        document.documentElement.classList.add('logged-in');
         await afterLogin();
       } catch (e) {
         status.textContent = '登录失败：' + e.message;

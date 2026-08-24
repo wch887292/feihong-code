@@ -1,11 +1,11 @@
 {
   "name": "feihong-code",
-  "version": "0.6.1",
+  "version": "7.0.0",
   "description": "fhcode（飞虹 Code）— 终端 AI 编程智能体，对标 Muse Code / Cursor CLI：多模型路由（DeepSeek/通义/Ollama/OpenAI）、企业级 RBAC 审计、全自动 SWE Agent、支持离线私有化",
   "bin": {
     "fhcode": "dist/cli/index.js"
   },
-  "main": "dist/cli/index.js",
+  "main": "electron/main.js",
   "files": [
     "dist",
     "README.md",
@@ -31,7 +31,12 @@
     "eval": "node scripts/eval.mjs",
     "test": "tsx --test tests/unit/*.test.ts",
     "verify": "npm run typecheck && npm run build && npm run verify:m4 && npm run verify:m6 && npm run verify:m7 && npm run verify:m8 && npm run verify:m9",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "electron": "electron .",
+    "electron:dev": "electron .",
+    "electron:build": "npm run build && electron-builder --win --x64",
+    "electron:dist": "npm run build && electron-builder --win --x64 --publish never",
+    "electron:pack": "npm run build && electron-builder --dir"
   },
   "keywords": [
     "ai",
@@ -95,6 +100,8 @@
   "devDependencies": {
     "@types/express": "^5.0.6",
     "@types/node": "^26.2.0",
+    "electron": "^41.7.1",
+    "electron-builder": "^26.15.3",
     "tsx": "^4.19.2",
     "typescript": "^5.6.3"
   },
@@ -104,5 +111,57 @@
   },
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
+  },
+  "build": {
+    "appId": "com.feihong.code",
+    "productName": "飞虹 Code",
+    "copyright": "Copyright © 2026 晋江市飞虹智科技企业管理有限公司",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "electron/**/*",
+      "dist/**/*",
+      "package.json",
+      "!**/*.ts",
+      "!**/*.map",
+      "!tests/**",
+      "!docs/**",
+      "!scripts/**",
+      "!src/**"
+    ],
+    "extraResources": [
+      {
+        "from": "dist",
+        "to": "app/dist"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "electron/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "飞虹 Code"
+    },
+    "portable": {
+      "artifactName": "飞虹Code-Portable-${version}.exe"
+    }
   }
 }

@@ -72,6 +72,10 @@
             <span class="icon">📎</span>
             <span class="label" data-i18n="sidebar.office">办公助理</span>
           </div>
+          <div class="sidebar-icon" data-nav="nodes" title="节点管理" data-i18n="sidebar.nodes">
+            <span class="icon">🔗</span>
+            <span class="label" data-i18n="sidebar.nodes">节点管理</span>
+          </div>
           <div class="sidebar-icon" data-nav="memory" title="记忆系统" data-i18n="sidebar.memory">
             <span class="icon">🧠</span>
             <span class="label" data-i18n="sidebar.memory">记忆系统</span>
@@ -142,15 +146,16 @@
                     <div class="dropdown-item" data-action="screenshot" data-i18n="chat.screenshot">📷 截图</div>
                     <div class="dropdown-item" data-action="upload-file" data-i18n="chat.upload_file">📄 上传文件</div>
                     <div class="dropdown-item" data-action="upload-image" data-i18n="chat.upload_image">🖼 上传图片</div>
-                    <div class="dropdown-item" data-action="direct-mode" data-i18n="chat.direct_mode">🖥 直接操作电脑</div>
+                    <div class="dropdown-item" data-action="direct-mode" data-i18n="chat.direct_mode">🖥 电脑操作</div>
                     <div class="dropdown-item" data-action="voice" data-i18n="chat.voice">🎤 语音输入</div>
                     <div class="dropdown-divider"></div>
                     <div class="dropdown-item" data-action="agent-type" data-i18n="chat.agent_type">🤖 选择智能体类型</div>
                   </div>
                 </div>
                 <button class="pill" id="screenshotBtn" title="截图（框选屏幕区域发给 AI）" data-i18n="chat.screenshot">📷 截图</button>
+                <button class="pill" id="voiceBtn" title="语音输入（点击开始/停止）" data-i18n="chat.voice">🎤 语音</button>
                 <span class="pill" id="skillPill" title="当前智能体" data-i18n="chat.agent_default">🤖 通用助手</span>
-                <span class="pill" id="directModePill" style="display:none;" title="直接操作电脑模式已开启" data-i18n="chat.direct_mode">🖥 直接操作电脑</span>
+                <span class="pill" id="directModePill" style="display:none;" title="电脑操作模式已开启" data-i18n="chat.direct_mode">🖥 电脑操作</span>
                 <span id="voiceBadge" class="voice-badge" style="display:none;" data-i18n="chat.listening">● 正在听…</span>
                 <span class="spacer"></span>
                 <button id="sendBtn" data-i18n="chat.send">▶ 发送</button>
@@ -183,7 +188,10 @@
             <div data-i18n="nav.automations"><h2>⚡ 自动化</h2><div class="sub">把常用目标存成指令，一键发起任务</div></div>
             <button id="newAutoBtn" data-i18n="btn.new_automation">+ 新建指令</button>
           </div>
-          <div class="grid" id="autoGrid" data-i18n="empty.no_automations"><div class="empty">还没有快捷指令</div></div>
+          <div class="section-title">常用快捷指令</div>
+          <div class="grid" id="builtinAutoGrid"></div>
+          <div class="section-title" style="margin-top:20px;">我的指令</div>
+          <div class="grid" id="autoGrid" data-i18n="empty.no_automations"><div class="empty">还没有自定义指令，点击上方「新建指令」或从常用指令保存</div></div>
         </div>
 
         <!-- 模板库页面 -->
@@ -194,6 +202,10 @@
           </div>
           <div class="section-title" data-i18n="tpl.builtin">内置模板</div>
           <div class="grid" id="builtinGrid"></div>
+          <div class="section-title" style="margin-top:20px;" id="nodeTplTitle" data-i18n="tpl.node">来自节点</div>
+          <div class="grid" id="nodeTplGrid"><div class="empty">暂无节点模板，去「节点管理」添加节点</div></div>
+          <div class="section-title" style="margin-top:20px;" id="customTplTitle" data-i18n="tpl.custom">自定义来源</div>
+          <div class="grid" id="customTplGrid"><div class="empty">暂无自定义来源模板</div></div>
           <div class="section-title" style="margin-top:20px;" data-i18n="tpl.my">我的模板</div>
           <div class="grid" id="userTplGrid" data-i18n="empty.no_templates"><div class="empty">暂无自定义模板</div></div>
         </div>
@@ -208,6 +220,8 @@
                 <option value="all" data-i18n="market.source_all">全部来源</option>
                 <option value="clawhub">ClawHub</option>
                 <option value="agent-foundry">Agent-Foundry</option>
+                <option value="node">节点</option>
+                <option value="custom">自定义来源</option>
               </select>
               <button id="marketRefresh" data-i18n="btn.refresh">刷新</button>
             </div>
@@ -223,6 +237,21 @@
             <div data-i18n="nav.office"><h2>📎 办公助理</h2><div class="sub">文档处理快捷入口，点击即生成提示词</div></div>
           </div>
           <div class="grid" id="officeGrid" data-i18n="common.loading"><div class="empty">加载中…</div></div>
+        </div>
+
+        <!-- 节点管理页面 -->
+        <div class="page-view" data-view="nodes">
+          <div class="page-head">
+            <div><h2>🔗 节点管理</h2><div class="sub">连接外部节点，扩展模板/插件/办公能力来源</div></div>
+            <div class="row" style="flex:0 0 auto; gap:8px;">
+              <button id="addNodeBtn">+ 添加节点</button>
+              <button id="addSourceBtn" class="ghost">+ 自定义来源</button>
+            </div>
+          </div>
+          <div class="section-title">已连接节点</div>
+          <div class="grid" id="nodesGrid"><div class="empty">还没有添加节点，点击上方「添加节点」连接外部服务</div></div>
+          <div class="section-title" style="margin-top:20px;">自定义来源</div>
+          <div class="grid" id="sourcesGrid"><div class="empty">还没有自定义来源，点击上方「自定义来源」添加远程数据源</div></div>
         </div>
 
         <!-- 记忆系统页面 -->
@@ -267,7 +296,16 @@
             <div class="row" style="margin-bottom:16px;align-items:center;">
               <input type="date" id="memDateInput" style="margin:0;width:160px;" />
               <button id="memLoadDay" style="margin:0;" data-i18n="btn.view">查看</button>
+              <button id="memAddShort" style="margin:0;" class="ghost">＋ 添加记录</button>
               <span class="muted" id="memDateLabel" style="margin-left:8px;"></span>
+            </div>
+            <!-- 添加记录文本框（默认隐藏，点击添加记录后展开） -->
+            <div id="memShortEditor" style="display:none;margin-bottom:16px;padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--bg);">
+              <textarea id="memShortInput" rows="4" placeholder="直接输入你想记录的内容，点击保存即可添加到今天的短期记忆..." style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;background:var(--card);color:var(--ink);font-size:13px;resize:vertical;box-sizing:border-box;"></textarea>
+              <div style="margin-top:8px;display:flex;gap:8px;justify-content:flex-end;">
+                <button id="memShortCancel" class="ghost">取消</button>
+                <button id="memShortSave" class="primary">保存</button>
+              </div>
             </div>
             <div class="card memory-content" id="memShortContent">
               <div class="empty" data-i18n="btn.view">选择日期查看短期记忆</div>
@@ -276,9 +314,26 @@
 
           <!-- 长期记忆面板 -->
           <div class="mem-panel" id="memLongPanel" style="display:none;">
+            <div class="row" style="margin-bottom:16px;align-items:center;">
+              <button id="memEditLong" style="margin:0;">✎ 编辑</button>
+              <button id="memSaveLong" style="margin:0;display:none;" class="primary">💾 保存</button>
+              <button id="memCancelLong" style="margin:0;display:none;" class="ghost">取消</button>
+              <button id="memAppendLong" style="margin:0;" class="ghost">＋ 追加</button>
+              <span class="muted" style="margin-left:8px;">长期记忆会在对话中被 AI 参考</span>
+            </div>
+            <!-- 追加条目文本框（默认隐藏） -->
+            <div id="memLongAppendEditor" style="display:none;margin-bottom:16px;padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--bg);">
+              <input type="text" id="memAppendTitle" placeholder="条目标题（如：项目知识/用户偏好）" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;background:var(--card);color:var(--ink);font-size:13px;margin-bottom:8px;box-sizing:border-box;" />
+              <textarea id="memAppendContent" rows="3" placeholder="输入你想追加的记忆内容..." style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;background:var(--card);color:var(--ink);font-size:13px;resize:vertical;box-sizing:border-box;"></textarea>
+              <div style="margin-top:8px;display:flex;gap:8px;justify-content:flex-end;">
+                <button id="memAppendCancel" class="ghost">取消</button>
+                <button id="memAppendSave" class="primary">追加</button>
+              </div>
+            </div>
             <div class="card memory-content" id="memLongContent">
               <div class="empty" data-i18n="common.loading">加载中…</div>
             </div>
+            <textarea id="memLongEditor" style="display:none;width:100%;min-height:400px;padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--ink);font-family:monospace;font-size:13px;resize:vertical;box-sizing:border-box;"></textarea>
           </div>
 
           <!-- 总结历史面板 -->
@@ -475,6 +530,17 @@
             <button id="modelSettingsShortcut" class="ghost-btn" title="大模型设置" data-i18n="sidebar.settings">🧠</button>
           </div>
         </div>
+        <!-- 视频通话窗口 -->
+        <div class="video-call-window" id="videoCallWindow" style="display:none;">
+          <div class="video-call-header">
+            <span>📹 视频通话中</span>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <button class="video-call-snapshot" id="videoSnapshotBtn" title="截取当前画面发送">📸</button>
+              <button class="video-call-close" id="videoCallClose">✕</button>
+            </div>
+          </div>
+          <video id="localVideo" autoplay muted playsinline></video>
+        </div>
       </main>
 
       <!-- 右侧面板 -->
@@ -482,6 +548,7 @@
         <div class="right-tabs">
           <div class="right-tab active" data-tab="detail" data-i18n="right.detail">📦 任务详情</div>
           <div class="right-tab" data-tab="preview" data-i18n="right.preview">👁 产物预览</div>
+          <div class="right-tab" data-tab="computer" id="computerTab" style="display:none;">🖥 电脑操作</div>
         </div>
         <div class="right-body">
           <div class="preview-panel active" id="detailPanel">
@@ -490,6 +557,34 @@
           <div class="preview-panel" id="previewPanel">
             <div class="preview-title" id="previewTitle" data-i18n="right.preview_title">预览</div>
             <div class="preview-content" id="previewContent" data-i18n="right.preview_title"><div class="muted">点击任务或对话中的文件/代码进行预览。</div></div>
+          </div>
+          <div class="preview-panel" id="computerPanel">
+            <div class="computer-controls">
+              <button id="screenCaptureBtn" class="pill">📷 截取屏幕</button>
+              <span id="mousePos" class="muted" style="font-size:12px;">坐标: -</span>
+            </div>
+            <div class="screen-preview" id="screenPreview">
+              <div class="muted" style="text-align:center;padding:40px;">点击「截取屏幕」查看当前屏幕</div>
+            </div>
+            <div class="computer-actions">
+              <div style="margin-bottom:8px;font-size:13px;font-weight:600;">快捷操作</div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
+                <button class="pill" id="clickLeftBtn">左键点击</button>
+                <button class="pill" id="clickRightBtn">右键点击</button>
+                <button class="pill" id="doubleClickBtn">双击</button>
+              </div>
+              <div style="margin-bottom:8px;">
+                <input type="text" id="typeTextInput" placeholder="输入文字后回车发送" style="width:100%;padding:6px 8px;font-size:12px;border:1px solid var(--border);border-radius:6px;" />
+              </div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                <button class="pill" data-key="{ENTER}">回车</button>
+                <button class="pill" data-key="{TAB}">Tab</button>
+                <button class="pill" data-key="{ESC}">Esc</button>
+                <button class="pill" data-key="^c">复制</button>
+                <button class="pill" data-key="^v">粘贴</button>
+                <button class="pill" data-key="^a">全选</button>
+              </div>
+            </div>
           </div>
         </div>
       </aside>
@@ -509,6 +604,62 @@
       <div class="footer">
         <button class="ghost" data-close="autoModal" data-i18n="btn.cancel">取消</button>
         <button id="autoSaveBtn" data-i18n="btn.save">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 添加节点模态框 -->
+  <div class="mask" id="nodeModal">
+    <div class="modal">
+      <span class="close-x" data-close="nodeModal">✕</span>
+      <h3 id="nodeModalTitle">添加节点</h3>
+      <p class="hint">连接外部节点，扩展模板/插件/办公能力来源。节点需提供标准 API 或本地 JSON 文件。</p>
+      <input type="hidden" id="nodeEditId" />
+      <label for="nodeName">节点名称</label>
+      <input type="text" id="nodeName" placeholder="如：公司内部技能库" />
+      <label for="nodeType">节点类型</label>
+      <select id="nodeType">
+        <option value="http">HTTP API 节点</option>
+        <option value="local">本地目录节点</option>
+        <option value="git">Git 仓库节点</option>
+      </select>
+      <label for="nodeUrl">地址（URL 或本地路径）</label>
+      <input type="text" id="nodeUrl" placeholder="如：https://api.example.com 或 D:\nodes\my-node" />
+      <label for="nodeApiKey">API Key（可选）</label>
+      <input type="password" id="nodeApiKey" placeholder="留空表示不需要认证" autocomplete="off" />
+      <label>提供的能力</label>
+      <div style="display:flex;gap:16px;margin-bottom:12px;">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="nodeCapTemplates" checked /> 模板</label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="nodeCapSkills" checked /> 插件</label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="nodeCapOffice" checked /> 办公</label>
+      </div>
+      <div class="footer">
+        <button class="ghost" data-close="nodeModal">取消</button>
+        <button id="nodeSaveBtn" class="primary">保存并测试连接</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 添加自定义来源模态框 -->
+  <div class="mask" id="sourceModal">
+    <div class="modal">
+      <span class="close-x" data-close="sourceModal">✕</span>
+      <h3 id="sourceModalTitle">添加自定义来源</h3>
+      <p class="hint">添加远程 JSON 数据源，自动拉取模板/插件/办公能力。</p>
+      <input type="hidden" id="sourceEditId" />
+      <label for="sourceName">来源名称</label>
+      <input type="text" id="sourceName" placeholder="如：团队共享模板" />
+      <label for="sourceType">来源类型</label>
+      <select id="sourceType">
+        <option value="templates">模板</option>
+        <option value="skills">插件</option>
+        <option value="office">办公能力</option>
+      </select>
+      <label for="sourceUrl">JSON 数据地址</label>
+      <input type="text" id="sourceUrl" placeholder="https://example.com/templates.json" />
+      <div class="footer">
+        <button class="ghost" data-close="sourceModal">取消</button>
+        <button id="sourceSaveBtn" class="primary">保存</button>
       </div>
     </div>
   </div>
@@ -602,14 +753,47 @@
   </div>
 
   <div class="mask" id="folderPickerModal">
-    <div class="modal" style="width:520px;">
+    <div class="modal" style="width:560px;">
       <span class="close-x" data-close="folderPickerModal">✕</span>
-      <h3 data-i18n="modal.folder_title">📂 选择工作区文件夹</h3>
-      <div class="fp-path" id="fpPath" style="font-size:12px;color:var(--ink-2);word-break:break-all;padding:8px;background:var(--bg);border-radius:8px;">—</div>
-      <div class="file-tree" id="fpTree" style="max-height:280px;overflow:auto;margin:10px 0;"></div>
+      <h3 id="fpTitle">📂 选择工作区文件夹</h3>
+
+      <!-- 驱动器选择视图 -->
+      <div id="fpDrivesView">
+        <p class="hint" style="margin:8px 0;">请选择一个驱动器，然后在其中选择或新建文件夹作为工作区。</p>
+        <div class="fp-drives-grid" id="fpDrivesGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:10px 0;max-height:320px;overflow:auto;"></div>
+      </div>
+
+      <!-- 文件夹选择视图 -->
+      <div id="fpFoldersView" style="display:none;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <button class="ghost sm" id="fpBackToDrives" style="flex-shrink:0;">← 驱动器</button>
+          <button class="ghost sm" id="fpUpDir" style="flex-shrink:0;">↑ 上级</button>
+          <div class="fp-path" id="fpPath" style="flex:1;font-size:12px;color:var(--ink-2);word-break:break-all;padding:6px 8px;background:var(--bg);border-radius:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">—</div>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:8px;">
+          <button class="ghost sm" id="fpNewFolder">＋ 新建文件夹</button>
+          <button class="ghost sm" id="fpRenameFolder" disabled>✎ 重命名</button>
+        </div>
+        <div class="file-tree" id="fpTree" style="max-height:260px;overflow:auto;margin:10px 0;"></div>
+      </div>
+
+      <!-- 新建文件夹输入框 -->
+      <div id="fpMkdirBar" style="display:none;gap:8px;margin-bottom:8px;">
+        <input type="text" id="fpMkdirName" placeholder="输入新文件夹名称" style="flex:1;padding:6px 10px;border:1px solid var(--line);border-radius:6px;font-size:13px;" />
+        <button class="primary sm" id="fpMkdirConfirm">确定</button>
+        <button class="ghost sm" id="fpMkdirCancel">取消</button>
+      </div>
+
+      <!-- 重命名输入框 -->
+      <div id="fpRenameBar" style="display:none;gap:8px;margin-bottom:8px;">
+        <input type="text" id="fpRenameName" placeholder="输入新名称" style="flex:1;padding:6px 10px;border:1px solid var(--line);border-radius:6px;font-size:13px;" />
+        <button class="primary sm" id="fpRenameConfirm">确定</button>
+        <button class="ghost sm" id="fpRenameCancel">取消</button>
+      </div>
+
       <div class="footer">
-        <button class="ghost" id="fpCancel" data-close="folderPickerModal" data-i18n="btn.cancel">取消</button>
-        <button class="primary" id="fpConfirm" data-i18n="btn.select_folder">选择此文件夹</button>
+        <button class="ghost" id="fpCancel" data-close="folderPickerModal">取消</button>
+        <button class="primary" id="fpConfirm" disabled>选择此文件夹</button>
       </div>
     </div>
   </div>
