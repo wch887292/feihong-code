@@ -803,6 +803,7 @@
       document.getElementById('designPanel')?.classList.toggle('active', name === 'design');
       document.getElementById('gitPanel')?.classList.toggle('active', name === 'git');
       document.getElementById('teamPanel')?.classList.toggle('active', name === 'team');
+      document.getElementById('capabilitiesPanel')?.classList.toggle('active', name === 'capabilities');
       if (name === 'changes') {
         bindChangesButtonsOnce();
         loadChanges();
@@ -817,6 +818,10 @@
       if (name === 'team') {
         bindTeamButtonsOnce();
         loadTeamData();
+      }
+      if (name === 'capabilities') {
+        bindCapabilitiesOnce();
+        loadCapabilitiesPlugins();
       }
     }
 
@@ -1978,4 +1983,67 @@
         document.getElementById('teamTaskTitle').value = '';
         loadTeamData();
       } catch (e) { toast('创建失败: ' + (e.message || '网络错误')); }
+    }
+
+    /* ========== P0-3: 能力中心（v7.2 新能力前端接线）========== */
+    let _capabilitiesBound = false;
+    function bindCapabilitiesOnce() {
+      if (_capabilitiesBound) return;
+      _capabilitiesBound = true;
+      document.getElementById('capVoiceBtn')?.addEventListener('click', runCapabilityVoice);
+      document.getElementById('capVoiceInput')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') runCapabilityVoice(); });
+      document.getElementById('capKnowledgeSearchBtn')?.addEventListener('click', runCapabilityKnowledge);
+      document.getElementById('capKnowledgeQuery')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') runCapabilityKnowledge(); });
+      document.getElementById('capPluginsBtn')?.addEventListener('click', loadCapabilitiesPlugins);
+    }
+
+    async function runCapabilityVoice() {
+      const input = document.getElementById('capVoiceInput');
+      const out = document.getElementById('capVoiceResult');
+      const text = (input?.value || '').trim();
+      if (!text) { if (out) out.textContent = '请输入语音指令文本'; return; }
+      if (out) out.textContent = '解析中…';
+      try {
+        const d = await apiVoiceParse(text);
+        if (!d.ok) { if (out) out.textContent = '解析失败: ' + (d.error || ''); return; }
+        const c = d.command || {};
+        if (out) out.textContent = '→ ' + (c.type || '?') + (c.params && Object.keys(c.params).length ? ' 参数: ' + JSON.stringify(c.params) : '') + '  置信度: ' + (c.confidence ?? '?');
+      } catch (e) { if (out) out.textContent = '请求失败: ' + (e.message || '网络错误'); }
+    }
+
+    async function runCapabilityKnowledge() {
+      const input = document.getElementById('capKnowledgeQuery');
+      const out = document.getElementById('capKnowledgeResult');
+      const query = (input?.value || '').trim();
+      if (!query) { if (out) out.innerHTML = '<div class="muted">请输入搜索关键词</div>'; return; }
+      if (out) out.innerHTML = '<div class="muted">搜索中…</div>';
+      try {
+        const d = await apiKnowledgeSearch(query);
+        if (!d.ok) { if (out) out.innerHTML = '<div>搜索失败: ' + (d.error || '') + '</div>'; return; }
+        const list = d.results || [];
+        if (!list.length) { if (out) out.innerHTML = '<div class="muted">未找到匹配资料</div>'; return; }
+        if (out) out.innerHTML = list.map((r) => {
+          const t = r.document?.title || r.title || '未命名';
+          const id = r.document?.id || r.id || '';
+          return '<div style="padding:3px 0;border-bottom:1px solid var(--border,#eee);">📄 ' + t +
+            (id ? ' <span style="color:var(--muted);font-size:10px;">' + id.slice(0, 18) + '</span>' : '') + '</div>';
+        }).join('');
+      } catch (e) { if (out) out.innerHTML = '<div>请求失败: ' + (e.message || '网络错误') + '</div>'; }
+    }
+
+    async function loadCapabilitiesPlugins() {
+      const out = document.getElementById('capPluginsResult');
+      if (!out) return;
+      out.innerHTML = '<div class="muted">加载中…</div>';
+      try {
+        const d = await apiPluginsMarket('', '');
+        if (!d.ok) { out.innerHTML = '<div>加载失败: ' + (d.error || '') + '</div>'; return; }
+        const list = d.plugins || [];
+        if (!list.length) { out.innerHTML = '<div class="muted">插件市场为空</div>'; return; }
+        out.innerHTML = list.slice(0, 15).map((p) =>
+          '<div style="padding:3px 0;border-bottom:1px solid var(--border,#eee);">🧩 ' + (p.name || p.id) +
+          ' <span style="color:var(--muted);font-size:10px;">v' + (p.version || '?') + '</span>' +
+          '<div style="font-size:10px;color:var(--muted);">' + (p.description || '').slice(0, 40) + '</div></div>'
+        ).join('') + (list.length > 15 ? '<div class="muted" style="font-size:10px;margin-top:4px;">…共 ' + list.length + ' 个</div>' : '');
+      } catch (e) { out.innerHTML = '<div>请求失败: ' + (e.message || '网络错误') + '</div>'; }
     }

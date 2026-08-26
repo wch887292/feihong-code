@@ -494,3 +494,51 @@
     } else {
       BackendConn.init();
     }
+
+    /* ========== v7.2.0 新能力 API 封装（voice / knowledge / plugins / sso）==========
+     * 修复：v7.2 新增能力此前前端 0 调用。以下封装供能力中心面板使用。
+     */
+    async function apiVoiceParse(text) {
+      return api('/api/voice/parse', 'POST', { text });
+    }
+    async function apiVoiceCommands() {
+      return api('/api/voice/commands');
+    }
+    async function apiVoiceToCode(description, language) {
+      return api('/api/voice/to-code', 'POST', { description, language: language || 'typescript' });
+    }
+    async function apiKnowledgeStats() {
+      return api('/api/knowledge/stats');
+    }
+    async function apiKnowledgeList(params) {
+      const qs = new URLSearchParams();
+      if (params) { for (const k of ['category', 'type', 'sortBy', 'order', 'limit', 'offset']) { if (params[k]) qs.set(k, params[k]); } }
+      const s = qs.toString();
+      return api('/api/knowledge/documents' + (s ? '?' + s : ''));
+    }
+    async function apiKnowledgeSearch(query, extra) {
+      return api('/api/knowledge/search', 'POST', { query, ...(extra || {}) });
+    }
+    async function apiKnowledgeAdd(data) {
+      return api('/api/knowledge/document', 'POST', data);
+    }
+    async function apiKnowledgeDelete(id) {
+      return api('/api/knowledge/document/' + encodeURIComponent(id), 'DELETE');
+    }
+    async function apiPluginsMarket(q, category) {
+      const qs = new URLSearchParams();
+      if (q) qs.set('q', q);
+      if (category) qs.set('category', category);
+      const s = qs.toString();
+      return api('/api/plugins/market' + (s ? '?' + s : ''));
+    }
+    async function apiPluginsList(status) {
+      const s = status ? '?status=' + encodeURIComponent(status) : '';
+      return api('/api/plugins' + s);
+    }
+    async function apiPluginsInstall(plugin) {
+      return api('/api/plugins/install', 'POST', { plugin });
+    }
+    async function apiSsoProviders() {
+      return api('/api/sso/providers');
+    }
