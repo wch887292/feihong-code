@@ -1,9 +1,9 @@
-# Feihong Code v7.0.0 Benchmark Report
+# Feihong Code v7.2.0 Benchmark Report
 
-**Benchmark Date**: August 24, 2026
-**Version**: Feihong Code v7.0.0
+**Benchmark Date**: August 27, 2026
+**Version**: Feihong Code v7.2.0
 **Benchmark Team**: Feiyang Qiyuan R&D Center
-**Nature**: Objective Public Benchmark
+**Nature**: Objective Public Benchmark (with quantified results and sources)
 
 ---
 
@@ -317,7 +317,64 @@ Feihong Code should focus on the following niche markets:
 
 ---
 
-## 13. Benchmark Disclaimer
+## 13. SWE-bench Real Results Benchmark (Quantified, new in v7.2.0)
+
+> Every figure below has a source and methodology note, replacing earlier unfounded qualitative claims.
+> **Honesty note**: Feihong Code's result is from a **self-built SWE-bench-format task set** (reproducible); industry numbers are official/public **SWE-bench Verified** results. Different eval sets — **not directly comparable**; shown only to indicate relative magnitude under a similar framework.
+
+### 13.1 Feihong Code Real Run (self-built SWE-bench-format set)
+
+| Metric | Result | Methodology |
+|---|---|---|
+| **Test pass rate** | **80% (4/5)** | SWE-bench format (problem_statement + FAIL_TO_PASS), 5 self-contained JS tasks; real model agnes-2.5-flash driving Orchestrator; **predefined tests (not given to model) verified via node --test** |
+| Passed | swe-js-001/002/003/005 | maxOf / fibonacci / isPalindrome / countWords — all assertions passed |
+| Failed | swe-js-004 (findMissing) | iterations=0 toolCalls=0, execution-layer failure, not an implementation error |
+| Harness loop (mock) | 2/2 = 100% | loader→executor→verifier→reporter full chain executable |
+| Harness real-model generation | 3/3 = 100% | Real model driving Orchestrator, all 3 real coding tasks generated target files |
+
+Reproduce: `node scripts/_swe-bench-real.mjs` (real), `node scripts/_swe-smoke.mjs` (mock).
+**This is the only score claimed externally. No claim on official SWE-bench Verified until re-measured on the real dataset with a container environment.**
+
+### 13.2 Industry Public Benchmark (SWE-bench Verified, 2026 public data)
+
+| Product / Model | Score | Nature & Date |
+|---|---|---|
+| Claude Code (Fable 5 backend) | 95.0% | AI Wiki, 2026-07 (model score) |
+| Claude Opus 4.8 | 88.6% | Anthropic / BenchLM, 2026-06 |
+| Claude Opus 4.7 | 87.6% | Anthropic, 2026-04 |
+| Codex CLI (GPT-5.5) | ~82.6% | Third-party tracking, 2026-07 (OpenAI stopped self-reporting) |
+| Claude Opus 4.6 | 80.8% | Anthropic, 2026-02 |
+| Gemini 3.1 Pro | 80.6% | Google official model card (3rd-party ~75%, 2026-03) |
+| GPT-5.2 | 80.0% | OpenAI |
+| Doubao Seed-Code + TRAE | 78.80% | ByteDance official, 2025-11 (SOTA at launch) |
+| TRAE (standalone) | 75.2% | ByteDance official |
+| Gemini CLI (Gemini 3.1 Pro) | 80.6% | AI Wiki, 2026-07 |
+| OpenHands | 72.0% | MarkTechPost, 2026-05 |
+| Cursor (default config) | ~51.7% | MarkTechPost, 2026-05 (varies with backend model, up to 88.6%) |
+| GitHub Copilot (Agent mode) | ~56% | MarkTechPost, 2026-05 |
+| Average of all 77 models | 62.2% | Verified leaderboard mean, 2026-03 |
+
+**Contamination warning**: SWE-bench Verified is confirmed contaminated — OpenAI's audit found frontier models reproduce some gold patches; SWE-ABS (2026-05, arXiv) strengthened test suites and dropped average resolve rates 14.56pp, with the top agent (TRAE+Doubao, 78.80%) falling to 62.20%. Treat any Verified high score as an upper-bound reference with possible memorization. Feihong Code's self-built set is contamination-free but small (5 tasks); both must be interpreted with caution.
+
+### 13.3 Feihong Code Auditable Differentiation (non-score)
+
+| Dimension | Feihong Code | Main competitors | Basis |
+|---|---|---|---|
+| Cost | Free & open-source, zero local license | Cursor $20-40/mo, Copilot $10-19/mo | See §7 pricing |
+| Data privacy | Local deploy, data stays on-prem, offline-capable | Cursor/Copilot mostly cloud | See §3 |
+| Model routing | Multi-model + local Ollama + domestic models | Cursor multi / Copilot fixed | See §4 |
+| Multimodal Agent | Screenshot/voice/video/computer control | Partial | See §6 |
+| SWE metric | 80% self-built set (real assertions, reproducible) | Official Verified (contaminated) | See 13.1/13.2 |
+
+### 13.4 Honest Gaps
+
+1. Official SWE-bench Verified (500 tasks) needs Docker+pytest; not yet run in this environment — **not yet measured** (see 13.1)
+2. Model backend is third-party (agnes-2.5-flash etc.); score varies with backend, not a self-owned model
+3. Self-built set is small (5 tasks), limited statistical confidence, engineering baseline only
+
+---
+
+## 14. Benchmark Disclaimer
 
 This benchmark is based on publicly available information and actual usage experience of each product. Scores only represent subjective judgment at the time of benchmarking and do not constitute purchase recommendations. Product features iterate continuously, please refer to the latest official version.
 
