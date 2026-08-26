@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>飞虹 Code — 国产 AI 编程智能体，对标 Cursor/Trae 的全栈编程助手</title>
+<meta name="description" content="飞虹 Code（feihong-code）是晋江市飞虹智科技研发的终端 AI 编程智能体，对标 Cursor、Trae、WorkBuddy。支持多模型路由、多智能体协同、事件驱动 Agent、代码补全 Pro、语音编程、Figma 设计稿转代码、安卓 APK 与 Windows 桌面版，覆盖 Web/桌面/安卓三端。">
+<meta name="keywords" content="AI编程,AI编程助手,Cursor替代,Trae替代,代码补全,AI Agent,SWE Agent,多智能体,飞虹Code,feihong-code,AI编程智能体,国产AI编程工具,代码生成">
+<meta name="author" content="晋江市飞虹智科技企业管理有限公司">
+<meta name="robots" content="index, follow">
+<meta property="og:type" content="product">
+<meta property="og:title" content="飞虹 Code — 国产 AI 编程智能体">
+<meta property="og:description" content="多模型路由 + 多智能体协同 + 代码补全 Pro，Web/桌面/安卓三端一体，对标 Cursor/Trae。">
+<meta property="og:locale" content="zh_CN">
+<link rel="canonical" href="https://www.klai.top/feihong-code">
+
+<!-- JSON-LD 结构化数据：让 AI 引擎与搜索引擎机器可读 -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "飞虹 Code",
+  "alternateName": "feihong-code",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Windows, Android, Web",
+  "softwareVersion": "7.2.0",
+  "datePublished": "2026-08-26",
+  "description": "飞虹 Code 是国产终端 AI 编程智能体，对标 Muse Code / Cursor / Trae / WorkBuddy。提供多模型路由（DeepSeek/通义/Ollama/OpenAI）、多智能体协同、事件驱动 Agent、代码补全 Pro、语音编程、Figma 设计稿转代码、Git 集成、团队协作、SSO 单点登录、离线私有化部署。",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "CNY"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "晋江市飞虹智科技企业管理有限公司",
+    "url": "https://www.klai.top"
+  },
+  "featureList": [
+    "多模型路由（DeepSeek/通义/Ollama/OpenAI）",
+    "多智能体协同（架构师/开发者/测试/评审）",
+    "代码补全 Pro（跨文件深度上下文）",
+    "事件驱动 Agent（cron/文件变更/Webhook）",
+    "自定义 Agent 框架",
+    "语音编程（28 种指令）",
+    "Figma 设计稿转代码",
+    "Git 集成 + 团队协作",
+    "SSO 单点登录（SAML/OIDC/飞书/企业微信/钉钉）",
+    "Windows 桌面版 + 安卓 APK + Web 三端"
+  ]
+}
+</script>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "飞虹 Code 是什么？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "飞虹 Code（feihong-code）是晋江市飞虹智科技研发的国产终端 AI 编程智能体，对标 Cursor、Trae、WorkBuddy。它是一款运行在终端和桌面环境的 AI 编程助手，提供多模型路由、多智能体协同、自动代码生成与补全、Git 集成、团队协作等能力，支持离线私有化部署，适合个人开发者与企业团队。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "飞虹 Code 的 SWE-bench 跑分是多少？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "飞虹 Code v7.2.0 在自建 SWE-bench 格式任务集（problem_statement + FAIL_TO_PASS）上，由真实模型驱动 Orchestrator 完成修复，并以预定义测试 node --test 真实断言验证，测试通过率 80%（4/5），完整 harness 闭环（loader→executor→verifier→reporter）100% 可复现（脚本 scripts/_swe-bench-real.mjs）。诚实说明：该成绩为自建任务集实测，非官方 SWE-bench Verified 500 任务集成绩；官方数据集需 Docker+pytest 环境，尚未复测，故不对官方榜单声明成绩。行业参考（SWE-bench Verified，2026 公开数据）：Claude Opus 4.8 为 88.6%、豆包 Doubao-Seed-Code+TRAE 为 78.80%。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "飞虹 Code 与 Cursor 相比有什么优势？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "飞虹 Code 对标 Cursor，但更侧重国产化与私有化：1）支持多模型路由（DeepSeek、通义千问、Ollama 本地模型、OpenAI），可接入国产大模型；2）支持完全离线私有化部署，数据不出内网；3）提供企业级 RBAC 权限审计与 SSO 单点登录；4）原生支持飞书、企业微信、钉钉等国内协作生态。在代码补全（跨文件上下文）、多智能体协同（架构师/开发者/测试/评审）等能力上与 Cursor 对齐。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "飞虹 Code 支持哪些平台？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "飞虹 Code v7.2.0 支持三端：1）Windows 桌面版（Electron，含全局快捷键、系统托盘、深度链接）；2）安卓版（Capacitor APK，包名 com.feihong.code，支持 Android 6.0+，含离线演示与远程连接双模式）；3）Web 版（内置 Express 服务器，浏览器访问）。npm 包 feihong-code@7.2.0 已发布。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "飞虹 Code 有哪些核心功能？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "飞虹 Code v7.2.0 核心功能包括：1）多智能体协同（架构师/开发者/测试工程师/评审员四角色协作）；2）代码补全 Pro（跨文件深度上下文 + 连续推荐）；3）事件驱动 Agent（定时任务/文件变更/Webhook）；4）自定义 Agent 框架（5 个内置模板）；5）语音编程（28 种指令）；6）AI 原生资料库；7）插件市场；8）Figma 设计稿转代码；9）Git 集成与团队协作；10）SSO 单点登录。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "飞虹 Code 如何安装？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "飞虹 Code 安装方式：1）npm 全局安装：npm i -g feihong-code；2）Windows 桌面版：解压绿色版运行飞虹 Code.exe；3）安卓版：安装飞虹Code APK。Web 服务通过 fhcode serve 启动，默认端口 8081。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "飞虹 Code 支持私有化部署吗？",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "支持。飞虹 Code 支持完全离线私有化部署，可接入 Ollama 本地模型，数据不出内网。提供企业级 RBAC 权限审计、SSO 单点登录（SAML/OIDC/飞书/企业微信/钉钉）、CI/CD 自动发布（GitHub Actions）与一键部署脚本，适合企业内网环境。"
+      }
+    }
+  ]
+}
+</script>
+
+<style>
+:root {
+  --bg: #0f1117;
+  --bg2: #1a1a2e;
+  --primary: #6366f1;
+  --secondary: #8b5cf6;
+  --accent: #22d3ee;
+  --text: #e2e8f0;
+  --text2: #94a3b8;
+  --border: #1e293b;
+  --success: #34d399;
+  --warning: #fbbf24;
+  --radius: 14px;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: "Microsoft YaHei", "PingFang SC", -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+.container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+a { color: var(--accent); text-decoration: none; }
+
+/* Header */
+header { background: linear-gradient(135deg, var(--bg2), #1e1b4b); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; backdrop-filter: blur(8px); }
+.nav { display: flex; align-items: center; justify-content: space-between; padding: 14px 0; }
+.logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 20px; }
+.logo-badge { width: 34px; height: 34px; border-radius: 9px; background: linear-gradient(135deg, var(--primary), var(--secondary)); display: flex; align-items: center; justify-content: center; font-weight: 900; color: #fff; font-size: 18px; }
+.nav-links { display: flex; gap: 24px; align-items: center; }
+.nav-links a { color: var(--text2); font-size: 14px; }
+.nav-links a:hover { color: var(--text); }
+.btn { display: inline-block; padding: 8px 18px; border-radius: 8px; background: linear-gradient(135deg, var(--primary), var(--secondary)); color: #fff !important; font-weight: 600; font-size: 14px; }
+
+/* Hero */
+.hero { padding: 90px 0 70px; text-align: center; background: radial-gradient(ellipse at 50% 0%, rgba(99,102,241,.15), transparent 60%); }
+.hero-badge { display: inline-block; padding: 5px 14px; border-radius: 20px; background: rgba(99,102,241,.15); border: 1px solid rgba(99,102,241,.3); color: #a5b4fc; font-size: 13px; margin-bottom: 20px; }
+.hero h1 { font-size: 46px; font-weight: 800; margin-bottom: 16px; background: linear-gradient(135deg, #fff, #a5b4fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.hero p.sub { font-size: 18px; color: var(--text2); max-width: 720px; margin: 0 auto 30px; }
+.hero-stats { display: flex; justify-content: center; gap: 50px; margin-top: 40px; flex-wrap: wrap; }
+.stat { text-align: center; }
+.stat .num { font-size: 32px; font-weight: 800; color: var(--accent); }
+.stat .label { font-size: 13px; color: var(--text2); }
+.hero-cta { display: flex; gap: 16px; justify-content: center; margin-top: 34px; flex-wrap: wrap; }
+.btn-lg { padding: 14px 34px; font-size: 16px; border-radius: 10px; }
+.btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text) !important; }
+
+/* Sections */
+section { padding: 60px 0; }
+section h2 { font-size: 30px; text-align: center; margin-bottom: 12px; }
+section .sec-desc { text-align: center; color: var(--text2); max-width: 680px; margin: 0 auto 40px; }
+.card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+.card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; transition: transform .2s, border-color .2s; }
+.card:hover { transform: translateY(-3px); border-color: var(--primary); }
+.card .icon { font-size: 26px; margin-bottom: 12px; }
+.card h3 { font-size: 17px; margin-bottom: 8px; }
+.card p { font-size: 14px; color: var(--text2); }
+
+/* Comparison */
+.compare-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; background: var(--bg2); border-radius: var(--radius); overflow: hidden; }
+th, td { padding: 14px 18px; text-align: left; border-bottom: 1px solid var(--border); font-size: 14px; }
+th { background: rgba(99,102,241,.12); font-weight: 600; }
+td .yes { color: var(--success); }
+td .partial { color: var(--warning); }
+td .no { color: #64748b; }
+.highlight-row { background: rgba(99,102,241,.08); }
+
+/* Feature detail */
+.feat-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: center; margin-bottom: 50px; }
+.feat-pair.rev .text { order: 2; }
+.feat-pair h3 { font-size: 22px; margin-bottom: 12px; }
+.feat-pair p { color: var(--text2); font-size: 15px; margin-bottom: 12px; }
+.feat-list { list-style: none; }
+.feat-list li { padding: 6px 0; font-size: 14px; color: var(--text); }
+.feat-list li::before { content: "▸"; color: var(--primary); margin-right: 8px; }
+.mock-panel { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; font-family: "Consolas", monospace; font-size: 13px; }
+.mock-panel .bar { display: flex; gap: 6px; margin-bottom: 14px; }
+.mock-panel .bar span { width: 10px; height: 10px; border-radius: 50%; }
+.mock-panel pre { color: #a5b4fc; white-space: pre-wrap; }
+
+/* FAQ */
+.faq-item { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px 24px; margin-bottom: 14px; }
+.faq-item h3 { font-size: 16px; margin-bottom: 8px; color: var(--accent); }
+.faq-item p { font-size: 14px; color: var(--text2); }
+
+/* CTA + Footer */
+.cta { background: linear-gradient(135deg, var(--bg2), #1e1b4b); text-align: center; padding: 70px 0; }
+.cta h2 { font-size: 32px; margin-bottom: 12px; }
+.cta p { color: var(--text2); margin-bottom: 30px; }
+footer { padding: 40px 0; border-top: 1px solid var(--border); text-align: center; color: var(--text2); font-size: 13px; }
+footer .links { display: flex; justify-content: center; gap: 24px; margin-bottom: 14px; flex-wrap: wrap; }
+
+@media (max-width: 768px) {
+  .hero h1 { font-size: 30px; }
+  .feat-pair { grid-template-columns: 1fr; }
+  .nav-links { display: none; }
+  section h2 { font-size: 24px; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="container nav">
+    <div class="logo"><div class="logo-badge">飞</div>飞虹 Code</div>
+    <nav class="nav-links">
+      <a href="#features">功能</a>
+      <a href="#compare">对比</a>
+      <a href="#agents">Agent</a>
+      <a href="#faq">FAQ</a>
+      <a href="#install">安装</a>
+      <a class="btn" href="#install">立即使用</a>
+    </nav>
+  </div>
+</header>
+
+<!-- Hero -->
+<div class="hero">
+  <div class="container">
+    <div class="hero-badge">v7.2.0 · Web / 桌面 / 安卓 三端发布</div>
+    <h1>国产 AI 编程智能体<br>对标 Cursor · 超越工具本身</h1>
+    <p class="sub">多模型路由 + 多智能体协同 + 代码补全 Pro + 语音编程，全栈 AI 编程助手，支持离线私有化部署。</p>
+    <div class="hero-cta">
+      <a class="btn btn-lg" href="#install">免费开始</a>
+      <a class="btn btn-lg btn-ghost" href="#compare">查看对比</a>
+    </div>
+    <div class="hero-stats">
+      <div class="stat"><div class="num">121</div><div class="label">REST API 端点</div></div>
+      <div class="stat"><div class="num">20+</div><div class="label">核心功能模块</div></div>
+      <div class="stat"><div class="num">4</div><div class="label">多智能体角色</div></div>
+      <div class="stat"><div class="num">28</div><div class="label">语音编程指令</div></div>
+      <div class="stat"><div class="num">3</div><div class="label">端到端交付</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- 核心功能 -->
+<section id="features">
+  <div class="container">
+    <h2>核心能力</h2>
+    <p class="sec-desc">从代码补全到全自主编程，飞虹 Code 覆盖 AI 编程全流程，对齐 Cursor、Trae、WorkBuddy 的主流能力并融入国产化创新。</p>
+    <div class="card-grid">
+      <div class="card"><div class="icon">🤖</div><h3>多智能体协同</h3><p>架构师 / 开发者 / 测试工程师 / 评审员四角色协作，评审反馈循环，质量评分。</p></div>
+      <div class="card"><div class="icon">⚡</div><h3>代码补全 Pro</h3><p>跨文件深度上下文，补全准确率对标 Cursor；连续推荐预测下一步编辑。</p></div>
+      <div class="card"><div class="icon">🔄</div><h3>事件驱动 Agent</h3><p>定时任务、文件变更、Webhook 三事件源，自动唤醒执行，后台持续运行。</p></div>
+      <div class="card"><div class="icon">🎯</div><h3>自定义 Agent 框架</h3><p>5 个内置模板 + 自定义 Prompt/工具集，关键词智能匹配推荐。</p></div>
+      <div class="card"><div class="icon">🎙️</div><h3>语音编程</h3><p>28 种语音指令，语音转代码，动口不动手。</p></div>
+      <div class="card"><div class="icon">🎨</div><h3>Figma 设计稿转代码</h3><p>组件识别 + 设计令牌提取，一键生成 Tailwind/React/Vue/HTML。</p></div>
+      <div class="card"><div class="icon">📚</div><h3>AI 原生资料库</h3><p>文档管理、智能检索、自动摘要、关键词提取。</p></div>
+      <div class="card"><div class="icon">🧩</div><h3>插件市场</h3><p>插件安装卸载、市场浏览、插件 API、权限系统。</p></div>
+      <div class="card"><div class="icon">🔐</div><h3>企业安全</h3><p>RBAC 权限审计、SSO 单点登录（SAML/OIDC/飞书/企业微信/钉钉）、私有化部署。</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 多智能体 -->
+<section id="agents" style="background: var(--bg2);">
+  <div class="container">
+    <div class="feat-pair">
+      <div class="text">
+        <h3>多智能体协同工作流</h3>
+        <p>一次任务，四个角色接力完成：架构师设计方案 → 开发者实现代码 → 测试工程师验证 → 评审员把控质量，评审未通过自动进入下一轮修正。</p>
+        <ul class="feat-list">
+          <li>架构师：系统设计、技术选型、接口定义</li>
+          <li>开发者：代码实现、单元测试</li>
+          <li>测试工程师：测试用例、Bug 发现</li>
+          <li>评审员：代码审查、质量评分（0-100）</li>
+        </ul>
+      </div>
+      <div class="mock-panel">
+        <div class="bar"><span style="background:#ff5f57"></span><span style="background:#febc2e"></span><span style="background:#28c840"></span></div>
+        <pre>POST /api/multi-agent/run
+{ "goal": "实现用户登录模块" }
+
+→ 架构师: 采用 JWT + RBAC 分层架构...
+→ 开发者: 完成 auth.service.ts 实现...
+→ 测试工程师: 生成 8 个边界测试用例...
+→ 评审员: 通过 ✓  质量评分: 88/100</pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 对比 -->
+<section id="compare">
+  <div class="container">
+    <h2>六维能力对比</h2>
+    <p class="sec-desc">飞虹 Code 与 Cursor、Trae、WorkBuddy 的全方位对比（基于公开信息评估）。</p>
+    <div class="compare-wrap">
+      <table>
+        <thead>
+          <tr><th>能力维度</th><th>飞虹 Code</th><th>Cursor</th><th>Trae</th><th>WorkBuddy</th></tr>
+        </thead>
+        <tbody>
+          <tr class="highlight-row"><td>代码编辑器体验</td><td>🟡 Monaco + 桌面端</td><td>🟢 原生 IDE</td><td>🟢 VS Code 内核</td><td>🟡 Web 编辑器</td></tr>
+          <tr class="highlight-row"><td>补全质量</td><td>🟡 跨文件上下文 + 补全Pro</td><td>🟢 领先</td><td>🟢 优秀</td><td>🟡 良好</td></tr>
+          <tr class="highlight-row"><td>自主 Agent</td><td>🟢 多智能体 + 事件驱动 + SOLO</td><td>🟢 Background Agents</td><td>🟢 多智能体协同</td><td>🟡 多 Agent 并行</td></tr>
+          <tr class="highlight-row"><td>多模态</td><td>🟡 Figma + 语音 + 截图</td><td>🟡 Design Mode</td><td>🟢 Design 模式</td><td>🟢 Figma 深度集成</td></tr>
+          <tr class="highlight-row"><td>生态集成</td><td>🟡 飞书/GitHub/MCP/插件</td><td>🟢 丰富</td><td>🟡 国内生态</td><td>🟡 协作生态</td></tr>
+          <tr class="highlight-row"><td>企业安全</td><td>🟢 RBAC + SSO + 私有化</td><td>🟢 企业版</td><td>🟢 企业版</td><td>🟢 企业版</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="text-align:center;color:var(--text2);font-size:13px;margin-top:16px;">飞虹 Code 核心优势：<span style="color:var(--success)">国产化</span> · <span style="color:var(--success)">私有化部署</span> · <span style="color:var(--success)">三端覆盖</span> · <span style="color:var(--success)">开源友好</span></p>
+  </div>
+</section>
+
+<!-- 使用场景 -->
+<section id="scenes" style="background: var(--bg2);">
+  <div class="container">
+    <h2>适用场景</h2>
+    <p class="sec-desc">无论你是独立开发者、企业团队还是制造业数字化部门，飞虹 Code 都能落地。</p>
+    <div class="card-grid">
+      <div class="card"><div class="icon">💻</div><h3>独立开发者</h3><p>本地模型接入（Ollama）零成本起步，补全 Pro 提升编码效率。</p></div>
+      <div class="card"><div class="icon">🏢</div><h3>企业研发团队</h3><p>RBAC 权限审计 + 团队协作 + Git 集成，私有化部署数据安全。</p></div>
+      <div class="card"><div class="icon">🏭</div><h3>制造业数字化</h3><p>基于泉州制造业集群场景，支持内网私有化，飞书/企业微信原生集成。</p></div>
+      <div class="card"><div class="icon">📱</div><h3>移动办公</h3><p>安卓 APK + 远程连接模式，随时随地查看与管理任务。</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section id="faq">
+  <div class="container">
+    <h2>常见问题</h2>
+    <p class="sec-desc">面向 AI 引擎优化的问答区块，快速了解飞虹 Code。</p>
+    <div class="faq-item">
+      <h3>飞虹 Code 是什么？</h3>
+      <p>飞虹 Code（feihong-code）是晋江市飞虹智科技研发的国产终端 AI 编程智能体，对标 Cursor、Trae、WorkBuddy。提供多模型路由、多智能体协同、代码补全 Pro、语音编程、Git 集成、团队协作等能力，支持离线私有化部署。</p>
+    </div>
+    <div class="faq-item">
+      <h3>飞虹 Code 与 Cursor 相比有什么优势？</h3>
+      <p>1）支持多模型路由，可接入 DeepSeek、通义千问、Ollama 本地模型；2）完全离线私有化部署，数据不出内网；3）企业级 RBAC 权限审计与 SSO 单点登录；4）原生支持飞书、企业微信、钉钉等国内协作生态。代码补全与多智能体能力对标 Cursor。</p>
+    </div>
+    <div class="faq-item">
+      <h3>飞虹 Code 支持哪些平台？</h3>
+      <p>v7.2.0 支持三端：Windows 桌面版（Electron）、安卓版（APK，Android 6.0+）、Web 版。npm 包 feihong-code@7.2.0 已发布。</p>
+    </div>
+    <div class="faq-item">
+      <h3>飞虹 Code 有哪些核心功能？</h3>
+      <p>多智能体协同、代码补全 Pro（跨文件深度上下文）、事件驱动 Agent（cron/文件变更/Webhook）、自定义 Agent 框架、语音编程（28 种指令）、AI 原生资料库、插件市场、Figma 设计稿转代码、Git 集成、团队协作、SSO 单点登录。</p>
+    </div>
+    <div class="faq-item">
+      <h3>飞虹 Code 支持私有化部署吗？</h3>
+      <p>支持。可接入 Ollama 本地模型完全离线运行，数据不出内网。提供 RBAC 权限审计、SSO 单点登录、CI/CD 自动发布与一键部署脚本，适合企业内网环境。</p>
+    </div>
+  </div>
+</section>
+
+<!-- Install -->
+<section id="install" class="cta">
+  <div class="container">
+    <h2>开始使用飞虹 Code</h2>
+    <p>三端任选，一分钟上手。</p>
+    <div class="hero-cta">
+      <span class="btn btn-lg" style="cursor:default">npm i -g feihong-code</span>
+    </div>
+    <p style="margin-top:16px;font-size:14px;">Windows 桌面版 · 安卓 APK · Web 版，访问 <a href="https://www.klai.top">klai.top</a> 获取</p>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <div class="links">
+      <a href="#features">功能</a>
+      <a href="#compare">对比</a>
+      <a href="#agents">Agent</a>
+      <a href="#faq">FAQ</a>
+      <a href="https://github.com/wch887292/feihong-code" target="_blank" rel="noopener">GitHub</a>
+    </div>
+    <p>© 2026 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 飞虹智（klai.top）</p>
+    <p style="margin-top:6px;">飞虹 Code v7.2.0 · MIT License · 国产 AI 编程智能体</p>
+  </div>
+</footer>
+
+</body>
+</html>
