@@ -206,6 +206,7 @@ Web 控制台 (M5):
   'doctor.home': '主目录可写',
   'doctor.sandbox': '沙箱模式',
   'doctor.sandboxUnavailable': '（配置不可用）',
+  'doctor.docker': 'Docker 沙箱（container 档）',
   'doctor.allOk': '✅ 环境就绪，无异常项',
   'doctor.issues': '⚠️ 发现 {n} 项异常，请根据提示处理',
 
@@ -475,6 +476,7 @@ Signature: {signature}`,
   'doctor.home': 'Home dir writable',
   'doctor.sandbox': 'Sandbox mode',
   'doctor.sandboxUnavailable': '(config unavailable)',
+  'doctor.docker': 'Docker sandbox (container mode)',
   'doctor.allOk': '✅ Environment ready, no issues',
   'doctor.issues': '⚠️ {n} issue(s) found, please fix them as suggested',
 

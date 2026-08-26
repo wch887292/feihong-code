@@ -844,6 +844,23 @@ export async function runDoctor(): Promise<void> {
     checks.push({ name: t('doctor.sandbox'), ok: false, detail: t('doctor.sandboxUnavailable') });
   }
 
+  // 6. Docker 沙箱档位探测（P5-4 container 模式执行层依赖）
+  try {
+    const docker = await runCommand('docker --version', process.cwd(), 5000).catch(() => null);
+    const dockerOk = !!docker && docker.code === 0;
+    const cfg6 = loadConfig();
+    const mode = cfg6.security.sandboxMode;
+    checks.push({
+      name: t('doctor.docker'),
+      ok: mode !== 'container' || dockerOk, // container 模式下必须可用；其他模式仅为提示
+      detail: dockerOk
+        ? `${(docker?.stdout || docker?.stderr || 'docker 可用').trim()} · sandbox=${mode}`
+        : `docker 不可用（container 沙箱模式无法执行）· sandbox=${mode}`,
+    });
+  } catch {
+    checks.push({ name: t('doctor.docker'), ok: true, detail: 'docker 探测跳过' });
+  }
+
   // 输出
   console.log(t('doctor.title'));
   const failed = checks.filter((c) => !c.ok);

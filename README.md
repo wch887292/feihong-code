@@ -182,6 +182,12 @@ export FH_ROLE=developer
 - **CI/CD 就绪**：GitHub Actions 三流水线（build/enterprise/security），零 Secrets 可跑
 - **Docker 多阶段构建**：支持容器化部署
 
+### 🎯 SWE-bench 真实跑分（v7.2.0 公开，诚实口径）
+- **测试通过率 80%（4/5）**：自建 SWE-bench 格式任务集（problem_statement + FAIL_TO_PASS，5 个自包含 JS 任务），真实模型驱动 Orchestrator 修复 + **预定义测试 `node --test` 真实断言**（不交给模型）。
+- **harness 闭环 2/2 = 100%**：loader→executor→verifier→reporter 全链路真实可执行。
+- **复现**：`node scripts/_swe-bench-real.mjs`（真实跑分）、`node scripts/_swe-smoke.mjs`（mock 闭环）。
+- **诚实说明**：以上为自建任务集实测，非官方 SWE-bench Verified 500 任务集成绩；官方集需 Docker+pytest 环境，尚未复测，故不对官方榜单声明成绩。行业参考（SWE-bench Verified，2026 公开）：Claude Opus 4.8=88.6%、豆包 Doubao-Seed-Code+TRAE=78.80%。详见 `docs/BENCHMARK_REPORT_zh.md` 第十三章。
+
 ---
 
 ## 三、安装
