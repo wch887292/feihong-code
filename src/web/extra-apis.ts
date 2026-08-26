@@ -18,6 +18,7 @@ import {
 } from '../integrations/collaboration';
 import { createPluginManager } from '../plugins/manager';
 import { createSelfCorrector } from '../agent/self-correction';
+import { createLspService } from '../lsp/lsp-service';
 
 type ExpressApp = ReturnType<typeof express>;
 
@@ -60,6 +61,7 @@ export function registerExtraApis(app: ExpressApp, opts: ExtraApisOptions): void
     github: loadGithubConfig(),
   });
   const corrector = createSelfCorrector();
+  const lsp = createLspService({ enableDiagnostics: true });
 
   /* ============ 语音编程（原 404） ============ */
   app.get('/api/voice/commands', (_req: Request, res: Response) => {
@@ -259,5 +261,53 @@ export function registerExtraApis(app: ExpressApp, opts: ExtraApisOptions): void
     } catch (e) {
       res.json({ ok: false, error: String((e as Error)?.message ?? e) });
     }
+  });
+
+  /* ============ LSP 语义服务（P0-2 修复：标准 LSP 风格接口） ============ */
+  const lspCwd = (req: Request): string => {
+    const q = req.query.cwd;
+    return q ? String(q) : process.cwd();
+  };
+  app.get('/api/lsp/graph', (req: Request, res: Response) => {
+    const cwd = lspCwd(req);
+    try { res.json({ ok: true, summary: lsp.getGraphSummary(cwd) }); }
+    catch (e) { res.json({ ok: false, error: String((e as Error)?.message ?? e) }); }
+  });
+  app.get('/api/lsp/symbols', (req: Request, res: Response) => {
+    const file = req.query.file;
+    if (!file) { res.json({ ok: false, error: '缺少 file' }); return; }
+    try { res.json({ ok: true, symbols: lsp.getSymbols(lspCwd(req), String(file)) }); }
+    catch (e) { res.json({ ok: false, error: String((e as Error)?.message ?? e) }); }
+  });
+  app.get('/api/lsp/search', (req: Request, res: Response) => {
+    const q = req.query.q;
+    if (!q) { res.json({ ok: false, error: '缺少 q' }); return; }
+    const limit = req.query.limit ? Number(req.query.limit) : 20;
+    try { res.json({ ok: true, symbols: lsp.search(lspCwd(req), String(q), limit) }); }
+    catch (e) { res.json({ ok: false, error: String((e as Error)?.message ?? e) }); }
+  });
+  app.get('/api/lsp/diagnostics', (req: Request, res: Response) => {
+    const file = req.query.file;
+    if (!file) { res.json({ ok: false, error: '缺少 file' }); return; }
+    try { res.json({ ok: true, diagnostics: lsp.getDiagnostics(lspCwd(req), String(file)) }); }
+    catch (e) { res.json({ ok: false, error: String((e as Error)?.message ?? e) }); }
+  });
+  app.get('/api/lsp/definition', (req: Request, res: Response) => {
+    const file = req.query.file;
+    const line = req.query.line ? Number(req.query.line) : NaN;
+    if (!file || Number.isNaN(line)) { res.json({ ok: false, error: '缺少 file 或 line' }); return; }
+    try {
+      const def = lsp.getDefinition(lspCwd(req), String(file), line);
+      res.json({ ok: true, definition: def });
+    } catch (e) { res.json({ ok: false, error: String((e as Error)?.message ?? e) }); }
+  });
+  app.get('/api/lsp/hover', (req: Request, res: Response) => {
+    const file = req.query.file;
+    const line = req.query.line ? Number(req.query.line) : NaN;
+    if (!file || Number.isNaN(line)) { res.json({ ok: false, error: '缺少 file 或 line' }); return; }
+    try {
+      const hover = lsp.getHover(lspCwd(req), String(file), line);
+      res.json({ ok: true, hover });
+    } catch (e) { res.json({ ok: false, error: String((e as Error)?.message ?? e) }); }
   });
 }
