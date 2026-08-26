@@ -342,6 +342,11 @@
               <div class="empty" data-i18n="common.loading">加载中…</div>
             </div>
             <textarea id="memLongEditor" style="display:none;width:100%;min-height:400px;padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--ink);font-family:monospace;font-size:13px;resize:vertical;box-sizing:border-box;"></textarea>
+            <!-- P1-1: ghost text 补全建议条 -->
+            <div id="memGhostBar" style="display:none;margin-top:4px;padding:6px 10px;border:1px dashed var(--border,#ccc);border-radius:6px;background:rgba(45,90,61,0.06);font-family:monospace;font-size:12px;color:var(--muted,#777);white-space:pre-wrap;word-break:break-all;line-height:1.5;">
+              <span id="memGhostText" style="color:#888;"></span>
+              <span style="margin-left:8px;font-size:10px;color:#aaa;">按 <b>Tab</b> 接受补全 · Esc 取消</span>
+            </div>
           </div>
 
           <!-- 总结历史面板 -->
@@ -602,7 +607,7 @@
           <!-- P3: 多文件变更面板 -->
           <div class="preview-panel" id="changesPanel">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-              <div style="font-size:13px;font-weight:600;">📝 待审批变更 <span id="changesCount" class="badge" style="margin-left:4px;">0</span></div>
+              <div style="font-size:13px;font-weight:600;">📝 待审批变更 <span id="changesCount" class="badge" style="margin-left:4px;">0</span><span id="changesConflictCount" class="badge" style="margin-left:4px;background:#c0392b;color:#fff;display:none;">0 冲突</span></div>
               <div style="display:flex;gap:6px;">
                 <button id="changesDetectBtn" class="ghost-btn" style="font-size:11px;padding:3px 8px;" title="检测文件冲突">⚠️ 检测冲突</button>
                 <button id="changesRefreshBtn" class="ghost-btn" style="font-size:11px;padding:3px 8px;">🔄</button>
