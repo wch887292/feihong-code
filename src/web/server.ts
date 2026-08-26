@@ -43,6 +43,7 @@ import { resolveHomeDir, loadConfig } from '../shared/config';
 import { ModelRouter } from '../models/model-router';
 import { OpenAICompatibleProvider } from '../models/providers/openai-compatible.provider';
 import { createCompletionEngine, type CompletionEngine } from '../agent/completion-engine';
+import { lintSnippet } from '../agent/lint';
 import { buildCodeGraph } from '../agent/symbol-index';
 import { ChangeManager } from '../agent/change-manager';
 import { createDesignToCodeEngine, type DesignToCodeEngine } from '../agent/design-to-code';
@@ -818,6 +819,18 @@ export function startWebServer(opts: ServeOptions = {}): {
     } catch (e) {
       res.status(500).json({ ok: false, error: '补全失败: ' + (e as Error).message, suggestions: [] });
     }
+  });
+
+  app.post('/api/lint', (req: Request, res: Response) => {
+    const body = (req.body ?? {}) as Record<string, any>;
+    const code = typeof body?.code === 'string' ? body.code : '';
+    const language = typeof body?.language === 'string' ? body.language : undefined;
+    if (!code) {
+      res.status(400).json({ ok: false, error: '缺少 code' });
+      return;
+    }
+    const errors = lintSnippet(code, language);
+    res.json({ ok: true, errors, clean: errors.length === 0 });
   });
 
   /* ========== 阶段一-2：补全 Pro API ========== */

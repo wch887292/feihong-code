@@ -749,6 +749,33 @@
 
     /* ========== P0-1: Monaco 补全 Provider 注册（内联 ghost text + 补全弹窗） ========== */
     let _monacoCompletionsRegistered = false;
+
+    // P6-1: 补全接受后自动 lint——调 /api/lint 校验插入代码，异常追加 fhcode-lint 波浪线 + 提示
+    let _lintFeedbackShown = false;
+    async function lintAfterAccept(inserted) {
+      if (!inserted || !inserted.trim()) return;
+      try {
+        const d = await api('/api/lint', 'POST', { code: inserted, language: '' });
+        if (!d || !d.ok) return;
+        if (d.clean) {
+          _lintFeedbackShown = false;
+          return;
+        }
+        if (typeof FHMonaco !== 'undefined' && FHMonaco.showLintFeedback) {
+          FHMonaco.showLintFeedback(d.errors || []);
+        }
+        const errCount = (d.errors || []).filter((x) => x.severity === 1).length;
+        if (errCount > 0 && !_lintFeedbackShown) {
+          _lintFeedbackShown = true;
+          const bar = document.getElementById('statusMessage');
+          if (bar) bar.textContent = '⚠️ 补全已接受，但校验发现 ' + errCount + ' 个语法错误（已标注）';
+          setTimeout(() => { if (bar && bar.textContent.includes('校验发现')) bar.textContent = ''; }, 6000);
+        }
+      } catch (e) {
+        /* lint 反馈失败静默 */
+      }
+    }
+
     function registerMonacoCompletions() {
       if (_monacoCompletionsRegistered || typeof FHMonaco === 'undefined') return;
       _monacoCompletionsRegistered = true;
@@ -770,6 +797,10 @@
         } catch (e) {
           return null;
         }
+      }, {
+        getActiveEditor: function () { return (typeof FHMonaco !== 'undefined') ? FHMonaco.getActiveEditor() : null; },
+        // P6-1: 补全被接受后自动 lint 反馈
+        onAccept: function (inserted) { lintAfterAccept(inserted); },
       });
 
       // 补全项弹窗（Ctrl+Space 触发，↑↓选择，Enter接受）—— Monaco 原生支持
@@ -898,6 +929,10 @@
       }
     }
 
+    // P6-3: 多文件 diff 视图状态——每文件显示模式（inline/side）+ 折叠集合
+    const _diffModes = {};
+    const _collapsedPaths = new Set();
+
     function renderChanges(data) {
       const changes = Array.isArray(data.changes) ? data.changes : [];
       const count = changes.length;
@@ -923,35 +958,58 @@
         const hunks = Array.isArray(c.hunks) ? c.hunks : [];
         let hunksHtml = '';
         if (hunks.length) {
-          hunksHtml = '<div style="margin-top:6px;">' + hunks.map((h, hi) => {
-            const lines = (h.lines || []).map(l => {
-              const cls = l.type === 'add' ? 'diff-add' : l.type === 'del' ? 'diff-del' : 'diff-ctx';
-              return '<div class="' + cls + '">' + escapeHtml(l.content) + '</div>';
-            }).join('');
-            return '<div class="diff-hunk" style="margin-bottom:6px;border:1px solid var(--border);border-radius:4px;overflow:hidden;">'
-              + '<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 6px;background:var(--bg);font-size:11px;">'
-              + '<span class="muted">@@ ' + escapeHtml(String(h.header || '')) + '</span>'
-              + '<span style="display:flex;gap:4px;">'
-              + '<button class="ghost-btn" style="font-size:10px;padding:1px 6px;" data-act="accept-hunk" data-idx="' + idx + '" data-hunk="' + hi + '">✓</button>'
-              + '<button class="ghost-btn" style="font-size:10px;padding:1px 6px;" data-act="reject-hunk" data-idx="' + idx + '" data-hunk="' + hi + '">✕</button>'
-              + '</span></div>'
-              + '<div style="font-family:monospace;font-size:11px;line-height:1.5;">' + lines + '</div></div>';
-          }).join('') + '</div>';
+          const mode = _diffModes[c.path] || 'inline';
+          if (mode === 'side') {
+            // P6-3: 并排 diff 视图（左=原文件，右=新文件，行级对齐）
+            hunksHtml = '<div style="margin-top:6px;">' + hunks.map((h) => {
+              const rows = (h.lines || []).map((l) => {
+                const left = (l.type === 'del' || l.type === 'ctx')
+                  ? '<div class="' + (l.type === 'del' ? 'diff-del' : 'diff-ctx') + '">' + escapeHtml(l.content) + '</div>'
+                  : '<div class="diff-ctx" style="color:transparent;">·</div>';
+                const right = (l.type === 'add' || l.type === 'ctx')
+                  ? '<div class="' + (l.type === 'add' ? 'diff-add' : 'diff-ctx') + '">' + escapeHtml(l.content) + '</div>'
+                  : '<div class="diff-ctx" style="color:transparent;">·</div>';
+                return '<div style="display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--line, #222);">' + left + right + '</div>';
+              }).join('');
+              return '<div style="border:1px solid var(--border);border-radius:4px;overflow:hidden;margin-bottom:6px;">'
+                + '<div style="display:flex;justify-content:space-between;align-items:center;padding:2px 6px;background:var(--bg);font-size:11px;">'
+                + '<span class="muted">@@ ' + escapeHtml(String(h.header || '')) + '</span>'
+                + '<span class="muted" style="font-size:10px;">← 原文件 | 新文件 →</span></div>'
+                + rows + '</div>';
+            }).join('') + '</div>';
+          } else {
+            hunksHtml = '<div style="margin-top:6px;">' + hunks.map((h, hi) => {
+              const lines = (h.lines || []).map(l => {
+                const cls = l.type === 'add' ? 'diff-add' : l.type === 'del' ? 'diff-del' : 'diff-ctx';
+                return '<div class="' + cls + '">' + escapeHtml(l.content) + '</div>';
+              }).join('');
+              return '<div class="diff-hunk" style="margin-bottom:6px;border:1px solid var(--border);border-radius:4px;overflow:hidden;">'
+                + '<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 6px;background:var(--bg);font-size:11px;">'
+                + '<span class="muted">@@ ' + escapeHtml(String(h.header || '')) + '</span>'
+                + '<span style="display:flex;gap:4px;">'
+                + '<button class="ghost-btn" style="font-size:10px;padding:1px 6px;" data-act="accept-hunk" data-idx="' + idx + '" data-hunk="' + hi + '">✓</button>'
+                + '<button class="ghost-btn" style="font-size:10px;padding:1px 6px;" data-act="reject-hunk" data-idx="' + idx + '" data-hunk="' + hi + '">✕</button>'
+                + '</span></div>'
+                + '<div style="font-family:monospace;font-size:11px;line-height:1.5;">' + lines + '</div></div>';
+            }).join('') + '</div>';
+          }
         }
+        const collapsed = _collapsedPaths.has(c.path);
         return '<div class="change-item" style="padding:8px;margin-bottom:8px;' + conflictBorder + 'border-radius:6px;background:var(--card);">'
           + '<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;">'
-          + '<div style="flex:1;min-width:0;">'
-          + '<div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="' + escapeHtml(c.path) + '">' + escapeHtml(c.path) + conflictBadge + '</div>'
+          + '<div style="flex:1;min-width:0;cursor:pointer;" data-act="toggle-collapse" data-idx="' + idx + '" title="点击折叠/展开">'
+          + '<div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (collapsed ? '▸ ' : '▾ ') + escapeHtml(c.path) + conflictBadge + '</div>'
           + '<div style="font-size:11px;margin-top:2px;"><span style="color:' + typeColor + ';">' + typeLabel + '</span>'
           + (c.additions != null ? ' · <span style="color:#2d8a4e;">+' + c.additions + '</span>' : '')
           + (c.deletions != null ? ' · <span style="color:#c0392b;">-' + c.deletions + '</span>' : '')
           + ' · <span class="muted">' + escapeHtml(c.status || 'pending') + '</span></div>'
           + '</div>'
           + '<div style="display:flex;gap:4px;flex-shrink:0;">'
+          + (hunks.length ? '<button class="ghost-btn" style="font-size:11px;padding:3px 8px;" data-act="toggle-mode" data-idx="' + idx + '">' + ((_diffModes[c.path] || 'inline') === 'side' ? '内联' : '并排') + '</button>' : '')
           + '<button class="ghost-btn" style="font-size:11px;padding:3px 8px;background:#2d5a3d;color:#fff;" data-act="accept" data-idx="' + idx + '">接受</button>'
           + '<button class="ghost-btn" style="font-size:11px;padding:3px 8px;" data-act="reject" data-idx="' + idx + '">拒绝</button>'
           + '</div></div>'
-          + hunksHtml
+          + (collapsed ? '' : hunksHtml)
           + '</div>';
       }).join('');
       // 绑定事件
@@ -976,6 +1034,11 @@
               const hi = parseInt(btn.getAttribute('data-hunk'));
               await api('/api/changes/hunk/reject', 'POST', { path: change.path, hunkIndex: hi });
               toast('已拒绝 Hunk');
+            } else if (act === 'toggle-mode') {
+              _diffModes[change.path] = (_diffModes[change.path] || 'inline') === 'side' ? 'inline' : 'side';
+            } else if (act === 'toggle-collapse') {
+              if (_collapsedPaths.has(change.path)) _collapsedPaths.delete(change.path);
+              else _collapsedPaths.add(change.path);
             }
             loadChanges();
           } catch (e) { toast('操作失败：' + e.message); }

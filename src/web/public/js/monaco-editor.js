@@ -10,8 +10,14 @@
   let monacoInstance = null;
   let initPromise = null;
   const editors = new Map(); // containerId -> editor instance
+  let activeEditor = null; // 最近创建的编辑器（供 lint/诊断反馈定位）
   let inlineCompletionProvider = null;
   let completionItemProvider = null;
+
+  /** 获取当前活跃编辑器（P6-1 lint 反馈定位） */
+  function getActiveEditor() {
+    return activeEditor;
+  }
 
   /** 根据文件扩展名推断 Monaco language id */
   function detectLanguage(filePath) {
@@ -98,6 +104,7 @@
 
     const key = el.id || container;
     editors.set(key, editor);
+    activeEditor = editor; // P6-1: 记录最近活跃编辑器供 lint 反馈定位
     return editor;
   }
 
@@ -121,11 +128,18 @@
    * 注册内联补全 Provider（ghost text，Tab 接受）
    * @param {function} fetchFn - 异步补全函数，参数 {filePath, content, offset}，返回 {text: string}
    */
-  function registerInlineCompletions(fetchFn) {
+  /**
+   * 注册行内补全 Provider（ghost text）
+   * @param {function} fetchFn - 异步补全函数，参数 {filePath, content, offset, token}，返回 {text} 或 null
+   * @param {{getActiveEditor?:function, onAccept?:function}} [opts] - P6-1: getActiveEditor 取当前编辑器；onAccept 在补全被接受（插入）时回调插入文本
+   */
+  function registerInlineCompletions(fetchFn, opts) {
+    const o = opts || {};
     initMonaco().then((monaco) => {
       if (inlineCompletionProvider) {
         inlineCompletionProvider.dispose();
       }
+      let lastText = '';
       inlineCompletionProvider = monaco.languages.registerInlineCompletionsProvider('*', {
         provideInlineCompletions: async function (model, position, context, token) {
           try {
@@ -139,6 +153,7 @@
               insertText: result.text,
               filterText: result.text.slice(0, 20),
             };
+            lastText = result.text;
             return { items: [item] };
           } catch (e) {
             return { items: [] };
@@ -146,6 +161,28 @@
         },
         freeInlineCompletions: function () {},
       });
+
+      // P6-1: accept 检测——编辑器内容变化且插入文本匹配最近补全 → onAccept(插入文本)
+      const bindAccept = function () {
+        const editor = typeof o.getActiveEditor === 'function' ? o.getActiveEditor() : null;
+        if (!editor || editor.__fhInlineAcceptBound) return;
+        editor.__fhInlineAcceptBound = true;
+        editor.onDidChangeModelContent((e) => {
+          if (!lastText) return;
+          for (const ch of e.changes || []) {
+            const ins = ch.text || '';
+            if (ins && (ins.startsWith(lastText) || lastText.startsWith(ins))) {
+              const accepted = ins.length >= lastText.length ? ins : lastText;
+              if (typeof o.onAccept === 'function') {
+                try { o.onAccept(accepted); } catch { /* lint 回调失败不阻塞编辑 */ }
+              }
+              lastText = '';
+              break;
+            }
+          }
+        });
+      };
+      bindAccept();
     });
   }
 
@@ -284,6 +321,32 @@
     });
   }
 
+  /**
+   * P6-1: 补全接受后的 lint 反馈——把 /api/lint 结果追加为编辑器波浪线（owner: fhcode-lint）
+   * @param {Array} issues - [{severity, line, column, message}]
+   */
+  function showLintFeedback(issues) {
+    initMonaco().then((monaco) => {
+      const editor = activeEditor;
+      if (!editor || editor.isDisposed?.()) return;
+      const model = editor.getModel();
+      if (!model) return;
+      if (!Array.isArray(issues) || issues.length === 0) {
+        monaco.editor.setModelMarkers(model, 'fhcode-lint', []);
+        return;
+      }
+      const markers = issues.map((d) => ({
+        severity: d.severity === 1 ? monaco.MarkerSeverity.Error : d.severity === 2 ? monaco.MarkerSeverity.Warning : monaco.MarkerSeverity.Info,
+        message: '补全校验：' + (d.message || ''),
+        startLineNumber: d.line ?? 1,
+        startColumn: d.column ?? 1,
+        endLineNumber: d.line ?? 1,
+        endColumn: (d.column ?? 1) + (d.message?.length || 20),
+      }));
+      monaco.editor.setModelMarkers(model, 'fhcode-lint', markers);
+    });
+  }
+
   /** 暴露全局 API */
   global.FHMonaco = {
     init: initMonaco,
@@ -291,8 +354,10 @@
     getEditor: getEditor,
     disposeEditor: disposeEditor,
     detectLanguage: detectLanguage,
+    getActiveEditor: getActiveEditor,
     registerInlineCompletions: registerInlineCompletions,
     registerCompletionItems: registerCompletionItems,
     registerDiagnostics: registerDiagnostics,
+    showLintFeedback: showLintFeedback,
   };
 })(window);
