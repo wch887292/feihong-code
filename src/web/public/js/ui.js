@@ -792,6 +792,19 @@
           return [];
         }
       });
+
+      // P4-2: 语义诊断波浪线（编辑防抖调 /api/lsp/diagnostics，setModelMarkers 标注）
+      FHMonaco.registerDiagnostics(async function ({ filePath }) {
+        try {
+          const rel = String(filePath).replace(/^\/+/, '');
+          if (!rel || rel === 'untitled') return { diagnostics: [] };
+          const q = 'cwd=' + encodeURIComponent('') + '&file=' + encodeURIComponent(rel);
+          const d = await api('/api/lsp/diagnostics?' + q, 'GET');
+          return Array.isArray(d.diagnostics) ? { diagnostics: d.diagnostics } : { diagnostics: [] };
+        } catch (e) {
+          return { diagnostics: [] };
+        }
+      }, function () { return (typeof monacoEditor !== 'undefined') ? monacoEditor : null; });
     }
 
     function switchRightTab(name) {

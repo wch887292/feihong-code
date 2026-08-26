@@ -48,12 +48,11 @@ export class LspClient {
 
   /** 启动并完成 initialize 握手（真实 LSP 服务器） */
   async start(projectRoot: string, opts: { bin?: string; timeoutMs?: number } = {}): Promise<boolean> {
-    const bin = opts.bin ?? 'typescript-language-server';
     const timeoutMs = opts.timeoutMs ?? 15000;
     // 用 node 直接执行 tls 入口（require.resolve 定位，跨平台稳定，不依赖 npx/全局 PATH）
     let cliPath: string;
     try {
-      cliPath = opts.bin ? (opts.bin.includes('cli.mjs') ? opts.bin : opts.bin) : require.resolve('typescript-language-server/lib/cli.mjs');
+      cliPath = opts.bin ?? require.resolve('typescript-language-server/lib/cli.mjs');
     } catch {
       this.started = false;
       return false;

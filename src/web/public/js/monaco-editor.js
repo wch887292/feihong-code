@@ -190,6 +190,70 @@
     });
   }
 
+  /**
+   * 注册语义诊断 Provider（P4-2：编辑时错误波浪线）
+   * @param {function} fetchFn - 异步诊断函数，参数 {filePath, content}，返回 [{line, column, endLine, endColumn, message, severity}]
+   * @param {function} [getEditor] - 获取当前编辑器实例（默认遍历已注册编辑器）
+   */
+  function registerDiagnostics(fetchFn, getActiveEditor) {
+    initMonaco().then((monaco) => {
+      // 防抖 + 单飞，避免编辑时高频请求
+      let timer = null;
+      let inflight = false;
+      let queued = false;
+      const run = async function () {
+        if (inflight) { queued = true; return; }
+        const editor = typeof getActiveEditor === 'function' ? getActiveEditor() : null;
+        if (!editor || editor.isDisposed?.()) return;
+        const model = editor.getModel();
+        if (!model) return;
+        inflight = true;
+        try {
+          const filePath = model.uri.path || 'untitled';
+          const content = model.getValue();
+          const result = await fetchFn({ filePath, content });
+          if (!result || !Array.isArray(result.diagnostics)) {
+            monaco.editor.setModelMarkers(model, 'fhcode', []);
+            return;
+          }
+          const markers = result.diagnostics.map((d) => {
+            const sev = d.severity === 1 || d.severity === 'error'
+              ? monaco.MarkerSeverity.Error
+              : d.severity === 2 || d.severity === 'warning'
+                ? monaco.MarkerSeverity.Warning
+                : monaco.MarkerSeverity.Info;
+            return {
+              severity: sev,
+              message: d.message || '',
+              startLineNumber: d.line ?? 1,
+              startColumn: d.column ?? 1,
+              endLineNumber: d.endLine ?? (d.line ?? 1),
+              endColumn: d.endColumn ?? (d.column ?? 1) + (d.message?.length || 8),
+            };
+          });
+          monaco.editor.setModelMarkers(model, 'fhcode', markers);
+        } catch {
+          /* 诊断失败静默（不阻塞编辑） */
+        } finally {
+          inflight = false;
+          if (queued) { queued = false; timer = setTimeout(run, 200); }
+        }
+      };
+      const schedule = function () {
+        clearTimeout(timer);
+        timer = setTimeout(run, 350);
+      };
+      // 绑定现有编辑器（createEditor 后由 ui 层调用 attachDiagnostics 触发监听）
+      const editor = typeof getActiveEditor === 'function' ? getActiveEditor() : null;
+      if (editor && !editor.__fhDiagnosticsBound) {
+        editor.__fhDiagnosticsBound = true;
+        editor.onDidChangeModelContent(schedule);
+        editor.onDidChangeModel(() => schedule());
+      }
+      return { run, schedule };
+    });
+  }
+
   /** 暴露全局 API */
   global.FHMonaco = {
     init: initMonaco,
@@ -199,5 +263,6 @@
     detectLanguage: detectLanguage,
     registerInlineCompletions: registerInlineCompletions,
     registerCompletionItems: registerCompletionItems,
+    registerDiagnostics: registerDiagnostics,
   };
 })(window);

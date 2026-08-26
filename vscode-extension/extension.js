@@ -1,264 +1,305 @@
-/**
- * fhcode — 飞虹 Code VSCode 扩展（P6-3 增强版）
- *
- * 设计：不内置任何 Agent 逻辑，仅作为编辑器侧入口——
- *  1) `fhcode.run`：目标输入，**自动检测选区**，选中代码作为上下文注入目标
- *  2) `fhcode.diff`：列出工作区变更文件，用 VSCode **原生 diff 编辑器**
- *     就地展示 HEAD vs 工作区（TextDocumentContentProvider 提供 HEAD 内容）
- *  3) `fhcode.output`：查看最近一次任务输出（Output Channel）
- *
- * 二进制定位：设置 fhcode.binaryPath（默认 PATH 中的 fhcode）。
- * 依赖：用户需已安装 fhcode；diff 面板依赖 git（与 fhcode diff 一致）。
- */
 'use strict';
-
+/**
+ * 飞虹 Code (Muse Code 参照复刻)
+ * 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
+ *
+ * VS Code 薄壳扩展（纯 JS，免构建）：
+ *  - 行内补全：把光标前后缀 POST 到本地 /api/completion，结果包装为 InlineCompletionItem
+ *  - 侧边栏对话：Webview 调 submitTask / continueTask，轮询 getTask 渲染结果
+ *  - 逻辑下沉到 agent 端，扩展只做 UI 与协议桥接（符合"薄壳"原则）
+ *
+ * O2（补全质量）：此处对补全结果做客户端轻量后处理（去代码围栏、裁剪尾部不完整行、
+ * 去除与后缀重复的 prefix），作为服务端后处理就绪前的即时收益。
+ */
 const vscode = require('vscode');
-const { spawn, execFile } = require('child_process');
-const { join } = require('path');
+const { ApiClient } = require('./api-client');
+const {
+  stripCodeFences,
+  trimTrailingPartialLine,
+  dedupeAgainstSuffix,
+  postProcessCompletion,
+} = require('./completion-utils');
 
-const HEAD_SCHEME = 'fhcode-head';
+let apiClient = null;
+let statusBar = null;
 
-/** @param {vscode.ExtensionContext} context */
-function activate(context) {
-  // HEAD 内容提供器：fhcode-head://<workspace>/<relative-path> → git show HEAD:<path>
-  const provider = new (class {
-    provideTextDocumentContent(uri) {
-      return new Promise((resolve) => {
-        const rel = decodeURIComponent(uri.path).replace(/^\/+/, '');
-        const cwd = vscode.workspace.workspaceFolders?.[0]?.uri?.fsPath || process.cwd();
-        execFile('git', ['show', `HEAD:${rel}`], { cwd, maxBuffer: 10 * 1024 * 1024 }, (err, stdout) => {
-          resolve(err ? `（无法读取 HEAD 版本: ${err.message}）` : stdout);
-        });
-      });
+function cfg() {
+  return vscode.workspace.getConfiguration('fhcode');
+}
+
+function ensureClient() {
+  if (!apiClient) {
+    const c = cfg();
+    apiClient = new ApiClient(
+      c.get('serverUrl') || 'http://localhost:8080',
+      c.get('token') || '',
+      c.get('phone') || 'vscode-local',
+    );
+  }
+  return apiClient;
+}
+
+async function connect() {
+  const client = ensureClient();
+  const h = await client.health();
+  if (!h.ok) {
+    vscode.window.showErrorMessage(
+      `飞虹 Code 服务未连接（${client.serverUrl}）。请先在终端运行 "fhcode serve"（或启动桌面版）。`,
+    );
+    if (statusBar) statusBar.text = '$(error) 飞虹 Code 未连接';
+    return false;
+  }
+  if (!client.token) {
+    try {
+      await client.login();
+    } catch (e) {
+      vscode.window.showErrorMessage('飞虹 Code 登录失败：' + e.message);
+      return false;
     }
-  })();
-  context.subscriptions.push(vscode.workspace.registerTextDocumentContentProvider(HEAD_SCHEME, provider));
-
-  // M1.1b：内联评审诊断集合（按语言分组）
-  const diagnostics = vscode.languages.createDiagnosticCollection('fhcode');
-  context.subscriptions.push(diagnostics);
-
-  // M1.1b：CodeAction——为评审诊断提供「查看 fhcode 建议」修复动作
-  const codeActionProvider = vscode.languages.registerCodeActionsProvider(
-    [{ scheme: 'file' }],
-    {
-      provideCodeActions(document, range, ctx) {
-        const actions = [];
-        for (const diag of ctx.diagnostics) {
-          if (diag.source !== 'fhcode') continue;
-          const detail = diag.code || diag.message;
-          const action = new vscode.CodeAction(
-            `fhcode: ${diag.message}`,
-            vscode.CodeActionKind.QuickFix,
-          );
-          action.diagnostics = [diag];
-          action.command = {
-            command: 'fhcode.showSuggestion',
-            title: '查看 fhcode 建议',
-            arguments: [{ rule: diag.code, detail: detail }],
-          };
-          actions.push(action);
-        }
-        return actions;
-      },
-    },
-    { providedCodeActionKinds: [vscode.CodeActionKind.QuickFix] },
+  }
+  vscode.window.showInformationMessage(
+    `已连接飞虹 Code v${h.version} @ ${client.serverUrl}`,
   );
-  context.subscriptions.push(codeActionProvider);
+  if (statusBar) statusBar.text = `$(robot) 飞虹 Code v${h.version}`;
+  return true;
+}
+
+/* ========== O2：补全结果客户端后处理 ========== */
+/* 纯函数已抽离至 ./completion-utils（可单测），此处仅引用 */
+
+/* ========== 行内补全 Provider ========== */
+const inlineProvider = {
+  async provideInlineCompletionItems(document, position, context, token) {
+    const c = cfg();
+    if (c.get('enableInlineCompletion') === false) return undefined;
+    const client = apiClient;
+    if (!client || !client.token) return undefined;
+    if (token.isCancellationRequested) return undefined;
+
+    const fileContent = document.getText();
+    const cursorOffset = document.offsetAt(position);
+    const filePath = document.uri.fsPath;
+    const language = document.languageId;
+
+    try {
+      const res = await client.completion({
+        filePath,
+        fileContent,
+        cursorOffset,
+        mode: 'quick',
+        language,
+      });
+      if (!res || !res.ok || !Array.isArray(res.suggestions) || res.suggestions.length === 0) {
+        return undefined;
+      }
+      const raw = res.suggestions[0];
+      const text = typeof raw === 'string' ? raw : raw.text;
+      if (!text) return undefined;
+      const cleaned = postProcessCompletion(text, fileContent, cursorOffset);
+      if (!cleaned) return undefined;
+      const range = new vscode.Range(position, position);
+      return { items: [new vscode.InlineCompletionItem(cleaned, range)] };
+    } catch {
+      return undefined;
+    }
+  },
+};
+
+/* ========== 对话 Webview ========== */
+class ChatViewProvider {
+  constructor() {
+    this._view = null;
+    this._currentTaskId = null;
+  }
+
+  resolveWebviewView(webviewView) {
+    this._view = webviewView;
+    webviewView.webview.options = { enableScripts: true };
+    webviewView.webview.html = chatHtml();
+
+    webviewView.webview.onDidReceiveMessage(async (msg) => {
+      if (msg.type === 'ready') {
+        const ok = await connect();
+        webviewView.webview.postMessage({ type: 'status', connected: ok });
+        return;
+      }
+      if (msg.type === 'chat') {
+        const client = ensureClient();
+        if (!client.token) {
+          const ok = await connect();
+          if (!ok) return;
+        }
+        try {
+          let res;
+          if (this._currentTaskId) {
+            res = await client.continueTask(this._currentTaskId, msg.text);
+          } else {
+            res = await client.submitTask(msg.text, cfg().get('modelId') || '');
+          }
+          if (!res.ok) {
+            webviewView.webview.postMessage({ type: 'error', error: res.error });
+            return;
+          }
+          this._currentTaskId = res.task.id;
+          webviewView.webview.postMessage({ type: 'taskStarted', taskId: res.task.id });
+          this._poll(res.task.id);
+        } catch (e) {
+          webviewView.webview.postMessage({ type: 'error', error: e.message });
+        }
+        return;
+      }
+      if (msg.type === 'stop') {
+        if (this._currentTaskId) {
+          await ensureClient().stopTask(this._currentTaskId);
+        }
+        return;
+      }
+      if (msg.type === 'reset') {
+        this._currentTaskId = null;
+        return;
+      }
+    });
+  }
+
+  async _poll(taskId) {
+    const client = ensureClient();
+    for (let i = 0; i < 180; i++) {
+      if (!this._view) return;
+      try {
+        const t = await client.getTask(taskId);
+        if (t && t.task) {
+          this._view.webview.postMessage({ type: 'task', task: t.task });
+          const st = t.task.status;
+          if (st === 'completed' || st === 'failed') {
+            this._view.webview.postMessage({ type: 'taskDone', status: st });
+            return;
+          }
+        }
+      } catch {
+        /* ignore transient */
+      }
+      await new Promise((r) => setTimeout(r, 1500));
+    }
+  }
+}
+
+function chatHtml() {
+  return `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<style>
+  body{font-family:-apple-system,Segoe UI,Roboto, sans-serif;margin:0;padding:8px;display:flex;flex-direction:column;height:100vh;box-sizing:border-box;background:#1e1e1e;color:#ddd;}
+  #status{font-size:11px;color:#888;padding:4px 2px;}
+  #log{flex:1;overflow:auto;font-size:13px;line-height:1.5;padding:4px;}
+  .msg{border-radius:6px;padding:6px 8px;margin:6px 0;white-space:pre-wrap;word-break:break-word;}
+  .user{background:#094771;align-self:flex-end;}
+  .agent{background:#2a2a2a;}
+  .sys{color:#999;font-size:11px;text-align:center;}
+  #bar{display:flex;gap:6px;padding:6px 2px 0;border-top:1px solid #333;}
+  textarea{flex:1;resize:none;height:48px;background:#252526;color:#ddd;border:1px solid #444;border-radius:4px;padding:6px;font-family:inherit;font-size:13px;}
+  button{background:#0e639c;color:#fff;border:none;border-radius:4px;padding:0 12px;cursor:pointer;}
+  button:disabled{opacity:.5;cursor:default;}
+</style>
+</head>
+<body>
+  <div id="status">正在连接飞虹 Code…</div>
+  <div id="log"></div>
+  <div id="bar">
+    <textarea id="input" placeholder="把任务发给飞虹 Code（本地私有 Agent）…"></textarea>
+    <button id="send">发送</button>
+    <button id="stop">停止</button>
+  </div>
+<script>
+  const vscode = acquireVsCodeApi();
+  const log = document.getElementById('log');
+  const status = document.getElementById('status');
+  const input = document.getElementById('input');
+  const send = document.getElementById('send');
+  const stop = document.getElementById('stop');
+
+  function add(cls, text){ const d=document.createElement('div'); d.className='msg '+cls; d.textContent=text; log.appendChild(d); log.scrollTop=log.scrollHeight; }
+  function setStatus(t){ status.textContent=t; }
+
+  send.onclick = ()=>{
+    const text = input.value.trim(); if(!text) return;
+    add('user', text); input.value='';
+    vscode.postMessage({type:'chat', text});
+  };
+  stop.onclick = ()=>{ vscode.postMessage({type:'stop'}); setStatus('已请求停止…'); };
+  input.addEventListener('keydown', e=>{ if((e.ctrlKey||e.metaKey)&&e.key==='Enter') send.onclick(); });
+
+  window.addEventListener('message', e=>{
+    const m = e.data;
+    if(m.type==='status'){ setStatus(m.connected?'已连接 ✓':'未连接（先运行 fhcode serve）'); }
+    else if(m.type==='taskStarted'){ setStatus('任务运行中…'); }
+    else if(m.type==='task'){
+      const t=m.task;
+      if(Array.isArray(t.conversation)){ t.conversation.forEach(c=>{ if(c.role==='assistant') add('agent', c.content||''); }); }
+    }
+    else if(m.type==='taskDone'){ setStatus('任务'+m.status+' ✓'); }
+    else if(m.type==='error'){ add('sys','⚠️ '+m.error); }
+  });
+  vscode.postMessage({type:'ready'});
+</script>
+</body>
+</html>`;
+}
+
+/* ========== 激活 ========== */
+function activate(context) {
+  statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+  statusBar.text = '$(robot) 飞虹 Code';
+  statusBar.command = 'fhcode.openChat';
+  statusBar.show();
+  context.subscriptions.push(statusBar);
+
+  const chatProvider = new ChatViewProvider();
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider('fhcode.chat', chatProvider),
+  );
+
+  if (cfg().get('enableInlineCompletion') !== false) {
+    context.subscriptions.push(
+      vscode.languages.registerInlineCompletionItemProvider({ pattern: '**' }, inlineProvider),
+    );
+  }
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('fhcode.run', runTask),
-    vscode.commands.registerCommand('fhcode.diff', showDiff),
-    vscode.commands.registerCommand('fhcode.output', showOutput),
-    vscode.commands.registerCommand('fhcode.review', () => runReview(diagnostics)),
-    vscode.commands.registerCommand('fhcode.showSuggestion', showSuggestion),
+    vscode.commands.registerCommand('fhcode.connect', () => connect()),
+    vscode.commands.registerCommand('fhcode.openChat', () => {
+      vscode.commands.executeCommand('workbench.view.extension.fhcode');
+    }),
+    vscode.commands.registerCommand('fhcode.submitSelection', async () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) return;
+      const sel = editor.document.getText(editor.selection);
+      if (!sel) {
+        vscode.window.showInformationMessage('请先选中一段代码再发送');
+        return;
+      }
+      const ok = await connect();
+      if (!ok) return;
+      const res = await ensureClient().submitTask(
+        '请分析并改进以下代码：\n\n' + sel,
+        cfg().get('modelId') || '',
+      );
+      if (res.ok) vscode.window.showInformationMessage('已提交任务 ' + res.task.id);
+      else vscode.window.showErrorMessage(res.error || '提交失败');
+    }),
+    vscode.commands.registerCommand('fhcode.toggleInlineCompletion', () => {
+      const c = cfg();
+      const next = !(c.get('enableInlineCompletion') !== false);
+      c.update('enableInlineCompletion', next, vscode.ConfigurationTarget.Global);
+      vscode.window.showInformationMessage('飞虹 Code 行内补全：' + (next ? '开' : '关'));
+    }),
   );
 
-  // M1.1b：文件保存后自动评审（默认开启，可用 fhcode.reviewOnSave 关闭）
-  if (vscode.workspace.getConfiguration('fhcode').get('reviewOnSave', true)) {
-    context.subscriptions.push(
-      vscode.workspace.onDidSaveTextDocument((doc) => {
-        if (doc.uri.scheme === 'file') runReview(diagnostics, doc.uri);
-      }),
-    );
-  }
-}
-
-/** 执行 fhcode 命令并捕获 stdout（JSON 等结构化输出用） */
-function execFhcodeCapture(args) {
-  return new Promise((resolve) => {
-    const bin = vscode.workspace.getConfiguration('fhcode').get('binaryPath', 'fhcode');
-    const cwd = vscode.workspace.workspaceFolders?.[0]?.uri?.fsPath || process.cwd();
-    const child = spawn(bin, args, { cwd, shell: true });
-    let out = '';
-    let err = '';
-    child.stdout?.on('data', (d) => (out += d.toString()));
-    child.stderr?.on('data', (d) => (err += d.toString()));
-    child.on('error', (e) => resolve({ code: 1, stdout: '', stderr: e.message }));
-    child.on('close', (code) => resolve({ code: code ?? 1, stdout: out, stderr: err }));
+  // 启动即尝试连接，给出状态
+  connect().then((ok) => {
+    if (!ok && statusBar) statusBar.text = '$(error) 飞虹 Code 未连接';
   });
-}
-
-/**
- * M1.1b：对活动文件/指定 URI 跑 `fhcode review <file> --json`，
- * 把 findings 映射为编辑器内联诊断（critical/high→Error，medium→Warning，low→Information）。
- */
-async function runReview(diagnostics, uri) {
-  const folder = vscode.workspace.workspaceFolders?.[0];
-  if (!folder) {
-    vscode.window.showErrorMessage('请先打开一个工作区文件夹');
-    return;
-  }
-  const target = uri || vscode.window.activeTextEditor?.document.uri;
-  if (!target) {
-    vscode.window.showInformationMessage('没有活动文件可评审');
-    return;
-  }
-  const doc = await vscode.workspace.openTextDocument(target);
-  const rel = vscode.workspace.asRelativePath(target).replace(/\\/g, '/');
-  const { stdout } = await execFhcodeCapture(['review', rel, '--json']);
-  let parsed;
-  try {
-    parsed = JSON.parse(stdout);
-  } catch {
-    vscode.window.showErrorMessage('fhcode review 输出解析失败，请确认 CLI 已安装且支持 --json');
-    return;
-  }
-  const sevMap = { critical: 0, high: 0, medium: 1, low: 2 }; // Error/Warning/Information
-  const entries = [];
-  for (const f of parsed.findings || []) {
-    const line = Math.max(0, (f.line || 1) - 1);
-    const range = new vscode.Range(line, 0, line, Math.max(1, doc.lineAt(line).text.length));
-    const severity = sevMap[f.severity] !== undefined ? sevMap[f.severity] : 2;
-    const diag = new vscode.Diagnostic(range, `${f.detail}（${f.rule}）`, severity);
-    diag.source = 'fhcode';
-    diag.code = f.rule;
-    entries.push([target, [diag]]);
-  }
-  diagnostics.set(entries);
-  const n = entries.length;
-  vscode.window.setStatusBarMessage(
-    n === 0 ? 'fhcode review：未发现问题 ✅' : `fhcode review：发现 ${n} 个问题`,
-    4000,
-  );
-}
-
-/** M1.1b：展示评审建议详情（quick fix 动作） */
-function showSuggestion(args) {
-  const { rule, detail } = args || {};
-  vscode.window.showInformationMessage(`[fhcode ${rule}] ${detail}`);
-}
-
-/** 执行一个 fhcode 命令并流式输出到 Output Channel */
-function execFhcode(channel, args) {
-  return new Promise((resolve) => {
-    const bin = vscode.workspace
-      .getConfiguration('fhcode')
-      .get('binaryPath', 'fhcode');
-    const cwd = vscode.workspace.workspaceFolders?.[0]?.uri?.fsPath || process.cwd();
-    channel.appendLine(`$ ${bin} ${args.join(' ')}  (cwd: ${cwd})`);
-
-    const child = spawn(bin, args, { cwd, shell: true });
-    child.stdout?.on('data', (d) => channel.append(d.toString()));
-    child.stderr?.on('data', (d) => channel.append(d.toString()));
-    child.on('error', (e) => {
-      channel.appendLine(`[fhcode] 启动失败: ${e.message}`);
-      channel.show(true);
-      resolve({ code: 1 });
-    });
-    child.on('close', (code) => {
-      channel.appendLine(`\n[fhcode] 退出码 ${code ?? 1}`);
-      channel.show(true);
-      resolve({ code: code ?? 1 });
-    });
-  });
-}
-
-/** 获取当前编辑器选区文本（无选区返回 null） */
-function getSelectionText() {
-  const editor = vscode.window.activeTextEditor;
-  if (!editor) return null;
-  const sel = editor.selection;
-  if (sel.isEmpty) return null;
-  const text = editor.document.getText(sel).trim();
-  return text || null;
-}
-
-/** fhcode.run：询问目标 →（有选区时附加上下文）→ 执行任务 */
-async function runTask() {
-  const selection = getSelectionText();
-  const prompt = selection
-    ? 'fhcode 任务目标（将附加当前选区为上下文）'
-    : 'fhcode 任务目标（自然语言）';
-  const goal = await vscode.window.showInputBox({
-    prompt,
-    placeHolder: '例如: 修复 src/auth.ts 中的 token 校验 bug',
-    ignoreFocusOut: true,
-  });
-  if (!goal) return;
-
-  let finalGoal = goal;
-  if (selection) {
-    const pick = await vscode.window.showQuickPick(
-      ['✅ 附带选区上下文', '忽略选区'],
-      { placeHolder: '检测到选中代码，如何处理？', ignoreFocusOut: true },
-    );
-    if (pick === '✅ 附带选区上下文') {
-      const lang = vscode.window.activeTextEditor?.document.languageId || '';
-      finalGoal += `\n\n<selection context="${lang}">\n${selection}\n</selection>`;
-    }
-  }
-
-  const offline = vscode.workspace.getConfiguration('fhcode').get('offline', false);
-  const channel = vscode.window.createOutputChannel('fhcode');
-  const args = offline ? ['--offline'] : [];
-  await execFhcode(channel, [...args, '--yes', finalGoal]);
-}
-
-/** 列出工作区变更文件（git diff --name-only，含未跟踪的简化处理） */
-function listChangedFiles() {
-  return new Promise((resolve) => {
-    const cwd = vscode.workspace.workspaceFolders?.[0]?.uri?.fsPath || process.cwd();
-    execFile('git', ['diff', '--name-only'], { cwd }, (err, stdout) => {
-      if (err) return resolve([]);
-      const files = stdout
-        .split('\n')
-        .map((s) => s.trim())
-        .filter(Boolean);
-      resolve(files);
-    });
-  });
-}
-
-/** fhcode.diff：用 VSCode 原生 diff 编辑器就地展示 HEAD vs 工作区 */
-async function showDiff() {
-  const folder = vscode.workspace.workspaceFolders?.[0];
-  if (!folder) {
-    vscode.window.showErrorMessage('请先打开一个工作区文件夹');
-    return;
-  }
-  const files = await listChangedFiles();
-  if (files.length === 0) {
-    vscode.window.showInformationMessage('工作区没有已跟踪的变更文件');
-    return;
-  }
-  const pick = await vscode.window.showQuickPick(files, {
-    placeHolder: `选择要查看 diff 的文件（共 ${files.length} 个变更）`,
-    ignoreFocusOut: true,
-  });
-  if (!pick) return;
-
-  const workspaceRoot = folder.uri.fsPath;
-  const rel = pick.replace(/\\/g, '/');
-  // HEAD 版本：fhcode-head://<root>/<rel>
-  const headUri = vscode.Uri.parse(`${HEAD_SCHEME}://${encodeURIComponent(workspaceRoot)}/${rel}`);
-  const workUri = vscode.Uri.file(join(workspaceRoot, ...rel.split('/')));
-  await vscode.commands.executeCommand('vscode.diff', headUri, workUri, `${rel} (HEAD ↔ 工作区)`);
-}
-
-/** fhcode.output：聚焦最近任务输出 */
-function showOutput() {
-  vscode.window.createOutputChannel('fhcode').show(true);
 }
 
 function deactivate() {}

@@ -1,0 +1,32 @@
+{
+  "name": "测试工程师",
+  "description": "自动生成测试用例，包括单元测试、集成测试和边界情况测试",
+  "systemPrompt": "你是一位资深测试工程师。请为提供的代码生成完整的测试用例，包括：\n1. 正常流程测试\n2. 边界情况测试\n3. 异常情况测试\n4. 性能测试（如适用）\n\n输出要求：\n- 使用项目已有的测试框架\n- 每个测试用例包含清晰的描述\n- 覆盖所有分支和异常路径\n- 给出测试覆盖率评估",
+  "tools": [
+    "read_file",
+    "write_file",
+    "run_command"
+  ],
+  "modelConfig": {
+    "temperature": 0.5,
+    "maxTokens": 2000,
+    "timeoutMs": 30000
+  },
+  "triggers": [
+    "测试",
+    "test",
+    "单元测试",
+    "单测",
+    "test case"
+  ],
+  "icon": "🧪",
+  "category": "testing",
+  "enabled": true,
+  "author": "飞虹 Code",
+  "version": "1.0.0",
+  "id": "builtin-测试工程师",
+  "createdAt": "2026-08-26T13:38:01.607Z",
+  "updatedAt": "2026-08-26T13:38:01.607Z",
+  "usageCount": 0,
+  "builtin": true
+}

@@ -20,6 +20,7 @@ import type { ChatMessage } from '../models/model.interface';
 import { logger } from '../shared/logger';
 import type { CodeGraph, SymbolEntry } from './symbol-index';
 import { searchSymbols, getDependencies, symbolsForFile } from './symbol-index';
+import { postProcessCompletion, scoreCompletion } from './completion-postprocess';
 
 /** 补全请求 */
 export interface CompletionRequest {
@@ -255,7 +256,8 @@ export class CompletionEngine {
 
       // 5. 解析和校验补全结果
       const rawText = resp.message.content || '';
-      const suggestions = this.parseAndValidate(rawText, req.language || 'typescript');
+      const { suffix } = this.extractContext(req);
+      const suggestions = this.parseAndValidate(rawText, req.language || 'typescript', suffix);
 
       const result: CompletionResult = {
         suggestions,
@@ -332,31 +334,52 @@ ${suffix}
   }
 
   /** 解析并校验补全结果 */
-  private parseAndValidate(rawText: string, language: string): CompletionSuggestion[] {
+  private parseAndValidate(rawText: string, language: string, suffix?: string): CompletionSuggestion[] {
     if (!rawText || !rawText.trim()) return [];
 
-    // 去除可能的代码块标记
-    let text = rawText.trim();
-    text = text.replace(/^```[\w]*\n?/, '').replace(/\n?```$/, '').trim();
+    // P4-4: 多候选拆分（模型输出含多个代码块时各作为候选），主建议保持原逻辑不变
+    const candidates = this.splitCandidates(rawText);
+    const results: CompletionSuggestion[] = [];
+    for (const cand of candidates) {
+      // O2: 后处理（去围栏、去后缀重复、裁半截行、质量打分）
+      const processed = postProcessCompletion(cand.trim(), { suffix });
+      if (!processed) continue;
 
-    // 语法校验（近似：检查括号平衡、引号平衡）
-    if (this.config.enableSyntaxCheck && !this.passesSyntaxCheck(text, language)) {
-      logger.debug('completion failed syntax check', { text: text.slice(0, 50) });
-      return [];
+      // 语法校验（近似：检查括号平衡、引号平衡）
+      if (this.config.enableSyntaxCheck && !this.passesSyntaxCheck(processed, language)) {
+        logger.debug('completion failed syntax check', { text: processed.slice(0, 50) });
+        continue;
+      }
+
+      // 判断补全类型
+      const kind = this.inferKind(processed);
+
+      // 生成预览
+      const preview = processed.replace(/\n/g, ' ').slice(0, 80);
+      const confidence = Math.round(scoreCompletion(processed) * 100) / 100;
+
+      results.push({
+        text: processed,
+        kind,
+        confidence,
+        preview,
+      });
     }
+    // 按置信度降序，最多返回 3 个候选
+    return results.sort((a, b) => b.confidence - a.confidence).slice(0, 3);
+  }
 
-    // 判断补全类型
-    const kind = this.inferKind(text);
-
-    // 生成预览
-    const preview = text.replace(/\n/g, ' ').slice(0, 80);
-
-    return [{
-      text,
-      kind,
-      confidence: 0.7, // 模型不返回置信度时给默认值
-      preview,
-    }];
+  /** P4-4: 从模型响应拆分多候选——多个代码块时各自成候选，否则单候选 */
+  private splitCandidates(rawText: string): string[] {
+    const fences: string[] = [];
+    const re = /```[a-zA-Z0-9]*\s*\n([\s\S]*?)\n```/g;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(rawText)) !== null) {
+      const body = m[1].trim();
+      if (body) fences.push(body);
+    }
+    if (fences.length >= 2) return fences;
+    return [rawText];
   }
 
   /** 近似语法校验：检查括号和引号平衡 */
