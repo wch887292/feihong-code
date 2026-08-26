@@ -33,6 +33,7 @@ import {
   runDoctor,
   runPluginCmd,
   runSkillMarketCmd,
+runSkillNewCmd,
   runReviewCmd,
   runTeamCmd,
   runServe,
@@ -134,6 +135,7 @@ async function dispatchManage(m: ManagementCommand): Promise<void> {
     case 'tui': runTui(); break;
     case 'plugin': await runPluginCmd(m.action, m.source); break;
     case 'skill-market': await runSkillMarketCmd(m.action, m.query, m.market); break;
+    case 'skill-new': await runSkillNewCmd(m.name, { template: m.template, global: m.global }); break;
     case 'review': runReviewCmd(m.path, m.json); break;
     case 'team': await runTeamCmd(m.goal); break;
     case 'serve': runServe(m.port); break;

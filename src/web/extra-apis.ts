@@ -19,6 +19,7 @@ import {
 import { createPluginManager } from '../plugins/manager';
 import { createSelfCorrector } from '../agent/self-correction';
 import { createLspService } from '../lsp/lsp-service';
+import { LspClient } from '../lsp/lsp-client';
 
 type ExpressApp = ReturnType<typeof express>;
 
@@ -268,6 +269,70 @@ export function registerExtraApis(app: ExpressApp, opts: ExtraApisOptions): void
     const q = req.query.cwd;
     return q ? String(q) : process.cwd();
   };
+  /** P1-1: 编译器级 LSP 客户端单例（按 cwd 缓存） */
+  const compilerClients = new Map<string, LspClient>();
+  const getCompilerClient = async (cwd: string): Promise<LspClient | null> => {
+    let c = compilerClients.get(cwd);
+    if (c && c.isRunning) return c;
+    if (c) { c.close(); compilerClients.delete(cwd); }
+    c = new LspClient();
+    const ok = await c.start(cwd, { timeoutMs: 12000 });
+    if (!ok) {
+      compilerClients.delete(cwd);
+      return null;
+    }
+    compilerClients.set(cwd, c);
+    return c;
+  };
+  const compilerUri = (cwd: string, file: string): string =>
+    'file:///' + join(cwd, file).replace(/\\/g, '/').replace(/^\/+/, '');
+  // 编译器级 hover（真实 LSP 服务器；失败回退语义层并标注）
+  app.post('/api/lsp/compiler/hover', async (req: Request, res: Response) => {
+    const { file, text, line, character } = (req.body ?? {}) as { file?: string; text?: string; line?: number; character?: number };
+    if (!file || typeof text !== 'string' || line === undefined || character === undefined) {
+      res.json({ ok: false, error: '缺少 file/text/line/character' });
+      return;
+    }
+    const cwd = lspCwd(req);
+    const uri = compilerUri(cwd, file);
+    try {
+      const client = await getCompilerClient(cwd);
+      if (!client) {
+        // fallback：自建语义层（编译器不可用时降级）
+        const hover = lsp.getHover(cwd, file, Number(line));
+        res.json({ ok: true, hover, compiler: false, fallback: '自建语义层（typescript-language-server 不可用）' });
+        return;
+      }
+      client.didOpen(uri, text);
+      const hover = await client.hover(uri, Number(line), Number(character));
+      res.json({ ok: true, hover, compiler: true });
+    } catch (e) {
+      res.json({ ok: false, error: String((e as Error)?.message ?? e), compiler: false });
+    }
+  });
+  // 编译器级 definition（真实 LSP 服务器）
+  app.post('/api/lsp/compiler/definition', async (req: Request, res: Response) => {
+    const { file, text, line, character } = (req.body ?? {}) as { file?: string; text?: string; line?: number; character?: number };
+    if (!file || typeof text !== 'string' || line === undefined || character === undefined) {
+      res.json({ ok: false, error: '缺少 file/text/line/character' });
+      return;
+    }
+    const cwd = lspCwd(req);
+    const uri = compilerUri(cwd, file);
+    try {
+      const client = await getCompilerClient(cwd);
+      if (!client) {
+        const def = lsp.getDefinition(cwd, file, Number(line));
+        res.json({ ok: true, definition: def, compiler: false, fallback: '自建语义层' });
+        return;
+      }
+      client.didOpen(uri, text);
+      const definition = await client.definition(uri, Number(line), Number(character));
+      res.json({ ok: true, definition, compiler: true });
+    } catch (e) {
+      res.json({ ok: false, error: String((e as Error)?.message ?? e), compiler: false });
+    }
+  });
   app.get('/api/lsp/graph', (req: Request, res: Response) => {
     const cwd = lspCwd(req);
     try { res.json({ ok: true, summary: lsp.getGraphSummary(cwd) }); }

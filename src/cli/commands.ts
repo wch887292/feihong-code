@@ -40,6 +40,7 @@ export type ManagementCommand =
   | { kind: 'tui' }
   | { kind: 'plugin'; action: 'install' | 'list'; source?: string }
   | { kind: 'skill-market'; action: 'search' | 'install' | 'list'; query?: string; market?: string }
+  | { kind: 'skill-new'; name: string; template?: string; global?: boolean }
   | { kind: 'review'; path: string; json: boolean }
   | { kind: 'team'; goal: string }
   | { kind: 'serve'; port?: number }
@@ -83,6 +84,9 @@ export interface ParsedArgs {
     offset?: number;
     mode?: string;
     report?: string;
+    /** P0-3: skill-new 脚手架参数 */
+    template?: string;
+    global?: boolean;
   };
   /** 单命令模式下的需求文本（首个非 flag 参数） */
   command?: string;
@@ -183,6 +187,12 @@ const MANAGE_BUILDERS: Record<string, ManageBuilder> = {
     action: rest[0] === 'search' || rest[0] === 'install' ? rest[0] : 'list',
     query: rest[1],
     market: flags.repo, // 复用 --repo 承载市场源地址
+  }),
+  'skill-new': ({ flags, rest }) => ({
+    kind: 'skill-new',
+    name: rest[0] ?? '',
+    template: flags.template,
+    global: !!flags.global,
   }),
   review: ({ flags, rest }) => ({ kind: 'review', path: rest[0] || '.', json: !!flags.json }),
   team: ({ rest }) => ({ kind: 'team', goal: rest.join(' ') || '协作开发' }),

@@ -112,6 +112,46 @@ jobs:
       - run: npm audit --omit=dev --audit-level=high
         continue-on-error: true
 
+  # ---------- 3b. 供应链安全：依赖漏洞 + SBOM（P0-2） ----------
+  supplychain:
+    name: 供应链安全 · 依赖扫描 + SBOM
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install
+      # 1) npm audit：生产依赖 high 及以上漏洞视为失败（供应链准入证据）
+      - name: npm audit（生产依赖 high+）
+        run: npm audit --omit=dev --audit-level=high
+      # 2) osv-scanner：OSV 数据库全量扫描 lockfile
+      - name: osv-scanner（OSV 全量漏洞库）
+        uses: google/osv-scanner/actions/scanner@v2
+        with:
+          scan-args: |-
+            --format=sarif
+            --output=osv-scanner.sarif
+            .
+      - name: 上传 osv-scanner 结果
+        uses: actions/upload-artifact@v4
+        with:
+          name: osv-scanner.sarif
+          path: osv-scanner.sarif
+      # 3) SBOM 生成（CycloneDX，随版本发布的供应链物料清单）
+      - name: 生成 SBOM（CycloneDX）
+        run: |
+          npx --yes @cyclonedx/cyclonedx-npm --output-file sbom.cdx.json --omit dev
+          echo "SBOM 已生成"
+      - name: 上传 SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom.cdx.json
+          path: sbom.cdx.json
+      - name: SBOM 冒烟（非空 + 合法 JSON）
+        run: |
+          node -e "const s=require('./sbom.cdx.json'); if(!s.components||s.components.length===0){process.exit(1)} console.log('SBOM 组件数:', s.components.length)"
+
   # ---------- 4. 容器镜像构建校验（稳定部署） ----------
   docker:
     name: Docker 镜像构建校验

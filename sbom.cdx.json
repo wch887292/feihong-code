@@ -1,0 +1,3914 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "version": 1,
+  "serialNumber": "urn:uuid:90e088de-44c3-4931-9d42-2c468561140b",
+  "metadata": {
+    "timestamp": "2026-08-26T21:17:09.614Z",
+    "tools": {
+      "components": [
+        {
+          "type": "application",
+          "name": "npm",
+          "version": "10.8.2"
+        },
+        {
+          "type": "application",
+          "name": "cyclonedx-npm",
+          "group": "@cyclonedx",
+          "version": "6.0.1",
+          "author": "Jan Kowalleck",
+          "description": "Create CycloneDX Software Bill of Materials (SBOM) from NPM projects.",
+          "licenses": [
+            {
+              "license": {
+                "id": "Apache-2.0"
+              }
+            }
+          ],
+          "externalReferences": [
+            {
+              "url": "git+https://github.com/CycloneDX/cyclonedx-node-npm.git",
+              "type": "vcs",
+              "comment": "as detected from PackageJson property \"repository.url\""
+            },
+            {
+              "url": "https://github.com/CycloneDX/cyclonedx-node-npm#readme",
+              "type": "website",
+              "comment": "as detected from PackageJson property \"homepage\""
+            },
+            {
+              "url": "https://github.com/CycloneDX/cyclonedx-node-npm/issues",
+              "type": "issue-tracker",
+              "comment": "as detected from PackageJson property \"bugs.url\""
+            }
+          ],
+          "properties": [
+            {
+              "name": "cdx:npm:package:constraint:engine:node",
+              "value": ">=20.18.0"
+            },
+            {
+              "name": "cdx:npm:package:constraint:engine:npm",
+              "value": ">=9"
+            }
+          ]
+        },
+        {
+          "type": "library",
+          "name": "cyclonedx-library",
+          "group": "@cyclonedx",
+          "version": "10.2.0",
+          "author": "Jan Kowalleck",
+          "description": "Core functionality of CycloneDX for JavaScript (Node.js or WebBrowser).",
+          "licenses": [
+            {
+              "license": {
+                "id": "Apache-2.0"
+              }
+            }
+          ],
+          "externalReferences": [
+            {
+              "url": "git+https://github.com/CycloneDX/cyclonedx-javascript-library.git",
+              "type": "vcs",
+              "comment": "as detected from PackageJson property \"repository.url\""
+            },
+            {
+              "url": "https://github.com/CycloneDX/cyclonedx-javascript-library#readme",
+              "type": "website",
+              "comment": "as detected from PackageJson property \"homepage\""
+            },
+            {
+              "url": "https://github.com/CycloneDX/cyclonedx-javascript-library/issues",
+              "type": "issue-tracker",
+              "comment": "as detected from PackageJson property \"bugs.url\""
+            }
+          ],
+          "properties": [
+            {
+              "name": "cdx:npm:package:constraint:engine:node",
+              "value": ">=20.18.0"
+            }
+          ]
+        }
+      ]
+    },
+    "component": {
+      "type": "application",
+      "name": "feihong-code",
+      "version": "7.2.0",
+      "bom-ref": "feihong-code@7.2.0",
+      "author": "吴赐虹",
+      "description": "fhcode（飞虹 Code）— 终端 AI 编程智能体，对标 Muse Code / Cursor CLI：多模型路由（DeepSeek/通义/Ollama/OpenAI）、企业级 RBAC 审计、全自动 SWE Agent、支持离线私有化",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/feihong-code@7.2.0?vcs_url=git%2Bhttps%3A%2F%2Fgithub.com%2Fwch887292%2Ffeihong-code.git",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/wch887292/feihong-code.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://www.klai.top",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/wch887292/feihong-code/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">=18.0.0"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": ""
+        }
+      ]
+    }
+  },
+  "components": [
+    {
+      "type": "library",
+      "name": "core",
+      "group": "@capacitor",
+      "version": "8.5.0",
+      "bom-ref": "feihong-code@7.2.0|@capacitor/core@8.5.0",
+      "author": "Ionic Team",
+      "description": "Capacitor: Cross-platform apps with JavaScript and the web",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40capacitor/core@8.5.0?download_url=https%3A%2F%2Fregistry.npmmirror.com%2F%40capacitor%2Fcore%2F-%2Fcore-8.5.0.tgz",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/ionic-team/capacitor.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://capacitorjs.com",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/ionic-team/capacitor/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmmirror.com/@capacitor/core/-/core-8.5.0.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "09ae24aeda87d61a2d863b412307f62764d6ec8858ab5ba3a7c41e22d4e226884db2a8a3f236b60d8607dc353497c466c4259a040153180d9380e80e30248db1"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@capacitor/core"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "express",
+      "version": "4.22.2",
+      "bom-ref": "feihong-code@7.2.0|express@4.22.2",
+      "author": "TJ Holowaychuk",
+      "description": "Fast, unopinionated, minimalist web framework",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/express@4.22.2",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/expressjs/express.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "http://expressjs.com/",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/expressjs/express/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 0.10.0"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/express"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "monaco-editor",
+      "version": "0.56.0",
+      "bom-ref": "feihong-code@7.2.0|monaco-editor@0.56.0",
+      "author": "Microsoft Corporation",
+      "description": "A browser based code editor",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/monaco-editor@0.56.0?download_url=https%3A%2F%2Fregistry.npmmirror.com%2Fmonaco-editor%2F-%2Fmonaco-editor-0.56.0.tgz",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/microsoft/monaco-editor.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/microsoft/monaco-editor",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/microsoft/monaco-editor/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmmirror.com/monaco-editor/-/monaco-editor-0.56.0.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "b176e8466dc178178b9bddfc79a8b22cc7b43b1cdf5c8959bdbbf88abfe3560432d730e15a38269f2d16a0de397ee0ca842090b1831b049aeffc0ea377c68252"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/monaco-editor"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "playwright-core",
+      "version": "1.62.1",
+      "bom-ref": "feihong-code@7.2.0|playwright-core@1.62.1",
+      "author": "Microsoft Corporation",
+      "description": "A high-level API to automate web browsers",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/playwright-core@1.62.1?download_url=https%3A%2F%2Fregistry.npmmirror.com%2Fplaywright-core%2F-%2Fplaywright-core-1.62.1.tgz",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/microsoft/playwright.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://playwright.dev",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/microsoft/playwright/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmmirror.com/playwright-core/-/playwright-core-1.62.1.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "c0f612c0404963d187ada2125eacaab71d276b42e93b75c45fb8cd0e19ed6dec7bb73512ee42e766c3a516bb85241e078bfae10cc8d71aa1dec0367af2761957"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">=20"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/playwright-core"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "zod",
+      "version": "4.4.3",
+      "bom-ref": "feihong-code@7.2.0|zod@4.4.3",
+      "author": "Colin McDonnell",
+      "description": "TypeScript-first schema declaration and validation library with static type inference",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/zod@4.4.3",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/colinhacks/zod.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://zod.dev",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/colinhacks/zod/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/zod"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "tslib",
+      "version": "2.8.1",
+      "bom-ref": "feihong-code@7.2.0|tslib@2.8.1",
+      "author": "Microsoft Corp.",
+      "description": "Runtime library for TypeScript helper functions",
+      "licenses": [
+        {
+          "license": {
+            "id": "0BSD",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/tslib@2.8.1?download_url=https%3A%2F%2Fregistry.npmmirror.com%2Ftslib%2F-%2Ftslib-2.8.1.tgz",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/Microsoft/tslib.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://www.typescriptlang.org/",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/Microsoft/TypeScript/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmmirror.com/tslib/-/tslib-2.8.1.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "a0916ef781d06fe29576e49440bef09e99aa9df98bb0e03f9c087a6fa107d30084a0ad3f98f79753a737c0a0d5f373243ae1cf447b525ca294f7d2016b34bfdb"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/tslib"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "accepts",
+      "version": "1.3.8",
+      "bom-ref": "feihong-code@7.2.0|accepts@1.3.8",
+      "description": "Higher-level content negotiation",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/accepts@1.3.8",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/jshttp/accepts.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/jshttp/accepts#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/jshttp/accepts/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 0.6"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/accepts"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "array-flatten",
+      "version": "1.1.1",
+      "bom-ref": "feihong-code@7.2.0|array-flatten@1.1.1",
+      "author": "Blake Embrey",
+      "description": "Flatten an array of nested arrays into a single flat array",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/array-flatten@1.1.1",
+      "externalReferences": [
+        {
+          "url": "git://github.com/blakeembrey/array-flatten.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/blakeembrey/array-flatten",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/blakeembrey/array-flatten/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/array-flatten"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "body-parser",
+      "version": "1.20.6",
+      "bom-ref": "feihong-code@7.2.0|body-parser@1.20.6",
+      "description": "Node.js body parsing middleware",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/body-parser@1.20.6",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/expressjs/body-parser.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/expressjs/body-parser#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/expressjs/body-parser/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 0.8"
+        },
+        {
+          "name": "cdx:npm:package:constraint:engine:npm",
+          "value": "1.2.8000 || >= 1.4.16"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/body-parser"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "content-disposition",
+      "version": "0.5.4",
+      "bom-ref": "feihong-code@7.2.0|content-disposition@0.5.4",
+      "author": "Douglas Christopher Wilson",
+      "description": "Create and parse Content-Disposition header",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/content-disposition@0.5.4",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/jshttp/content-disposition.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/jshttp/content-disposition#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/jshttp/content-disposition/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 0.6"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/content-disposition"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "content-type",
+      "version": "1.0.5",
+      "bom-ref": "feihong-code@7.2.0|content-type@1.0.5",
+      "author": "Douglas Christopher Wilson",
+      "description": "Create and parse HTTP Content-Type header",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/content-type@1.0.5",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/jshttp/content-type.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/jshttp/content-type#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/jshttp/content-type/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 0.6"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/content-type"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "cookie-signature",
+      "version": "1.0.7",
+      "bom-ref": "feihong-code@7.2.0|cookie-signature@1.0.7",
+      "author": "TJ Holowaychuk",
+      "description": "Sign and unsign cookies",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/cookie-signature@1.0.7",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/visionmedia/node-cookie-signature.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/visionmedia/node-cookie-signature#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/visionmedia/node-cookie-signature/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/cookie-signature"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "cookie",
+      "version": "0.7.2",
+      "bom-ref": "feihong-code@7.2.0|cookie@0.7.2",
+      "author": "Roman Shtylman",
+      "description": "HTTP server cookie parsing and serialization",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/cookie@0.7.2",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/jshttp/cookie.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/jshttp/cookie#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/jshttp/cookie/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 0.6"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/cookie"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "debug",
+      "version": "2.6.9",
+      "bom-ref": "feihong-code@7.2.0|debug@2.6.9",
+      "author": "TJ Holowaychuk",
+      "description": "small debugging utility",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/debug@2.6.9",
+      "externalReferences": [
+        {
+          "url": "git://github.com/visionmedia/debug.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/visionmedia/debug#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/visionmedia/debug/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/debug"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "depd",
+      "version": "2.0.0",
+      "bom-ref": "feihong-code@7.2.0|depd@2.0.0",
+      "author": "Douglas Christopher Wilson",
+      "description": "Deprecate all the things",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/depd@2.0.0",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/dougwilson/nodejs-depd.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/dougwilson/nodejs-depd#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/dougwilson/nodejs-depd/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 0.8"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/depd"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "encodeurl",
+      "version": "2.0.0",
+      "bom-ref": "feihong-code@7.2.0|encodeurl@2.0.0",
+      "description": "Encode a URL to a percent-encoded form, excluding already-encoded sequences",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/encodeurl@2.0.0",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/pillarjs/encodeurl.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/pillarjs/encodeurl#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/pillarjs/encodeurl/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 0.8"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/encodeurl"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "escape-html",
+      "version": "1.0.3",
+      "bom-ref": "feihong-code@7.2.0|escape-html@1.0.3",
+      "description": "Escape string for use in HTML",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/escape-html@1.0.3",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/component/escape-html.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/component/escape-html#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/component/escape-html/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/escape-html"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "etag",
+      "version": "1.8.1",
+      "bom-ref": "feihong-code@7.2.0|etag@1.8.1",
+      "description": "Create simple HTTP ETags",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/etag@1.8.1",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/jshttp/etag.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/jshttp/etag#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/jshttp/etag/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 0.6"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/etag"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "finalhandler",
+      "version": "1.3.2",
+      "bom-ref": "feihong-code@7.2.0|finalhandler@1.3.2",
+      "author": "Douglas Christopher Wilson",
+      "description": "Node.js final http responder",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/finalhandler@1.3.2",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/pillarjs/finalhandler.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/pillarjs/finalhandler#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/pillarjs/finalhandler/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 0.8"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/finalhandler"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "fresh",
+      "version": "0.5.2",
+      "bom-ref": "feihong-code@7.2.0|fresh@0.5.2",
+      "author": "TJ Holowaychuk",
+      "description": "HTTP response freshness testing",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/fresh@0.5.2",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/jshttp/fresh.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/jshttp/fresh#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/jshttp/fresh/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 0.6"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/fresh"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "http-errors",
+      "version": "2.0.1",
+      "bom-ref": "feihong-code@7.2.0|http-errors@2.0.1",
+      "author": "Jonathan Ong",
+      "description": "Create HTTP error objects",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/http-errors@2.0.1",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/jshttp/http-errors.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/jshttp/http-errors#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/jshttp/http-errors/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 0.8"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/http-errors"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "merge-descriptors",
+      "version": "1.0.3",
+      "bom-ref": "feihong-code@7.2.0|merge-descriptors@1.0.3",
+      "author": "Jonathan Ong",
+      "description": "Merge objects using descriptors",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/merge-descriptors@1.0.3",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/sindresorhus/merge-descriptors.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/sindresorhus/merge-descriptors#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/sindresorhus/merge-descriptors/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/merge-descriptors"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "methods",
+      "version": "1.1.2",
+      "bom-ref": "feihong-code@7.2.0|methods@1.1.2",
+      "description": "HTTP methods that node supports",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/methods@1.1.2",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/jshttp/methods.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/jshttp/methods#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/jshttp/methods/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 0.6"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/methods"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "on-finished",
+      "version": "2.4.1",
+      "bom-ref": "feihong-code@7.2.0|on-finished@2.4.1",
+      "description": "Execute a callback when a request closes, finishes, or errors",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/on-finished@2.4.1",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/jshttp/on-finished.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/jshttp/on-finished#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/jshttp/on-finished/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 0.8"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/on-finished"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "parseurl",
+      "version": "1.3.3",
+      "bom-ref": "feihong-code@7.2.0|parseurl@1.3.3",
+      "description": "parse a url with memoization",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/parseurl@1.3.3",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/pillarjs/parseurl.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/pillarjs/parseurl#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/pillarjs/parseurl/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 0.8"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/parseurl"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "path-to-regexp",
+      "version": "0.1.13",
+      "bom-ref": "feihong-code@7.2.0|path-to-regexp@0.1.13",
+      "description": "Express style path to RegExp utility",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/path-to-regexp@0.1.13",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/pillarjs/path-to-regexp.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/pillarjs/path-to-regexp#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/pillarjs/path-to-regexp/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/path-to-regexp"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "proxy-addr",
+      "version": "2.0.7",
+      "bom-ref": "feihong-code@7.2.0|proxy-addr@2.0.7",
+      "author": "Douglas Christopher Wilson",
+      "description": "Determine address of proxied request",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/proxy-addr@2.0.7",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/jshttp/proxy-addr.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/jshttp/proxy-addr#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/jshttp/proxy-addr/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 0.10"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/proxy-addr"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "qs",
+      "version": "6.15.3",
+      "bom-ref": "feihong-code@7.2.0|qs@6.15.3",
+      "description": "A querystring parser that supports nesting and arrays, with a depth limit",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/qs@6.15.3",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/ljharb/qs.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/ljharb/qs",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/ljharb/qs/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">=0.6"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/qs"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "range-parser",
+      "version": "1.2.1",
+      "bom-ref": "feihong-code@7.2.0|range-parser@1.2.1",
+      "author": "TJ Holowaychuk",
+      "description": "Range header field string parser",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/range-parser@1.2.1",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/jshttp/range-parser.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/jshttp/range-parser#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/jshttp/range-parser/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 0.6"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/range-parser"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "safe-buffer",
+      "version": "5.2.1",
+      "bom-ref": "feihong-code@7.2.0|safe-buffer@5.2.1",
+      "author": "Feross Aboukhadijeh",
+      "description": "Safer Node.js Buffer API",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/safe-buffer@5.2.1",
+      "externalReferences": [
+        {
+          "url": "git://github.com/feross/safe-buffer.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/feross/safe-buffer",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/feross/safe-buffer/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/safe-buffer"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "send",
+      "version": "0.19.2",
+      "bom-ref": "feihong-code@7.2.0|send@0.19.2",
+      "author": "TJ Holowaychuk",
+      "description": "Better streaming static file server with Range and conditional-GET support",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/send@0.19.2",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/pillarjs/send.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/pillarjs/send#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/pillarjs/send/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 0.8.0"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/send"
+        }
+      ],
+      "components": [
+        {
+          "type": "library",
+          "name": "ms",
+          "version": "2.1.3",
+          "bom-ref": "feihong-code@7.2.0|send@0.19.2|ms@2.1.3",
+          "description": "Tiny millisecond conversion utility",
+          "licenses": [
+            {
+              "license": {
+                "id": "MIT",
+                "acknowledgement": "declared"
+              }
+            }
+          ],
+          "purl": "pkg:npm/ms@2.1.3",
+          "externalReferences": [
+            {
+              "url": "git+https://github.com/vercel/ms.git",
+              "type": "vcs",
+              "comment": "as detected from PackageJson property \"repository.url\""
+            },
+            {
+              "url": "https://github.com/vercel/ms#readme",
+              "type": "website",
+              "comment": "as detected from PackageJson property \"homepage\""
+            },
+            {
+              "url": "https://github.com/vercel/ms/issues",
+              "type": "issue-tracker",
+              "comment": "as detected from PackageJson property \"bugs.url\""
+            }
+          ],
+          "properties": [
+            {
+              "name": "cdx:npm:package:path",
+              "value": "node_modules/send/node_modules/ms"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "serve-static",
+      "version": "1.16.3",
+      "bom-ref": "feihong-code@7.2.0|serve-static@1.16.3",
+      "author": "Douglas Christopher Wilson",
+      "description": "Serve static files",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/serve-static@1.16.3",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/expressjs/serve-static.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/expressjs/serve-static#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/expressjs/serve-static/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 0.8.0"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/serve-static"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "setprototypeof",
+      "version": "1.2.0",
+      "bom-ref": "feihong-code@7.2.0|setprototypeof@1.2.0",
+      "author": "Wes Todd",
+      "description": "A small polyfill for Object.setprototypeof",
+      "licenses": [
+        {
+          "license": {
+            "id": "ISC",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/setprototypeof@1.2.0",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/wesleytodd/setprototypeof.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/wesleytodd/setprototypeof",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/wesleytodd/setprototypeof/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/setprototypeof"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "statuses",
+      "version": "2.0.2",
+      "bom-ref": "feihong-code@7.2.0|statuses@2.0.2",
+      "description": "HTTP status utility",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/statuses@2.0.2",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/jshttp/statuses.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/jshttp/statuses#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/jshttp/statuses/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 0.8"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/statuses"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "type-is",
+      "version": "1.6.18",
+      "bom-ref": "feihong-code@7.2.0|type-is@1.6.18",
+      "description": "Infer the content-type of a request.",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/type-is@1.6.18",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/jshttp/type-is.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/jshttp/type-is#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/jshttp/type-is/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 0.6"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/type-is"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "utils-merge",
+      "version": "1.0.1",
+      "bom-ref": "feihong-code@7.2.0|utils-merge@1.0.1",
+      "author": "Jared Hanson",
+      "description": "merge() utility function",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        },
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared",
+            "url": "http://opensource.org/licenses/MIT"
+          }
+        }
+      ],
+      "purl": "pkg:npm/utils-merge@1.0.1",
+      "externalReferences": [
+        {
+          "url": "git://github.com/jaredhanson/utils-merge.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/jaredhanson/utils-merge#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "http://github.com/jaredhanson/utils-merge/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 0.4.0"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/utils-merge"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "vary",
+      "version": "1.1.2",
+      "bom-ref": "feihong-code@7.2.0|vary@1.1.2",
+      "author": "Douglas Christopher Wilson",
+      "description": "Manipulate the HTTP Vary header",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/vary@1.1.2",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/jshttp/vary.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/jshttp/vary#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/jshttp/vary/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 0.8"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/vary"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "dompurify",
+      "version": "3.4.8",
+      "bom-ref": "feihong-code@7.2.0|dompurify@3.4.8",
+      "author": "Dr.-Ing. Mario Heiderich, Cure53",
+      "description": "DOMPurify is a DOM-only, super-fast, uber-tolerant XSS sanitizer for HTML, MathML and SVG. It's written in JavaScript and works in all modern browsers (Safari, Opera (15+), Internet Explorer (10+), Firefox and Chrome - as well as almost anything else using Blink or WebKit). DOMPurify is written by security people who have vast background in web attacks and XSS. Fear not.",
+      "licenses": [
+        {
+          "expression": "(MPL-2.0 OR Apache-2.0)",
+          "acknowledgement": "declared"
+        }
+      ],
+      "purl": "pkg:npm/dompurify@3.4.8?download_url=https%3A%2F%2Fregistry.npmmirror.com%2Fdompurify%2F-%2Fdompurify-3.4.8.tgz",
+      "externalReferences": [
+        {
+          "url": "git://github.com/cure53/DOMPurify.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/cure53/DOMPurify",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/cure53/DOMPurify/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmmirror.com/dompurify/-/dompurify-3.4.8.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "c9bd5c12668eba6ef016f382490c727e0565bf90f8ed1737d22656a0ca5b0c85939c9ea0ac30d0caed8a149cc1da4eeed2932e25c435ce9847fff7c59f0dad8d"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/dompurify"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "marked",
+      "version": "14.0.0",
+      "bom-ref": "feihong-code@7.2.0|marked@14.0.0",
+      "author": "Christopher Jeffrey",
+      "description": "A markdown parser built for speed",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/marked@14.0.0?download_url=https%3A%2F%2Fregistry.npmmirror.com%2Fmarked%2F-%2Fmarked-14.0.0.tgz",
+      "externalReferences": [
+        {
+          "url": "git://github.com/markedjs/marked.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://marked.js.org",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "http://github.com/markedjs/marked/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmmirror.com/marked/-/marked-14.0.0.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "b888f8f9f690f8c807830516d65d8fb0f82564b38b393d6e12bb74e9d00fb71da48ed78b0246ec77fd0589883f3064be8bb64a2dbef0d960a5c4793338ebabc9"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 18"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/marked"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "mime-types",
+      "version": "2.1.35",
+      "bom-ref": "feihong-code@7.2.0|mime-types@2.1.35",
+      "description": "The ultimate javascript content-type utility.",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/mime-types@2.1.35",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/jshttp/mime-types.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/jshttp/mime-types#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/jshttp/mime-types/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 0.6"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/mime-types"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "negotiator",
+      "version": "0.6.3",
+      "bom-ref": "feihong-code@7.2.0|negotiator@0.6.3",
+      "description": "HTTP content negotiation",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/negotiator@0.6.3",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/jshttp/negotiator.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/jshttp/negotiator#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/jshttp/negotiator/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 0.6"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/negotiator"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "bytes",
+      "version": "3.1.2",
+      "bom-ref": "feihong-code@7.2.0|bytes@3.1.2",
+      "author": "TJ Holowaychuk",
+      "description": "Utility to parse a string bytes to bytes and vice-versa",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/bytes@3.1.2",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/visionmedia/bytes.js.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/visionmedia/bytes.js#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/visionmedia/bytes.js/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 0.8"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/bytes"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "destroy",
+      "version": "1.2.0",
+      "bom-ref": "feihong-code@7.2.0|destroy@1.2.0",
+      "author": "Jonathan Ong",
+      "description": "destroy a stream if possible",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/destroy@1.2.0",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/stream-utils/destroy.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/stream-utils/destroy#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/stream-utils/destroy/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 0.8"
+        },
+        {
+          "name": "cdx:npm:package:constraint:engine:npm",
+          "value": "1.2.8000 || >= 1.4.16"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/destroy"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "iconv-lite",
+      "version": "0.4.24",
+      "bom-ref": "feihong-code@7.2.0|iconv-lite@0.4.24",
+      "author": "Alexander Shtuchkin",
+      "description": "Convert character encodings in pure javascript.",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/iconv-lite@0.4.24",
+      "externalReferences": [
+        {
+          "url": "git://github.com/ashtuchkin/iconv-lite.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/ashtuchkin/iconv-lite",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/ashtuchkin/iconv-lite/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">=0.10.0"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/iconv-lite"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "raw-body",
+      "version": "2.5.3",
+      "bom-ref": "feihong-code@7.2.0|raw-body@2.5.3",
+      "author": "Jonathan Ong",
+      "description": "Get and validate the raw body of a readable stream.",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/raw-body@2.5.3",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/stream-utils/raw-body.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/stream-utils/raw-body#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/stream-utils/raw-body/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 0.8"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/raw-body"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "unpipe",
+      "version": "1.0.0",
+      "bom-ref": "feihong-code@7.2.0|unpipe@1.0.0",
+      "author": "Douglas Christopher Wilson",
+      "description": "Unpipe a stream from all destinations",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/unpipe@1.0.0",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/stream-utils/unpipe.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/stream-utils/unpipe#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/stream-utils/unpipe/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 0.8"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/unpipe"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "ms",
+      "version": "2.0.0",
+      "bom-ref": "feihong-code@7.2.0|ms@2.0.0",
+      "description": "Tiny milisecond conversion utility",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/ms@2.0.0",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/zeit/ms.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/zeit/ms#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/zeit/ms/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/ms"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "inherits",
+      "version": "2.0.4",
+      "bom-ref": "feihong-code@7.2.0|inherits@2.0.4",
+      "description": "Browser-friendly inheritance fully compatible with standard node.js inherits()",
+      "licenses": [
+        {
+          "license": {
+            "id": "ISC",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/inherits@2.0.4",
+      "externalReferences": [
+        {
+          "url": "git://github.com/isaacs/inherits.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/isaacs/inherits#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/isaacs/inherits/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/inherits"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "toidentifier",
+      "version": "1.0.1",
+      "bom-ref": "feihong-code@7.2.0|toidentifier@1.0.1",
+      "author": "Douglas Christopher Wilson",
+      "description": "Convert a string of words to a JavaScript identifier",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/toidentifier@1.0.1",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/component/toidentifier.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/component/toidentifier#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/component/toidentifier/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">=0.6"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/toidentifier"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "ee-first",
+      "version": "1.1.1",
+      "bom-ref": "feihong-code@7.2.0|ee-first@1.1.1",
+      "author": "Jonathan Ong",
+      "description": "return the first event in a set of ee/event pairs",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/ee-first@1.1.1",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/jonathanong/ee-first.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/jonathanong/ee-first#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/jonathanong/ee-first/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/ee-first"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "forwarded",
+      "version": "0.2.0",
+      "bom-ref": "feihong-code@7.2.0|forwarded@0.2.0",
+      "description": "Parse HTTP X-Forwarded-For header",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/forwarded@0.2.0",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/jshttp/forwarded.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/jshttp/forwarded#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/jshttp/forwarded/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 0.6"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/forwarded"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "ipaddr.js",
+      "version": "1.9.1",
+      "bom-ref": "feihong-code@7.2.0|ipaddr.js@1.9.1",
+      "author": "whitequark",
+      "description": "A library for manipulating IPv4 and IPv6 addresses in JavaScript.",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/ipaddr.js@1.9.1",
+      "externalReferences": [
+        {
+          "url": "git://github.com/whitequark/ipaddr.js.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/whitequark/ipaddr.js#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/whitequark/ipaddr.js/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 0.10"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/ipaddr.js"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "es-define-property",
+      "version": "1.0.1",
+      "bom-ref": "feihong-code@7.2.0|es-define-property@1.0.1",
+      "author": "Jordan Harband",
+      "description": "`Object.defineProperty`, but not IE 8's broken one.",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/es-define-property@1.0.1",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/ljharb/es-define-property.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/ljharb/es-define-property#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/ljharb/es-define-property/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 0.4"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/es-define-property"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "side-channel",
+      "version": "1.1.1",
+      "bom-ref": "feihong-code@7.2.0|side-channel@1.1.1",
+      "author": "Jordan Harband",
+      "description": "Store information about any JS value in a side channel. Uses WeakMap if available.",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/side-channel@1.1.1",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/ljharb/side-channel.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/ljharb/side-channel#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/ljharb/side-channel/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 0.4"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/side-channel"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "mime",
+      "version": "1.6.0",
+      "bom-ref": "feihong-code@7.2.0|mime@1.6.0",
+      "author": "Robert Kieffer",
+      "description": "A comprehensive library for mime-type mapping",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/mime@1.6.0",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/broofa/node-mime.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/broofa/node-mime#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/broofa/node-mime/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">=4"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/mime"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "media-typer",
+      "version": "0.3.0",
+      "bom-ref": "feihong-code@7.2.0|media-typer@0.3.0",
+      "author": "Douglas Christopher Wilson",
+      "description": "Simple RFC 6838 media type parser and formatter",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/media-typer@0.3.0",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/jshttp/media-typer.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/jshttp/media-typer#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/jshttp/media-typer/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 0.6"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/media-typer"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "trusted-types",
+      "group": "@types",
+      "version": "2.0.7",
+      "bom-ref": "feihong-code@7.2.0|@types/trusted-types@2.0.7",
+      "description": "TypeScript definitions for trusted-types",
+      "scope": "optional",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40types/trusted-types@2.0.7?download_url=https%3A%2F%2Fregistry.npmmirror.com%2F%40types%2Ftrusted-types%2F-%2Ftrusted-types-2.0.7.tgz",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/DefinitelyTyped/DefinitelyTyped.git#types/trusted-types",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\" and \"repository.directory\""
+        },
+        {
+          "url": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/trusted-types",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/DefinitelyTyped/DefinitelyTyped/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmmirror.com/@types/trusted-types/-/trusted-types-2.0.7.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "49c68f767d5d41cce06e5d101537933a65471542eddfde17260390368c95859eabdaf2e730b25f04f779dd2079d93ff71b7e95235fe0d8c65a5f47300ee5ec7f"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@types/trusted-types"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "mime-db",
+      "version": "1.52.0",
+      "bom-ref": "feihong-code@7.2.0|mime-db@1.52.0",
+      "description": "Media Type Database",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/mime-db@1.52.0",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/jshttp/mime-db.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/jshttp/mime-db#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/jshttp/mime-db/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 0.6"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/mime-db"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "safer-buffer",
+      "version": "2.1.2",
+      "bom-ref": "feihong-code@7.2.0|safer-buffer@2.1.2",
+      "author": "Nikita Skovoroda",
+      "description": "Modern Buffer API polyfill without footguns",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/safer-buffer@2.1.2",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/ChALkeR/safer-buffer.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/ChALkeR/safer-buffer#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/ChALkeR/safer-buffer/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/safer-buffer"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "es-errors",
+      "version": "1.3.0",
+      "bom-ref": "feihong-code@7.2.0|es-errors@1.3.0",
+      "author": "Jordan Harband",
+      "description": "A simple cache for a few of the JS Error constructors.",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/es-errors@1.3.0",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/ljharb/es-errors.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/ljharb/es-errors#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/ljharb/es-errors/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 0.4"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/es-errors"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "object-inspect",
+      "version": "1.13.4",
+      "bom-ref": "feihong-code@7.2.0|object-inspect@1.13.4",
+      "author": "James Halliday",
+      "description": "string representations of objects in node and the browser",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/object-inspect@1.13.4",
+      "externalReferences": [
+        {
+          "url": "git://github.com/inspect-js/object-inspect.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/inspect-js/object-inspect",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/inspect-js/object-inspect/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 0.4"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/object-inspect"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "side-channel-list",
+      "version": "1.0.1",
+      "bom-ref": "feihong-code@7.2.0|side-channel-list@1.0.1",
+      "author": "Jordan Harband",
+      "description": "Store information about any JS value in a side channel, using a linked list",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/side-channel-list@1.0.1",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/ljharb/side-channel-list.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/ljharb/side-channel-list#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/ljharb/side-channel-list/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 0.4"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/side-channel-list"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "side-channel-map",
+      "version": "1.0.1",
+      "bom-ref": "feihong-code@7.2.0|side-channel-map@1.0.1",
+      "author": "Jordan Harband",
+      "description": "Store information about any JS value in a side channel, using a Map",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/side-channel-map@1.0.1",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/ljharb/side-channel-map.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/ljharb/side-channel-map#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/ljharb/side-channel-map/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 0.4"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/side-channel-map"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "side-channel-weakmap",
+      "version": "1.0.2",
+      "bom-ref": "feihong-code@7.2.0|side-channel-weakmap@1.0.2",
+      "author": "Jordan Harband",
+      "description": "Store information about any JS value in a side channel. Uses WeakMap if available.",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/side-channel-weakmap@1.0.2",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/ljharb/side-channel-weakmap.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/ljharb/side-channel-weakmap#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/ljharb/side-channel-weakmap/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 0.4"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/side-channel-weakmap"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "call-bound",
+      "version": "1.0.4",
+      "bom-ref": "feihong-code@7.2.0|call-bound@1.0.4",
+      "author": "Jordan Harband",
+      "description": "Robust call-bound JavaScript intrinsics, using `call-bind` and `get-intrinsic`.",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/call-bound@1.0.4",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/ljharb/call-bound.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/ljharb/call-bound#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/ljharb/call-bound/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 0.4"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/call-bound"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "get-intrinsic",
+      "version": "1.3.0",
+      "bom-ref": "feihong-code@7.2.0|get-intrinsic@1.3.0",
+      "author": "Jordan Harband",
+      "description": "Get and robustly cache all JS language-level intrinsics at first require time",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/get-intrinsic@1.3.0",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/ljharb/get-intrinsic.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/ljharb/get-intrinsic#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/ljharb/get-intrinsic/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 0.4"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/get-intrinsic"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "call-bind-apply-helpers",
+      "version": "1.0.2",
+      "bom-ref": "feihong-code@7.2.0|call-bind-apply-helpers@1.0.2",
+      "author": "Jordan Harband",
+      "description": "Helper functions around Function call/apply/bind, for use in `call-bind`",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/call-bind-apply-helpers@1.0.2",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/ljharb/call-bind-apply-helpers.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/ljharb/call-bind-apply-helpers#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/ljharb/call-bind-apply-helpers/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 0.4"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/call-bind-apply-helpers"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "es-object-atoms",
+      "version": "1.1.2",
+      "bom-ref": "feihong-code@7.2.0|es-object-atoms@1.1.2",
+      "author": "Jordan Harband",
+      "description": "ES Object-related atoms: Object, ToObject, RequireObjectCoercible",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/es-object-atoms@1.1.2",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/ljharb/es-object-atoms.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/ljharb/es-object-atoms#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/ljharb/es-object-atoms/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 0.4"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/es-object-atoms"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "function-bind",
+      "version": "1.1.2",
+      "bom-ref": "feihong-code@7.2.0|function-bind@1.1.2",
+      "author": "Raynos",
+      "description": "Implementation of Function.prototype.bind",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/function-bind@1.1.2",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/Raynos/function-bind.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/Raynos/function-bind",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/Raynos/function-bind/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/function-bind"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "get-proto",
+      "version": "1.0.1",
+      "bom-ref": "feihong-code@7.2.0|get-proto@1.0.1",
+      "author": "Jordan Harband",
+      "description": "Robustly get the [[Prototype]] of an object",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/get-proto@1.0.1",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/ljharb/get-proto.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/ljharb/get-proto#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/ljharb/get-proto/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 0.4"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/get-proto"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "gopd",
+      "version": "1.2.0",
+      "bom-ref": "feihong-code@7.2.0|gopd@1.2.0",
+      "author": "Jordan Harband",
+      "description": "`Object.getOwnPropertyDescriptor`, but accounts for IE's broken implementation.",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/gopd@1.2.0",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/ljharb/gopd.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/ljharb/gopd#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/ljharb/gopd/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 0.4"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/gopd"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "has-symbols",
+      "version": "1.1.0",
+      "bom-ref": "feihong-code@7.2.0|has-symbols@1.1.0",
+      "author": "Jordan Harband",
+      "description": "Determine if the JS environment has Symbol support. Supports spec, or shams.",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/has-symbols@1.1.0",
+      "externalReferences": [
+        {
+          "url": "git://github.com/inspect-js/has-symbols.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/ljharb/has-symbols#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/ljharb/has-symbols/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 0.4"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/has-symbols"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "hasown",
+      "version": "2.0.4",
+      "bom-ref": "feihong-code@7.2.0|hasown@2.0.4",
+      "author": "Jordan Harband",
+      "description": "A robust, ES3 compatible, \"has own property\" predicate.",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/hasown@2.0.4",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/inspect-js/hasOwn.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/inspect-js/hasOwn#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/inspect-js/hasOwn/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 0.4"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/hasown"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "math-intrinsics",
+      "version": "1.1.0",
+      "bom-ref": "feihong-code@7.2.0|math-intrinsics@1.1.0",
+      "author": "Jordan Harband",
+      "description": "ES Math-related intrinsics and helpers, robustly cached.",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/math-intrinsics@1.1.0",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/es-shims/math-intrinsics.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/es-shims/math-intrinsics#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/es-shims/math-intrinsics/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 0.4"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/math-intrinsics"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "dunder-proto",
+      "version": "1.0.1",
+      "bom-ref": "feihong-code@7.2.0|dunder-proto@1.0.1",
+      "author": "Jordan Harband",
+      "description": "If available, the `Object.prototype.__proto__` accessor and mutator, call-bound",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/dunder-proto@1.0.1",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/es-shims/dunder-proto.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/es-shims/dunder-proto#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/es-shims/dunder-proto/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">= 0.4"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/dunder-proto"
+        }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "feihong-code@7.2.0",
+      "dependsOn": [
+        "feihong-code@7.2.0|@capacitor/core@8.5.0",
+        "feihong-code@7.2.0|express@4.22.2",
+        "feihong-code@7.2.0|monaco-editor@0.56.0",
+        "feihong-code@7.2.0|playwright-core@1.62.1",
+        "feihong-code@7.2.0|zod@4.4.3"
+      ]
+    },
+    {
+      "ref": "feihong-code@7.2.0|@capacitor/core@8.5.0",
+      "dependsOn": [
+        "feihong-code@7.2.0|tslib@2.8.1"
+      ]
+    },
+    {
+      "ref": "feihong-code@7.2.0|express@4.22.2",
+      "dependsOn": [
+        "feihong-code@7.2.0|accepts@1.3.8",
+        "feihong-code@7.2.0|array-flatten@1.1.1",
+        "feihong-code@7.2.0|body-parser@1.20.6",
+        "feihong-code@7.2.0|content-disposition@0.5.4",
+        "feihong-code@7.2.0|content-type@1.0.5",
+        "feihong-code@7.2.0|cookie-signature@1.0.7",
+        "feihong-code@7.2.0|cookie@0.7.2",
+        "feihong-code@7.2.0|debug@2.6.9",
+        "feihong-code@7.2.0|depd@2.0.0",
+        "feihong-code@7.2.0|encodeurl@2.0.0",
+        "feihong-code@7.2.0|escape-html@1.0.3",
+        "feihong-code@7.2.0|etag@1.8.1",
+        "feihong-code@7.2.0|finalhandler@1.3.2",
+        "feihong-code@7.2.0|fresh@0.5.2",
+        "feihong-code@7.2.0|http-errors@2.0.1",
+        "feihong-code@7.2.0|merge-descriptors@1.0.3",
+        "feihong-code@7.2.0|methods@1.1.2",
+        "feihong-code@7.2.0|on-finished@2.4.1",
+        "feihong-code@7.2.0|parseurl@1.3.3",
+        "feihong-code@7.2.0|path-to-regexp@0.1.13",
+        "feihong-code@7.2.0|proxy-addr@2.0.7",
+        "feihong-code@7.2.0|qs@6.15.3",
+        "feihong-code@7.2.0|range-parser@1.2.1",
+        "feihong-code@7.2.0|safe-buffer@5.2.1",
+        "feihong-code@7.2.0|send@0.19.2",
+        "feihong-code@7.2.0|serve-static@1.16.3",
+        "feihong-code@7.2.0|setprototypeof@1.2.0",
+        "feihong-code@7.2.0|statuses@2.0.2",
+        "feihong-code@7.2.0|type-is@1.6.18",
+        "feihong-code@7.2.0|utils-merge@1.0.1",
+        "feihong-code@7.2.0|vary@1.1.2"
+      ]
+    },
+    {
+      "ref": "feihong-code@7.2.0|monaco-editor@0.56.0",
+      "dependsOn": [
+        "feihong-code@7.2.0|dompurify@3.4.8",
+        "feihong-code@7.2.0|marked@14.0.0"
+      ]
+    },
+    {
+      "ref": "feihong-code@7.2.0|playwright-core@1.62.1"
+    },
+    {
+      "ref": "feihong-code@7.2.0|zod@4.4.3"
+    },
+    {
+      "ref": "feihong-code@7.2.0|tslib@2.8.1"
+    },
+    {
+      "ref": "feihong-code@7.2.0|accepts@1.3.8",
+      "dependsOn": [
+        "feihong-code@7.2.0|mime-types@2.1.35",
+        "feihong-code@7.2.0|negotiator@0.6.3"
+      ]
+    },
+    {
+      "ref": "feihong-code@7.2.0|array-flatten@1.1.1"
+    },
+    {
+      "ref": "feihong-code@7.2.0|body-parser@1.20.6",
+      "dependsOn": [
+        "feihong-code@7.2.0|bytes@3.1.2",
+        "feihong-code@7.2.0|content-type@1.0.5",
+        "feihong-code@7.2.0|debug@2.6.9",
+        "feihong-code@7.2.0|depd@2.0.0",
+        "feihong-code@7.2.0|destroy@1.2.0",
+        "feihong-code@7.2.0|http-errors@2.0.1",
+        "feihong-code@7.2.0|iconv-lite@0.4.24",
+        "feihong-code@7.2.0|on-finished@2.4.1",
+        "feihong-code@7.2.0|qs@6.15.3",
+        "feihong-code@7.2.0|raw-body@2.5.3",
+        "feihong-code@7.2.0|type-is@1.6.18",
+        "feihong-code@7.2.0|unpipe@1.0.0"
+      ]
+    },
+    {
+      "ref": "feihong-code@7.2.0|content-disposition@0.5.4",
+      "dependsOn": [
+        "feihong-code@7.2.0|safe-buffer@5.2.1"
+      ]
+    },
+    {
+      "ref": "feihong-code@7.2.0|content-type@1.0.5"
+    },
+    {
+      "ref": "feihong-code@7.2.0|cookie-signature@1.0.7"
+    },
+    {
+      "ref": "feihong-code@7.2.0|cookie@0.7.2"
+    },
+    {
+      "ref": "feihong-code@7.2.0|debug@2.6.9",
+      "dependsOn": [
+        "feihong-code@7.2.0|ms@2.0.0"
+      ]
+    },
+    {
+      "ref": "feihong-code@7.2.0|depd@2.0.0"
+    },
+    {
+      "ref": "feihong-code@7.2.0|encodeurl@2.0.0"
+    },
+    {
+      "ref": "feihong-code@7.2.0|escape-html@1.0.3"
+    },
+    {
+      "ref": "feihong-code@7.2.0|etag@1.8.1"
+    },
+    {
+      "ref": "feihong-code@7.2.0|finalhandler@1.3.2",
+      "dependsOn": [
+        "feihong-code@7.2.0|debug@2.6.9",
+        "feihong-code@7.2.0|encodeurl@2.0.0",
+        "feihong-code@7.2.0|escape-html@1.0.3",
+        "feihong-code@7.2.0|on-finished@2.4.1",
+        "feihong-code@7.2.0|parseurl@1.3.3",
+        "feihong-code@7.2.0|statuses@2.0.2",
+        "feihong-code@7.2.0|unpipe@1.0.0"
+      ]
+    },
+    {
+      "ref": "feihong-code@7.2.0|fresh@0.5.2"
+    },
+    {
+      "ref": "feihong-code@7.2.0|http-errors@2.0.1",
+      "dependsOn": [
+        "feihong-code@7.2.0|depd@2.0.0",
+        "feihong-code@7.2.0|inherits@2.0.4",
+        "feihong-code@7.2.0|setprototypeof@1.2.0",
+        "feihong-code@7.2.0|statuses@2.0.2",
+        "feihong-code@7.2.0|toidentifier@1.0.1"
+      ]
+    },
+    {
+      "ref": "feihong-code@7.2.0|merge-descriptors@1.0.3"
+    },
+    {
+      "ref": "feihong-code@7.2.0|methods@1.1.2"
+    },
+    {
+      "ref": "feihong-code@7.2.0|on-finished@2.4.1",
+      "dependsOn": [
+        "feihong-code@7.2.0|ee-first@1.1.1"
+      ]
+    },
+    {
+      "ref": "feihong-code@7.2.0|parseurl@1.3.3"
+    },
+    {
+      "ref": "feihong-code@7.2.0|path-to-regexp@0.1.13"
+    },
+    {
+      "ref": "feihong-code@7.2.0|proxy-addr@2.0.7",
+      "dependsOn": [
+        "feihong-code@7.2.0|forwarded@0.2.0",
+        "feihong-code@7.2.0|ipaddr.js@1.9.1"
+      ]
+    },
+    {
+      "ref": "feihong-code@7.2.0|qs@6.15.3",
+      "dependsOn": [
+        "feihong-code@7.2.0|es-define-property@1.0.1",
+        "feihong-code@7.2.0|side-channel@1.1.1"
+      ]
+    },
+    {
+      "ref": "feihong-code@7.2.0|range-parser@1.2.1"
+    },
+    {
+      "ref": "feihong-code@7.2.0|safe-buffer@5.2.1"
+    },
+    {
+      "ref": "feihong-code@7.2.0|send@0.19.2",
+      "dependsOn": [
+        "feihong-code@7.2.0|debug@2.6.9",
+        "feihong-code@7.2.0|depd@2.0.0",
+        "feihong-code@7.2.0|destroy@1.2.0",
+        "feihong-code@7.2.0|encodeurl@2.0.0",
+        "feihong-code@7.2.0|escape-html@1.0.3",
+        "feihong-code@7.2.0|etag@1.8.1",
+        "feihong-code@7.2.0|fresh@0.5.2",
+        "feihong-code@7.2.0|http-errors@2.0.1",
+        "feihong-code@7.2.0|mime@1.6.0",
+        "feihong-code@7.2.0|send@0.19.2|ms@2.1.3",
+        "feihong-code@7.2.0|on-finished@2.4.1",
+        "feihong-code@7.2.0|range-parser@1.2.1",
+        "feihong-code@7.2.0|statuses@2.0.2"
+      ]
+    },
+    {
+      "ref": "feihong-code@7.2.0|send@0.19.2|ms@2.1.3"
+    },
+    {
+      "ref": "feihong-code@7.2.0|serve-static@1.16.3",
+      "dependsOn": [
+        "feihong-code@7.2.0|encodeurl@2.0.0",
+        "feihong-code@7.2.0|escape-html@1.0.3",
+        "feihong-code@7.2.0|parseurl@1.3.3",
+        "feihong-code@7.2.0|send@0.19.2"
+      ]
+    },
+    {
+      "ref": "feihong-code@7.2.0|setprototypeof@1.2.0"
+    },
+    {
+      "ref": "feihong-code@7.2.0|statuses@2.0.2"
+    },
+    {
+      "ref": "feihong-code@7.2.0|type-is@1.6.18",
+      "dependsOn": [
+        "feihong-code@7.2.0|media-typer@0.3.0",
+        "feihong-code@7.2.0|mime-types@2.1.35"
+      ]
+    },
+    {
+      "ref": "feihong-code@7.2.0|utils-merge@1.0.1"
+    },
+    {
+      "ref": "feihong-code@7.2.0|vary@1.1.2"
+    },
+    {
+      "ref": "feihong-code@7.2.0|dompurify@3.4.8",
+      "dependsOn": [
+        "feihong-code@7.2.0|@types/trusted-types@2.0.7"
+      ]
+    },
+    {
+      "ref": "feihong-code@7.2.0|marked@14.0.0"
+    },
+    {
+      "ref": "feihong-code@7.2.0|mime-types@2.1.35",
+      "dependsOn": [
+        "feihong-code@7.2.0|mime-db@1.52.0"
+      ]
+    },
+    {
+      "ref": "feihong-code@7.2.0|negotiator@0.6.3"
+    },
+    {
+      "ref": "feihong-code@7.2.0|bytes@3.1.2"
+    },
+    {
+      "ref": "feihong-code@7.2.0|destroy@1.2.0"
+    },
+    {
+      "ref": "feihong-code@7.2.0|iconv-lite@0.4.24",
+      "dependsOn": [
+        "feihong-code@7.2.0|safer-buffer@2.1.2"
+      ]
+    },
+    {
+      "ref": "feihong-code@7.2.0|raw-body@2.5.3",
+      "dependsOn": [
+        "feihong-code@7.2.0|bytes@3.1.2",
+        "feihong-code@7.2.0|http-errors@2.0.1",
+        "feihong-code@7.2.0|iconv-lite@0.4.24",
+        "feihong-code@7.2.0|unpipe@1.0.0"
+      ]
+    },
+    {
+      "ref": "feihong-code@7.2.0|unpipe@1.0.0"
+    },
+    {
+      "ref": "feihong-code@7.2.0|ms@2.0.0"
+    },
+    {
+      "ref": "feihong-code@7.2.0|inherits@2.0.4"
+    },
+    {
+      "ref": "feihong-code@7.2.0|toidentifier@1.0.1"
+    },
+    {
+      "ref": "feihong-code@7.2.0|ee-first@1.1.1"
+    },
+    {
+      "ref": "feihong-code@7.2.0|forwarded@0.2.0"
+    },
+    {
+      "ref": "feihong-code@7.2.0|ipaddr.js@1.9.1"
+    },
+    {
+      "ref": "feihong-code@7.2.0|es-define-property@1.0.1"
+    },
+    {
+      "ref": "feihong-code@7.2.0|side-channel@1.1.1",
+      "dependsOn": [
+        "feihong-code@7.2.0|es-errors@1.3.0",
+        "feihong-code@7.2.0|object-inspect@1.13.4",
+        "feihong-code@7.2.0|side-channel-list@1.0.1",
+        "feihong-code@7.2.0|side-channel-map@1.0.1",
+        "feihong-code@7.2.0|side-channel-weakmap@1.0.2"
+      ]
+    },
+    {
+      "ref": "feihong-code@7.2.0|mime@1.6.0"
+    },
+    {
+      "ref": "feihong-code@7.2.0|media-typer@0.3.0"
+    },
+    {
+      "ref": "feihong-code@7.2.0|@types/trusted-types@2.0.7"
+    },
+    {
+      "ref": "feihong-code@7.2.0|mime-db@1.52.0"
+    },
+    {
+      "ref": "feihong-code@7.2.0|safer-buffer@2.1.2"
+    },
+    {
+      "ref": "feihong-code@7.2.0|es-errors@1.3.0"
+    },
+    {
+      "ref": "feihong-code@7.2.0|object-inspect@1.13.4"
+    },
+    {
+      "ref": "feihong-code@7.2.0|side-channel-list@1.0.1",
+      "dependsOn": [
+        "feihong-code@7.2.0|es-errors@1.3.0",
+        "feihong-code@7.2.0|object-inspect@1.13.4"
+      ]
+    },
+    {
+      "ref": "feihong-code@7.2.0|side-channel-map@1.0.1",
+      "dependsOn": [
+        "feihong-code@7.2.0|call-bound@1.0.4",
+        "feihong-code@7.2.0|es-errors@1.3.0",
+        "feihong-code@7.2.0|get-intrinsic@1.3.0",
+        "feihong-code@7.2.0|object-inspect@1.13.4"
+      ]
+    },
+    {
+      "ref": "feihong-code@7.2.0|side-channel-weakmap@1.0.2",
+      "dependsOn": [
+        "feihong-code@7.2.0|call-bound@1.0.4",
+        "feihong-code@7.2.0|es-errors@1.3.0",
+        "feihong-code@7.2.0|get-intrinsic@1.3.0",
+        "feihong-code@7.2.0|object-inspect@1.13.4",
+        "feihong-code@7.2.0|side-channel-map@1.0.1"
+      ]
+    },
+    {
+      "ref": "feihong-code@7.2.0|call-bound@1.0.4",
+      "dependsOn": [
+        "feihong-code@7.2.0|call-bind-apply-helpers@1.0.2",
+        "feihong-code@7.2.0|get-intrinsic@1.3.0"
+      ]
+    },
+    {
+      "ref": "feihong-code@7.2.0|get-intrinsic@1.3.0",
+      "dependsOn": [
+        "feihong-code@7.2.0|call-bind-apply-helpers@1.0.2",
+        "feihong-code@7.2.0|es-define-property@1.0.1",
+        "feihong-code@7.2.0|es-errors@1.3.0",
+        "feihong-code@7.2.0|es-object-atoms@1.1.2",
+        "feihong-code@7.2.0|function-bind@1.1.2",
+        "feihong-code@7.2.0|get-proto@1.0.1",
+        "feihong-code@7.2.0|gopd@1.2.0",
+        "feihong-code@7.2.0|has-symbols@1.1.0",
+        "feihong-code@7.2.0|hasown@2.0.4",
+        "feihong-code@7.2.0|math-intrinsics@1.1.0"
+      ]
+    },
+    {
+      "ref": "feihong-code@7.2.0|call-bind-apply-helpers@1.0.2",
+      "dependsOn": [
+        "feihong-code@7.2.0|es-errors@1.3.0",
+        "feihong-code@7.2.0|function-bind@1.1.2"
+      ]
+    },
+    {
+      "ref": "feihong-code@7.2.0|es-object-atoms@1.1.2",
+      "dependsOn": [
+        "feihong-code@7.2.0|es-errors@1.3.0"
+      ]
+    },
+    {
+      "ref": "feihong-code@7.2.0|function-bind@1.1.2"
+    },
+    {
+      "ref": "feihong-code@7.2.0|get-proto@1.0.1",
+      "dependsOn": [
+        "feihong-code@7.2.0|dunder-proto@1.0.1",
+        "feihong-code@7.2.0|es-object-atoms@1.1.2"
+      ]
+    },
+    {
+      "ref": "feihong-code@7.2.0|gopd@1.2.0"
+    },
+    {
+      "ref": "feihong-code@7.2.0|has-symbols@1.1.0"
+    },
+    {
+      "ref": "feihong-code@7.2.0|hasown@2.0.4",
+      "dependsOn": [
+        "feihong-code@7.2.0|function-bind@1.1.2"
+      ]
+    },
+    {
+      "ref": "feihong-code@7.2.0|math-intrinsics@1.1.0"
+    },
+    {
+      "ref": "feihong-code@7.2.0|dunder-proto@1.0.1",
+      "dependsOn": [
+        "feihong-code@7.2.0|call-bind-apply-helpers@1.0.2",
+        "feihong-code@7.2.0|es-errors@1.3.0",
+        "feihong-code@7.2.0|gopd@1.2.0"
+      ]
+    }
+  ]
+}
