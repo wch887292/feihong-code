@@ -98,7 +98,6 @@
 
         // 长期记忆：编辑按钮
         document.getElementById('memEditLong')?.addEventListener('click', () => {
-          bindGhostTextOnce(); // P1-1: 编辑时启用 ghost text 补全
           const content = document.getElementById('memLongContent');
           const editor = document.getElementById('memLongEditor');
           const editBtn = document.getElementById('memEditLong');
@@ -792,19 +791,6 @@
           return [];
         }
       });
-
-      // P4-2: 语义诊断波浪线（编辑防抖调 /api/lsp/diagnostics，setModelMarkers 标注）
-      FHMonaco.registerDiagnostics(async function ({ filePath }) {
-        try {
-          const rel = String(filePath).replace(/^\/+/, '');
-          if (!rel || rel === 'untitled') return { diagnostics: [] };
-          const q = 'cwd=' + encodeURIComponent('') + '&file=' + encodeURIComponent(rel);
-          const d = await api('/api/lsp/diagnostics?' + q, 'GET');
-          return Array.isArray(d.diagnostics) ? { diagnostics: d.diagnostics } : { diagnostics: [] };
-        } catch (e) {
-          return { diagnostics: [] };
-        }
-      }, function () { return (typeof monacoEditor !== 'undefined') ? monacoEditor : null; });
     }
 
     function switchRightTab(name) {
@@ -817,7 +803,6 @@
       document.getElementById('designPanel')?.classList.toggle('active', name === 'design');
       document.getElementById('gitPanel')?.classList.toggle('active', name === 'git');
       document.getElementById('teamPanel')?.classList.toggle('active', name === 'team');
-      document.getElementById('capabilitiesPanel')?.classList.toggle('active', name === 'capabilities');
       if (name === 'changes') {
         bindChangesButtonsOnce();
         loadChanges();
@@ -832,10 +817,6 @@
       if (name === 'team') {
         bindTeamButtonsOnce();
         loadTeamData();
-      }
-      if (name === 'capabilities') {
-        bindCapabilitiesOnce();
-        loadCapabilitiesPlugins();
       }
     }
 
@@ -879,20 +860,10 @@
     }
 
     /* ========== P3: 多文件变更面板 ========== */
-    let _autoConflictChecked = false; // P1-2: 每次会话仅自动检测一次
     async function loadChanges() {
       try {
         const d = await api('/api/changes', 'GET');
         renderChanges(d);
-        // P1-2 增强：加载后自动检测一次冲突（无需手动点击）
-        if (!_autoConflictChecked && Array.isArray(d.changes) && d.changes.length > 0) {
-          _autoConflictChecked = true;
-          try {
-            const dc = await api('/api/changes/detect-conflicts', 'POST');
-            _conflictFiles = Array.isArray(dc.conflicts) ? dc.conflicts.map(c => c.path || c) : [];
-            if (_conflictFiles.length > 0) renderChanges(d);
-          } catch { /* 自动检测失败不阻塞 */ }
-        }
       } catch (e) {
         document.getElementById('changesList').innerHTML = '<div class="muted" style="text-align:center;padding:20px;">加载失败：' + escapeHtml(e.message) + '</div>';
       }
@@ -902,13 +873,6 @@
       const changes = Array.isArray(data.changes) ? data.changes : [];
       const count = changes.length;
       document.getElementById('changesCount').textContent = count;
-      // P1-2 增强：冲突计数 badge
-      const conflictBadge = document.getElementById('changesConflictCount');
-      if (conflictBadge) {
-        const n = _conflictFiles.filter(cf => changes.some(c => c.path === cf || c.path.endsWith(cf) || cf.endsWith(c.path))).length;
-        conflictBadge.style.display = n > 0 ? 'inline' : 'none';
-        conflictBadge.textContent = n + ' 冲突';
-      }
       const list = document.getElementById('changesList');
       if (!count) {
         list.innerHTML = '<div class="muted" style="text-align:center;padding:30px;font-size:12px;">暂无暂存变更<br/><span style="font-size:11px;">AI 生成的文件修改会先暂存在这里，审批后才写入磁盘</span></div>';
@@ -2014,129 +1978,4 @@
         document.getElementById('teamTaskTitle').value = '';
         loadTeamData();
       } catch (e) { toast('创建失败: ' + (e.message || '网络错误')); }
-    }
-
-    /* ========== P0-3: 能力中心（v7.2 新能力前端接线）========== */
-    let _capabilitiesBound = false;
-    function bindCapabilitiesOnce() {
-      if (_capabilitiesBound) return;
-      _capabilitiesBound = true;
-      document.getElementById('capVoiceBtn')?.addEventListener('click', runCapabilityVoice);
-      document.getElementById('capVoiceInput')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') runCapabilityVoice(); });
-      document.getElementById('capKnowledgeSearchBtn')?.addEventListener('click', runCapabilityKnowledge);
-      document.getElementById('capKnowledgeQuery')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') runCapabilityKnowledge(); });
-      document.getElementById('capPluginsBtn')?.addEventListener('click', loadCapabilitiesPlugins);
-    }
-
-    async function runCapabilityVoice() {
-      const input = document.getElementById('capVoiceInput');
-      const out = document.getElementById('capVoiceResult');
-      const text = (input?.value || '').trim();
-      if (!text) { if (out) out.textContent = '请输入语音指令文本'; return; }
-      if (out) out.textContent = '解析中…';
-      try {
-        const d = await apiVoiceParse(text);
-        if (!d.ok) { if (out) out.textContent = '解析失败: ' + (d.error || ''); return; }
-        const c = d.command || {};
-        if (out) out.textContent = '→ ' + (c.type || '?') + (c.params && Object.keys(c.params).length ? ' 参数: ' + JSON.stringify(c.params) : '') + '  置信度: ' + (c.confidence ?? '?');
-      } catch (e) { if (out) out.textContent = '请求失败: ' + (e.message || '网络错误'); }
-    }
-
-    async function runCapabilityKnowledge() {
-      const input = document.getElementById('capKnowledgeQuery');
-      const out = document.getElementById('capKnowledgeResult');
-      const query = (input?.value || '').trim();
-      if (!query) { if (out) out.innerHTML = '<div class="muted">请输入搜索关键词</div>'; return; }
-      if (out) out.innerHTML = '<div class="muted">搜索中…</div>';
-      try {
-        const d = await apiKnowledgeSearch(query);
-        if (!d.ok) { if (out) out.innerHTML = '<div>搜索失败: ' + (d.error || '') + '</div>'; return; }
-        const list = d.results || [];
-        if (!list.length) { if (out) out.innerHTML = '<div class="muted">未找到匹配资料</div>'; return; }
-        if (out) out.innerHTML = list.map((r) => {
-          const t = r.document?.title || r.title || '未命名';
-          const id = r.document?.id || r.id || '';
-          return '<div style="padding:3px 0;border-bottom:1px solid var(--border,#eee);">📄 ' + t +
-            (id ? ' <span style="color:var(--muted);font-size:10px;">' + id.slice(0, 18) + '</span>' : '') + '</div>';
-        }).join('');
-      } catch (e) { if (out) out.innerHTML = '<div>请求失败: ' + (e.message || '网络错误') + '</div>'; }
-    }
-
-    async function loadCapabilitiesPlugins() {
-      const out = document.getElementById('capPluginsResult');
-      if (!out) return;
-      out.innerHTML = '<div class="muted">加载中…</div>';
-      try {
-        const d = await apiPluginsMarket('', '');
-        if (!d.ok) { out.innerHTML = '<div>加载失败: ' + (d.error || '') + '</div>'; return; }
-        const list = d.plugins || [];
-        if (!list.length) { out.innerHTML = '<div class="muted">插件市场为空</div>'; return; }
-        out.innerHTML = list.slice(0, 15).map((p) =>
-          '<div style="padding:3px 0;border-bottom:1px solid var(--border,#eee);">🧩 ' + (p.name || p.id) +
-          ' <span style="color:var(--muted);font-size:10px;">v' + (p.version || '?') + '</span>' +
-          '<div style="font-size:10px;color:var(--muted);">' + (p.description || '').slice(0, 40) + '</div></div>'
-        ).join('') + (list.length > 15 ? '<div class="muted" style="font-size:10px;margin-top:4px;">…共 ' + list.length + ' 个</div>' : '');
-      } catch (e) { out.innerHTML = '<div>请求失败: ' + (e.message || '网络错误') + '</div>'; }
-    }
-
-    /* ========== P1-1: ghost text 补全（记忆编辑器）========== */
-    let _ghostTimer = null;
-    let _ghostSuggestion = '';
-    let _ghostBound = false;
-
-    function bindGhostTextOnce() {
-      if (_ghostBound) return;
-      _ghostBound = true;
-      const editor = document.getElementById('memLongEditor');
-      const bar = document.getElementById('memGhostBar');
-      if (!editor || !bar) return;
-      editor.addEventListener('input', () => {
-        clearTimeout(_ghostTimer);
-        _ghostTimer = setTimeout(() => requestGhost(editor), 350);
-      });
-      editor.addEventListener('keydown', (e) => {
-        if (e.key === 'Tab' && _ghostSuggestion) {
-          e.preventDefault();
-          acceptGhost(editor);
-        } else if (e.key === 'Escape') {
-          clearGhost();
-        }
-      });
-      editor.addEventListener('blur', () => setTimeout(clearGhost, 250));
-      // 编辑框显示时绑定一次
-      document.getElementById('memLongEditor')?.addEventListener('focus', () => { /* 已绑定 */ });
-    }
-
-    async function requestGhost(editor) {
-      const content = editor.value;
-      const bar = document.getElementById('memGhostBar');
-      if (!content.trim() || content.length < 10) { clearGhost(); return; }
-      try {
-        const d = await apiCompletion('memory-note.md', content, { language: 'markdown', mode: 'quick' });
-        if (d.ok && Array.isArray(d.suggestions) && d.suggestions.length) {
-          const t = d.suggestions[0].text || '';
-          if (t && !content.endsWith(t)) {
-            _ghostSuggestion = t;
-            document.getElementById('memGhostText').textContent = t.slice(0, 200);
-            bar.style.display = 'block';
-          } else { clearGhost(); }
-        } else { clearGhost(); }
-      } catch { clearGhost(); }
-    }
-
-    function acceptGhost(editor) {
-      if (!_ghostSuggestion) return;
-      const cur = editor.selectionStart ?? editor.value.length;
-      const end = editor.selectionEnd ?? cur;
-      editor.value = editor.value.slice(0, cur) + _ghostSuggestion + editor.value.slice(end);
-      const pos = cur + _ghostSuggestion.length;
-      editor.selectionStart = editor.selectionEnd = pos;
-      try { editor.dispatchEvent(new Event('input')); } catch {}
-      clearGhost();
-    }
-
-    function clearGhost() {
-      _ghostSuggestion = '';
-      const bar = document.getElementById('memGhostBar');
-      if (bar) bar.style.display = 'none';
     }

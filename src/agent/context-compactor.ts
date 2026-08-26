@@ -12,6 +12,7 @@
  */
 import type { ChatMessage } from '../models/model.interface';
 import { logger } from '../shared/logger';
+import { routeContext, allocateBudget, exceedsBudget, estimateTokens } from './context-budget';
 
 export interface CompactionStats {
   originalLength: number;
@@ -376,4 +377,59 @@ export function smartCompact(
   logger.info('smart compaction applied', { originalLength: stats.originalLength, compressedLength: stats.compressedLength });
 
   return { messages: result, stats };
+}
+/* ========== O3：token 感知的上下文路由/压缩入口 ========== */
+
+function estimateTokensSafe(m: ChatMessage): number {
+  return estimateTokens((m.content || '') + (m.toolCalls ? JSON.stringify(m.toolCalls) : ''));
+}
+
+/** 是否因超出 token 预算而需要路由（O3） */
+export function shouldCompactByTokens(
+  messages: ChatMessage[],
+  maxTokens = 128000,
+  reservedForOutput = 8192,
+): boolean {
+  return exceedsBudget(messages, allocateBudget(maxTokens, reservedForOutput));
+}
+
+/**
+ * token 感知压缩（O3 主入口）：
+ *  1) 上下文未超预算 → 原样返回
+ *  2) 超预算 → 先做相关性路由（保留 system/首条目标/最近 N 轮 + 高价值早期消息）
+ *  3) 路由后仍超预算 → 退化为结构化摘要压缩（compactContext）
+ *
+ * @param focus 当前任务焦点（用于相关性打分），如目标描述或当前文件路径
+ */
+export function compactContextByTokens(
+  messages: ChatMessage[],
+  focus: string,
+  opts: { maxTokens?: number; reservedForOutput?: number; recentRounds?: number; preservedCount?: number } = {},
+): { messages: ChatMessage[]; tokens: number; routed: boolean; compacted: boolean } {
+  const budget = allocateBudget(opts.maxTokens ?? 128000, opts.reservedForOutput ?? 8192);
+  if (!exceedsBudget(messages, budget)) {
+    return {
+      messages,
+      tokens: messages.reduce((s, m) => s + estimateTokensSafe(m), 0),
+      routed: false,
+      compacted: false,
+    };
+  }
+  // 第一层：相关性路由
+  const routed = routeContext(messages, focus, budget, { recentRounds: opts.recentRounds ?? 8 });
+  if (!exceedsBudget(routed.messages, budget)) {
+    logger.info('context routed by tokens (no summary compaction needed)', {
+      kept: routed.keptMessages,
+      dropped: routed.droppedMessages,
+      tokens: routed.totalTokens,
+    });
+    return { messages: routed.messages, tokens: routed.totalTokens, routed: true, compacted: false };
+  }
+  // 第二层：仍超预算则退化为结构化摘要压缩
+  const compacted = compactContext(routed.messages, opts.preservedCount ?? 10);
+  logger.info('context routed + compacted by tokens', {
+    routedTokens: routed.totalTokens,
+    compactedLength: compacted.stats.compressedLength,
+  });
+  return { messages: compacted.messages, tokens: compacted.stats.compressedLength, routed: true, compacted: true };
 }

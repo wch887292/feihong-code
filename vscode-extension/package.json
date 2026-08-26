@@ -1,67 +1,105 @@
 {
-  "name": "fhcode-vscode",
-  "displayName": "fhcode — 飞虹 Code",
-  "description": "调起 fhcode 终端 AI 编程智能体：运行任务、查看会话 diff（最小可用壳）",
-  "version": "0.5.0",
-  "publisher": "feihong",
-  "license": "MIT",
+  "name": "feihong-code-vscode",
+  "displayName": "飞虹 Code（Muse Code 复刻）",
+  "description": "VS Code 薄壳扩展：连接本地 fhcode serve，提供行内补全与侧边栏对话。企业可在自己机房里跑的私有版 Cursor。",
+  "version": "1.0.0",
+  "publisher": "feihong-code",
   "engines": {
     "vscode": "^1.85.0"
   },
-  "categories": ["Other"],
+  "categories": [
+    "AI",
+    "Programming Languages",
+    "Chat"
+  ],
+  "keywords": [
+    "ai",
+    "agent",
+    "copilot",
+    "completion",
+    "private",
+    "offline"
+  ],
   "activationEvents": [
-    "onCommand:fhcode.run",
-    "onCommand:fhcode.diff",
-    "onCommand:fhcode.output",
-    "onCommand:fhcode.review",
     "onStartupFinished"
   ],
   "main": "./extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "fhcode.run",
-        "title": "fhcode: 运行任务（附带选区上下文）",
-        "category": "fhcode"
+        "command": "fhcode.connect",
+        "title": "飞虹 Code: 连接本地服务"
       },
       {
-        "command": "fhcode.review",
-        "title": "fhcode: 内联评审当前文件",
-        "category": "fhcode"
+        "command": "fhcode.openChat",
+        "title": "飞虹 Code: 打开对话面板"
       },
       {
-        "command": "fhcode.diff",
-        "title": "fhcode: 就地查看工作区 diff（HEAD ↔ 工作区）",
-        "category": "fhcode"
+        "command": "fhcode.submitSelection",
+        "title": "飞虹 Code: 把选中代码作为任务发给 Agent"
       },
       {
-        "command": "fhcode.output",
-        "title": "fhcode: 查看最近任务输出",
-        "category": "fhcode"
+        "command": "fhcode.toggleInlineCompletion",
+        "title": "飞虹 Code: 开关行内补全"
       }
     ],
     "configuration": {
-      "title": "fhcode",
+      "title": "飞虹 Code",
       "properties": {
-        "fhcode.binaryPath": {
+        "fhcode.serverUrl": {
           "type": "string",
-          "default": "fhcode",
-          "description": "fhcode 可执行文件路径（默认取 PATH 中的 fhcode）"
+          "default": "http://localhost:8080",
+          "description": "fhcode serve 的地址（Electron 版默认 8081，CLI serve 默认 8080）"
         },
-        "fhcode.offline": {
-          "type": "boolean",
-          "default": false,
-          "description": "以离线模式（mock）运行，便于无模型环境验证"
+        "fhcode.token": {
+          "type": "string",
+          "default": "",
+          "description": "若已在服务端配置固定令牌(FH_WEB_TOKEN)，填这里；留空则自动用手机号登录换取临时令牌"
         },
-        "fhcode.reviewOnSave": {
+        "fhcode.phone": {
+          "type": "string",
+          "default": "vscode-local",
+          "description": "自动登录使用的手机号（仅本地标识，无短信验证）"
+        },
+        "fhcode.modelId": {
+          "type": "string",
+          "default": "",
+          "description": "提交任务时指定的模型 ID，留空用服务端默认模型"
+        },
+        "fhcode.enableInlineCompletion": {
           "type": "boolean",
           "default": true,
-          "description": "保存文件后自动运行 fhcode review 内联评审"
+          "description": "是否启用编辑器内行内补全"
         }
       }
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "fhcode",
+          "title": "飞虹 Code",
+          "icon": "$(robot)"
+        }
+      ]
+    },
+    "views": {
+      "fhcode": [
+        {
+          "type": "webview",
+          "id": "fhcode.chat",
+          "name": "对话"
+        }
+      ]
     }
   },
   "scripts": {
-    "check": "node --check extension.js"
+    "vscode:prepublish": "echo '纯 JS 扩展，无需编译'",
+    "package": "vsce package --no-dependencies"
+  },
+  "author": "吴赐虹 (晋江市飞虹智科技企业管理有限公司)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wch887292/feihong-code.git"
   }
 }

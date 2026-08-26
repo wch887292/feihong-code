@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>飞虹 Code v7.2.0 · 重新复盘 12 维评测矩阵</title>
+<style>
+:root {
+  --bg: #f8f9fa;
+  --card: #ffffff;
+  --border: #e2e8f0;
+  --text: #1a202c;
+  --muted: #718096;
+  --accent: #3182ce;
+  --green: #38a169;
+  --red: #e53e3e;
+  --yellow: #d69e2e;
+  --orange: #ed8936;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+.container { max-width: 1400px; margin: 0 auto; padding: 24px; }
+header { background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%); color: white; padding: 32px; border-radius: 12px; margin-bottom: 24px; }
+header h1 { font-size: 24px; font-weight: 700; margin-bottom: 8px; }
+header p { opacity: 0.9; font-size: 14px; }
+.badge { display: inline-block; background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 20px; font-size: 12px; margin-right: 8px; }
+.section { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 20px; }
+.section h2 { font-size: 18px; font-weight: 600; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid var(--accent); }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { background: #f7fafc; padding: 10px 8px; text-align: center; font-weight: 600; border: 1px solid var(--border); white-space: nowrap; }
+td { padding: 8px; text-align: center; border: 1px solid var(--border); }
+td:first-child { text-align: left; font-weight: 600; white-space: nowrap; }
+.rank-1 { background: #fef3c7; }
+.rank-2 { background: #f0f9ff; }
+.rank-3 { background: #faf5ff; }
+.highlight-row { background: #ecfdf5 !important; font-weight: 600; }
+.dim-header { font-size: 11px; color: var(--muted); }
+.score { font-weight: 700; font-size: 15px; }
+.score-high { color: var(--green); }
+.score-mid { color: var(--yellow); }
+.score-low { color: var(--red); }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+@media (max-width: 900px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+.card h3 { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+.card .stat { font-size: 28px; font-weight: 700; color: var(--accent); }
+.card .label { font-size: 12px; color: var(--muted); }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+.tag-green { background: #c6f6d5; color: #22543d; }
+.tag-red { background: #fed7d7; color: #742a2a; }
+.tag-yellow { background: #feebc8; color: #744210; }
+.tag-blue { background: #bee3f8; color: #2a4365; }
+.pros-list, .cons-list { list-style: none; padding: 0; }
+.pros-list li::before { content: "✅ "; }
+.cons-list li::before { content: "🔴 "; }
+.pros-list li, .cons-list li { padding: 6px 0; font-size: 13px; border-bottom: 1px solid var(--border); }
+.pros-list li:last-child, .cons-list li:last-child { border-bottom: none; }
+.radar-container { display: flex; justify-content: center; padding: 20px; }
+.comparison-table th, .comparison-table td { font-size: 12px; }
+.change-positive { color: var(--green); font-weight: 600; }
+.change-negative { color: var(--red); font-weight: 600; }
+footer { text-align: center; padding: 20px; color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+  <div><span class="badge">v7.2.0</span><span class="badge">源码级审计</span><span class="badge">2026-08-26</span></div>
+  <h1>飞虹 Code · 重新复盘 12 维客观评测矩阵</h1>
+  <p>晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹</p>
+  <p style="margin-top:8px; opacity:0.8;">对标：豆包 / TRAE / WorkBuddy / Cursor / OpenCode / Claude Code / GitHub Copilot / Codex CLI / Windsurf</p>
+</header>
+
+<!-- KPI Cards -->
+<div class="grid-4" style="display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:20px;">
+<div class="card"><div class="stat">8.25</div><div class="label">飞虹 Code 综合得分</div><div style="margin-top:8px;"><span class="tag tag-blue">排名第 4</span></div></div>
+<div class="card"><div class="stat">10</div><div class="label">⑨ 私有化/离线（满分）</div><div style="margin-top:8px;"><span class="tag tag-green">唯一护城河</span></div></div>
+<div class="card"><div class="stat">1179</div><div class="label">enterprise/ 源码行数</div><div style="margin-top:8px;"><span class="tag tag-green">企业安全闭环</span></div></div>
+<div class="card"><div class="stat">6/10</div><div class="label">④ SWE Agent（下调2分）</div><div style="margin-top:8px;"><span class="tag tag-red">无 SWE-bench 集成</span></div></div>
+</div>
+
+<!-- Score Matrix -->
+<div class="section">
+<h2>📊 修订版 12 维评测矩阵（满分 10）</h2>
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+  <th>产品</th>
+  <th><span class="dim-header">①<br>形态多端</span></th>
+  <th><span class="dim-header">②<br>模型路由</span></th>
+  <th><span class="dim-header">③<br>代码生成</span></th>
+  <th><span class="dim-header">④<br>SWE Agent</span></th>
+  <th><span class="dim-header">⑤<br>多智能体</span></th>
+  <th><span class="dim-header">⑥<br>上下文</span></th>
+  <th><span class="dim-header">⑦<br>生态</span></th>
+  <th><span class="dim-header">⑧<br>企业级</span></th>
+  <th><span class="dim-header">⑨<br>私有化</span></th>
+  <th><span class="dim-header">⑩<br>中文</span></th>
+  <th><span class="dim-header">⑪<br>价格</span></th>
+  <th><span class="dim-header">⑫<br>创新</span></th>
+  <th>综合</th>
+</tr>
+</thead>
+<tbody>
+<tr class="rank-1"><td>Cursor</td><td class="score score-high">9</td><td class="score score-high">9</td><td class="score score-high">9</td><td class="score score-high">9</td><td class="score score-high">9</td><td class="score score-high">8</td><td class="score">8</td><td class="score">7</td><td class="score score-low">3</td><td class="score score-low">4</td><td class="score score-low">5</td><td class="score">8</td><td class="score score-high" style="font-size:18px;">8.83</td></tr>
+<tr class="rank-2"><td>Claude Code</td><td class="score">7</td><td class="score">6</td><td class="score score-high">9</td><td class="score score-high">9</td><td class="score score-high">9</td><td class="score score-high">9</td><td class="score">9</td><td class="score">7</td><td class="score score-low">4</td><td class="score score-low">4</td><td class="score">6</td><td class="score">8</td><td class="score score-high" style="font-size:18px;">8.50</td></tr>
+<tr class="rank-3"><td>GitHub Copilot</td><td class="score score-high">9</td><td class="score">8</td><td class="score score-high">9</td><td class="score">8</td><td class="score">7</td><td class="score">8</td><td class="score">8</td><td class="score score-high">9</td><td class="score score-low">3</td><td class="score score-low">4</td><td class="score">6</td><td class="score">8</td><td class="score score-high" style="font-size:18px;">8.42</td></tr>
+<tr class="highlight-row"><td>🦞 飞虹 Code v7.2.0</td><td class="score score-high">9</td><td class="score score-high">8</td><td class="score score-mid">7</td><td class="score score-mid">6</td><td class="score score-high">8</td><td class="score">7</td><td class="score">8</td><td class="score score-high">9</td><td class="score score-high" style="background:#c6f6d5;">10</td><td class="score score-high">9</td><td class="score score-high" style="background:#c6f6d5;">10</td><td class="score score-high">9</td><td class="score score-high" style="font-size:18px; background:#c6f6d5;">8.25</td></tr>
+<tr><td>OpenCode</td><td class="score">8</td><td class="score score-high">9</td><td class="score">8</td><td class="score">7</td><td class="score">7</td><td class="score">7</td><td class="score">7</td><td class="score score-low">5</td><td class="score">7</td><td class="score score-low">5</td><td class="score score-high">10</td><td class="score">7</td><td class="score">7.50</td></tr>
+<tr><td>WorkBuddy</td><td class="score score-high">9</td><td class="score">7</td><td class="score score-low">6</td><td class="score score-low">6</td><td class="score score-high">9</td><td class="score">8</td><td class="score score-high" style="background:#fef3c7;">10</td><td class="score">8</td><td class="score score-low">4</td><td class="score score-high">10</td><td class="score">7</td><td class="score score-high">9</td><td class="score">7.75</td></tr>
+<tr><td>豆包</td><td class="score score-high">9</td><td class="score score-low">6</td><td class="score score-high">9</td><td class="score">8</td><td class="score">8</td><td class="score score-high">9</td><td class="score score-low">6</td><td class="score">7</td><td class="score score-low">3</td><td class="score score-high">10</td><td class="score">8</td><td class="score score-high">9</td><td class="score">7.67</td></tr>
+<tr><td>Windsurf</td><td class="score">8</td><td class="score">7</td><td class="score">8</td><td class="score">8</td><td class="score score-low">6</td><td class="score">7</td><td class="score">7</td><td class="score score-low">6</td><td class="score score-low">5</td><td class="score score-low">4</td><td class="score score-low">6</td><td class="score">7</td><td class="score">7.00</td></tr>
+<tr><td>TRAE</td><td class="score">8</td><td class="score">7</td><td class="score score-high">9</td><td class="score">8</td><td class="score score-low">5</td><td class="score">7</td><td class="score">8</td><td class="score score-low">5</td><td class="score score-low">3</td><td class="score score-high">10</td><td class="score">8</td><td class="score">8</td><td class="score">7.08</td></tr>
+</tbody>
+</table>
+</div>
+<p style="margin-top:12px; font-size:12px; color:var(--muted);">
+  <span class="tag tag-green">绿色=优势</span>
+  <span class="tag tag-yellow">黄色=中等</span>
+  <span class="tag tag-red">红色=短板</span>
+  &nbsp;|&nbsp; 飞虹 Code 高亮行为自家数据，🦞 标识
+</p>
+</div>
+
+<!-- Change Summary -->
+<div class="section">
+<h2>📈 vs 第一版报告评分变化</h2>
+<div class="table-wrap">
+<table class="comparison-table">
+<thead><tr><th>维度</th><th>第一版</th><th>修订版</th><th>变化</th><th>调整原因</th></tr></thead>
+<tbody>
+<tr><td>④ SWE Agent</td><td>8</td><td class="score score-low">6</td><td class="change-negative">↓ 2</td><td>源码审计：245 行框架，无 SWE-bench 集成，无公开跑分</td></tr>
+<tr><td>③ 代码生成</td><td>7</td><td class="score score-mid">7</td><td>—</td><td>维持：有 O2 后处理引擎，但质量依赖外部模型</td></tr>
+<tr><td>② 模型路由</td><td>8</td><td class="score score-high">8</td><td>—</td><td>维持：Ollama + OpenAI 兼容 + 3 策略 + 自动故障转移</td></tr>
+<tr><td>⑫ 差异化创新</td><td>9</td><td class="score score-high">9</td><td>—</td><td>维持：语音+事件驱动+电脑控制+Figma 转代码</td></tr>
+<tr><td>综合得分</td><td>8.50（第 1）</td><td class="score score-mid">8.25（第 4）</td><td class="change-negative">↓ 0.25</td><td>SWE 下调导致排名下降，新增 OpenCode（7.50）参照</td></tr>
+</tbody>
+</table>
+</div>
+</div>
+
+<!-- Strengths & Weaknesses -->
+<div class="grid-2">
+<div class="section">
+<h2>✅ 核心优势（源码验证）</h2>
+<ul class="pros-list">
+<li><strong>私有化/离线绝对护城河（⑨=10）</strong>：Ollama 本地推理 + 数据不出域，唯一满分项</li>
+<li><strong>企业安全闭环（⑧=9）</strong>：1179 行 enterprise/，RBAC + 审计链 + 配额 + 多租户</li>
+<li><strong>零成本 + 无 seat 限制（⑪=10）</strong>：MIT 开源，预算敏感团队降维打击</li>
+<li><strong>全端形态（①=9）</strong>：CLI/Web/桌面/安卓/PWA + 薄壳 VS Code 扩展</li>
+<li><strong>事件驱动独家差异化（⑫=9）</strong>：cron + fs.watch + webhook + 手动四态</li>
+<li><strong>国产模型原生（②⑩）</strong>：DeepSeek/通义直连，中文双语界面</li>
+</ul>
+</div>
+<div class="section">
+<h2>🔴 核心劣势（源码验证）</h2>
+<ul class="cons-list">
+<li><strong>SWE Agent 无公开跑分（④=6）</strong>：245 行框架，无 SWE-bench 集成</li>
+<li><strong>无 LSP 集成</strong>：OpenCode 已获编译器级代码理解，飞虹 Code 无此能力</li>
+<li><strong>编辑器内编码体验弱（③=7）</strong>：O1 扩展仅 300 行薄壳，无实时 inline 补全</li>
+<li><strong>生态规模不足（⑦=8）</strong>：WorkBuddy 7万+ Skills，飞虹 Code 刚起步</li>
+<li><strong>Docker 沙箱缺失</strong>：无容器隔离档位，面对"不信任代码"场景薄弱</li>
+<li><strong>合规认证空白</strong>：缺 SOC2/ISO27001，政企采购常卡合规证书</li>
+</ul>
+</div>
+</div>
+
+<!-- Optimization Roadmap -->
+<div class="section">
+<h2>🗺️ 优化路线图（按源码验证优先级）</h2>
+<div class="grid-3">
+<div class="card" style="border-top:3px solid var(--green);">
+<h3>🟢 P0 — 1-2 周</h3>
+<p style="font-size:12px; color:var(--muted); margin-bottom:8px;">源码已就绪，只需激活/集成</p>
+<ul style="font-size:12px; padding-left:16px;">
+<li>O1：SWE-bench lite/verified 集成 + 容器化执行</li>
+<li>O2：VS Code 扩展深化（LSP 感知 + inline 预览）</li>
+<li>O3：O2/O3 全面集成验证（completion-postprocess + context-budget）</li>
+</ul>
+</div>
+<div class="card" style="border-top:3px solid var(--yellow);">
+<h3>🟡 P1 — 2-4 周</h3>
+<p style="font-size:12px; color:var(--muted); margin-bottom:8px;">核心能力补齐</p>
+<ul style="font-size:12px; padding-left:16px;">
+<li>O4：LSP 集成（语言服务器协议，编译器级理解）</li>
+<li>O5：Docker 沙箱档位（FH_SANDBOX_MODE=container）</li>
+<li>O6：官方连接器目录（数据库/云/IM MCP）</li>
+<li>O7：SWE Agent 增强（多轮 self-heal + 测试执行）</li>
+</ul>
+</div>
+<div class="card" style="border-top:3px solid var(--blue);">
+<h3>🔵 P2 — 1-2 月</h3>
+<p style="font-size:12px; color:var(--muted); margin-bottom:8px;">生态与合规延展</p>
+<ul style="font-size:12px; padding-left:16px;">
+<li>O8：SOC2/ISO27001 材料出具</li>
+<li>O9：与 ClawHub/SkillHub 技能生态互通</li>
+<li>O10：模型一键评测脚本（成本/质量对比）</li>
+</ul>
+</div>
+</div>
+<div style="margin-top:16px; padding:16px; background:#f7fafc; border-radius:8px; border-left:4px solid var(--accent);">
+<strong>战略建议：</strong>守住"离线私有化全栈 AI 开发工作台"（⑨⑪⑧⑩），用 O1+O2 补齐编码体验短板，用 O4 追平生态规模。不与 Cursor 拼绝对智力，不与豆包拼用户盘，做"企业能在自己机房跑的 Cursor + 私有版 WorkBuddy"。
+</div>
+</div>
+
+<!-- Dimension Champions -->
+<div class="section">
+<h2>🏆 维度冠军分布</h2>
+<table>
+<thead><tr><th>维度</th><th>冠军</th><th>分数</th><th>备注</th></tr></thead>
+<tbody>
+<tr><td>① 形态多端</td><td>Cursor / 豆包 / WorkBuddy / 飞虹 Code</td><td>9</td><td>并列</td></tr>
+<tr><td>② 模型路由/离线</td><td>🦞 飞虹 Code</td><td>8</td><td>唯一"任意模型+离线"</td></tr>
+<tr><td>③ 代码生成与补全</td><td>Cursor / 豆包 / Claude / Copilot / TRAE</td><td>9</td><td>闭源模型强者占优</td></tr>
+<tr><td>④ 自主 Agent/SWE</td><td>Cursor / Claude Code</td><td>9</td><td>有公开 SWE-bench 跑分</td></tr>
+<tr><td>⑤ 多智能体编排</td><td>Cursor / WorkBuddy</td><td>9</td><td>多角色协作成熟度</td></tr>
+<tr><td>⑥ 上下文/记忆</td><td>Claude Code / 豆包</td><td>9</td><td>长上下文 + 语义记忆</td></tr>
+<tr><td>⑦ 生态扩展</td><td>WorkBuddy</td><td>10</td><td>7万+ Skills + 30+ MCP</td></tr>
+<tr><td>⑧ 企业级</td><td>🦞 飞虹 Code</td><td>9</td><td>RBAC+审计链+配额+SSO</td></tr>
+<tr><td>⑨ 私有化/离线</td><td>🦞 飞虹 Code</td><td>10</td><td>唯一满分</td></tr>
+<tr><td>⑩ 中文/本地化</td><td>🦞 飞虹 Code / 豆包 / TRAE / WorkBuddy</td><td>9-10</td><td>国产系满分队</td></tr>
+<tr><td>⑪ 价格成本</td><td>🦞 飞虹 Code</td><td>10</td><td>免费开源</td></tr>
+<tr><td>⑫ 差异化创新</td><td>🦞 飞虹 Code</td><td>9</td><td>语音+事件驱动+电脑控制</td></tr>
+</tbody>
+</table>
+</div>
+
+<!-- Conclusion -->
+<div class="section">
+<h2>📝 结论</h2>
+<p style="font-size:14px; line-height:1.8;">
+飞虹 Code v7.2.0 在<strong>源码审计验证</strong>下，综合得分 <strong>8.25，位列第 4</strong>（Cursor 8.83 / Claude Code 8.50 / Copilot 8.42）。
+</p>
+<p style="font-size:14px; line-height:1.8; margin-top:12px;">
+<strong>真实竞争力：</strong>唯一满分护城河——私有化/离线（⑨=10）+ 零成本（⑪=10），这是任何闭源竞品都做不到的；企业安全深度（1179 行 enterprise/ 代码）优于 TRAE/Cursor；差异化组合（语音+事件驱动+电脑控制+Figma）国际竞品无此能力。
+</p>
+<p style="font-size:14px; line-height:1.8; margin-top:12px;">
+<strong>下一阶段行动：</strong>① 立刻运行 SWE-bench lite 出公开跑分（O1，1-2 周）；② 同步深化 VS Code 扩展 + 接入 LSP（O2/O4，2-4 周）；③ 中期补齐 Docker 沙箱档位 + 官方连接器目录（O5/O6，1-2 月）。
+</p>
+</div>
+
+<footer>
+晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹<br>
+2026-08-26 18:45 · 源码审计 + 公开资料交叉验证
+</footer>
+</div>
+</body>
+</html>

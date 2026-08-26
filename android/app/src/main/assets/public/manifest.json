@@ -1,0 +1,59 @@
+{
+  "name": "飞虹 Code",
+  "short_name": "飞虹Code",
+  "description": "终端 AI 编程智能体，对标 Muse Code / Cursor",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1a1a2e",
+  "theme_color": "#6366f1",
+  "orientation": "any",
+  "scope": "/",
+  "lang": "zh-CN",
+  "dir": "ltr",
+  "categories": ["developer-tools", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "新建任务",
+      "short_name": "新任务",
+      "description": "创建新的 AI 编程任务",
+      "url": "/?action=new-task",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "代码补全",
+      "short_name": "补全",
+      "description": "快速代码补全",
+      "url": "/?action=completion",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "代码审查",
+      "short_name": "审查",
+      "description": "AI 代码审查",
+      "url": "/?action=review",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ],
+  "prefer_related_applications": false,
+  "features": [
+    "Cross Platform",
+    "AI Code Completion",
+    "Multi-agent Collaboration",
+    "Voice Programming",
+    "Knowledge Library"
+  ]
+}

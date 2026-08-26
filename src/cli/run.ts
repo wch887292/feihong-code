@@ -8,7 +8,7 @@
  * M3 增强：会话检查点持久化 + resume/diff/rollback 管理命令 + 交互式审批。
  */
 import { randomUUID } from 'crypto';
-import { mkdtempSync, existsSync, mkdirSync, writeFileSync, rmSync, readFileSync } from 'fs';
+import { mkdtempSync, existsSync, mkdirSync, writeFileSync, rmSync, readFileSync, copyFileSync } from 'fs';
 import { tmpdir, homedir } from 'os';
 import { join, dirname } from 'path';
 import { createInterface } from 'readline';
@@ -977,14 +977,27 @@ export async function runSkillMarketCmd(action: 'search' | 'install' | 'list', q
     return;
   }
 
-  // search / install 需联网拉索引
+  // search / install 需拉索引；网络不可达时回退本地种子源（P4-3）
   let index;
   try {
     index = await fetchMarketIndex(base);
   } catch (e) {
-    console.error(t('skillMarket.fetchFailed', { base }) + (e instanceof Error ? e.message : String(e)));
-    process.exitCode = 1;
-    return;
+    const localSeed = join(__dirname, '../../templates/market/index.json');
+    if (existsSync(localSeed)) {
+      try {
+        index = JSON.parse(readFileSync(localSeed, 'utf8'));
+        index.source = 'local:seed';
+        console.log(t('skillMarket.localSeed'));
+      } catch {
+        console.error(t('skillMarket.fetchFailed', { base }) + (e instanceof Error ? e.message : String(e)));
+        process.exitCode = 1;
+        return;
+      }
+    } else {
+      console.error(t('skillMarket.fetchFailed', { base }) + (e instanceof Error ? e.message : String(e)));
+      process.exitCode = 1;
+      return;
+    }
   }
   if (!isSchemaSupported(index.schema)) {
     console.warn(t('skillMarket.schemaWarn', { schema: index.schema ?? '?' }));
@@ -1010,7 +1023,7 @@ export async function runSkillMarketCmd(action: 'search' | 'install' | 'list', q
     process.exitCode = 1;
     return;
   }
-  const skill = index.skills.find((s) => s.name === query);
+  const skill = index.skills.find((s: { name: string }) => s.name === query);
   if (!skill) {
     console.error(t('skillMarket.notFound', { name: query }));
     process.exitCode = 1;
@@ -1018,8 +1031,23 @@ export async function runSkillMarketCmd(action: 'search' | 'install' | 'list', q
   }
   const destDir = join(resolveHomeDir(), 'skills');
   try {
-    const target = await installMarketSkill(index, skill, destDir);
-    console.log(t('skillMarket.installed', { name: skill.name, dir: target }));
+    // P4-3: 本地种子源（url 以 local: 开头）→ 直接从官方模板复制，不依赖网络
+    if (skill.url.startsWith('local:')) {
+      const tid = skill.url.slice('local:'.length);
+      const tdir = join(__dirname, '../../templates/skills', tid);
+      if (!existsSync(tdir)) {
+        console.error(t('skillMarket.notFound', { name: skill.name }));
+        process.exitCode = 1;
+        return;
+      }
+      const target = join(destDir, skill.name);
+      mkdirSync(target, { recursive: true });
+      copyFileSync(join(tdir, 'SKILL.md'), join(target, 'SKILL.md'));
+      console.log(t('skillMarket.installed', { name: skill.name, dir: target }));
+    } else {
+      const target = await installMarketSkill(index, skill, destDir);
+      console.log(t('skillMarket.installed', { name: skill.name, dir: target }));
+    }
   } catch (e) {
     console.error(t('skillMarket.installFailed') + (e instanceof Error ? e.message : String(e)));
     process.exitCode = 1;

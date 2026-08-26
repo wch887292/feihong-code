@@ -1,0 +1,65 @@
+{
+  "$schema": "https://feihong-code.example/skill-market-schema-v1.json",
+  "skills": [
+    {
+      "name": "code-review",
+      "type": "skill-md",
+      "description": "系统代码审查：缺陷、安全、可维护性，输出分级问题清单",
+      "url": "local:code-review"
+    },
+    {
+      "name": "git-flow",
+      "type": "skill-md",
+      "description": "Git 提交规范、分支管理、rebase/合并、冲突解决指引",
+      "url": "local:git-flow"
+    },
+    {
+      "name": "api-design",
+      "type": "skill-md",
+      "description": "REST API 设计评审：资源建模、状态码、校验、版本化、安全",
+      "url": "local:api-design"
+    },
+    {
+      "name": "refactor",
+      "type": "skill-md",
+      "description": "代码重构建议：保持行为不变的前提下提升可读性与可维护性",
+      "url": "local:refactor"
+    },
+    {
+      "name": "test-gen",
+      "type": "skill-md",
+      "description": "单元测试生成：正常/边界/异常路径全覆盖",
+      "url": "local:test-gen"
+    },
+    {
+      "name": "doc-gen",
+      "type": "skill-md",
+      "description": "代码文档生成：模块说明、函数注释、README、CHANGELOG",
+      "url": "local:doc-gen"
+    },
+    {
+      "name": "security-audit",
+      "type": "skill-md",
+      "description": "安全审计（OWASP Top 10）：注入、敏感信息、依赖漏洞",
+      "url": "local:security-audit"
+    },
+    {
+      "name": "performance",
+      "type": "skill-md",
+      "description": "性能优化分析：复杂度、I/O、缓存、并发瓶颈",
+      "url": "local:performance"
+    },
+    {
+      "name": "dependency-upgrade",
+      "type": "skill-md",
+      "description": "依赖升级检查：版本风险、兼容性、安全升级方案",
+      "url": "local:dependency-upgrade"
+    },
+    {
+      "name": "onboarding",
+      "type": "skill-md",
+      "description": "新项目上手导读：架构、目录、运行、数据流",
+      "url": "local:onboarding"
+    }
+  ]
+}

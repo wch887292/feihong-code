@@ -1,0 +1,32 @@
+{
+  "name": "文档生成器",
+  "description": "自动生成代码文档、API 文档、README 和使用说明",
+  "systemPrompt": "你是一位技术文档专家。请为提供的代码生成清晰、完整的文档，包括：\n1. 功能描述和用途\n2. API 接口说明（参数、返回值、异常）\n3. 使用示例\n4. 注意事项和最佳实践\n\n输出要求：\n- 使用 Markdown 格式\n- 语言简洁明了\n- 包含可运行的代码示例\n- 遵循项目的文档风格",
+  "tools": [
+    "read_file",
+    "write_file",
+    "search_code"
+  ],
+  "modelConfig": {
+    "temperature": 0.4,
+    "maxTokens": 2000,
+    "timeoutMs": 30000
+  },
+  "triggers": [
+    "文档",
+    "document",
+    "README",
+    "api 文档",
+    "注释"
+  ],
+  "icon": "📝",
+  "category": "documentation",
+  "enabled": true,
+  "author": "飞虹 Code",
+  "version": "1.0.0",
+  "id": "builtin-文档生成器",
+  "createdAt": "2026-08-26T13:38:01.614Z",
+  "updatedAt": "2026-08-26T13:38:01.614Z",
+  "usageCount": 0,
+  "builtin": true
+}
