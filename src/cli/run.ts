@@ -8,7 +8,7 @@
  * M3 增强：会话检查点持久化 + resume/diff/rollback 管理命令 + 交互式审批。
  */
 import { randomUUID } from 'crypto';
-import { mkdtempSync, existsSync, mkdirSync, writeFileSync, rmSync } from 'fs';
+import { mkdtempSync, existsSync, mkdirSync, writeFileSync, rmSync, readFileSync } from 'fs';
 import { tmpdir, homedir } from 'os';
 import { join, dirname } from 'path';
 import { createInterface } from 'readline';
@@ -870,8 +870,38 @@ export async function runDoctor(): Promise<void> {
   console.log(failed.length === 0 ? t('doctor.allOk') : t('doctor.issues', { n: failed.length }));
 }
 
-/* ===================== P3-3：插件管理 ===================== */
+/** `fhcode skill-new <name> [--template <id>] [--global]`：从官方模板脚手架生成 Skill（P0-3 生态） */
+export async function runSkillNewCmd(name: string, opts: { template?: string; global?: boolean } = {}): Promise<void> {
+  const templateId = opts.template ?? 'code-review';
+  const templateDir = join(__dirname, '../../templates/skills', templateId);
+  if (!existsSync(templateDir)) {
+    console.error(`模板不存在: ${templateId}（可选：code-review/git-flow/api-design/refactor/test-gen/doc-gen/security-audit/performance/dependency-upgrade/onboarding）`);
+    process.exitCode = 1;
+    return;
+  }
+  if (!name || /[\\/:*?"<>|]/.test(name)) {
+    console.error('Skill 名称非法（不能含 \\/:*?"<>| 且不能为空）');
+    process.exitCode = 1;
+    return;
+  }
+  const base = opts.global
+    ? join(resolveHomeDir(), '.feihong-code', 'skills')
+    : join(process.cwd(), '.fhcode', 'skills');
+  const target = join(base, name);
+  if (existsSync(target)) {
+    console.error(`已存在: ${target}`);
+    process.exitCode = 1;
+    return;
+  }
+  mkdirSync(target, { recursive: true });
+  const src = readFileSync(join(templateDir, 'SKILL.md'), 'utf8');
+  const rendered = src.replace(/{{SKILL_NAME}}/g, name);
+  writeFileSync(join(target, 'SKILL.md'), rendered, 'utf8');
+  console.log(`✓ 已创建 Skill: ${target}`);
+  console.log(`  模板: ${templateId}（可直接编辑 SKILL.md 定制）`);
+}
 
+/* ===================== P3-3：插件管理 ===================== */
 /** fhcode plugin install <source> / plugin list：插件打包分发管理 */
 export async function runPluginCmd(action: 'install' | 'list', source?: string): Promise<void> {
   if (action === 'install') {

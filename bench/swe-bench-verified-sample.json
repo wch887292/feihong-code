@@ -1,0 +1,30 @@
+[
+  {
+    "instance_id": "astropy__astropy-12907",
+    "repo": "astropy/astropy",
+    "base_commit": "b4b32c48ba25a4bda5d66a82ddfb7aeb2a5c4e97",
+    "problem_statement": "When using np.broadcast_to with a view of a masked array, the result loses the mask.",
+    "patch": "*** placeholder: 需从官方数据集拉取真实 gold patch ***",
+    "test_patch": "*** placeholder: 需从官方数据集拉取真实 test_patch ***",
+    "FAIL_TO_PASS": "[\"astropy/tests/test_masked.py::test_broadcast_to\"]",
+    "PASS_TO_PASS": "[\"astropy/tests/test_masked.py::test_masked_init\"]",
+    "created_at": "2023-10-26T00:00:00Z",
+    "version": 1
+  },
+  {
+    "instance_id": "django__django-11099",
+    "repo": "django/django",
+    "base_commit": "abc23bb35cd2b0f0a7a9e9c1a4c3f8f7a6b5d4e3",
+    "problem_statement": "ORM query with Exists() subquery and OuterRef fails to resolve the outer reference when used with annotate.",
+    "patch": "*** placeholder: 需从官方数据集拉取真实 gold patch ***",
+    "test_patch": "*** placeholder: 需从官方数据集拉取真实 test_patch ***",
+    "FAIL_TO_PASS": [
+      "tests/expressions/tests.py::ExistsTests::test_exists_with_outerref_annotate"
+    ],
+    "PASS_TO_PASS": [
+      "tests/expressions/tests.py::ExistsTests::test_exists_basic"
+    ],
+    "created_at": "2023-10-26T00:00:00Z",
+    "version": 1
+  }
+]

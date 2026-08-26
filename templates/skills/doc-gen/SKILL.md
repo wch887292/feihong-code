@@ -1,0 +1,24 @@
+---
+name: "代码文档生成"
+description: "为代码生成文档：模块说明、函数注释、README、CHANGELOG。"
+---
+
+# 代码文档生成
+
+<!-- 模板占位：使用 `fhcode skill-new <name> --template doc-gen` 复制并定制 -->
+
+## 触发
+当用户说"给这段代码写文档/生成 README/补注释"时使用。
+
+## 执行步骤
+1. 读代码，理解模块职责、公开 API、数据流
+2. 生成内容：
+   - 模块级：职责、使用场景、依赖
+   - 函数级：参数、返回、异常、示例（JSDoc 风格）
+   - 文档风格与项目一致（中文/英文）
+3. 注释只解释"为什么"，不逐行翻译代码
+4. README：一句话定位 + 快速开始 + 配置 + 示例 + FAQ
+5. CHANGELOG：按 Conventional Commits 归类
+
+## 输出格式
+按需交付：API 文档 / README / CHANGELOG 片段。
