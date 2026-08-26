@@ -51,10 +51,13 @@ export class CodeWriter {
   private issuesFixed = 0;
   private readonly rules: ReviewRule[];
   private readonly cwd: string;
+  /** P3: 写入前暂存回调（注入 change-manager.stageChange），AI 生成的修改会记录到变更面板 */
+  private readonly stageChange?: (path: string, content: string) => void;
 
-  constructor(cwd: string, rules: ReviewRule[] = []) {
+  constructor(cwd: string, rules: ReviewRule[] = [], opts?: { stageChange?: (path: string, content: string) => void }) {
     this.cwd = cwd;
     this.rules = rules;
+    this.stageChange = opts?.stageChange;
   }
 
   /** 阶段 1：规划 */
@@ -71,6 +74,14 @@ export class CodeWriter {
   /** 阶段 2：编写代码 */
   write(code: string, filePath: string): CodeWriterStep {
     const absPath = join(this.cwd, filePath);
+    // P3: 写入前暂存到变更面板（记录式暂存，文件仍正常写入，变更面板可追溯 AI 所有修改）
+    if (this.stageChange) {
+      try {
+        this.stageChange(absPath, code);
+      } catch (e) {
+        console.warn('[M8] stageChange failed:', e instanceof Error ? e.message : String(e));
+      }
+    }
     mkdirSync(dirname(absPath), { recursive: true });
     writeFileSync(absPath, code, 'utf8');
     this.filesCreated.push(filePath);

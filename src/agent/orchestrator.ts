@@ -30,6 +30,12 @@ import { planTask } from './planner';
 import { buildRepoInstructionsPrompt, scopedInstructionsFor } from './repo-context';
 import { discoverSkills, buildSkillIndexPrompt } from '../skills/skill-loader';
 import { logger } from '../shared/logger';
+import type { CodeGraph } from './symbol-index';
+import { buildCodeGraph, loadCachedCodeGraph, cacheCodeGraph, incrementalUpdate } from './symbol-index';
+import { buildRagContext } from './code-rag';
+import type { LayeredMemory } from './layered-memory';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import {
   classifyError,
   injectReflection,
@@ -102,6 +108,14 @@ export interface OrchestratorDeps {
   signal?: AbortSignal;
   /** P9：模型调用失败重试上限（默认 3 次，指数退避应对 429 限流） */
   maxModelRetries?: number;
+  /** P0-2：RAG 代码检索增强（默认开启），生成前自动加载相关文件上下文 */
+  ragEnabled?: boolean;
+  /** P0-2：预构建的代码图谱（不传则自动构建/加载缓存） */
+  codeGraph?: CodeGraph;
+  /** P1-2：分层记忆管理器（不传则不启用，启用后自动压缩+项目记忆召回） */
+  layeredMemory?: LayeredMemory;
+  /** P3-1：文件写入暂存回调（注入 change-manager.stageChange），AI 生成的修改自动记录到变更面板 */
+  stageChange?: (path: string, content: string) => void;
 }
 
 /** M3 resume 上下文：携带已完成的对话与计数，避免重复执行 */
@@ -168,6 +182,41 @@ export class Orchestrator {
       let systemPrompt = experiencePrompt ? `${SYSTEM_PROMPT}\n\n${experiencePrompt}` : SYSTEM_PROMPT;
       if (repoPrompt) systemPrompt += repoPrompt;
       if (skillIndex) systemPrompt += skillIndex;
+
+      // P1-2: 分层记忆——从项目记忆中召回相关历史任务，注入 system prompt
+      if (this.deps.layeredMemory) {
+        try {
+          const { systemPrompt: memoryPrompt } = this.deps.layeredMemory.buildContext(goal);
+          if (memoryPrompt) {
+            systemPrompt += '\n\n' + memoryPrompt;
+          }
+        } catch (e) {
+          logger.warn('layered memory recall failed', { error: e instanceof Error ? e.message : String(e) });
+        }
+      }
+
+      // P0-2: RAG 代码检索增强——基于任务描述自动加载相关文件上下文
+      const ragEnabled = this.deps.ragEnabled !== false;
+      if (ragEnabled) {
+        try {
+          let graph = this.deps.codeGraph;
+          if (!graph) {
+            // 优先加载缓存，缓存不存在或根路径不匹配则全量构建并缓存
+            graph = loadCachedCodeGraph(cwd) ?? buildCodeGraph(cwd, { maxFiles: 3000 });
+            cacheCodeGraph(graph);
+          } else {
+            // 传入了预构建图谱，做一次增量更新
+            graph = incrementalUpdate(graph, cwd, { maxFiles: 3000 });
+          }
+          const ragContext = buildRagContext(graph, goal, { maxCoreFiles: 5, maxRelatedFiles: 8, maxFileChars: 6000 });
+          if (ragContext) {
+            systemPrompt += '\n\n' + ragContext;
+            await eventLog.append('rag.context', { keywords: goal.slice(0, 100), tokens: ragContext.length });
+          }
+        } catch (e) {
+          logger.warn('RAG context build failed', { error: e instanceof Error ? e.message : String(e) });
+        }
+      }
 
       const { messages: initMessages, plan } = planTask(goal);
       messages = [{ role: 'system', content: systemPrompt }, ...initMessages];
@@ -329,18 +378,32 @@ export class Orchestrator {
 
       // M6: 上下文压缩
       if (shouldCompact(messages, compactThreshold)) {
-        const { messages: compacted, stats } = compactContext(messages, 10);
-        messages = compacted;
-        await eventLog.append('context.compact', { ...stats } as Record<string, unknown>);
-        this.deps.onEvent?.({
-          type: 'context.compact',
-          originalLength: stats.originalLength,
-          compressedLength: stats.compressedLength,
-        });
-        logger.info('context compaction applied', {
-          originalLength: stats.originalLength,
-          compressedLength: stats.compressedLength,
-        });
+        // P1-2: 如果启用了分层记忆，先同步消息并尝试智能压缩
+        if (this.deps.layeredMemory) {
+          this.deps.layeredMemory.appendAll(messages);
+          if (this.deps.layeredMemory.compressIfNeeded()) {
+            const { messages: layeredMessages } = this.deps.layeredMemory.buildContext();
+            if (layeredMessages.length > 0 && layeredMessages.length < messages.length) {
+              messages = layeredMessages;
+              await eventLog.append('context.compact', { originalLength: messages.length, compressedLength: layeredMessages.length, layered: true });
+            }
+          }
+        }
+        // 回退到普通压缩（如果分层记忆未启用或未压缩）
+        if (!this.deps.layeredMemory || shouldCompact(messages, compactThreshold)) {
+          const { messages: compacted, stats } = compactContext(messages, 10);
+          messages = compacted;
+          await eventLog.append('context.compact', { ...stats } as Record<string, unknown>);
+          this.deps.onEvent?.({
+            type: 'context.compact',
+            originalLength: stats.originalLength,
+            compressedLength: stats.compressedLength,
+          });
+          logger.info('context compaction applied', {
+            originalLength: stats.originalLength,
+            compressedLength: stats.compressedLength,
+          });
+        }
       }
     }
 
@@ -374,6 +437,16 @@ export class Orchestrator {
       }
       experiencesExtracted = experiences.length;
       await eventLog.append('experience.extracted', { count: experiencesExtracted, selfHealed });
+    }
+
+    // P1-2: 分层记忆——任务完成时持久化到项目记忆（供后续任务召回）
+    if (this.deps.layeredMemory && finalAnswer) {
+      try {
+        this.deps.layeredMemory.appendAll(messages);
+        this.deps.layeredMemory.persistToProjectMemory(goal, []);
+      } catch (e) {
+        logger.warn('layered memory persist failed', { error: e instanceof Error ? e.message : String(e) });
+      }
     }
 
     await emitCheckpoint('done');
@@ -466,6 +539,26 @@ export class Orchestrator {
         // 成功结果写入缓存（失败的不缓存，允许模型重试修复）
         if (result.ok) {
           this.toolResultCache.set(cacheKey, { ok: result.ok, output: result.output, error: result.error });
+          // P3-1: write_file/edit_file 工具执行成功后自动暂存到变更面板
+          if (this.deps.stageChange && (tc.name === 'write_file' || tc.name === 'edit_file')) {
+            try {
+              const args = tc.arguments as Record<string, unknown>;
+              const filePath = typeof args?.path === 'string' ? args.path : '';
+              if (filePath) {
+                const absPath = join(ctx.cwd, filePath);
+                // write_file 从参数取 content；edit_file 读取磁盘最新内容
+                let content = '';
+                if (tc.name === 'write_file' && typeof args?.content === 'string') {
+                  content = args.content;
+                } else {
+                  content = readFileSync(absPath, 'utf8');
+                }
+                this.deps.stageChange(absPath, content);
+              }
+            } catch (e) {
+              logger.warn('stageChange failed', { error: e instanceof Error ? e.message : String(e) });
+            }
+          }
         }
         await ctx.eventLog.append('tool.result', {
           name: tc.name,
@@ -483,7 +576,11 @@ export class Orchestrator {
     return roundErrors;
   }
 
-  /** 错误检测与自愈：返回 'break'（达重试上限）/ 'continue'（已注入反思）/ 'none'（未触发） */
+  /** 错误检测与自愈：返回 'break'（达重试上限）/ 'continue'（已注入反思）/ 'none'（未触发）
+   *  累计自愈上限 MAX_TOTAL_SELF_HEALS = 10：防止模型在同一问题上无限死循环，
+   *  超过后强制终止并给出明确提示，引导用户换思路或简化目标。 */
+  private static readonly MAX_TOTAL_SELF_HEALS = 10;
+
   private async handleRecovery(
     _msg: ChatMessage,
     input: {
@@ -522,6 +619,28 @@ export class Orchestrator {
       await logRecoveryAttempt(input.eventLog, input.iteration, analysis, false);
     }
 
+    // 累计自愈上限：errorHistory.length 即为累计错误/自愈次数（每次自愈 push 一条）
+    const totalHeals = input.errorHistory.length;
+    if (totalHeals >= Orchestrator.MAX_TOTAL_SELF_HEALS) {
+      const errorTypes = input.errorHistory.map((e) => e.category).join(', ');
+      const lastError = input.errorHistory[input.errorHistory.length - 1];
+      const finalAnswer = `任务已累计自我修复 ${totalHeals} 次仍未解决问题，已自动终止。
+
+**问题分析**：当前思路或方法可能根本走不通，反复修复同一个问题没有意义。
+**错误类型分布**: ${errorTypes}
+**最后错误**: ${lastError?.message || '未知'}
+
+**建议**：
+1. 彻底换一种实现思路——不要在原来的代码上继续修
+2. 简化目标——先做出能跑的最小版本，再逐步加功能
+3. 换工具/换库/换架构——如果某个方案一直失败，说明它可能不适合当前场景
+4. 先用 list_dir 全面勘察当前目录，确认在正确的位置、有哪些文件可用
+5. 在对话区发送新的指令，描述你想换的思路，我会重新开始`;
+      await input.eventLog.append('error', { reason: 'max-total-self-heals', totalHeals, errors: input.errorHistory });
+      logger.warn('orchestrator hit max total self-heals', { runId: input.sessionRunId, totalHeals, max: Orchestrator.MAX_TOTAL_SELF_HEALS });
+      return { signal: 'break', messages, consecutiveErrors: errors, selfHealed: false, finalAnswer };
+    }
+
     // 用最后一个错误生成反思提示词
     const lastToolMsg = messages[messages.length - 1];
     const errorAnalysis = input.errorHistory[input.errorHistory.length - 1] || classifyError(lastToolMsg.content || '', '');
@@ -557,10 +676,11 @@ export class Orchestrator {
       return { signal: 'break', messages, consecutiveErrors, selfHealed: false, finalAnswer };
     }
     const selfHealed = true;
-    const newMessages = injectReflection(messages, errorAnalysis, input.goal, lastToolCall);
-    await input.eventLog.append('self-heal', { category: errorAnalysis.category, iteration: input.iteration });
+    // 传入累计修复次数 totalHeals，让提示词根据次数动态调整策略（次数越多越强调换思路）
+    const newMessages = injectReflection(messages, errorAnalysis, input.goal, lastToolCall, totalHeals);
+    await input.eventLog.append('self-heal', { category: errorAnalysis.category, iteration: input.iteration, totalHeals });
     this.deps.onEvent?.({ type: 'self-heal', category: errorAnalysis.category, iteration: input.iteration });
-    logger.info('self-heal: injected reflection', { iteration: input.iteration, category: errorAnalysis.category });
+    logger.info('self-heal: injected reflection', { iteration: input.iteration, category: errorAnalysis.category, totalHeals });
     return { signal: 'continue', messages: newMessages, consecutiveErrors, selfHealed, finalAnswer: '' };
   }
 }

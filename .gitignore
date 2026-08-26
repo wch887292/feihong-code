@@ -48,3 +48,14 @@ gen_all_faq.py
 generate_*.py
 add_remaining_faq.py
 faq_generated/
+# Electron / release artifacts
+release/
+release-new/
+feihong-app/
+
+# Android build outputs (keep source)
+android/.gradle/
+android/build/
+android/app/build/
+android/node_modules/
+android/capacitor-cordova-android-plugins/build/

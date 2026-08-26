@@ -33,3 +33,14 @@ if (existsSync(mgrSrc)) {
   cpSync(mgrSrc, mgrDst);
   console.log('[copy-web] 已复制 self-evolve/manager.js -> ' + mgrDst);
 }
+
+// 3. Monaco Editor（AMD 压缩版，供前端代码编辑器使用）
+const monacoSrc = join(root, 'node_modules', 'monaco-editor', 'min', 'vs');
+const monacoDst = join(root, 'dist', 'web', 'public', 'vendor', 'monaco', 'vs');
+if (existsSync(monacoSrc)) {
+  mkdirSync(dirname(monacoDst), { recursive: true });
+  cpSync(monacoSrc, monacoDst, { recursive: true });
+  console.log('[copy-web] 已复制 Monaco Editor -> ' + monacoDst);
+} else {
+  console.log('[copy-web] 未找到 monaco-editor/min/vs，跳过（请运行 npm install monaco-editor）');
+}

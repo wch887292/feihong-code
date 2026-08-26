@@ -70,10 +70,16 @@ export const runShellTool: Tool = {
       ctx.security.sandboxMode === 'container'
         ? await runCommandInContainer(command, ctx.cwd)
         : await runCommand(command, ctx.cwd);
+    const combined = `${res.stdout}${res.stderr}`;
+    const isTimeout = res.code === 124 || /\[超时\]|\[强制结束\]/.test(res.stderr || '');
     return {
       ok: res.code === 0,
-      output: smartTruncate(`${res.stdout}${res.stderr}`),
-      error: res.code === 0 ? undefined : `exit code ${res.code}`,
+      output: smartTruncate(combined),
+      error: res.code === 0
+        ? undefined
+        : isTimeout
+          ? `命令超时（超过60秒未完成）。该命令可能是长时间运行的服务（如 dev server），请改用后台启动方式，或拆分为更短的命令。exit code ${res.code}`
+          : `exit code ${res.code}`,
     };
   },
 };

@@ -3,11 +3,12 @@
  * 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
  */
 
-const { app, BrowserWindow, shell, Tray, Menu, ipcMain, dialog, clipboard, Notification, session, desktopCapturer, screen } = require('electron');
+const { app, BrowserWindow, shell, Tray, Menu, ipcMain, dialog, clipboard, Notification, session, desktopCapturer, screen, globalShortcut } = require('electron');
 const { spawn } = require('child_process');
-const { existsSync } = require('fs');
-const { join } = require('path');
+const { existsSync, writeFileSync, readFileSync } = require('fs');
+const { join, resolve } = require('path');
 const http = require('http');
+const os = require('os');
 
 // 禁用安全警告
 process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
@@ -176,9 +177,27 @@ function createTray() {
     tray = new Tray(trayIcon);
     tray.setToolTip('飞虹 Code');
 
+    const isAutoLaunch = app.getLoginItemSettings().openAtLogin;
+
     const contextMenu = Menu.buildFromTemplate([
       { label: '显示主窗口', click: () => { if (mainWindow) { mainWindow.show(); mainWindow.focus(); } } },
+      { label: '隐藏到托盘', click: () => { if (mainWindow) mainWindow.hide(); } },
       { type: 'separator' },
+      { label: '新建任务', click: () => { if (mainWindow) { mainWindow.show(); mainWindow.focus(); mainWindow.webContents.send('app:new-task'); } } },
+      { label: '快速补全', click: () => { if (mainWindow) { mainWindow.show(); mainWindow.focus(); mainWindow.webContents.send('app:quick-complete'); } } },
+      { type: 'separator' },
+      {
+        label: '开机自启动',
+        type: 'checkbox',
+        checked: isAutoLaunch,
+        click: (menuItem) => {
+          app.setLoginItemSettings({ openAtLogin: menuItem.checked });
+          console.log('[Electron] 开机自启动设置:', menuItem.checked);
+        }
+      },
+      { label: '检查更新', click: () => { checkForUpdates(); } },
+      { type: 'separator' },
+      { label: '关于飞虹 Code', click: () => { showAboutDialog(); } },
       { label: '退出', click: () => { app.isQuitting = true; app.quit(); } }
     ]);
     tray.setContextMenu(contextMenu);
@@ -188,6 +207,11 @@ function createTray() {
         if (mainWindow.isVisible()) mainWindow.hide();
         else { mainWindow.show(); mainWindow.focus(); }
       }
+    });
+
+    // 双击托盘显示主窗口
+    tray.on('double-click', () => {
+      if (mainWindow) { mainWindow.show(); mainWindow.focus(); }
     });
   } catch (e) {
     console.warn('[Electron] 创建托盘失败: ' + e.message);
@@ -334,6 +358,159 @@ function setupIpc() {
       return { success: false, error: err.message };
     }
   });
+
+  // 全局快捷键
+  ipcMain.handle('shortcuts:getAll', () => {
+    return [
+      { accelerator: 'Ctrl+Shift+Space', description: '显示/隐藏主窗口' },
+      { accelerator: 'Ctrl+Shift+K', description: '新建任务' },
+      { accelerator: 'Ctrl+Shift+L', description: '快速补全' },
+    ];
+  });
+
+  // 开机自启
+  ipcMain.handle('autolaunch:get', () => {
+    return app.getLoginItemSettings().openAtLogin;
+  });
+  ipcMain.handle('autolaunch:set', (_, enabled) => {
+    app.setLoginItemSettings({ openAtLogin: enabled });
+    return app.getLoginItemSettings().openAtLogin;
+  });
+
+  // 应用信息
+  ipcMain.handle('app:info', () => {
+    return {
+      version: app.getVersion(),
+      name: app.getName(),
+      path: app.getAppPath(),
+      userData: app.getPath('userData'),
+      platform: process.platform,
+      arch: process.arch,
+      nodeVersion: process.versions.node,
+      electronVersion: process.versions.electron,
+      chromeVersion: process.versions.chrome,
+    };
+  });
+}
+
+/**
+ * 注册全局快捷键
+ */
+function registerGlobalShortcuts() {
+  try {
+    // Ctrl+Shift+Space: 快速唤起飞虹 Code（显示/隐藏主窗口）
+    const ret1 = globalShortcut.register('CommandOrControl+Shift+Space', () => {
+      if (mainWindow) {
+        if (mainWindow.isVisible() && mainWindow.isFocused()) {
+          mainWindow.hide();
+        } else {
+          mainWindow.show();
+          mainWindow.focus();
+        }
+      }
+    });
+
+    // Ctrl+Shift+K: 新建任务
+    const ret2 = globalShortcut.register('CommandOrControl+Shift+K', () => {
+      if (mainWindow) {
+        mainWindow.show();
+        mainWindow.focus();
+        mainWindow.webContents.send('app:new-task');
+      }
+    });
+
+    // Ctrl+Shift+L: 快速补全
+    const ret3 = globalShortcut.register('CommandOrControl+Shift+L', () => {
+      if (mainWindow) {
+        mainWindow.show();
+        mainWindow.focus();
+        mainWindow.webContents.send('app:quick-complete');
+      }
+    });
+
+    if (ret1 && ret2 && ret3) {
+      console.log('[Electron] 全局快捷键注册成功');
+    } else {
+      console.warn('[Electron] 部分全局快捷键注册失败');
+    }
+  } catch (e) {
+    console.warn('[Electron] 全局快捷键注册异常: ' + e.message);
+  }
+}
+
+/**
+ * 检查更新（简化版，实际应使用 electron-updater）
+ */
+function checkForUpdates() {
+  console.log('[Electron] 检查更新...');
+  // 简化版：显示当前版本，实际应使用 electron-updater
+  const version = app.getVersion();
+  dialog.showMessageBox(mainWindow, {
+    type: 'info',
+    title: '检查更新',
+    message: `当前版本: v${version}`,
+    detail: '飞虹 Code 会在有新版本时自动通知您。\n\n您也可以访问官网下载最新版本。',
+    buttons: ['确定', '访问官网'],
+    defaultId: 0,
+    cancelId: 0
+  }).then(({ response }) => {
+    if (response === 1) {
+      shell.openExternal('https://feihong-code.com');
+    }
+  });
+}
+
+/**
+ * 显示关于对话框
+ */
+function showAboutDialog() {
+  const version = app.getVersion();
+  dialog.showMessageBox(mainWindow, {
+    type: 'info',
+    title: '关于飞虹 Code',
+    message: `飞虹 Code v${version}`,
+    detail: '终端 AI 编程智能体\n晋江市飞虹智科技企业管理有限公司\n飞扬企源研发中心 · 负责人：吴赐虹\n\n技术栈：TypeScript + Electron + Express\n核心能力：多模型路由、企业级 RBAC、全自动 SWE Agent',
+    buttons: ['确定', '官方网站', 'GitHub'],
+    defaultId: 0,
+    cancelId: 0
+  }).then(({ response }) => {
+    if (response === 1) shell.openExternal('https://feihong-code.com');
+    if (response === 2) shell.openExternal('https://github.com/feihong-code');
+  });
+}
+
+/**
+ * 设置深度链接（fhcode:// 协议）
+ */
+function setupDeepLink() {
+  if (process.defaultApp) {
+    if (process.argv.length >= 2) {
+      app.setAsDefaultProtocolClient('fhcode', process.execPath, [resolve(process.argv[1])]);
+    }
+  } else {
+    app.setAsDefaultProtocolClient('fhcode');
+  }
+  console.log('[Electron] 深度链接协议已注册: fhcode://');
+}
+
+/**
+ * 处理深度链接 URL
+ */
+function handleDeepLink(url) {
+  console.log('[Electron] 深度链接:', url);
+  try {
+    const parsed = new URL(url);
+    const action = parsed.hostname;
+    const params = Object.fromEntries(parsed.searchParams);
+
+    if (mainWindow) {
+      mainWindow.show();
+      mainWindow.focus();
+      mainWindow.webContents.send('app:deep-link', { action, params });
+    }
+  } catch (e) {
+    console.error('[Electron] 深度链接解析失败:', e.message);
+  }
 }
 
 // App 就绪
@@ -344,10 +521,12 @@ app.whenReady().then(async () => {
   try {
     setupIpc();
     setupPermissions();
+    setupDeepLink();
     createMenu();
     await startServer();
     createWindow();
     createTray();
+    registerGlobalShortcuts();
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -380,13 +559,32 @@ app.whenReady().then(async () => {
 // 所有窗口关闭时不退出（保持托盘运行）
 app.on('window-all-closed', () => {});
 
-// 退出前停止服务器
+// 退出前注销全局快捷键并停止服务器
 app.on('before-quit', () => {
   app.isQuitting = true;
+  globalShortcut.unregisterAll();
   if (serverProcess) {
     serverProcess.kill();
     serverProcess = null;
   }
+});
+
+// 处理深度链接（Windows/Linux）
+app.on('second-instance', (event, commandLine) => {
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+  }
+  // 查找深度链接 URL
+  const deepLink = commandLine.find(arg => arg.startsWith('fhcode://'));
+  if (deepLink) handleDeepLink(deepLink);
+});
+
+// 处理深度链接（macOS）
+app.on('open-url', (event, url) => {
+  event.preventDefault();
+  handleDeepLink(url);
 });
 
 // 防止多开

@@ -1,5 +1,55 @@
 # 飞虹 Code 更新日志 / Changelog
 
+## v7.2.0 (2026-08-26)
+
+### 重大更新 / Major Updates
+
+- **跨端三端齐发**：Windows 桌面版（Electron）+ 安卓版（Capacitor APK）+ Web 版统一交付
+- **Agent 能力全面升级**：多智能体协同 / 事件驱动 Agent / 自定义 Agent 框架
+- **补全质量突破**：跨文件深度上下文 + 补全 Pro 连续推荐 + FIM 训练数据准备
+- **生态集成增强**：飞书通知 / GitHub PR 审查 / Figma 设计稿转代码 / SSO 单点登录
+- **差异化创新落地**：语音编程 / AI 原生资料库 / 插件市场 / PWA 移动端适配
+
+### 新功能 / New Features
+
+#### Agent 能力（阶段二）
+- 多智能体协同：架构师/开发者/测试/评审 4 角色协作，评审反馈循环，质量评分
+- 事件驱动 Agent：cron 定时任务 + 文件变更监听 + Webhook 接收，自动唤醒执行
+- 自定义 Agent 框架：5 个内置 Agent 模板 + 用户自定义 + 关键词匹配推荐 + 导入导出
+
+#### 补全质量（阶段一）
+- 跨文件深度上下文：import 分析 → 依赖符号 → 使用分析三层检索，自动注入相关定义
+- 补全 Pro：连续推荐（函数后推荐调用/import 后推荐使用/编辑模式继续）
+- FIM 训练数据准备脚本：一键生成 train.jsonl / val.jsonl / meta.json
+
+#### 生态与体验（阶段三）
+- Electron 桌面端增强：全局快捷键（Ctrl+Shift+Space/K/L）、fhcode:// 深度链接、开机自启、增强托盘
+- 协作工具集成：飞书消息通知 / GitHub PR 自动审查 / Issue 管理 / 提交信息生成
+- Figma 设计稿集成：API 拉取、组件识别、设计令牌提取、Tailwind/React/Vue/HTML 多框架生成
+- SSO 单点登录：SAML/OIDC/OAuth2/LDAP/飞书/企业微信/钉钉
+
+#### 差异化创新（阶段四）
+- 语音编程：28 种语音指令解析 + 语音转代码 + 语音会话上下文
+- AI 原生资料库：文档管理/智能检索/自动摘要/关键词提取/统计
+- 插件市场：插件安装卸载启用禁用 + 市场浏览 + 插件 API + 命令注册
+- PWA：manifest.json + Service Worker 离线缓存 + 推送通知
+
+#### 安卓版（新增）
+- Capacitor 打包安卓 APK，包名 com.feihong.code，支持 Android 6.0+
+- 离线演示模式 + 远程服务器连接双模式
+- 紫蓝渐变 F 字母自适应图标
+
+### 优化改进 / Improvements
+
+- 修复阶段二 server.ts 类型错误（logger/req.body 断言）
+- 统一 Kotlin 版本解决依赖冲突
+- 构建链优化：Gradle 国内镜像、compileSdk 35、JDK 21
+
+### 兼容性 / Compatibility
+
+- 完整向后兼容 v7.0.0 配置文件
+- CLI 接口不变，新增 40+ REST API 端点
+
 ## v7.0.0 (2026-08-24)
 
 ### 重大更新 / Major Updates

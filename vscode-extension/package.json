@@ -1,67 +1,171 @@
 {
-  "name": "fhcode-vscode",
-  "displayName": "fhcode — 飞虹 Code",
-  "description": "调起 fhcode 终端 AI 编程智能体：运行任务、查看会话 diff（最小可用壳）",
-  "version": "0.5.0",
-  "publisher": "feihong",
-  "license": "MIT",
+  "name": "feihong-code-vscode",
+  "displayName": "飞虹 Code (Feihong Code)",
+  "description": "飞虹 Code VSCode 插件 — AI 编程智能体，实时代码补全 + Agent 聊天侧边栏 + 多文件变更审批",
+  "version": "1.0.0",
+  "publisher": "feihong-zhi",
   "engines": {
     "vscode": "^1.85.0"
   },
-  "categories": ["Other"],
+  "categories": [
+    "Programming Languages",
+    "Machine Learning",
+    "Other"
+  ],
+  "keywords": [
+    "ai",
+    "coding",
+    "autocomplete",
+    "agent",
+    "feihong",
+    "飞虹",
+    "copilot",
+    "swe-agent"
+  ],
   "activationEvents": [
-    "onCommand:fhcode.run",
-    "onCommand:fhcode.diff",
-    "onCommand:fhcode.output",
-    "onCommand:fhcode.review",
     "onStartupFinished"
   ],
-  "main": "./extension.js",
+  "main": "./dist/extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "fhcode.run",
-        "title": "fhcode: 运行任务（附带选区上下文）",
-        "category": "fhcode"
+        "command": "feihong-code.chat",
+        "title": "飞虹 Code: 打开 AI 聊天",
+        "icon": "$(comment-discussion)"
       },
       {
-        "command": "fhcode.review",
-        "title": "fhcode: 内联评审当前文件",
-        "category": "fhcode"
+        "command": "feihong-code.explain",
+        "title": "飞虹 Code: 解释选中代码"
       },
       {
-        "command": "fhcode.diff",
-        "title": "fhcode: 就地查看工作区 diff（HEAD ↔ 工作区）",
-        "category": "fhcode"
+        "command": "feihong-code.refactor",
+        "title": "飞虹 Code: 重构选中代码"
       },
       {
-        "command": "fhcode.output",
-        "title": "fhcode: 查看最近任务输出",
-        "category": "fhcode"
+        "command": "feihong-code.generateTests",
+        "title": "飞虹 Code: 生成单元测试"
+      },
+      {
+        "command": "feihong-code.fixErrors",
+        "title": "飞虹 Code: 修复诊断错误"
+      },
+      {
+        "command": "feihong-code.toggleInlineCompletions",
+        "title": "飞虹 Code: 开关内联补全"
+      },
+      {
+        "command": "feihong-code.setBackendUrl",
+        "title": "飞虹 Code: 设置后端服务地址"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "feihong-code",
+          "title": "飞虹 Code",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "feihong-code": [
+        {
+          "type": "webview",
+          "id": "feihong-code.chat",
+          "name": "AI 助手"
+        },
+        {
+          "id": "feihong-code.changes",
+          "name": "变更审批"
+        }
+      ]
+    },
+    "menus": {
+      "editor/context": [
+        {
+          "command": "feihong-code.explain",
+          "when": "editorHasSelection",
+          "group": "feihong-code@1"
+        },
+        {
+          "command": "feihong-code.refactor",
+          "when": "editorHasSelection",
+          "group": "feihong-code@2"
+        },
+        {
+          "command": "feihong-code.generateTests",
+          "when": "editorHasSelection",
+          "group": "feihong-code@3"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "feihong-code.chat",
+        "key": "ctrl+shift+f",
+        "mac": "cmd+shift+f"
+      },
+      {
+        "command": "feihong-code.toggleInlineCompletions",
+        "key": "ctrl+alt+c",
+        "mac": "cmd+alt+c"
       }
     ],
     "configuration": {
-      "title": "fhcode",
+      "title": "飞虹 Code",
       "properties": {
-        "fhcode.binaryPath": {
+        "feihong-code.backendUrl": {
           "type": "string",
-          "default": "fhcode",
-          "description": "fhcode 可执行文件路径（默认取 PATH 中的 fhcode）"
+          "default": "http://localhost:3717",
+          "description": "飞虹 Code 后端服务地址"
         },
-        "fhcode.offline": {
-          "type": "boolean",
-          "default": false,
-          "description": "以离线模式（mock）运行，便于无模型环境验证"
-        },
-        "fhcode.reviewOnSave": {
+        "feihong-code.enableInlineCompletions": {
           "type": "boolean",
           "default": true,
-          "description": "保存文件后自动运行 fhcode review 内联评审"
+          "description": "启用内联代码补全（ghost text）"
+        },
+        "feihong-code.completionMode": {
+          "type": "string",
+          "enum": ["quick", "full"],
+          "default": "quick",
+          "description": "补全模式：quick=短补全（快速），full=完整补全（多行）"
+        },
+        "feihong-code.completionDebounceMs": {
+          "type": "number",
+          "default": 300,
+          "description": "补全请求防抖延迟（毫秒）"
+        },
+        "feihong-code.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "API 密钥（如后端启用了鉴权）"
         }
       }
     }
   },
   "scripts": {
-    "check": "node --check extension.js"
-  }
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package --no-dependencies",
+    "publish": "vsce publish --no-dependencies"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.3.0",
+    "@vscode/vsce": "^2.22.0"
+  },
+  "dependencies": {},
+  "icon": "media/icon.png",
+  "galleryBanner": {
+    "color": "#1a1a2e",
+    "theme": "dark"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wch887292/feihong-code.git"
+  },
+  "homepage": "https://www.klai.top",
+  "license": "MIT"
 }

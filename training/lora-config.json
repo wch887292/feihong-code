@@ -1,0 +1,47 @@
+{
+  "model_name": "bigcode/tiny_starcoder_py",
+  "base_model": "bigcode/starcoderbase-1b",
+  "task_type": "fill-in-the-middle",
+  "output_dir": "./models/feihong-code-completion",
+  "num_train_epochs": 3,
+  "per_device_train_batch_size": 4,
+  "per_device_eval_batch_size": 4,
+  "gradient_accumulation_steps": 4,
+  "learning_rate": 2e-4,
+  "weight_decay": 0.01,
+  "warmup_ratio": 0.03,
+  "lr_scheduler_type": "cosine",
+  "max_seq_length": 2048,
+  "logging_steps": 10,
+  "save_steps": 500,
+  "eval_steps": 500,
+  "save_total_limit": 3,
+  "evaluation_strategy": "steps",
+  "load_best_model_at_end": true,
+  "metric_for_best_model": "eval_loss",
+  "greater_is_better": false,
+  "lora": {
+    "r": 16,
+    "lora_alpha": 32,
+    "lora_dropout": 0.05,
+    "bias": "none",
+    "task_type": "CAUSAL_LM",
+    "target_modules": ["q_proj", "v_proj", "k_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
+  },
+  "fim": {
+    "fim_rate": 0.5,
+    "fim_spm_rate": 0.5
+  },
+  "data": {
+    "train_file": "./data/fim/train.jsonl",
+    "validation_file": "./data/fim/val.jsonl",
+    "max_train_samples": null,
+    "max_eval_samples": 500
+  },
+  "seed": 42,
+  "bf16": true,
+  "tf32": true,
+  "gradient_checkpointing": true,
+  "report_to": ["tensorboard"],
+  "push_to_hub": false
+}

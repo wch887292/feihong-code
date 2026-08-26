@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportHeight="108"
+    android:viewportWidth="108">
+    <!-- 白色 F 字母（居中，自适应图标安全区内） -->
+    <!-- 竖线 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M40,32 h14 v44 h-14 z" />
+    <!-- 上横 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M40,32 h36 v13 h-36 z" />
+    <!-- 中横 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M40,54 h26 v13 h-26 z" />
+</vector>
