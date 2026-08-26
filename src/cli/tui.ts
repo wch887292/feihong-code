@@ -36,6 +36,8 @@ export interface TuiStatus {
   iteration?: number;
   cost?: string;
   state?: string;
+  /** P2-1: 多窗格文件数（MultiPaneTui 顶栏展示） */
+  fileCount?: number;
 }
 
 /**

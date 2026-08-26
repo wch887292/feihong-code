@@ -37,6 +37,7 @@ export type ManagementCommand =
   | { kind: 'audit'; verify: boolean; limit: number }
   | { kind: 'tenants' }
   | { kind: 'doctor' }
+  | { kind: 'tui' }
   | { kind: 'plugin'; action: 'install' | 'list'; source?: string }
   | { kind: 'skill-market'; action: 'search' | 'install' | 'list'; query?: string; market?: string }
   | { kind: 'review'; path: string; json: boolean }
@@ -171,6 +172,7 @@ const MANAGE_BUILDERS: Record<string, ManageBuilder> = {
   policy: () => ({ kind: 'policy' }),
   tenants: () => ({ kind: 'tenants' }),
   doctor: () => ({ kind: 'doctor' }),
+  tui: () => ({ kind: 'tui' }),
   plugin: ({ rest }) => ({
     kind: 'plugin',
     action: rest[0] === 'install' ? 'install' : 'list',

@@ -12,6 +12,7 @@ import { AppError } from '../shared/errors';
 import { loadDotEnv } from '../shared/config';
 import { parseArgs, type SkillCommand, type ManagementCommand } from './commands';
 import { startRepl } from './repl';
+import { runTui } from './tui-run';
 import {
   runGoal,
   isOfflineByDefault,
@@ -130,6 +131,7 @@ async function dispatchManage(m: ManagementCommand): Promise<void> {
     case 'audit': if (m.verify) runAuditVerify(); else runAudit(m.limit); break;
     case 'tenants': runTenants(); break;
     case 'doctor': await runDoctor(); break;
+    case 'tui': runTui(); break;
     case 'plugin': await runPluginCmd(m.action, m.source); break;
     case 'skill-market': await runSkillMarketCmd(m.action, m.query, m.market); break;
     case 'review': runReviewCmd(m.path, m.json); break;
