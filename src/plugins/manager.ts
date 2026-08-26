@@ -100,6 +100,10 @@ export class PluginManager {
   private installed: Map<string, InstalledPlugin> = new Map();
   private registryPath: string;
   private commands: Map<string, (...args: any[]) => any> = new Map();
+  /** P2-2: 插件注册的视图 / 补全提供者 / 代码操作（第三方生态消费点） */
+  private views: Map<string, any> = new Map();
+  private completionProviders: Map<string, any> = new Map();
+  private codeActions: Map<string, any> = new Map();
 
   constructor(baseDir: string) {
     this.baseDir = baseDir;
@@ -230,14 +234,26 @@ export class PluginManager {
 
   /**
    * 激活插件
+   * P2-2 真实执行：加载插件入口 JS 并调用 activate(api)，
+   * 第三方插件通过 PluginAPI 注册命令/视图/补全提供者/代码操作。
    */
   private activatePlugin(plugin: InstalledPlugin): void {
     try {
       const pluginDir = join(this.pluginsDir, plugin.id);
       const entryPath = join(pluginDir, plugin.entry || 'index.js');
       if (existsSync(entryPath)) {
-        // 简化版：不实际执行，只记录
-        logger.info('plugin activated', { id: plugin.id });
+        const resolved = require.resolve(entryPath);
+        delete require.cache[resolved]; // 热重载：避免 require 缓存
+        const mod = require(resolved);
+        if (mod && typeof mod.activate === 'function') {
+          const api = this.buildPluginApi(plugin);
+          mod.activate(api);
+          logger.info('plugin activated (real)', { id: plugin.id });
+        } else {
+          logger.warn('plugin entry missing activate()', { id: plugin.id });
+        }
+      } else {
+        logger.warn('plugin entry missing, skip', { id: plugin.id, entryPath });
       }
     } catch (error) {
       plugin.status = 'error';
@@ -245,6 +261,40 @@ export class PluginManager {
       this.saveRegistry();
       logger.error('plugin activation error', { id: plugin.id, error: String(error) });
     }
+  }
+
+  /** P2-2: 构建传给插件 activate(api) 的 PluginAPI（命令带插件命名空间） */
+  private buildPluginApi(plugin: InstalledPlugin): PluginAPI {
+    const self = this;
+    return {
+      registerCommand: (id, handler) => self.commands.set(`plugin:${plugin.id}:${id}`, handler),
+      registerView: (id, options) => self.views.set(`plugin:${plugin.id}:${id}`, options),
+      registerCompletionProvider: (language, provider) => self.completionProviders.set(`plugin:${plugin.id}:${language}`, provider),
+      registerCodeAction: (id, action) => self.codeActions.set(`plugin:${plugin.id}:${id}`, action),
+      showNotification: (msg, type) => logger.info('plugin notification', { plugin: plugin.id, msg, type }),
+      showQuickPick: async () => undefined,
+      showInputBox: async () => undefined,
+      getWorkspacePath: () => self.baseDir,
+      readFile: async (p) => readFileSync(p, 'utf8'),
+      writeFile: async (p, c) => writeFileSync(p, c, 'utf8'),
+      executeCommand: (cmd, ...args) => self.executeCommand(cmd, ...args),
+      log: (msg) => logger.info('plugin log', { plugin: plugin.id, msg }),
+    };
+  }
+
+  /** P2-2: 插件注册的视图列表 */
+  getViews(): string[] {
+    return Array.from(this.views.keys());
+  }
+
+  /** P2-2: 插件注册的补全提供者列表 */
+  getCompletionProviders(): string[] {
+    return Array.from(this.completionProviders.keys());
+  }
+
+  /** P2-2: 插件注册的代码操作列表 */
+  getCodeActions(): string[] {
+    return Array.from(this.codeActions.keys());
   }
 
   /**
