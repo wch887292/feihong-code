@@ -23,6 +23,7 @@ const {
 
 let apiClient = null;
 let statusBar = null;
+let lastInlineText = ''; // P6-1: 最近提供的行内补全文本（用于 accept 检测）
 
 function cfg() {
   return vscode.workspace.getConfiguration('fhcode');
@@ -175,6 +176,7 @@ const inlineProvider = {
       if (!text) return undefined;
       const cleaned = postProcessCompletion(text, fileContent, cursorOffset);
       if (!cleaned) return undefined;
+      lastInlineText = cleaned; // P6-1: 记录补全文本，accept 后 lint
       const range = new vscode.Range(position, position);
       return { items: [new vscode.InlineCompletionItem(cleaned, range)] };
     } catch {
@@ -341,6 +343,33 @@ function activate(context) {
   if (cfg().get('enableInlineCompletion') !== false) {
     context.subscriptions.push(
       vscode.languages.registerInlineCompletionItemProvider({ pattern: '**' }, inlineProvider),
+    );
+  }
+
+  // P6-1: 补全被接受后自动 lint——文档变化检测匹配最近补全 → /api/lint → 状态栏反馈
+  if (cfg().get('enableAcceptLint') !== false) {
+    context.subscriptions.push(
+      vscode.workspace.onDidChangeTextDocument(async (e) => {
+        if (!lastInlineText || !apiClient) return;
+        for (const ch of e.contentChanges) {
+          const ins = ch.text || '';
+          if (ins && (ins.startsWith(lastInlineText) || lastInlineText.startsWith(ins))) {
+            const accepted = ins.length >= lastInlineText.length ? ins : lastInlineText;
+            lastInlineText = '';
+            try {
+              const r = await apiClient.lint(accepted, e.document.languageId);
+              if (r && r.ok && !r.clean) {
+                const err = (r.errors || []).filter((x) => x.severity === 1).length;
+                const warn = (r.errors || []).filter((x) => x.severity === 2).length;
+                vscode.window.showWarningMessage(
+                  `飞虹 Code 补全校验：${err} 个错误${warn ? '，' + warn + ' 个警告' : ''}（第一处 L${(r.errors[0] || {}).line || 1}）`,
+                );
+              }
+            } catch { /* lint 失败静默 */ }
+            break;
+          }
+        }
+      }),
     );
   }
 

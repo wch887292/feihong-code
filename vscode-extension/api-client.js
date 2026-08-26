@@ -71,6 +71,12 @@ class ApiClient {
     return await r.json();
   }
 
+  /** P6-1: 补全接受后的轻量语法校验（/api/lint） */
+  async lint(code, language = '') {
+    const r = await this._post('/api/lint', { code, language });
+    return await r.json();
+  }
+
   /** 提交一个新 Agent 任务 */
   async submitTask(goal, modelId) {
     const r = await this._post('/api/tasks', {
