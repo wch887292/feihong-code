@@ -1048,6 +1048,13 @@ export async function runSkillMarketCmd(action: 'search' | 'install' | 'list', q
       const target = await installMarketSkill(index, skill, destDir);
       console.log(t('skillMarket.installed', { name: skill.name, dir: target }));
     }
+    // P5-3: 自动注册闭环——安装后立即用 discoverSkills 验证已被本地索引发现
+    const discovered = discoverSkills(process.cwd());
+    const expectedFile = join(destDir, skill.name, 'SKILL.md');
+    const registered = discovered.some((s) => s.file === expectedFile);
+    console.log(registered
+      ? t('skillMarket.registered', { name: skill.name, n: discovered.length })
+      : t('skillMarket.notRegisteredWarn', { name: skill.name }));
   } catch (e) {
     console.error(t('skillMarket.installFailed') + (e instanceof Error ? e.message : String(e)));
     process.exitCode = 1;

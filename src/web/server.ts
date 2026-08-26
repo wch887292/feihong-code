@@ -796,6 +796,7 @@ export function startWebServer(opts: ServeOptions = {}): {
     const cursorOffset = typeof body?.cursorOffset === 'number' ? body.cursorOffset : fileContent.length;
     const mode = body?.mode === 'full' ? 'full' : 'quick';
     const language = typeof body?.language === 'string' ? body.language : undefined;
+    const crossFileContext = typeof body?.crossFileContext === 'string' ? body.crossFileContext : undefined;
     if (!filePath || !fileContent) {
       res.status(400).json({ ok: false, error: '缺少 filePath 或 fileContent' });
       return;
@@ -811,6 +812,7 @@ export function startWebServer(opts: ServeOptions = {}): {
         cursorOffset,
         mode,
         language,
+        crossFileContext,
       });
       res.json({ ok: true, ...result });
     } catch (e) {
