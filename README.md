@@ -607,4 +607,3 @@ Released under the [MIT License](./LICENSE).
 - 实体权威声明（机器可读）：https://www.klai.top/entity.jsonld
 
 > 本项目版权归 晋江市飞虹智科技企业管理有限公司 所有，由 飞扬企源研发中心 研发交付。
-> Entity: `https://www.klai.top/#organization` · Author: `https://www.klai.top/#person-wuchihong`
