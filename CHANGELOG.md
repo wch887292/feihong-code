@@ -1,5 +1,34 @@
 # 飞虹 Code 更新日志 / Changelog
 
+## v7.5.0 (2026-08-27)
+
+### 重大更新 / Major Updates
+
+- **SWE-bench Verified 官方 harness 就绪**：对接 HuggingFace 官方数据集，支持 `--verifier test` 官方测试验证，跑分说明见 `docs/SWE_BENCH_REPORT.md`
+- **Docker 容器沙箱隔离加固**：`container` 档位默认断网（`--network none`）+ 内存/pids 上限 + `--cap-drop ALL` + `no-new-privileges`，面向不信任代码场景
+- **安全 CI 与 SBOM**：`npm run security`（npm audit + CycloneDX SBOM + osv-scanner 可选），发布流水线接入门禁
+- **合规售前材料**：安全白皮书（SOC2/ISO27001 自评估）+ 数据处理协议（DPA）
+
+### 新功能 / New Features
+
+- **补全质量**：多候选补全（按置信度 Top3）、temperature 分层（quick 0 / full 0.3）、跨文件上下文（import 关联 + 工作区实时文档透传）
+- **补全接受后自动 lint**：`/api/lint` 轻量语法校验，Monaco/VS Code 双端接受补全即反馈错误波浪线与提示
+- **Monaco 语义诊断**：编辑时 LSP 诊断波浪线 + hover 展示诊断详情
+- **多文件 diff 视图**：变更面板支持并排/内联切换 + 文件级折叠
+- **插件市场本地种子源**：断网可用 10 个官方 skill 模板，install 自动注册到本地技能索引
+- **多 agent 协作可视化**：团队面板新增协作总览（任务状态漏斗 + 成员负载分布）
+- **VS Code 扩展**：补全纯函数抽离可单测（9/9）、跨文件上下文收集、accept 后 lint
+
+### 修复 / Bug Fixes
+
+- `dedupeAgainstSuffix` 后缀重复去重 bug（suffix 长于补全时无法匹配）
+- LSP 客户端启动逻辑简化（node 直跑 tls 入口，跨平台稳定）
+
+### 工程 / Engineering
+
+- 发布流水线（release.yml）新增安全 CI + 综合冒烟 + SWE harness 冒烟门禁
+- 版本号 7.2.0 → 7.5.0
+
 ## v7.0.0 (2026-08-24)
 
 ### 重大更新 / Major Updates

@@ -1944,9 +1944,55 @@
         document.getElementById('teamTaskCount').textContent = d.stats?.totalTasks || 0;
         renderTeamMembers();
         renderTeamTasks();
+        renderTeamOverview(d);
       } catch (e) {
         toast('团队数据加载失败: ' + (e.message || '网络错误'));
       }
+    }
+
+    // P7-4: 多 agent 协作总览——任务状态漏斗 + 成员负载分布可视化
+    function renderTeamOverview(d) {
+      const box = document.getElementById('teamOverview');
+      if (!box) return;
+      const tasks = d?.team?.tasks || [];
+      const members = d?.team?.members || [];
+      if (!tasks.length) { box.style.display = 'none'; return; }
+      box.style.display = 'block';
+      const statusColors = { todo: '#7f8c8d', 'in-progress': '#3498db', review: '#e67e22', done: '#2d5a3d' };
+      const statusLabels = { todo: '待办', 'in-progress': '进行中', review: '评审', done: '完成' };
+      const order = ['todo', 'in-progress', 'review', 'done'];
+      const counts = {};
+      order.forEach((s) => { counts[s] = 0; });
+      tasks.forEach((t) => { counts[t.status] = (counts[t.status] || 0) + 1; });
+      const max = Math.max(1, ...Object.values(counts));
+      const funnelHtml = '<div style="display:flex;flex-direction:column;gap:3px;margin-bottom:8px;">'
+        + order.map((s) => {
+          const n = counts[s] || 0;
+          const pct = Math.round((n / max) * 100);
+          return '<div style="display:flex;align-items:center;gap:6px;font-size:10px;">'
+            + '<span style="width:40px;color:var(--muted);">' + statusLabels[s] + '</span>'
+            + '<div style="flex:1;background:var(--bg);border-radius:3px;height:12px;overflow:hidden;">'
+            + '<div style="width:' + pct + '%;height:100%;background:' + statusColors[s] + ';border-radius:3px;"></div></div>'
+            + '<span style="width:24px;text-align:right;font-weight:600;">' + n + '</span>'
+            + '</div>';
+        }).join('') + '</div>';
+      // 成员负载：按创建人统计任务数（top 5）
+      const byMember = {};
+      tasks.forEach((t) => { byMember[t.createdBy || '未指派'] = (byMember[t.createdBy || '未指派'] || 0) + 1; });
+      const loadRows = Object.entries(byMember).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([name, n]) => {
+        const pct = Math.round((n / Math.max(1, ...Object.values(byMember))) * 100);
+        return '<div style="display:flex;align-items:center;gap:6px;font-size:10px;">'
+          + '<span style="width:70px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(name) + '</span>'
+          + '<div style="flex:1;background:var(--bg);border-radius:3px;height:10px;overflow:hidden;">'
+          + '<div style="width:' + pct + '%;height:100%;background:#9b59b6;border-radius:3px;"></div></div>'
+          + '<span style="width:24px;text-align:right;font-weight:600;">' + n + '</span>'
+          + '</div>';
+      }).join('');
+      box.innerHTML = '<div style="background:var(--card);border:1px solid var(--border);border-radius:6px;padding:8px;">'
+        + '<div style="font-size:11px;font-weight:600;margin-bottom:6px;">📊 协作总览</div>'
+        + '<div style="font-size:10px;color:var(--muted);margin-bottom:4px;">任务状态</div>' + funnelHtml
+        + (loadRows ? '<div style="font-size:10px;color:var(--muted);margin:6px 0 4px;">成员负载（按创建人）</div>' + loadRows : '')
+        + '</div>';
     }
 
     function renderTeamMembers() {
