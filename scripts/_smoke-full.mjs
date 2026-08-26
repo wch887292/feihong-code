@@ -1,4 +1,4 @@
-// 飞虹 Code v7.2.0 综合冒烟测试（smoke test）
+// 飞虹 Code v7.5.0 综合冒烟测试（smoke test）
 // 覆盖：健康检查 / 认证 / 核心引擎回归 / 修复API(8模块) / 前端资源 / SWE harness
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
@@ -31,7 +31,7 @@ async function req(name, path, { method = 'GET', body, token, expect = 200, okCh
 (async () => {
   console.log('===== [1] 健康检查与认证 =====');
   const health = await (await fetch(BASE + '/api/health')).json();
-  report('GET /api/health (version=7.2.0)', health.version === '7.2.0', 'version=' + health.version);
+  report('GET /api/health (version=7.5.0)', health.version === '7.5.0', 'version=' + health.version);
 
   const login = await (await fetch(BASE + '/api/auth/login', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },

@@ -18,7 +18,18 @@ export function containerImage(): string {
   return process.env.FH_SANDBOX_IMAGE || 'node:22-alpine';
 }
 
-/** 容器模式下应把命令包装成 docker run 执行；镜像不存在时由 docker 自动拉取 */
+/**
+ * P7-2 容器隔离加固：运行不信任代码的默认档位
+ *  - 资源限制：内存 / pids 上限（防 fork 炸弹与内存耗尽）
+ *  - 能力裁剪：--cap-drop ALL + no-new-privileges（防容器逃逸提权）
+ *  - 网络隔离：默认 --network none（不信任代码断网执行）；需装依赖时设
+ *    FH_SANDBOX_NETWORK=host 恢复联网（仍受沙箱 network allow/deny 约束）
+ * 环境变量：
+ *  - FH_SANDBOX_IMAGE   容器镜像（默认 node:22-alpine）
+ *  - FH_SANDBOX_MEM     内存上限（默认 512m）
+ *  - FH_SANDBOX_PIDS    pids 上限（默认 256）
+ *  - FH_SANDBOX_NETWORK none|host（默认 none）
+ */
 export function runCommandInContainer(cmd: string, cwd: string, timeoutMs = 60000): Promise<ExecResult> {
   const image = containerImage();
   // 挂载工作区到 /workspace，容器内 cwd=/workspace；--rm 用完即删
@@ -29,6 +40,17 @@ export function runCommandInContainer(cmd: string, cwd: string, timeoutMs = 6000
     `${cwd}:/workspace`,
     '-w',
     '/workspace',
+    // ---- P7-2 隔离加固 ----
+    '--memory',
+    process.env.FH_SANDBOX_MEM || '512m',
+    '--pids-limit',
+    process.env.FH_SANDBOX_PIDS || '256',
+    '--cap-drop',
+    'ALL',
+    '--security-opt',
+    'no-new-privileges',
+    process.env.FH_SANDBOX_NETWORK === 'host' ? '--network' : '--network',
+    process.env.FH_SANDBOX_NETWORK === 'host' ? 'host' : 'none',
     image,
     'sh',
     '-c',

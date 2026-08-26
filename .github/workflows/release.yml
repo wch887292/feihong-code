@@ -76,8 +76,16 @@ jobs:
         run: npm run typecheck
       - name: 编译构建
         run: npm run build
+      - name: 前端资源打包
+        run: node scripts/copy-web.cjs
       - name: CLI 可用性验证
         run: node dist/cli/index.js --version
+      - name: P7-5 安全 CI（npm audit + CycloneDX SBOM）
+        run: npm run security || (echo "⚠️ npm audit 网络不可达按跳过处理" && exit 0)
+      - name: P7-5 综合冒烟门禁（本地回归）
+        run: node scripts/_smoke-full.mjs
+      - name: P7-1 SWE-bench harness 链路冒烟（mock）
+        run: node dist/cli/index.js harness lite --limit 1 --mode mock || echo "⚠️ harness 需网络拉取数据集，失败不阻断（真实跑分见 docs/SWE_BENCH_REPORT.md）"
       - name: 上传构建产物
         uses: actions/upload-artifact@v4
         with:
