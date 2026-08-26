@@ -49,7 +49,7 @@ export type ManagementCommand =
   | { kind: 'code-write'; goal: string; filePath: string }
   | { kind: 'quality-gate'; path: string }
   | { kind: 'self-improve' }
-  | { kind: 'harness'; split: string; limit: number; offset: number; mode: 'mock' | 'real'; report?: string; json: boolean }
+  | { kind: 'harness'; split: string; limit: number; offset: number; mode: 'mock' | 'real'; verifier?: 'file' | 'test'; testCommand?: string; report?: string; json: boolean }
   | {
       kind: 'swe';
       goal: string;
@@ -87,6 +87,9 @@ export interface ParsedArgs {
     /** P0-3: skill-new 脚手架参数 */
     template?: string;
     global?: boolean;
+    /** P7-1: harness 验证器 file|test 与自定义测试命令 */
+    verifier?: string;
+    testCommand?: string;
   };
   /** 单命令模式下的需求文本（首个非 flag 参数） */
   command?: string;
@@ -209,6 +212,8 @@ const MANAGE_BUILDERS: Record<string, ManageBuilder> = {
     limit: flags.limit ?? 5,
     offset: flags.offset ?? 0,
     mode: flags.mode === 'real' ? 'real' : 'mock',
+    verifier: flags.verifier === 'test' ? 'test' : 'file',
+    testCommand: flags.testCommand,
     report: flags.report,
     json: !!flags.json,
   }),

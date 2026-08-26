@@ -149,6 +149,8 @@ async function dispatchManage(m: ManagementCommand): Promise<void> {
       limit: m.limit,
       offset: m.offset,
       mode: m.mode,
+      verifier: m.verifier,
+      testCommand: m.testCommand,
       report: m.report,
       json: m.json,
     }); break;
