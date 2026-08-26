@@ -98,6 +98,7 @@
 
         // 长期记忆：编辑按钮
         document.getElementById('memEditLong')?.addEventListener('click', () => {
+          bindGhostTextOnce(); // P1-1: 编辑时启用 ghost text 补全
           const content = document.getElementById('memLongContent');
           const editor = document.getElementById('memLongEditor');
           const editBtn = document.getElementById('memEditLong');
@@ -865,10 +866,20 @@
     }
 
     /* ========== P3: 多文件变更面板 ========== */
+    let _autoConflictChecked = false; // P1-2: 每次会话仅自动检测一次
     async function loadChanges() {
       try {
         const d = await api('/api/changes', 'GET');
         renderChanges(d);
+        // P1-2 增强：加载后自动检测一次冲突（无需手动点击）
+        if (!_autoConflictChecked && Array.isArray(d.changes) && d.changes.length > 0) {
+          _autoConflictChecked = true;
+          try {
+            const dc = await api('/api/changes/detect-conflicts', 'POST');
+            _conflictFiles = Array.isArray(dc.conflicts) ? dc.conflicts.map(c => c.path || c) : [];
+            if (_conflictFiles.length > 0) renderChanges(d);
+          } catch { /* 自动检测失败不阻塞 */ }
+        }
       } catch (e) {
         document.getElementById('changesList').innerHTML = '<div class="muted" style="text-align:center;padding:20px;">加载失败：' + escapeHtml(e.message) + '</div>';
       }
@@ -878,6 +889,13 @@
       const changes = Array.isArray(data.changes) ? data.changes : [];
       const count = changes.length;
       document.getElementById('changesCount').textContent = count;
+      // P1-2 增强：冲突计数 badge
+      const conflictBadge = document.getElementById('changesConflictCount');
+      if (conflictBadge) {
+        const n = _conflictFiles.filter(cf => changes.some(c => c.path === cf || c.path.endsWith(cf) || cf.endsWith(c.path))).length;
+        conflictBadge.style.display = n > 0 ? 'inline' : 'none';
+        conflictBadge.textContent = n + ' 冲突';
+      }
       const list = document.getElementById('changesList');
       if (!count) {
         list.innerHTML = '<div class="muted" style="text-align:center;padding:30px;font-size:12px;">暂无暂存变更<br/><span style="font-size:11px;">AI 生成的文件修改会先暂存在这里，审批后才写入磁盘</span></div>';
@@ -2046,4 +2064,66 @@
           '<div style="font-size:10px;color:var(--muted);">' + (p.description || '').slice(0, 40) + '</div></div>'
         ).join('') + (list.length > 15 ? '<div class="muted" style="font-size:10px;margin-top:4px;">…共 ' + list.length + ' 个</div>' : '');
       } catch (e) { out.innerHTML = '<div>请求失败: ' + (e.message || '网络错误') + '</div>'; }
+    }
+
+    /* ========== P1-1: ghost text 补全（记忆编辑器）========== */
+    let _ghostTimer = null;
+    let _ghostSuggestion = '';
+    let _ghostBound = false;
+
+    function bindGhostTextOnce() {
+      if (_ghostBound) return;
+      _ghostBound = true;
+      const editor = document.getElementById('memLongEditor');
+      const bar = document.getElementById('memGhostBar');
+      if (!editor || !bar) return;
+      editor.addEventListener('input', () => {
+        clearTimeout(_ghostTimer);
+        _ghostTimer = setTimeout(() => requestGhost(editor), 350);
+      });
+      editor.addEventListener('keydown', (e) => {
+        if (e.key === 'Tab' && _ghostSuggestion) {
+          e.preventDefault();
+          acceptGhost(editor);
+        } else if (e.key === 'Escape') {
+          clearGhost();
+        }
+      });
+      editor.addEventListener('blur', () => setTimeout(clearGhost, 250));
+      // 编辑框显示时绑定一次
+      document.getElementById('memLongEditor')?.addEventListener('focus', () => { /* 已绑定 */ });
+    }
+
+    async function requestGhost(editor) {
+      const content = editor.value;
+      const bar = document.getElementById('memGhostBar');
+      if (!content.trim() || content.length < 10) { clearGhost(); return; }
+      try {
+        const d = await apiCompletion('memory-note.md', content, { language: 'markdown', mode: 'quick' });
+        if (d.ok && Array.isArray(d.suggestions) && d.suggestions.length) {
+          const t = d.suggestions[0].text || '';
+          if (t && !content.endsWith(t)) {
+            _ghostSuggestion = t;
+            document.getElementById('memGhostText').textContent = t.slice(0, 200);
+            bar.style.display = 'block';
+          } else { clearGhost(); }
+        } else { clearGhost(); }
+      } catch { clearGhost(); }
+    }
+
+    function acceptGhost(editor) {
+      if (!_ghostSuggestion) return;
+      const cur = editor.selectionStart ?? editor.value.length;
+      const end = editor.selectionEnd ?? cur;
+      editor.value = editor.value.slice(0, cur) + _ghostSuggestion + editor.value.slice(end);
+      const pos = cur + _ghostSuggestion.length;
+      editor.selectionStart = editor.selectionEnd = pos;
+      try { editor.dispatchEvent(new Event('input')); } catch {}
+      clearGhost();
+    }
+
+    function clearGhost() {
+      _ghostSuggestion = '';
+      const bar = document.getElementById('memGhostBar');
+      if (bar) bar.style.display = 'none';
     }

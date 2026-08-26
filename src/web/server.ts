@@ -848,6 +848,15 @@ export function startWebServer(opts: ServeOptions = {}): {
   });
 
   /* ========== P2-1: 设计稿转代码 API（多模态，图片→代码） ========== */
+  // P1-3: 设计稿转代码引擎状态查询
+  app.get('/api/design-to-code', (_req: Request, res: Response) => {
+    res.json({
+      ok: true,
+      configured: !!designToCodeEngine,
+      framework: designToCodeEngine ? 'html' : null,
+      note: designToCodeEngine ? '已配置多模态模型' : '未配置多模态模型（POST /api/design-to-code 需 vision 模型）',
+    });
+  });
   app.post('/api/design-to-code', async (req: Request, res: Response) => {
     const body = (req.body ?? {}) as Record<string, any>;
     const image = typeof body?.image === 'string' ? body.image.trim() : '';
@@ -1272,6 +1281,12 @@ export function startWebServer(opts: ServeOptions = {}): {
   });
 
   // Cron 任务 CRUD
+  app.get('/api/event-driven/cron', (_req: Request, res: Response) => {
+    try {
+      const cfg = eventDrivenManager.getConfig() as { cronTasks?: unknown[] };
+      res.json({ ok: true, cronTasks: cfg.cronTasks ?? [] });
+    } catch (e) { res.status(500).json({ ok: false, error: (e as Error).message }); }
+  });
   app.post('/api/event-driven/cron', (req: Request, res: Response) => {
     const body = (req.body ?? {}) as Record<string, any>;
     if (!body.name || !body.cron || !body.task) { res.status(400).json({ ok: false, error: '缺少 name/cron/task' }); return; }
@@ -2723,6 +2738,22 @@ export function startWebServer(opts: ServeOptions = {}): {
   app.get('/api/models', (_req: Request, res: Response) => {
     const list = loadModels().map(publicModel);
     res.json({ ok: true, models: list, defaultId: (list.find((m) => m.default) || {}).id || null });
+  });
+  // P1-3: 模型提供商聚合视图（按 apiBase 分组）
+  app.get('/api/models/providers', (_req: Request, res: Response) => {
+    const list = loadModels().map(publicModel);
+    const byKey = new Map<string, { providerId: string; apiBase: string; models: ModelConfig[]; count: number }>();
+    for (const m of list) {
+      const key = m.apiBase || 'custom';
+      let entry = byKey.get(key);
+      if (!entry) {
+        entry = { providerId: key, apiBase: key, models: [], count: 0 };
+        byKey.set(key, entry);
+      }
+      entry.models.push(m);
+      entry.count++;
+    }
+    res.json({ ok: true, providers: Array.from(byKey.values()), total: list.length });
   });
   app.post('/api/models', (req: Request, res: Response) => {
     const body = req.body as Record<string, any>;

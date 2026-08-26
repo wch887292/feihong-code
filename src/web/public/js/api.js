@@ -542,3 +542,14 @@
     async function apiSsoProviders() {
       return api('/api/sso/providers');
     }
+
+    /* ========== P1-1: 代码补全（ghost text）========== */
+    async function apiCompletion(filePath, fileContent, opts) {
+      return api('/api/completion', 'POST', {
+        filePath,
+        fileContent,
+        cursorOffset: opts?.cursorOffset ?? fileContent.length,
+        mode: opts?.mode ?? 'quick',
+        language: opts?.language,
+      });
+    }
