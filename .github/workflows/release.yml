@@ -83,7 +83,24 @@ jobs:
       - name: P7-5 安全 CI（npm audit + CycloneDX SBOM）
         run: npm run security || (echo "⚠️ npm audit 网络不可达按跳过处理" && exit 0)
       - name: P7-5 综合冒烟门禁（本地回归）
-        run: node scripts/_smoke-full.mjs
+        run: |
+          node dist/cli/index.js serve --port 8099 > /tmp/fh-serve.log 2>&1 &
+          SERVER_PID=$!
+          READY=0
+          for i in $(seq 1 40); do
+            if curl -sf http://127.0.0.1:8099/api/health >/dev/null 2>&1; then READY=1; break; fi
+            sleep 1
+          done
+          if [ "$READY" != "1" ]; then
+            echo "❌ 测试服务 40s 内未就绪，serve 日志："
+            cat /tmp/fh-serve.log || true
+            kill $SERVER_PID 2>/dev/null || true
+            exit 1
+          fi
+          node scripts/_smoke-full.mjs
+          EXIT_CODE=$?
+          kill $SERVER_PID 2>/dev/null || true
+          exit $EXIT_CODE
       - name: P7-1 SWE-bench harness 链路冒烟（mock）
         run: node dist/cli/index.js harness lite --limit 1 --mode mock || echo "⚠️ harness 需网络拉取数据集，失败不阻断（真实跑分见 docs/SWE_BENCH_REPORT.md）"
       - name: 上传构建产物
