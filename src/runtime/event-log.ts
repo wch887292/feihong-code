@@ -24,7 +24,8 @@ export type EventType =
   | 'self-heal'
   | 'self-heal.attempt'
   | 'context.compact'
-  | 'experience.extracted';
+  | 'experience.extracted'
+  | 'rag.context';
 
 export interface AgentEvent {
   ts: string;

@@ -5,8 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title data-i18n="app.title_login">飞虹 Code 控制台 / fhcode Console</title>
     <link rel="stylesheet" href="css/style.css">
+  <!-- Monaco Editor AMD Loader（代码编辑器内核，VSCode 同款） -->
+  <script src="vendor/monaco/vs/loader.js"></script>
 </head>
 <body>
+  <!-- 后端服务断连提示横幅 -->
+  <div class="backend-offline-banner" id="backendOfflineBanner" style="display:none;">
+    <span class="bob-icon">⚠️</span>
+    <span class="bob-text" id="backendOfflineText">后端服务已断开，正在自动重连…</span>
+    <button class="bob-reconnect" id="backendReconnectBtn">立即重连</button>
+  </div>
   <div id="loginOverlay">
     <div class="login-card">
       <h2 data-i18n="app.title_login">飞虹 Code 控制台</h2>
@@ -548,6 +556,10 @@
         <div class="right-tabs">
           <div class="right-tab active" data-tab="detail" data-i18n="right.detail">📦 任务详情</div>
           <div class="right-tab" data-tab="preview" data-i18n="right.preview">👁 产物预览</div>
+          <div class="right-tab" data-tab="changes" id="changesTab">📝 变更</div>
+          <div class="right-tab" data-tab="design" id="designTab">🎨 设计稿</div>
+          <div class="right-tab" data-tab="git" id="gitTab">🔀 Git</div>
+          <div class="right-tab" data-tab="team" id="teamTab">👥 团队</div>
           <div class="right-tab" data-tab="computer" id="computerTab" style="display:none;">🖥 电脑操作</div>
         </div>
         <div class="right-body">
@@ -584,6 +596,202 @@
                 <button class="pill" data-key="^v">粘贴</button>
                 <button class="pill" data-key="^a">全选</button>
               </div>
+            </div>
+          </div>
+          <!-- P3: 多文件变更面板 -->
+          <div class="preview-panel" id="changesPanel">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+              <div style="font-size:13px;font-weight:600;">📝 待审批变更 <span id="changesCount" class="badge" style="margin-left:4px;">0</span></div>
+              <div style="display:flex;gap:6px;">
+                <button id="changesDetectBtn" class="ghost-btn" style="font-size:11px;padding:3px 8px;" title="检测文件冲突">⚠️ 检测冲突</button>
+                <button id="changesRefreshBtn" class="ghost-btn" style="font-size:11px;padding:3px 8px;">🔄</button>
+                <button id="changesCommitBtn" class="ghost-btn" style="font-size:11px;padding:3px 8px;background:#2d5a3d;color:#fff;">✓ 全部提交</button>
+                <button id="changesDiscardBtn" class="ghost-btn" style="font-size:11px;padding:3px 8px;">🗑 丢弃</button>
+              </div>
+            </div>
+            <div id="changesList" style="overflow-y:auto;max-height:calc(100vh - 280px);">
+              <div class="muted" style="text-align:center;padding:30px;font-size:12px;">暂无暂存变更<br/><span style="font-size:11px;">AI 生成的文件修改会先暂存在这里，审批后才写入磁盘</span></div>
+            </div>
+          </div>
+          <!-- P2-1: 设计稿转代码面板 -->
+          <div class="preview-panel" id="designPanel">
+            <div style="margin-bottom:10px;font-size:13px;font-weight:600;">🎨 设计稿转代码</div>
+            <!-- 图片上传区域 -->
+            <div id="designDropZone" style="border:2px dashed var(--border);border-radius:8px;padding:20px;text-align:center;cursor:pointer;margin-bottom:10px;transition:border-color 0.2s;">
+              <div style="font-size:24px;margin-bottom:6px;">📷</div>
+              <div style="font-size:12px;color:var(--muted);">点击或拖拽上传设计稿图片</div>
+              <div style="font-size:10px;color:var(--muted);margin-top:4px;">支持 PNG/JPG/WebP，最大 8MB</div>
+              <input type="file" id="designFileInput" accept="image/*" style="display:none;" />
+            </div>
+            <!-- 图片预览 -->
+            <div id="designImagePreview" style="display:none;margin-bottom:10px;">
+              <img id="designPreviewImg" style="width:100%;max-height:200px;object-fit:contain;border-radius:6px;border:1px solid var(--border);" />
+              <button id="designRemoveImgBtn" style="margin-top:6px;font-size:11px;padding:2px 8px;background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--ink);">🗑 移除图片</button>
+            </div>
+            <!-- 框架选择 -->
+            <div style="margin-bottom:8px;">
+              <label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px;">目标框架</label>
+              <select id="designFramework" style="width:100%;padding:6px 8px;font-size:12px;border:1px solid var(--border);border-radius:6px;background:var(--card);color:var(--ink);">
+                <option value="html">HTML + 内联 CSS</option>
+                <option value="tailwind">HTML + Tailwind CSS</option>
+                <option value="html-css">HTML + CSS（分离）</option>
+                <option value="react">React 组件（JSX）</option>
+                <option value="vue">Vue 3 单文件组件</option>
+              </select>
+            </div>
+            <!-- 附加说明 -->
+            <div style="margin-bottom:8px;">
+              <label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px;">附加说明（可选）</label>
+              <textarea id="designInstructions" placeholder="如：使用深色主题、响应式设计、圆角按钮..." style="width:100%;padding:6px 8px;font-size:12px;border:1px solid var(--border);border-radius:6px;resize:vertical;min-height:50px;background:var(--card);color:var(--ink);"></textarea>
+            </div>
+            <!-- 生成按钮 -->
+            <button id="designGenerateBtn" style="width:100%;padding:8px;font-size:13px;font-weight:600;background:#2d5a3d;color:#fff;border:none;border-radius:6px;cursor:pointer;margin-bottom:10px;">✨ 生成代码</button>
+            <!-- 生成状态 -->
+            <div id="designStatus" style="display:none;font-size:12px;color:var(--muted);text-align:center;margin-bottom:10px;">
+              <span style="display:inline-block;width:12px;height:12px;border:2px solid var(--muted);border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;vertical-align:middle;margin-right:6px;"></span>
+              <span id="designStatusText">正在分析设计稿...</span>
+            </div>
+            <!-- 结果区域：代码 + 预览切换 -->
+            <div id="designResult" style="display:none;">
+              <div style="display:flex;gap:4px;margin-bottom:8px;">
+                <button class="design-result-tab active" data-tab="code" style="flex:1;padding:5px;font-size:11px;border:1px solid var(--border);border-radius:4px;cursor:pointer;background:var(--card);color:var(--ink);">📄 代码</button>
+                <button class="design-result-tab" data-tab="preview" style="flex:1;padding:5px;font-size:11px;border:1px solid var(--border);border-radius:4px;cursor:pointer;background:var(--card);color:var(--ink);">👁 预览</button>
+              </div>
+              <!-- 代码视图 -->
+              <div id="designCodeView" style="margin-bottom:10px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                  <span style="font-size:11px;color:var(--muted);" id="designCodeLang">HTML</span>
+                  <button id="designCopyBtn" style="font-size:10px;padding:2px 6px;background:none;border:1px solid var(--border);border-radius:3px;cursor:pointer;color:var(--ink);">📋 复制</button>
+                </div>
+                <pre id="designCode" style="margin:0;max-height:300px;overflow:auto;padding:10px;background:var(--card);border:1px solid var(--border);border-radius:6px;font-size:11px;line-height:1.5;white-space:pre-wrap;word-break:break-all;"></pre>
+              </div>
+              <!-- 预览视图 -->
+              <div id="designPreviewView" style="display:none;margin-bottom:10px;">
+                <iframe id="designPreviewFrame" style="width:100%;height:300px;border:1px solid var(--border);border-radius:6px;background:#fff;"></iframe>
+              </div>
+              <!-- 迭代修正 -->
+              <div style="border-top:1px solid var(--border);padding-top:8px;">
+                <div style="font-size:12px;font-weight:600;margin-bottom:4px;">🔧 迭代修正</div>
+                <textarea id="designFeedback" placeholder="描述需要修改的地方，如：按钮颜色改为蓝色、标题字号增大..." style="width:100%;padding:6px 8px;font-size:12px;border:1px solid var(--border);border-radius:6px;resize:vertical;min-height:40px;margin-bottom:6px;background:var(--card);color:var(--ink);"></textarea>
+                <button id="designRefineBtn" style="width:100%;padding:6px;font-size:12px;background:var(--card);color:var(--ink);border:1px solid var(--border);border-radius:6px;cursor:pointer;">🔄 修正代码</button>
+              </div>
+            </div>
+          </div>
+          <!-- P2-2: Git 集成面板 -->
+          <div class="preview-panel" id="gitPanel">
+            <!-- 分支信息和操作 -->
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+              <div style="font-size:13px;font-weight:600;">🔀 Git <span id="gitBranchName" class="muted" style="font-size:11px;font-weight:normal;"></span></div>
+              <div style="display:flex;gap:4px;">
+                <button id="gitRefreshBtn" class="ghost-btn" style="font-size:11px;padding:3px 8px;" title="刷新">🔄</button>
+                <button id="gitPullBtn" class="ghost-btn" style="font-size:11px;padding:3px 8px;" title="拉取">⬇ 拉取</button>
+                <button id="gitPushBtn" class="ghost-btn" style="font-size:11px;padding:3px 8px;" title="推送">⬆ 推送</button>
+              </div>
+            </div>
+            <!-- 非仓库提示 -->
+            <div id="gitNoRepo" style="display:none;text-align:center;padding:30px;">
+              <div style="font-size:24px;margin-bottom:8px;">📦</div>
+              <div class="muted" style="font-size:12px;margin-bottom:10px;">当前目录不是 Git 仓库</div>
+              <button id="gitInitBtn" class="ghost-btn" style="font-size:11px;padding:4px 12px;">初始化 Git 仓库</button>
+            </div>
+            <!-- Git 内容区 -->
+            <div id="gitContent" style="display:none;">
+              <!-- 分支切换 -->
+              <div style="margin-bottom:8px;">
+                <select id="gitBranchSelect" style="width:100%;padding:5px 8px;font-size:11px;border:1px solid var(--border);border-radius:4px;background:var(--card);color:var(--ink);"></select>
+              </div>
+              <!-- 暂存区 -->
+              <div style="margin-bottom:10px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+                  <span style="font-size:11px;font-weight:600;color:#2d8a4e;">📥 暂存区 <span id="gitStagedCount" class="muted">0</span></span>
+                  <button id="gitResetAllBtn" class="ghost-btn" style="font-size:10px;padding:2px 6px;display:none;">全部取消</button>
+                </div>
+                <div id="gitStagedList" style="max-height:120px;overflow-y:auto;"></div>
+              </div>
+              <!-- 工作区修改 -->
+              <div style="margin-bottom:10px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+                  <span style="font-size:11px;font-weight:600;color:#c0392b;">📝 修改 <span id="gitModifiedCount" class="muted">0</span></span>
+                  <button id="gitAddAllBtn" class="ghost-btn" style="font-size:10px;padding:2px 6px;display:none;">全部暂存</button>
+                </div>
+                <div id="gitModifiedList" style="max-height:120px;overflow-y:auto;"></div>
+              </div>
+              <!-- 未跟踪文件 -->
+              <div style="margin-bottom:10px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+                  <span style="font-size:11px;font-weight:600;color:#888;">❓ 未跟踪 <span id="gitUntrackedCount" class="muted">0</span></span>
+                </div>
+                <div id="gitUntrackedList" style="max-height:80px;overflow-y:auto;"></div>
+              </div>
+              <!-- 提交 -->
+              <div style="border-top:1px solid var(--border);padding-top:8px;">
+                <textarea id="gitCommitMessage" placeholder="提交信息（Ctrl+Enter 提交）" style="width:100%;padding:6px 8px;font-size:12px;border:1px solid var(--border);border-radius:6px;resize:vertical;min-height:50px;margin-bottom:6px;background:var(--card);color:var(--ink);"></textarea>
+                <button id="gitCommitBtn" style="width:100%;padding:6px;font-size:12px;font-weight:600;background:#2d5a3d;color:#fff;border:none;border-radius:6px;cursor:pointer;">✓ 提交</button>
+              </div>
+              <!-- 提交历史 -->
+              <div style="margin-top:10px;border-top:1px solid var(--border);padding-top:8px;">
+                <div style="font-size:11px;font-weight:600;margin-bottom:4px;cursor:pointer;" id="gitLogToggle">📜 提交历史 ▼</div>
+                <div id="gitLogList" style="display:none;max-height:150px;overflow-y:auto;font-size:11px;"></div>
+              </div>
+            </div>
+            <!-- Diff 查看模态 -->
+            <div id="gitDiffModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;display:none;align-items:center;justify-content:center;">
+              <div style="background:var(--card);border-radius:8px;padding:16px;max-width:90%;max-height:80%;width:700px;overflow:hidden;display:flex;flex-direction:column;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                  <span id="gitDiffTitle" style="font-size:13px;font-weight:600;">Diff</span>
+                  <button id="gitDiffCloseBtn" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--ink);">✕</button>
+                </div>
+                <pre id="gitDiffContent" style="margin:0;overflow:auto;flex:1;font-size:11px;line-height:1.5;white-space:pre-wrap;word-break:break-all;"></pre>
+              </div>
+            </div>
+          </div>
+          <!-- P2-3: 团队协作面板 -->
+          <div class="preview-panel" id="teamPanel">
+            <!-- 团队信息和统计 -->
+            <div style="margin-bottom:10px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                <span style="font-size:13px;font-weight:600;">👥 <span id="teamName">团队</span></span>
+                <button id="teamRefreshBtn" class="ghost-btn" style="font-size:11px;padding:3px 8px;">🔄</button>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;">
+                <div style="background:var(--card);padding:8px;border-radius:6px;text-align:center;">
+                  <div style="font-size:16px;font-weight:600;color:#2d5a3d;" id="teamMemberCount">0</div>
+                  <div style="font-size:10px;color:var(--muted);">成员</div>
+                </div>
+                <div style="background:var(--card);padding:8px;border-radius:6px;text-align:center;">
+                  <div style="font-size:16px;font-weight:600;color:#2d5a3d;" id="teamTaskCount">0</div>
+                  <div style="font-size:10px;color:var(--muted);">任务</div>
+                </div>
+              </div>
+            </div>
+            <!-- Tab 切换 -->
+            <div style="display:flex;gap:4px;margin-bottom:8px;border-bottom:1px solid var(--border);padding-bottom:6px;">
+              <button class="team-tab active" data-tab="members" style="flex:1;padding:5px;font-size:11px;border:none;background:none;cursor:pointer;color:var(--ink);border-bottom:2px solid #2d5a3d;font-weight:600;">👤 成员</button>
+              <button class="team-tab" data-tab="tasks" style="flex:1;padding:5px;font-size:11px;border:none;background:none;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;">📋 任务</button>
+            </div>
+            <!-- 成员管理 -->
+            <div id="teamMembersTab">
+              <div style="display:flex;gap:4px;margin-bottom:8px;">
+                <input type="text" id="teamInviteName" placeholder="姓名" style="flex:1;padding:5px 8px;font-size:11px;border:1px solid var(--border);border-radius:4px;background:var(--card);color:var(--ink);" />
+                <input type="email" id="teamInviteEmail" placeholder="邮箱" style="flex:1;padding:5px 8px;font-size:11px;border:1px solid var(--border);border-radius:4px;background:var(--card);color:var(--ink);" />
+                <button id="teamInviteBtn" style="padding:5px 10px;font-size:11px;background:#2d5a3d;color:#fff;border:none;border-radius:4px;cursor:pointer;">邀请</button>
+              </div>
+              <div id="teamMembersList" style="max-height:300px;overflow-y:auto;"></div>
+            </div>
+            <!-- 任务管理 -->
+            <div id="teamTasksTab" style="display:none;">
+              <div style="display:flex;gap:4px;margin-bottom:8px;">
+                <input type="text" id="teamTaskTitle" placeholder="任务标题" style="flex:1;padding:5px 8px;font-size:11px;border:1px solid var(--border);border-radius:4px;background:var(--card);color:var(--ink);" />
+                <button id="teamCreateTaskBtn" style="padding:5px 10px;font-size:11px;background:#2d5a3d;color:#fff;border:none;border-radius:4px;cursor:pointer;">创建</button>
+              </div>
+              <div style="display:flex;gap:4px;margin-bottom:8px;flex-wrap:wrap;">
+                <button class="team-task-filter active" data-status="" style="padding:3px 8px;font-size:10px;border:1px solid var(--border);border-radius:3px;cursor:pointer;background:var(--card);color:var(--ink);">全部</button>
+                <button class="team-task-filter" data-status="todo" style="padding:3px 8px;font-size:10px;border:1px solid var(--border);border-radius:3px;cursor:pointer;background:var(--card);color:var(--ink);">待办</button>
+                <button class="team-task-filter" data-status="in-progress" style="padding:3px 8px;font-size:10px;border:1px solid var(--border);border-radius:3px;cursor:pointer;background:var(--card);color:var(--ink);">进行中</button>
+                <button class="team-task-filter" data-status="review" style="padding:3px 8px;font-size:10px;border:1px solid var(--border);border-radius:3px;cursor:pointer;background:var(--card);color:var(--ink);">评审</button>
+                <button class="team-task-filter" data-status="done" style="padding:3px 8px;font-size:10px;border:1px solid var(--border);border-radius:3px;cursor:pointer;background:var(--card);color:var(--ink);">完成</button>
+              </div>
+              <div id="teamTasksList" style="max-height:300px;overflow-y:auto;"></div>
             </div>
           </div>
         </div>
@@ -982,7 +1190,9 @@
   <input type="file" id="imageInput" accept="image/*" />
   <div class="toast" id="toast"></div>
 
+      <script src="js/mock-api.js"></script>
       <script src="js/utils.js"></script>
+  <script src="js/monaco-editor.js"></script>
   <script src="js/api.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/app.js"></script>

@@ -19,7 +19,7 @@ export function containerImage(): string {
 }
 
 /** 容器模式下应把命令包装成 docker run 执行；镜像不存在时由 docker 自动拉取 */
-export function runCommandInContainer(cmd: string, cwd: string, timeoutMs = 120000): Promise<ExecResult> {
+export function runCommandInContainer(cmd: string, cwd: string, timeoutMs = 60000): Promise<ExecResult> {
   const image = containerImage();
   // 挂载工作区到 /workspace，容器内 cwd=/workspace；--rm 用完即删
   const dockerArgs = [
@@ -37,20 +37,26 @@ export function runCommandInContainer(cmd: string, cwd: string, timeoutMs = 1200
   return runCommand('docker ' + dockerArgs.map((a) => `"${a.replace(/"/g, '\\"')}"`).join(' '), cwd, timeoutMs);
 }
 
-export function runCommand(cmd: string, cwd: string, timeoutMs = 120000): Promise<ExecResult> {
+export function runCommand(cmd: string, cwd: string, timeoutMs = 60000): Promise<ExecResult> {
   return new Promise((resolve) => {
     // 不用内置 timeout 选项：它只杀 shell 进程，不杀 shell 启动的子进程（如 npm/node）。
-    // 手动实现超时：先 SIGTERM，宽限期后 SIGKILL，并尝试杀整个进程组。
+    // 手动实现超时：先 SIGTERM，宽限期后 SIGKILL，并尝试杀整个进程树。
     const child = spawn(cmd, { cwd, shell: true });
     let stdout = '';
     let stderr = '';
     let settled = false;
+    const isWindows = process.platform === 'win32';
 
     const finish = (result: ExecResult) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
       clearTimeout(killTimer);
+      clearTimeout(forceTimer);
+      // 主动销毁 stdio 流，防止子进程持有管道导致 close 事件永不触发
+      try { child.stdout?.destroy(); } catch { /* ignore */ }
+      try { child.stderr?.destroy(); } catch { /* ignore */ }
+      try { child.stdin?.destroy(); } catch { /* ignore */ }
       resolve(result);
     };
 
@@ -63,30 +69,51 @@ export function runCommand(cmd: string, cwd: string, timeoutMs = 120000): Promis
     });
     child.on('close', (code) => finish({ code: code ?? 1, stdout, stderr }));
 
-    // 超时处理：先 SIGTERM，5 秒后 SIGKILL
-    const isWindows = process.platform === 'win32';
+    /** Windows 专用：用 taskkill /T /F 杀整个进程树（含子进程），避免 npm/node 子进程残留持有管道 */
+    function killProcessTreeWindows(pid: number): void {
+      try {
+        spawn('taskkill', ['/PID', String(pid), '/T', '/F'], { detached: true, stdio: 'ignore' }).unref();
+      } catch { /* 忽略 taskkill 失败，退化为 child.kill */ }
+    }
+
+    // 超时处理：先 SIGTERM（Windows 用 taskkill /T），5 秒后 SIGKILL
     const killTimer = setTimeout(() => {
       if (settled) return;
       try {
-        if (!isWindows && child.pid) {
+        if (isWindows && child.pid) {
+          killProcessTreeWindows(child.pid);
+        } else if (!isWindows && child.pid) {
           // Unix: 杀整个进程组（负 pid），确保子进程也被杀
           try { process.kill(-child.pid, 'SIGKILL'); } catch { /* 进程组不存在则退化为杀单进程 */ }
+          child.kill('SIGKILL');
+        } else {
+          child.kill('SIGKILL');
         }
-        child.kill('SIGKILL');
       } catch { /* 忽略 kill 失败 */ }
     }, 5000);
 
     const timer = setTimeout(() => {
       if (settled) return;
-      stderr += `\n[超时] 命令执行超过 ${timeoutMs}ms，正在终止…`;
+      stderr += `\n[超时] 命令执行超过 ${Math.round(timeoutMs / 1000)} 秒，正在终止（长时间运行的服务如 dev server 请改用后台启动）…`;
       try {
-        if (!isWindows && child.pid) {
+        if (isWindows && child.pid) {
+          killProcessTreeWindows(child.pid);
+        } else if (!isWindows && child.pid) {
           try { process.kill(-child.pid, 'SIGTERM'); } catch { /* 退化为杀单进程 */ }
+          child.kill('SIGTERM');
+        } else {
+          child.kill('SIGTERM');
         }
-        child.kill('SIGTERM');
       } catch { /* 忽略 */ }
       // killTimer 会在 5 秒后发 SIGKILL
     }, timeoutMs);
+
+    // 最终兜底：超时后 10 秒如果还没 settle（子进程残留持有管道），强制 resolve，避免永久挂起
+    const forceTimer = setTimeout(() => {
+      if (settled) return;
+      stderr += '\n[强制结束] 进程树未能正常终止，已强制返回结果。';
+      finish({ code: 124, stdout, stderr });
+    }, timeoutMs + 10000);
   });
 }
 

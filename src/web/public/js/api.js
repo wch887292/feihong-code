@@ -355,7 +355,16 @@
     }
 
     async function api(path, method = 'GET', body) {
-      const res = await fetch(path, { method, headers: authHeaders(), body: body ? JSON.stringify(body) : undefined });
+      let res;
+      try {
+        res = await fetch(path, { method, headers: authHeaders(), body: body ? JSON.stringify(body) : undefined });
+      } catch (e) {
+        // 网络层失败（Failed to fetch / 连接拒绝 / 超时中断）：标记后端可能已断开
+        if (typeof BackendConn !== 'undefined') BackendConn.markFailure();
+        throw e;
+      }
+      // 请求到达后端并返回响应：若之前处于断连状态，立即恢复
+      if (typeof BackendConn !== 'undefined' && !BackendConn.online) BackendConn.setOnline(true);
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
         // 401：令牌确实被服务端拒绝，清除并回到登录页。
@@ -379,4 +388,109 @@
 
     function authHeaders() {
       return state.token ? { 'Authorization': 'Bearer ' + state.token, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
+    }
+
+    /* ========== 后端连接状态监测（心跳 + 断连横幅 + 自动重连） ==========
+     * 解决问题：后端进程崩溃后，前端无感知，用户操作均报 "Failed to fetch" 且不知原因。
+     * 机制：
+     *  1. 每 5s 轮询 /api/health，连续失败 2 次判定后端断开，顶部显示红色横幅。
+     *  2. 断连后自动加快到每 2s 重试，恢复后自动切回 5s 并 toast 提示。
+     *  3. 任意 api() 调用网络失败也会累计失败计数（双保险，不必等下一轮心跳）。
+     *  4. 页面从后台切回 / 网络恢复事件时立即检测一次。
+     */
+    const BackendConn = {
+      online: true,
+      heartbeatTimer: null,
+      reconnectTimer: null,
+      intervalMs: 5000,       // 正常心跳间隔
+      reconnectMs: 2000,       // 断连后重连检测间隔
+      consecutiveFailures: 0,
+      threshold: 2,             // 连续失败 N 次才判定断开（避免瞬时抖动误报）
+      healthTimeoutMs: 3000,    // 单次健康检查超时
+
+      init() {
+        this.startHeartbeat();
+        // 重连按钮
+        const btn = document.getElementById('backendReconnectBtn');
+        if (btn) btn.addEventListener('click', () => this.reconnect());
+        // 页面从后台切回前台时立即检测
+        document.addEventListener('visibilitychange', () => {
+          if (!document.hidden) this.check();
+        });
+        // 浏览器网络恢复事件
+        window.addEventListener('online', () => this.check());
+      },
+
+      startHeartbeat() {
+        if (this.heartbeatTimer) clearInterval(this.heartbeatTimer);
+        this.heartbeatTimer = setInterval(() => this.check(), this.intervalMs);
+      },
+
+      async check() {
+        try {
+          const ctrl = new AbortController();
+          const timeout = setTimeout(() => ctrl.abort(), this.healthTimeoutMs);
+          const res = await fetch('/api/health', {
+            method: 'GET',
+            signal: ctrl.signal,
+            cache: 'no-store',
+            headers: { 'Cache-Control': 'no-cache' },
+          });
+          clearTimeout(timeout);
+          if (res.ok) {
+            this.consecutiveFailures = 0;
+            this.setOnline(true);
+          } else {
+            this.markFailure();
+          }
+        } catch (e) {
+          this.markFailure();
+        }
+      },
+
+      /** 累计失败次数，达到阈值则判定断开 */
+      markFailure() {
+        this.consecutiveFailures++;
+        if (this.consecutiveFailures >= this.threshold) {
+          this.setOnline(false);
+        }
+      },
+
+      setOnline(online) {
+        if (this.online === online) return;
+        this.online = online;
+        const banner = document.getElementById('backendOfflineBanner');
+        const text = document.getElementById('backendOfflineText');
+        if (banner) {
+          banner.style.display = online ? 'none' : 'flex';
+        }
+        if (online) {
+          // 恢复：切回正常心跳间隔
+          if (this.reconnectTimer) { clearInterval(this.reconnectTimer); this.reconnectTimer = null; }
+          this.startHeartbeat();
+          try { toast('后端服务已恢复连接'); } catch (e) {}
+        } else {
+          // 断开：停止正常心跳，加快重连检测
+          if (this.heartbeatTimer) { clearInterval(this.heartbeatTimer); this.heartbeatTimer = null; }
+          if (!this.reconnectTimer) {
+            this.reconnectTimer = setInterval(() => this.check(), this.reconnectMs);
+          }
+          if (text) text.textContent = '后端服务已断开，正在自动重连…';
+        }
+      },
+
+      /** 手动触发重连：重置失败计数并立即检测 */
+      reconnect() {
+        const text = document.getElementById('backendOfflineText');
+        if (text) text.textContent = '正在重连后端服务…';
+        this.consecutiveFailures = 0;
+        this.check();
+      },
+    };
+
+    // 页面加载完成后启动心跳监测
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => BackendConn.init());
+    } else {
+      BackendConn.init();
     }

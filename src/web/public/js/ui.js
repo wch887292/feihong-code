@@ -641,11 +641,156 @@
     function showPreview(title, content, mode) {
       document.getElementById('previewTitle').textContent = title;
       const box = document.getElementById('previewContent');
-      if (mode === 'code' || mode === 'file') {
-        box.innerHTML = '<pre>' + escapeHtml(content) + '</pre>';
+      const isCode = mode === 'code' || mode === 'file';
+      // 从标题提取文件路径（标题格式："文件: /path/to/file"）
+      const filePath = title.startsWith('文件: ') ? title.slice(4).trim() : '';
+      if (isCode) {
+        box.innerHTML =
+          '<div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;align-items:center;">' +
+            '<button class="ghost-btn" id="previewEditBtn" style="font-size:11px;padding:3px 10px;">✏️ 编辑</button>' +
+            '<button class="ghost-btn" id="previewStageBtn" style="font-size:11px;padding:3px 10px;display:none;background:#2d5a3d;color:#fff;">📝 暂存变更</button>' +
+            '<button class="ghost-btn" id="previewCancelBtn" style="font-size:11px;padding:3px 10px;display:none;">取消</button>' +
+            '<span class="muted" id="previewEditHint" style="font-size:11px;"></span>' +
+            '<span class="muted" id="monacoStatus" style="font-size:10px;margin-left:auto;"></span>' +
+          '</div>' +
+          // P0-1: Monaco 编辑器容器（VSCode 同款内核，语法高亮+智能补全）
+          '<div id="monacoContainer" style="width:100%;height:500px;border:1px solid var(--border);border-radius:6px;overflow:hidden;"></div>';
+        const editBtn = document.getElementById('previewEditBtn');
+        const stageBtn = document.getElementById('previewStageBtn');
+        const cancelBtn = document.getElementById('previewCancelBtn');
+        const hint = document.getElementById('previewEditHint');
+        const monacoStatus = document.getElementById('monacoStatus');
+        let monacoEditor = null;
+        let originalContent = content;
+        let isEditing = false;
+
+        // 初始化 Monaco 只读视图（语法高亮）
+        async function initMonacoReadOnly() {
+          if (typeof FHMonaco === 'undefined') {
+            monacoStatus.textContent = 'Monaco 未加载';
+            return;
+          }
+          try {
+            monacoStatus.textContent = '加载编辑器…';
+            monacoEditor = await FHMonaco.createEditor('monacoContainer', content, filePath || 'untitled', {
+              readOnly: true,
+              domReadOnly: true,
+              minimap: { enabled: content.length > 500 },
+            });
+            monacoStatus.textContent = '';
+          } catch (e) {
+            monacoStatus.textContent = '编辑器加载失败: ' + e.message;
+          }
+        }
+
+        // 切换到编辑模式
+        async function enterEditMode() {
+          registerMonacoCompletions();
+          if (!monacoEditor) {
+            // 如果只读模式还没初始化，先创建可编辑实例
+            monacoEditor = await FHMonaco.createEditor('monacoContainer', originalContent, filePath || 'untitled', {
+              readOnly: false,
+              minimap: { enabled: true },
+            });
+          } else {
+            monacoEditor.updateOptions({ readOnly: false, domReadOnly: false });
+          }
+          isEditing = true;
+          editBtn.style.display = 'none';
+          stageBtn.style.display = 'inline-block';
+          cancelBtn.style.display = 'inline-block';
+          hint.textContent = filePath ? '编辑后点「暂存变更」· Tab 接受内联补全 · Ctrl+Space 选择补全' : '（未关联文件路径）';
+          monacoStatus.textContent = '编辑模式';
+          // 聚焦到编辑器末尾
+          monacoEditor.focus();
+          const model = monacoEditor.getModel();
+          const lastLine = model.getLineCount();
+          monacoEditor.setPosition({ lineNumber: lastLine, column: model.getLineMaxColumn(lastLine) });
+        }
+
+        // 退出编辑模式（取消）
+        function exitEditMode() {
+          if (monacoEditor) {
+            monacoEditor.setValue(originalContent);
+            monacoEditor.updateOptions({ readOnly: true, domReadOnly: true });
+          }
+          isEditing = false;
+          editBtn.style.display = 'inline-block';
+          stageBtn.style.display = 'none';
+          cancelBtn.style.display = 'none';
+          hint.textContent = '';
+          monacoStatus.textContent = '';
+        }
+
+        editBtn.addEventListener('click', enterEditMode);
+        cancelBtn.addEventListener('click', exitEditMode);
+        stageBtn.addEventListener('click', async () => {
+          if (!monacoEditor) return;
+          const newContent = monacoEditor.getValue();
+          if (newContent === originalContent) { toast('内容未变化'); return; }
+          const stagePath = filePath || prompt('请输入文件路径（用于暂存变更）：');
+          if (!stagePath) return;
+          try {
+            await api('/api/changes/stage', 'POST', { path: stagePath, content: newContent });
+            toast('✅ 已暂存到变更面板');
+            originalContent = newContent;
+            exitEditMode();
+            switchRightTab('changes');
+          } catch (e) { toast('暂存失败：' + e.message); }
+        });
+
+        // 启动只读视图
+        initMonacoReadOnly();
       } else {
         box.innerHTML = '<div style="white-space:pre-wrap;word-break:break-word;">' + content + '</div>';
       }
+    }
+
+    /* ========== P0-1: Monaco 补全 Provider 注册（内联 ghost text + 补全弹窗） ========== */
+    let _monacoCompletionsRegistered = false;
+    function registerMonacoCompletions() {
+      if (_monacoCompletionsRegistered || typeof FHMonaco === 'undefined') return;
+      _monacoCompletionsRegistered = true;
+
+      // 内联补全（ghost text，Tab 接受）—— Monaco 原生支持，无需手动叠加
+      FHMonaco.registerInlineCompletions(async function ({ filePath, content, offset, token }) {
+        try {
+          const d = await api('/api/completion', 'POST', {
+            filePath: filePath,
+            fileContent: content,
+            cursorOffset: offset,
+            mode: 'quick',
+          });
+          const suggs = Array.isArray(d.suggestions) ? d.suggestions : [];
+          if (suggs.length > 0 && suggs[0].text) {
+            return { text: suggs[0].text };
+          }
+          return null;
+        } catch (e) {
+          return null;
+        }
+      });
+
+      // 补全项弹窗（Ctrl+Space 触发，↑↓选择，Enter接受）—— Monaco 原生支持
+      FHMonaco.registerCompletionItems(async function ({ filePath, content, offset, prefix, token }) {
+        try {
+          const d = await api('/api/completion', 'POST', {
+            filePath: filePath,
+            fileContent: content,
+            cursorOffset: offset,
+            mode: 'full',
+          });
+          const suggs = Array.isArray(d.suggestions) ? d.suggestions : [];
+          return suggs.map((s) => ({
+            label: (s.text || '').slice(0, 50) + ((s.text || '').length > 50 ? '…' : ''),
+            kind: s.kind === 'function' ? 'Function' : s.kind === 'import' ? 'Module' : s.kind === 'block' ? 'Snippet' : 'Text',
+            insertText: s.text || '',
+            detail: (s.kind || 'text') + (s.confidence ? ' · ' + Math.round(s.confidence * 100) + '%' : ''),
+          }));
+        } catch (e) {
+          return [];
+        }
+      });
     }
 
     function switchRightTab(name) {
@@ -653,6 +798,153 @@
       document.querySelectorAll('.right-tab').forEach((t) => t.classList.toggle('active', t.getAttribute('data-tab') === name));
       document.getElementById('detailPanel').classList.toggle('active', name === 'detail');
       document.getElementById('previewPanel').classList.toggle('active', name === 'preview');
+      document.getElementById('computerPanel')?.classList.toggle('active', name === 'computer');
+      document.getElementById('changesPanel')?.classList.toggle('active', name === 'changes');
+      document.getElementById('designPanel')?.classList.toggle('active', name === 'design');
+      document.getElementById('gitPanel')?.classList.toggle('active', name === 'git');
+      document.getElementById('teamPanel')?.classList.toggle('active', name === 'team');
+      if (name === 'changes') {
+        bindChangesButtonsOnce();
+        loadChanges();
+      }
+      if (name === 'design') {
+        bindDesignButtonsOnce();
+      }
+      if (name === 'git') {
+        bindGitButtonsOnce();
+        loadGitStatus();
+      }
+      if (name === 'team') {
+        bindTeamButtonsOnce();
+        loadTeamData();
+      }
+    }
+
+    // 变更面板顶部按钮只绑定一次
+    let _changesButtonsBound = false;
+    let _conflictFiles = []; // 冲突文件路径列表
+    function bindChangesButtonsOnce() {
+      if (_changesButtonsBound) return;
+      _changesButtonsBound = true;
+      document.getElementById('changesRefreshBtn')?.addEventListener('click', () => { _conflictFiles = []; loadChanges(); });
+      document.getElementById('changesCommitBtn')?.addEventListener('click', async () => {
+        try {
+          const d = await api('/api/changes/commit', 'POST');
+          toast(d.success ? '✅ 已提交所有变更' : '⚠️ 部分提交失败：' + (d.error || ''));
+          _conflictFiles = [];
+          loadChanges();
+        } catch (e) { toast('提交失败：' + e.message); }
+      });
+      document.getElementById('changesDiscardBtn')?.addEventListener('click', async () => {
+        if (!confirm('确定丢弃所有暂存变更？')) return;
+        try {
+          await api('/api/changes/discard', 'POST');
+          toast('已丢弃所有变更');
+          _conflictFiles = [];
+          loadChanges();
+        } catch (e) { toast('丢弃失败：' + e.message); }
+      });
+      // P3: 检测冲突
+      document.getElementById('changesDetectBtn')?.addEventListener('click', async () => {
+        try {
+          const d = await api('/api/changes/detect-conflicts', 'POST');
+          _conflictFiles = Array.isArray(d.conflicts) ? d.conflicts.map(c => c.path || c) : [];
+          if (_conflictFiles.length > 0) {
+            toast('⚠️ 检测到 ' + _conflictFiles.length + ' 个文件冲突（已高亮）');
+          } else {
+            toast('✅ 无文件冲突');
+          }
+          loadChanges(); // 重新渲染以高亮冲突文件
+        } catch (e) { toast('冲突检测失败：' + e.message); }
+      });
+    }
+
+    /* ========== P3: 多文件变更面板 ========== */
+    async function loadChanges() {
+      try {
+        const d = await api('/api/changes', 'GET');
+        renderChanges(d);
+      } catch (e) {
+        document.getElementById('changesList').innerHTML = '<div class="muted" style="text-align:center;padding:20px;">加载失败：' + escapeHtml(e.message) + '</div>';
+      }
+    }
+
+    function renderChanges(data) {
+      const changes = Array.isArray(data.changes) ? data.changes : [];
+      const count = changes.length;
+      document.getElementById('changesCount').textContent = count;
+      const list = document.getElementById('changesList');
+      if (!count) {
+        list.innerHTML = '<div class="muted" style="text-align:center;padding:30px;font-size:12px;">暂无暂存变更<br/><span style="font-size:11px;">AI 生成的文件修改会先暂存在这里，审批后才写入磁盘</span></div>';
+        return;
+      }
+      list.innerHTML = changes.map((c, idx) => {
+        const typeLabel = c.type === 'create' ? '🆕 新增' : c.type === 'delete' ? '🗑 删除' : '✏️ 修改';
+        const typeColor = c.type === 'create' ? '#2d8a4e' : c.type === 'delete' ? '#c0392b' : '#d4a017';
+        const isConflict = _conflictFiles.some(cf => c.path === cf || c.path.endsWith(cf) || cf.endsWith(c.path));
+        const conflictBorder = isConflict ? 'border:2px solid #c0392b;' : 'border:1px solid var(--border);';
+        const conflictBadge = isConflict ? '<span style="color:#c0392b;font-weight:700;margin-left:6px;">⚠️ 冲突</span>' : '';
+        const hunks = Array.isArray(c.hunks) ? c.hunks : [];
+        let hunksHtml = '';
+        if (hunks.length) {
+          hunksHtml = '<div style="margin-top:6px;">' + hunks.map((h, hi) => {
+            const lines = (h.lines || []).map(l => {
+              const cls = l.type === 'add' ? 'diff-add' : l.type === 'del' ? 'diff-del' : 'diff-ctx';
+              return '<div class="' + cls + '">' + escapeHtml(l.content) + '</div>';
+            }).join('');
+            return '<div class="diff-hunk" style="margin-bottom:6px;border:1px solid var(--border);border-radius:4px;overflow:hidden;">'
+              + '<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 6px;background:var(--bg);font-size:11px;">'
+              + '<span class="muted">@@ ' + escapeHtml(String(h.header || '')) + '</span>'
+              + '<span style="display:flex;gap:4px;">'
+              + '<button class="ghost-btn" style="font-size:10px;padding:1px 6px;" data-act="accept-hunk" data-idx="' + idx + '" data-hunk="' + hi + '">✓</button>'
+              + '<button class="ghost-btn" style="font-size:10px;padding:1px 6px;" data-act="reject-hunk" data-idx="' + idx + '" data-hunk="' + hi + '">✕</button>'
+              + '</span></div>'
+              + '<div style="font-family:monospace;font-size:11px;line-height:1.5;">' + lines + '</div></div>';
+          }).join('') + '</div>';
+        }
+        return '<div class="change-item" style="padding:8px;margin-bottom:8px;' + conflictBorder + 'border-radius:6px;background:var(--card);">'
+          + '<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;">'
+          + '<div style="flex:1;min-width:0;">'
+          + '<div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="' + escapeHtml(c.path) + '">' + escapeHtml(c.path) + conflictBadge + '</div>'
+          + '<div style="font-size:11px;margin-top:2px;"><span style="color:' + typeColor + ';">' + typeLabel + '</span>'
+          + (c.additions != null ? ' · <span style="color:#2d8a4e;">+' + c.additions + '</span>' : '')
+          + (c.deletions != null ? ' · <span style="color:#c0392b;">-' + c.deletions + '</span>' : '')
+          + ' · <span class="muted">' + escapeHtml(c.status || 'pending') + '</span></div>'
+          + '</div>'
+          + '<div style="display:flex;gap:4px;flex-shrink:0;">'
+          + '<button class="ghost-btn" style="font-size:11px;padding:3px 8px;background:#2d5a3d;color:#fff;" data-act="accept" data-idx="' + idx + '">接受</button>'
+          + '<button class="ghost-btn" style="font-size:11px;padding:3px 8px;" data-act="reject" data-idx="' + idx + '">拒绝</button>'
+          + '</div></div>'
+          + hunksHtml
+          + '</div>';
+      }).join('');
+      // 绑定事件
+      list.querySelectorAll('[data-act]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const act = btn.getAttribute('data-act');
+          const idx = parseInt(btn.getAttribute('data-idx'));
+          const change = changes[idx];
+          if (!change) return;
+          try {
+            if (act === 'accept') {
+              await api('/api/changes/accept', 'POST', { path: change.path });
+              toast('已接受：' + change.path);
+            } else if (act === 'reject') {
+              await api('/api/changes/reject', 'POST', { path: change.path });
+              toast('已拒绝：' + change.path);
+            } else if (act === 'accept-hunk') {
+              const hi = parseInt(btn.getAttribute('data-hunk'));
+              await api('/api/changes/hunk/accept', 'POST', { path: change.path, hunkIndex: hi });
+              toast('已接受 Hunk');
+            } else if (act === 'reject-hunk') {
+              const hi = parseInt(btn.getAttribute('data-hunk'));
+              await api('/api/changes/hunk/reject', 'POST', { path: change.path, hunkIndex: hi });
+              toast('已拒绝 Hunk');
+            }
+            loadChanges();
+          } catch (e) { toast('操作失败：' + e.message); }
+        });
+      });
     }
 
     async function showArtifacts(dir) {
@@ -800,8 +1092,32 @@
             const timeStr = mins > 0 ? `${mins}分${secs}秒` : `${secs}秒`;
             waitTip = `<span style="color:var(--muted);font-size:12px;margin-left:8px;">已等待 ${timeStr}</span>`;
           }
-          if (elapsed > 60) {
-            waitTip += '<div style="color:var(--muted);font-size:12px;margin-top:6px;line-height:1.5;">模型正在深度思考或执行复杂操作，请耐心等待...<br>如果等待超过3分钟，可以尝试点击「停止」后重新提交。</div>';
+          // 分级超时警告：让用户明确感知任务可能卡住，而非无限期"思考中"
+          if (elapsed >= 300 && elapsed < 900) {
+            // 5-15 分钟：橙色温和提醒
+            waitTip += '<div style="color:#e65100;font-size:12px;margin-top:8px;line-height:1.6;background:#fff3e0;padding:8px 10px;border-radius:6px;border-left:3px solid #ff9800;">'
+              + '⚠️ 已等待较久，模型可能正在处理复杂推理或执行耗时操作。'
+              + '<br>若长时间无任何输出，可点击右上角「停止」后重新提交。'
+              + '</div>';
+          } else if (elapsed >= 900 && elapsed < 1500) {
+            // 15-25 分钟：红色明确警告
+            waitTip += '<div style="color:#c62828;font-size:12px;margin-top:8px;line-height:1.6;background:#ffebee;padding:8px 10px;border-radius:6px;border-left:3px solid #e53935;">'
+              + '🚨 任务可能已卡住（已等待超过15分钟无输出）。'
+              + '<br>常见原因：模型 API 无响应、网络中断、或工具调用死锁。'
+              + '<br>建议点击下方按钮停止任务，检查模型配置后重新提交。'
+              + '<br><button onclick="document.getElementById(\'tchStop\')?.click()" style="margin-top:6px;background:#e53935;color:#fff;border:none;padding:4px 14px;border-radius:5px;cursor:pointer;font-size:12px;">⏹ 停止当前任务</button>'
+              + '</div>';
+          } else if (elapsed >= 1500) {
+            // 25 分钟以上：紧急警告，提示即将自动超时
+            const remain = Math.max(0, 30 - Math.floor(elapsed / 60));
+            waitTip += '<div style="color:#b71c1c;font-size:12px;margin-top:8px;line-height:1.6;background:#ffcdd2;padding:8px 10px;border-radius:6px;border-left:3px solid #c62828;font-weight:500;">'
+              + `⛔ 任务即将到达 30 分钟自动超时限制（约 ${remain} 分钟后自动终止）。`
+              + '<br>可立即点击下方按钮手动停止，或等待系统自动终止。'
+              + '<br><button onclick="document.getElementById(\'tchStop\')?.click()" style="margin-top:6px;background:#c62828;color:#fff;border:none;padding:4px 14px;border-radius:5px;cursor:pointer;font-size:12px;">⏹ 立即停止任务</button>'
+              + '</div>';
+          } else if (elapsed > 60) {
+            // 1-5 分钟：普通提示
+            waitTip += '<div style="color:var(--muted);font-size:12px;margin-top:6px;line-height:1.5;">模型正在深度思考或执行复杂操作，请耐心等待...</div>';
           }
         }
         html += '<div class="thinking-indicator">'
@@ -1056,4 +1372,610 @@
     function showWelcomeGuide(welcomeTasks = []) {
       // 显示欢迎引导弹窗
       showWelcomeModal(welcomeTasks);
+    }
+
+    /* ========== P2-1: 设计稿转代码 ========== */
+    let _designButtonsBound = false;
+    let _designImageBase64 = '';
+    let _designLastCode = '';
+
+    function bindDesignButtonsOnce() {
+      if (_designButtonsBound) return;
+      _designButtonsBound = true;
+
+      const dropZone = document.getElementById('designDropZone');
+      const fileInput = document.getElementById('designFileInput');
+      const removeBtn = document.getElementById('designRemoveImgBtn');
+      const generateBtn = document.getElementById('designGenerateBtn');
+      const refineBtn = document.getElementById('designRefineBtn');
+      const copyBtn = document.getElementById('designCopyBtn');
+
+      if (!dropZone || !fileInput) return;
+
+      // 点击上传
+      dropZone.addEventListener('click', () => fileInput.click());
+
+      // 文件选择
+      fileInput.addEventListener('change', (e) => {
+        const file = e.target.files?.[0];
+        if (file) handleDesignFile(file);
+      });
+
+      // 拖拽上传
+      dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.style.borderColor = 'var(--accent, #2d5a3d)';
+      });
+      dropZone.addEventListener('dragleave', () => {
+        dropZone.style.borderColor = 'var(--border)';
+      });
+      dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.style.borderColor = 'var(--border)';
+        const file = e.dataTransfer?.files?.[0];
+        if (file) handleDesignFile(file);
+      });
+
+      // 移除图片
+      removeBtn?.addEventListener('click', () => {
+        _designImageBase64 = '';
+        document.getElementById('designImagePreview').style.display = 'none';
+        document.getElementById('designDropZone').style.display = 'block';
+        document.getElementById('designResult').style.display = 'none';
+      });
+
+      // 生成代码
+      generateBtn.addEventListener('click', () => generateDesignCode(false));
+
+      // 修正代码
+      refineBtn?.addEventListener('click', () => generateDesignCode(true));
+
+      // 复制代码
+      copyBtn?.addEventListener('click', () => {
+        if (_designLastCode) {
+          navigator.clipboard.writeText(_designLastCode).then(() => {
+            toast('✅ 代码已复制到剪贴板');
+          }).catch(() => {
+            toast('复制失败，请手动复制');
+          });
+        }
+      });
+
+      // 结果 tab 切换
+      document.querySelectorAll('.design-result-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          document.querySelectorAll('.design-result-tab').forEach(t => t.classList.remove('active'));
+          tab.classList.add('active');
+          const target = tab.getAttribute('data-tab');
+          document.getElementById('designCodeView').style.display = target === 'code' ? 'block' : 'none';
+          document.getElementById('designPreviewView').style.display = target === 'preview' ? 'block' : 'none';
+        });
+      });
+    }
+
+    function handleDesignFile(file) {
+      if (!file.type.startsWith('image/')) {
+        toast('请上传图片文件');
+        return;
+      }
+      if (file.size > 8 * 1024 * 1024) {
+        toast('图片大小不能超过 8MB');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        _designImageBase64 = e.target.result;
+        const img = document.getElementById('designPreviewImg');
+        img.src = _designImageBase64;
+        document.getElementById('designImagePreview').style.display = 'block';
+        document.getElementById('designDropZone').style.display = 'none';
+        document.getElementById('designResult').style.display = 'none';
+      };
+      reader.readAsDataURL(file);
+    }
+
+    async function generateDesignCode(isRefine) {
+      if (!_designImageBase64) {
+        toast('请先上传设计稿图片');
+        return;
+      }
+
+      const framework = document.getElementById('designFramework').value;
+      const instructions = document.getElementById('designInstructions').value;
+      const feedback = isRefine ? document.getElementById('designFeedback').value : '';
+
+      if (isRefine && !feedback.trim()) {
+        toast('请输入修正反馈');
+        return;
+      }
+
+      const statusEl = document.getElementById('designStatus');
+      const statusText = document.getElementById('designStatusText');
+      const generateBtn = document.getElementById('designGenerateBtn');
+
+      statusEl.style.display = 'block';
+      statusText.textContent = isRefine ? '正在修正代码...' : '正在分析设计稿并生成代码...';
+      generateBtn.disabled = true;
+      generateBtn.style.opacity = '0.6';
+
+      try {
+        const body = {
+          image: _designImageBase64,
+          framework,
+        };
+        if (instructions) body.instructions = instructions;
+        if (isRefine) {
+          body.previousCode = _designLastCode;
+          body.feedback = feedback;
+        }
+
+        const d = await api('/api/design-to-code', 'POST', body);
+
+        if (d.ok && d.code) {
+          _designLastCode = d.code;
+          document.getElementById('designCode').textContent = d.code;
+          document.getElementById('designCodeLang').textContent = d.language || framework;
+
+          // 渲染预览 iframe
+          if (d.previewHtml) {
+            const iframe = document.getElementById('designPreviewFrame');
+            iframe.srcdoc = d.previewHtml;
+          }
+
+          document.getElementById('designResult').style.display = 'block';
+          document.getElementById('designFeedback').value = '';
+          toast(isRefine ? '✅ 代码已修正' : '✅ 代码生成成功');
+        } else {
+          toast('生成失败: ' + (d.error || '未知错误'));
+        }
+      } catch (e) {
+        toast('请求失败: ' + (e.message || '网络错误'));
+      } finally {
+        statusEl.style.display = 'none';
+        generateBtn.disabled = false;
+        generateBtn.style.opacity = '1';
+      }
+    }
+
+    /* ========== P2-2: Git 集成 ========== */
+    let _gitButtonsBound = false;
+    let _gitStatus = null;
+    let _gitBranches = [];
+
+    function bindGitButtonsOnce() {
+      if (_gitButtonsBound) return;
+      _gitButtonsBound = true;
+
+      document.getElementById('gitRefreshBtn')?.addEventListener('click', loadGitStatus);
+      document.getElementById('gitPullBtn')?.addEventListener('click', gitPull);
+      document.getElementById('gitPushBtn')?.addEventListener('click', gitPush);
+      document.getElementById('gitInitBtn')?.addEventListener('click', gitInit);
+      document.getElementById('gitCommitBtn')?.addEventListener('click', gitCommit);
+      document.getElementById('gitAddAllBtn')?.addEventListener('click', () => gitAddAll('modified'));
+      document.getElementById('gitResetAllBtn')?.addEventListener('click', gitResetAll);
+      document.getElementById('gitBranchSelect')?.addEventListener('change', (e) => gitCheckout(e.target.value));
+      document.getElementById('gitCommitMessage')?.addEventListener('keydown', (e) => {
+        if (e.ctrlKey && e.key === 'Enter') { e.preventDefault(); gitCommit(); }
+      });
+      document.getElementById('gitLogToggle')?.addEventListener('click', () => {
+        const list = document.getElementById('gitLogList');
+        const toggle = document.getElementById('gitLogToggle');
+        if (list.style.display === 'none') {
+          list.style.display = 'block';
+          toggle.textContent = '📜 提交历史 ▲';
+          loadGitLog();
+        } else {
+          list.style.display = 'none';
+          toggle.textContent = '📜 提交历史 ▼';
+        }
+      });
+      document.getElementById('gitDiffCloseBtn')?.addEventListener('click', closeGitDiff);
+      document.getElementById('gitDiffModal')?.addEventListener('click', (e) => {
+        if (e.target.id === 'gitDiffModal') closeGitDiff();
+      });
+    }
+
+    async function loadGitStatus() {
+      try {
+        const d = await api('/api/git/status', 'GET');
+        _gitStatus = d;
+        if (!d.isRepo) {
+          document.getElementById('gitNoRepo').style.display = 'block';
+          document.getElementById('gitContent').style.display = 'none';
+          document.getElementById('gitBranchName').textContent = '';
+          return;
+        }
+        document.getElementById('gitNoRepo').style.display = 'none';
+        document.getElementById('gitContent').style.display = 'block';
+        document.getElementById('gitBranchName').textContent = `(${d.branch}${d.ahead ? ' ↑' + d.ahead : ''}${d.behind ? ' ↓' + d.behind : ''})`;
+
+        // 分类文件
+        const staged = d.files.filter((f) => f.indexStatus !== '.' && f.indexStatus !== '?');
+        const modified = d.files.filter((f) => f.workTreeStatus !== '.' && f.workTreeStatus !== '?' && f.indexStatus !== '?');
+        const untracked = d.files.filter((f) => f.indexStatus === '?');
+
+        document.getElementById('gitStagedCount').textContent = staged.length;
+        document.getElementById('gitModifiedCount').textContent = modified.length;
+        document.getElementById('gitUntrackedCount').textContent = untracked.length;
+        document.getElementById('gitAddAllBtn').style.display = modified.length ? 'inline-block' : 'none';
+        document.getElementById('gitResetAllBtn').style.display = staged.length ? 'inline-block' : 'none';
+
+        renderGitFileList('gitStagedList', staged, 'staged');
+        renderGitFileList('gitModifiedList', modified, 'modified');
+        renderGitFileList('gitUntrackedList', untracked, 'untracked');
+
+        // 加载分支列表
+        loadGitBranches();
+      } catch (e) {
+        toast('Git 状态加载失败: ' + (e.message || '网络错误'));
+      }
+    }
+
+    function renderGitFileList(containerId, files, type) {
+      const container = document.getElementById(containerId);
+      if (!files.length) {
+        container.innerHTML = '<div class="muted" style="font-size:10px;padding:4px 8px;">无</div>';
+        return;
+      }
+      container.innerHTML = files.map((f, idx) => {
+        const statusColor = f.conflict ? '#c0392b' : type === 'staged' ? '#2d8a4e' : type === 'untracked' ? '#888' : '#c0392b';
+        const statusLabel = f.indexStatus !== '.' && f.indexStatus !== '?' ? f.indexStatus : f.workTreeStatus;
+        const actions = type === 'staged'
+          ? `<button class="git-file-btn" data-act="reset" data-idx="${idx}" style="font-size:10px;padding:1px 5px;background:none;border:1px solid var(--border);border-radius:3px;cursor:pointer;color:var(--ink);">取消</button>`
+          : `<button class="git-file-btn" data-act="add" data-idx="${idx}" style="font-size:10px;padding:1px 5px;background:none;border:1px solid var(--border);border-radius:3px;cursor:pointer;color:var(--ink);">暂存</button>`;
+        return `<div style="display:flex;align-items:center;justify-content:space-between;padding:3px 8px;font-size:11px;border-bottom:1px solid var(--border);">
+          <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;" class="git-file-path" data-path="${f.path}" data-staged="${type === 'staged'}">
+            <span style="color:${statusColor};font-weight:600;margin-right:4px;">${statusLabel}</span>${escapeHtml(f.path)}
+          </span>
+          ${actions}
+        </div>`;
+      }).join('');
+
+      // 绑定事件
+      container.querySelectorAll('.git-file-btn').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const act = btn.getAttribute('data-act');
+          const idx = parseInt(btn.getAttribute('data-idx'));
+          const file = files[idx];
+          if (!file) return;
+          if (act === 'add') {
+            await gitAdd([file.path]);
+          } else if (act === 'reset') {
+            await gitReset([file.path]);
+          }
+        });
+      });
+      container.querySelectorAll('.git-file-path').forEach((el) => {
+        el.addEventListener('click', () => {
+          const path = el.getAttribute('data-path');
+          const staged = el.getAttribute('data-staged') === 'true';
+          showGitDiff(path, staged);
+        });
+      });
+    }
+
+    async function gitAdd(paths) {
+      try {
+        const d = await api('/api/git/add', 'POST', { paths });
+        if (d.ok) { toast(d.message); loadGitStatus(); }
+        else { toast('暂存失败: ' + (d.error || d.message)); }
+      } catch (e) { toast('暂存失败: ' + (e.message || '网络错误')); }
+    }
+
+    async function gitAddAll(type) {
+      if (!_gitStatus) return;
+      const files = _gitStatus.files.filter((f) => f.workTreeStatus !== '.' && f.workTreeStatus !== '?' && f.indexStatus !== '?');
+      const paths = files.map((f) => f.path);
+      if (paths.length) await gitAdd(paths);
+    }
+
+    async function gitReset(paths) {
+      try {
+        const d = await api('/api/git/reset', 'POST', { paths });
+        if (d.ok) { toast(d.message); loadGitStatus(); }
+        else { toast('取消暂存失败: ' + (d.error || d.message)); }
+      } catch (e) { toast('取消暂存失败: ' + (e.message || '网络错误')); }
+    }
+
+    async function gitResetAll() {
+      if (!_gitStatus) return;
+      const files = _gitStatus.files.filter((f) => f.indexStatus !== '.' && f.indexStatus !== '?');
+      const paths = files.map((f) => f.path);
+      if (paths.length) await gitReset(paths);
+    }
+
+    async function gitCommit() {
+      const message = document.getElementById('gitCommitMessage').value.trim();
+      if (!message) { toast('请输入提交信息'); return; }
+      try {
+        const d = await api('/api/git/commit', 'POST', { message });
+        if (d.ok) {
+          toast('✅ 提交成功: ' + (d.hash || '').slice(0, 7));
+          document.getElementById('gitCommitMessage').value = '';
+          loadGitStatus();
+        } else {
+          toast('提交失败: ' + (d.error || d.message));
+        }
+      } catch (e) { toast('提交失败: ' + (e.message || '网络错误')); }
+    }
+
+    async function loadGitBranches() {
+      try {
+        const d = await api('/api/git/branches', 'GET');
+        _gitBranches = d.branches || [];
+        const select = document.getElementById('gitBranchSelect');
+        const localBranches = _gitBranches.filter((b) => !b.remote);
+        select.innerHTML = localBranches.map((b) =>
+          `<option value="${escapeHtml(b.name)}" ${b.current ? 'selected' : ''}>${b.current ? '★ ' : ''}${escapeHtml(b.name)}${b.ahead ? ' ↑' + b.ahead : ''}${b.behind ? ' ↓' + b.behind : ''}</option>`
+        ).join('');
+      } catch (e) { /* 静默失败 */ }
+    }
+
+    async function gitCheckout(branch) {
+      try {
+        const d = await api('/api/git/checkout', 'POST', { branch });
+        if (d.ok) { toast(d.message); loadGitStatus(); }
+        else { toast('切换失败: ' + (d.error || d.message)); loadGitStatus(); }
+      } catch (e) { toast('切换失败: ' + (e.message || '网络错误')); }
+    }
+
+    async function gitPull() {
+      try {
+        const d = await api('/api/git/pull', 'POST', {});
+        if (d.ok) { toast('✅ ' + d.message); loadGitStatus(); }
+        else { toast('拉取失败: ' + (d.error || d.message)); }
+      } catch (e) { toast('拉取失败: ' + (e.message || '网络错误')); }
+    }
+
+    async function gitPush() {
+      try {
+        const d = await api('/api/git/push', 'POST', {});
+        if (d.ok) { toast('✅ ' + d.message); loadGitStatus(); }
+        else { toast('推送失败: ' + (d.error || d.message)); }
+      } catch (e) { toast('推送失败: ' + (e.message || '网络错误')); }
+    }
+
+    async function gitInit() {
+      try {
+        const d = await api('/api/git/init', 'POST', {});
+        if (d.ok) { toast('✅ ' + d.message); loadGitStatus(); }
+        else { toast('初始化失败: ' + (d.error || d.message)); }
+      } catch (e) { toast('初始化失败: ' + (e.message || '网络错误')); }
+    }
+
+    async function loadGitLog() {
+      try {
+        const d = await api('/api/git/log?count=20', 'GET');
+        const list = document.getElementById('gitLogList');
+        if (!d.commits || !d.commits.length) {
+          list.innerHTML = '<div class="muted" style="font-size:10px;padding:4px;">无提交历史</div>';
+          return;
+        }
+        list.innerHTML = d.commits.map((c) =>
+          `<div style="padding:4px 8px;border-bottom:1px solid var(--border);">
+            <div style="font-weight:600;color:var(--ink);">${escapeHtml(c.subject)}</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:2px;">
+              <span style="color:#2d5a3d;font-family:monospace;">${c.shortHash}</span>
+              · ${escapeHtml(c.author)} · ${new Date(c.date).toLocaleString('zh-CN')}
+            </div>
+          </div>`
+        ).join('');
+      } catch (e) { /* 静默失败 */ }
+    }
+
+    async function showGitDiff(path, staged) {
+      try {
+        const d = await api('/api/git/diff', 'POST', { path, staged });
+        const modal = document.getElementById('gitDiffModal');
+        const title = document.getElementById('gitDiffTitle');
+        const content = document.getElementById('gitDiffContent');
+        title.textContent = (staged ? '📥 ' : '📝 ') + path;
+        if (d.diffs && d.diffs.length) {
+          const diff = d.diffs[0];
+          let html = '';
+          for (const hunk of diff.hunks) {
+            html += `<div style="color:#888;background:var(--card);padding:2px 6px;margin:4px 0;font-size:10px;">${escapeHtml(hunk.header)}</div>`;
+            for (const line of hunk.lines) {
+              const color = line.type === 'add' ? '#2d8a4e' : line.type === 'remove' ? '#c0392b' : 'var(--ink)';
+              const bg = line.type === 'add' ? 'rgba(45,138,78,0.1)' : line.type === 'remove' ? 'rgba(192,57,43,0.1)' : 'transparent';
+              html += `<div style="color:${color};background:${bg};padding:0 6px;">${line.type === 'add' ? '+' : line.type === 'remove' ? '-' : ' '}${escapeHtml(line.content)}</div>`;
+            }
+          }
+          content.innerHTML = html || '<div class="muted">无差异</div>';
+        } else {
+          content.innerHTML = '<div class="muted">无差异或二进制文件</div>';
+        }
+        modal.style.display = 'flex';
+      } catch (e) { toast('Diff 加载失败: ' + (e.message || '网络错误')); }
+    }
+
+    function closeGitDiff() {
+      document.getElementById('gitDiffModal').style.display = 'none';
+    }
+
+    /* ========== P2-3: 团队协作 ========== */
+    let _teamButtonsBound = false;
+    let _teamData = null;
+    let _teamTaskFilter = '';
+
+    function bindTeamButtonsOnce() {
+      if (_teamButtonsBound) return;
+      _teamButtonsBound = true;
+
+      document.getElementById('teamRefreshBtn')?.addEventListener('click', loadTeamData);
+      document.getElementById('teamInviteBtn')?.addEventListener('click', teamInviteMember);
+      document.getElementById('teamCreateTaskBtn')?.addEventListener('click', teamCreateTask);
+
+      // Tab 切换
+      document.querySelectorAll('.team-tab').forEach((tab) => {
+        tab.addEventListener('click', () => {
+          document.querySelectorAll('.team-tab').forEach((t) => {
+            t.classList.remove('active');
+            t.style.color = 'var(--muted)';
+            t.style.borderBottomColor = 'transparent';
+            t.style.fontWeight = 'normal';
+          });
+          tab.classList.add('active');
+          tab.style.color = 'var(--ink)';
+          tab.style.borderBottomColor = '#2d5a3d';
+          tab.style.fontWeight = '600';
+          const target = tab.getAttribute('data-tab');
+          document.getElementById('teamMembersTab').style.display = target === 'members' ? 'block' : 'none';
+          document.getElementById('teamTasksTab').style.display = target === 'tasks' ? 'block' : 'none';
+        });
+      });
+
+      // 任务筛选
+      document.querySelectorAll('.team-task-filter').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.team-task-filter').forEach((b) => b.classList.remove('active'));
+          btn.classList.add('active');
+          _teamTaskFilter = btn.getAttribute('data-status') || '';
+          renderTeamTasks();
+        });
+      });
+    }
+
+    async function loadTeamData() {
+      try {
+        const d = await api('/api/team', 'GET');
+        _teamData = d;
+        document.getElementById('teamName').textContent = d.team?.config?.name || '团队';
+        document.getElementById('teamMemberCount').textContent = d.stats?.totalMembers || 0;
+        document.getElementById('teamTaskCount').textContent = d.stats?.totalTasks || 0;
+        renderTeamMembers();
+        renderTeamTasks();
+      } catch (e) {
+        toast('团队数据加载失败: ' + (e.message || '网络错误'));
+      }
+    }
+
+    function renderTeamMembers() {
+      const container = document.getElementById('teamMembersList');
+      const members = _teamData?.team?.members || [];
+      if (!members.length) {
+        container.innerHTML = '<div class="muted" style="font-size:11px;padding:20px;text-align:center;">暂无成员</div>';
+        return;
+      }
+      const roleColors = { owner: '#c0392b', admin: '#e67e22', developer: '#2d5a3d', viewer: '#7f8c8d' };
+      container.innerHTML = members.map((m) =>
+        `<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 8px;border-bottom:1px solid var(--border);font-size:11px;">
+          <div style="flex:1;overflow:hidden;">
+            <div style="font-weight:600;">${escapeHtml(m.name)} <span style="color:${roleColors[m.role] || '#888'};font-size:10px;">[${m.role}]</span></div>
+            <div style="font-size:10px;color:var(--muted);">${escapeHtml(m.email)} · ${m.status}</div>
+          </div>
+          <div style="display:flex;gap:4px;flex-shrink:0;">
+            <select class="team-role-select" data-id="${m.id}" style="font-size:10px;padding:2px 4px;border:1px solid var(--border);border-radius:3px;background:var(--card);color:var(--ink);" ${m.role === 'owner' ? 'disabled' : ''}>
+              <option value="admin" ${m.role === 'admin' ? 'selected' : ''}>管理员</option>
+              <option value="developer" ${m.role === 'developer' ? 'selected' : ''}>开发者</option>
+              <option value="viewer" ${m.role === 'viewer' ? 'selected' : ''}>观察者</option>
+            </select>
+            <button class="team-remove-btn" data-id="${m.id}" style="font-size:10px;padding:2px 6px;background:none;border:1px solid var(--border);border-radius:3px;cursor:pointer;color:#c0392b;" ${m.role === 'owner' ? 'disabled style="opacity:0.3;"' : ''}>移除</button>
+          </div>
+        </div>`
+      ).join('');
+
+      container.querySelectorAll('.team-role-select').forEach((sel) => {
+        sel.addEventListener('change', async () => {
+          const id = sel.getAttribute('data-id');
+          const role = sel.value;
+          try {
+            await api(`/api/team/members/${id}/role`, 'PUT', { role });
+            toast('角色已更新');
+            loadTeamData();
+          } catch (e) { toast('更新失败: ' + (e.message || '网络错误')); }
+        });
+      });
+      container.querySelectorAll('.team-remove-btn').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const id = btn.getAttribute('data-id');
+          if (!confirm('确定移除该成员？')) return;
+          try {
+            await api(`/api/team/members/${id}`, 'DELETE');
+            toast('成员已移除');
+            loadTeamData();
+          } catch (e) { toast('移除失败: ' + (e.message || '网络错误')); }
+        });
+      });
+    }
+
+    async function teamInviteMember() {
+      const name = document.getElementById('teamInviteName').value.trim();
+      const email = document.getElementById('teamInviteEmail').value.trim();
+      if (!name || !email) { toast('请输入姓名和邮箱'); return; }
+      try {
+        await api('/api/team/members/invite', 'POST', { name, email, role: 'developer' });
+        toast('✅ 邀请已发送');
+        document.getElementById('teamInviteName').value = '';
+        document.getElementById('teamInviteEmail').value = '';
+        loadTeamData();
+      } catch (e) { toast('邀请失败: ' + (e.message || '网络错误')); }
+    }
+
+    function renderTeamTasks() {
+      const container = document.getElementById('teamTasksList');
+      let tasks = _teamData?.team?.tasks || [];
+      if (_teamTaskFilter) tasks = tasks.filter((t) => t.status === _teamTaskFilter);
+      if (!tasks.length) {
+        container.innerHTML = '<div class="muted" style="font-size:11px;padding:20px;text-align:center;">暂无任务</div>';
+        return;
+      }
+      const statusColors = { todo: '#7f8c8d', 'in-progress': '#3498db', review: '#e67e22', done: '#2d5a3d' };
+      const statusLabels = { todo: '待办', 'in-progress': '进行中', review: '评审', done: '完成' };
+      container.innerHTML = tasks.map((t) =>
+        `<div style="padding:8px;border-bottom:1px solid var(--border);font-size:11px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+            <span style="font-weight:600;flex:1;">${escapeHtml(t.title)}</span>
+            <span style="font-size:10px;padding:2px 6px;border-radius:3px;background:${statusColors[t.status]}20;color:${statusColors[t.status]};font-weight:600;">${statusLabels[t.status]}</span>
+          </div>
+          ${t.description ? `<div style="font-size:10px;color:var(--muted);margin-bottom:4px;">${escapeHtml(t.description.slice(0, 100))}</div>` : ''}
+          <div style="display:flex;gap:4px;align-items:center;font-size:10px;color:var(--muted);">
+            <span>👤 ${t.createdBy}</span>
+            <span>·</span>
+            <span>${new Date(t.updatedAt).toLocaleDateString('zh-CN')}</span>
+            ${t.comments?.length ? `<span>· 💬 ${t.comments.length}</span>` : ''}
+            <select class="team-task-status" data-id="${t.id}" style="margin-left:auto;font-size:10px;padding:2px 4px;border:1px solid var(--border);border-radius:3px;background:var(--card);color:var(--ink);">
+              <option value="todo" ${t.status === 'todo' ? 'selected' : ''}>待办</option>
+              <option value="in-progress" ${t.status === 'in-progress' ? 'selected' : ''}>进行中</option>
+              <option value="review" ${t.status === 'review' ? 'selected' : ''}>评审</option>
+              <option value="done" ${t.status === 'done' ? 'selected' : ''}>完成</option>
+            </select>
+            <button class="team-task-delete" data-id="${t.id}" style="font-size:10px;padding:2px 6px;background:none;border:1px solid var(--border);border-radius:3px;cursor:pointer;color:#c0392b;">删除</button>
+          </div>
+        </div>`
+      ).join('');
+
+      container.querySelectorAll('.team-task-status').forEach((sel) => {
+        sel.addEventListener('change', async () => {
+          const id = sel.getAttribute('data-id');
+          const status = sel.value;
+          try {
+            await api(`/api/team/tasks/${id}`, 'PUT', { status });
+            toast('任务状态已更新');
+            loadTeamData();
+          } catch (e) { toast('更新失败: ' + (e.message || '网络错误')); }
+        });
+      });
+      container.querySelectorAll('.team-task-delete').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const id = btn.getAttribute('data-id');
+          if (!confirm('确定删除该任务？')) return;
+          try {
+            await api(`/api/team/tasks/${id}`, 'DELETE');
+            toast('任务已删除');
+            loadTeamData();
+          } catch (e) { toast('删除失败: ' + (e.message || '网络错误')); }
+        });
+      });
+    }
+
+    async function teamCreateTask() {
+      const title = document.getElementById('teamTaskTitle').value.trim();
+      if (!title) { toast('请输入任务标题'); return; }
+      try {
+        await api('/api/team/tasks', 'POST', { title, createdBy: '当前用户', status: 'todo' });
+        toast('✅ 任务已创建');
+        document.getElementById('teamTaskTitle').value = '';
+        loadTeamData();
+      } catch (e) { toast('创建失败: ' + (e.message || '网络错误')); }
     }
