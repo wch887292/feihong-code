@@ -560,6 +560,7 @@
           <div class="right-tab" data-tab="design" id="designTab">🎨 设计稿</div>
           <div class="right-tab" data-tab="git" id="gitTab">🔀 Git</div>
           <div class="right-tab" data-tab="team" id="teamTab">👥 团队</div>
+          <div class="right-tab" data-tab="capabilities" id="capabilitiesTab">🧪 能力中心</div>
           <div class="right-tab" data-tab="computer" id="computerTab" style="display:none;">🖥 电脑操作</div>
         </div>
         <div class="right-body">
@@ -792,6 +793,40 @@
                 <button class="team-task-filter" data-status="done" style="padding:3px 8px;font-size:10px;border:1px solid var(--border);border-radius:3px;cursor:pointer;background:var(--card);color:var(--ink);">完成</button>
               </div>
               <div id="teamTasksList" style="max-height:300px;overflow-y:auto;"></div>
+            </div>
+          </div>
+          <!-- P0-3: 能力中心面板（v7.2 新能力前端接线：语音/资料库/插件市场） -->
+          <div class="preview-panel" id="capabilitiesPanel">
+            <div style="margin-bottom:10px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                <span style="font-size:13px;font-weight:600;">🧪 能力中心 <span style="font-size:10px;color:var(--muted);">v7.2 实测可用</span></span>
+              </div>
+              <!-- 语音编程 -->
+              <div style="background:var(--card);padding:8px;border-radius:6px;margin-bottom:8px;">
+                <div style="font-size:11px;font-weight:600;margin-bottom:6px;">🎙 语音指令解析</div>
+                <div style="display:flex;gap:6px;">
+                  <input id="capVoiceInput" placeholder="如：打开文件 / 生成排序函数" style="flex:1;font-size:11px;padding:4px 6px;" />
+                  <button id="capVoiceBtn" class="primary" style="font-size:11px;padding:4px 10px;">解析</button>
+                </div>
+                <div id="capVoiceResult" style="font-size:11px;margin-top:6px;color:var(--muted);"></div>
+              </div>
+              <!-- AI 资料库 -->
+              <div style="background:var(--card);padding:8px;border-radius:6px;margin-bottom:8px;">
+                <div style="font-size:11px;font-weight:600;margin-bottom:6px;">📚 AI 资料库</div>
+                <div style="display:flex;gap:6px;">
+                  <input id="capKnowledgeQuery" placeholder="搜索资料（如：私有化部署）" style="flex:1;font-size:11px;padding:4px 6px;" />
+                  <button id="capKnowledgeSearchBtn" class="primary" style="font-size:11px;padding:4px 10px;">搜索</button>
+                </div>
+                <div id="capKnowledgeResult" style="font-size:11px;margin-top:6px;max-height:140px;overflow-y:auto;color:var(--muted);"></div>
+              </div>
+              <!-- 插件市场 -->
+              <div style="background:var(--card);padding:8px;border-radius:6px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                  <span style="font-size:11px;font-weight:600;">🧩 插件市场</span>
+                  <button id="capPluginsBtn" class="ghost-btn" style="font-size:11px;padding:2px 8px;">🔄 加载</button>
+                </div>
+                <div id="capPluginsResult" style="font-size:11px;max-height:140px;overflow-y:auto;color:var(--muted);"></div>
+              </div>
             </div>
           </div>
         </div>
