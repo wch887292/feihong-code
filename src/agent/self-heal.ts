@@ -107,17 +107,39 @@ export function classifyError(output: string, error?: string): ErrorAnalysis {
 }
 
 /** 生成反思提示词，指导模型基于错误进行修复。
- *  包含具体工具名、参数、错误详情，避免笼统的"请反思"导致模型重复同样错误。 */
-export function generateReflectPrompt(errorAnalysis: ErrorAnalysis, _goal?: string, lastToolCall?: { name: string; args: Record<string, unknown> }): string {
+ *  包含具体工具名、参数、错误详情，避免笼统的"请反思"导致模型重复同样错误。
+ *  healCount: 累计自我修复次数，用于动态调整策略——次数越多越强调换思路而非死磕。 */
+export function generateReflectPrompt(errorAnalysis: ErrorAnalysis, _goal?: string, lastToolCall?: { name: string; args: Record<string, unknown> }, healCount = 0): string {
   const toolInfo = lastToolCall
     ? `\n**出错工具**: ${lastToolCall.name}\n**传入参数**: ${JSON.stringify(lastToolCall.args)}\n`
     : '';
-  return `⚠️ 上一轮工具执行失败，请仔细反思并修正策略：
 
-**错误类型**: ${errorAnalysis.category}
-**错误详情**: ${errorAnalysis.message}${toolInfo}
-**修复建议**: ${errorAnalysis.fixHint}
+  // 根据累计修复次数动态调整策略提示
+  let strategyHint = '';
+  if (healCount >= 7) {
+    // 第8次及以上：强烈警告，要求彻底换方向
+    strategyHint = `
+🚨 **严重警告**：这已经是第 ${healCount + 1} 次尝试修复了，但问题仍然存在。说明当前思路/方法可能根本走不通！
 
+**必须彻底改变策略**：
+1. 不要再尝试修复当前的代码或命令——它已经失败了 ${healCount + 1} 次
+2. 停下来重新思考：目标是什么？有没有完全不同的实现方式？
+3. 换一个工具、换一个库、换一种架构——甚至简化目标，砍掉复杂的部分
+4. 如果某个功能一直实现不了，先跳过它，把能跑的基础版本做出来
+5. 先用 list_dir 全面勘察当前目录，确认你在正确的位置、有哪些文件可用
+`;
+  } else if (healCount >= 4) {
+    // 第5-7次：强调换方法
+    strategyHint = `
+⚠️ **注意**：这已经是第 ${healCount + 1} 次尝试修复了。如果同样的方法反复失败，请考虑：
+1. 换一种完全不同的实现方式，不要在同一个坑里反复试
+2. 换一个工具来完成目标（比如用 write_file 替代 run_shell，或用 list_dir 先勘察）
+3. 简化目标——先做出能跑的最小版本，再逐步加功能
+4. 检查是否在错误的目录下操作，先用 list_dir 确认当前位置
+`;
+  } else {
+    // 前4次：正常修复提示
+    strategyHint = `
 请严格遵守以下规则：
 1. 不要再用相同参数重复调用同一个失败的工具——这会继续失败
 2. 检查工具名称是否正确、参数是否属于该工具（每个工具只接受自己文档中定义的参数）
@@ -125,13 +147,21 @@ export function generateReflectPrompt(errorAnalysis: ErrorAnalysis, _goal?: stri
 4. 如果某个工具连续失败，换一种方式或换一个工具实现目标
 5. 修正后再调用工具，不要盲目重试
 `;
+  }
+
+  return `⚠️ 上一轮工具执行失败，请仔细反思并修正策略：
+
+**错误类型**: ${errorAnalysis.category}
+**错误详情**: ${errorAnalysis.message}${toolInfo}
+**修复建议**: ${errorAnalysis.fixHint}
+${strategyHint}`;
 }
 
-/** 将反思消息注入对话上下文 */
-export function injectReflection(messages: ChatMessage[], errorAnalysis: ErrorAnalysis, goal: string, lastToolCall?: { name: string; args: Record<string, unknown> }): ChatMessage[] {
+/** 将反思消息注入对话上下文。healCount 为累计修复次数，用于动态调整策略。 */
+export function injectReflection(messages: ChatMessage[], errorAnalysis: ErrorAnalysis, goal: string, lastToolCall?: { name: string; args: Record<string, unknown> }, healCount = 0): ChatMessage[] {
   const reflectMsg: ChatMessage = {
     role: 'user',
-    content: generateReflectPrompt(errorAnalysis, goal, lastToolCall),
+    content: generateReflectPrompt(errorAnalysis, goal, lastToolCall, healCount),
   };
   return [...messages, reflectMsg];
 }

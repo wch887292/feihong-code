@@ -4,7 +4,7 @@
  *
  * 版本号集中定义
  */
-export const VERSION = '7.0.0';
+export const VERSION = '7.2.0';
 export const PRODUCT = '飞虹 Code';
 export const TAGLINE = '终端 AI 编程智能体（Muse Code 参照复刻）';
 export const SIGNATURE =

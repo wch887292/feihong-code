@@ -89,6 +89,8 @@ export interface RunOptions {
   signal?: AbortSignal;
   /** 用户本轮上传的附件路径列表（截图/文件/图片），执行层可读取 */
   attachments?: string[];
+  /** P3-1：文件写入暂存回调（注入 change-manager.stageChange），AI 生成的修改自动记录到变更面板 */
+  stageChange?: (path: string, content: string) => void;
 }
 
 /** 离线演示脚本：写文件 → 总结，跑通完整链路 */
@@ -291,6 +293,7 @@ export async function executeTask(goal: string, opts: RunOptions = {}): Promise<
     onEvent: opts.renderer ?? (opts.stream ? streamRenderer() : undefined),
     pluginSkillDirs,
     signal: opts.signal,
+    stageChange: opts.stageChange,
   });
 
   if (rt) {

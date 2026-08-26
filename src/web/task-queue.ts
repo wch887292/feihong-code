@@ -134,6 +134,8 @@ export interface TaskQueueOptions {
   modelProviders?: Array<{ id: string; type: 'openai-compatible' | 'ollama'; baseURL: string; apiKey?: string; model?: string }>;
   /** 离线模式：使用内置 mock 模型（无需任何 API key），用于 Web 控制台演示与单元测试 */
   offline?: boolean;
+  /** P3-1：文件写入暂存回调（注入 change-manager.stageChange），AI 生成的修改自动记录到变更面板 */
+  stageChange?: (path: string, content: string) => void;
 }
 
 export class TaskQueue {
@@ -148,6 +150,8 @@ export class TaskQueue {
   private modelProviders?: Array<{ id: string; type: 'openai-compatible' | 'ollama'; baseURL: string; apiKey?: string }>;
   /** 离线模式标志（内置 mock 模型，无需 API key） */
   private readonly offline: boolean;
+  /** P3-1：文件写入暂存回调（AI 生成的修改自动记录到变更面板） */
+  private readonly stageChange?: (path: string, content: string) => void;
   /** 运行中任务的 AbortController 表：cancelTask 时精准中止对应任务（含进行中的模型请求） */
   private readonly controllers = new Map<string, AbortController>();
   /** 全局停止标志：cancel() 后清空队列并阻止新任务启动；标记的任务在 run() 入口即失败 */
@@ -161,6 +165,7 @@ export class TaskQueue {
     this.channels = opts.channels;
     this.persistDir = opts.persistDir;
     this.offline = opts.offline ?? false;
+    this.stageChange = opts.stageChange;
     if (this.persistDir) this.recover();
   }
 
@@ -470,6 +475,17 @@ export class TaskQueue {
     logger.info('task started', { taskId: id });
     void this.fireWebhook(id, 'running'); // running 节点回调
     void this.channels?.notify(record, 'running'); // P5-6 消息渠道推送
+
+    // 任务整体超时保护：executeTask 内部若因模型 API 无响应 / 流式中断 / 工具死锁等卡住，
+    // 30 分钟后自动 abort 并标记 failed，避免任务永远停在 running 变成僵尸任务。
+    const TASK_TIMEOUT_MS = 30 * 60 * 1000;
+    let timeoutReached = false;
+    const timeoutTimer = setTimeout(() => {
+      timeoutReached = true;
+      controller.abort();
+      logger.warn('task timeout, auto-aborting', { taskId: id, timeoutMs: TASK_TIMEOUT_MS });
+    }, TASK_TIMEOUT_MS);
+
     try {
       const taskGoal = buildPermissionPrefix(record.permissions) + buildAgentGoal(record.goal, record.agentType);
 
@@ -499,6 +515,7 @@ export class TaskQueue {
         resume,
         signal: controller.signal, // P9：中断信号——停止按钮触发时中止模型请求与编排循环
         attachments: record.attachments, // 用户本轮上传的附件（截图/文件/图片），执行层可读取
+        stageChange: this.stageChange, // P3-1：AI 生成的文件修改自动暂存到变更面板
       });
       // 多轮续接：持久化本轮完整消息历史（含上一轮），供下一轮 resume 与前端对话流展示
       if (Array.isArray(result.messages) && result.messages.length > 0) {
@@ -516,9 +533,15 @@ export class TaskQueue {
       logger.info('task finished', { taskId: id, status: record.status, iterations: result.iterations });
     } catch (e) {
       record.status = 'failed';
-      record.error = e instanceof Error ? e.message : String(e);
-      logger.error('task failed', { taskId: id, error: record.error });
+      // 超时中止：使用明确的超时错误信息，而非 AbortError
+      if (timeoutReached) {
+        record.error = '任务执行超时（30分钟），已自动终止。可能原因：模型无响应、网络中断或复杂操作死锁，建议停止后重新提交。';
+      } else {
+        record.error = e instanceof Error ? e.message : String(e);
+      }
+      logger.error('task failed', { taskId: id, error: record.error, timeout: timeoutReached });
     } finally {
+      clearTimeout(timeoutTimer);
       this.controllers.delete(id); // 清理中断控制器
       record.updatedAt = new Date().toISOString();
       this.persist(record); // P6-4 落盘终态
