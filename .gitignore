@@ -48,3 +48,7 @@ gen_all_faq.py
 generate_*.py
 add_remaining_faq.py
 faq_generated/
+
+# Electron 构建产物（误提交大文件修复）
+release-new/
+release/
