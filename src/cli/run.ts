@@ -67,7 +67,7 @@ import { summarizeSubTaskAnswer } from '../agent/subagent-summary';
 import { Harness } from '../harness/harness';
 import { SwebenchLoader } from '../harness/loader';
 import { MockOrchestratorExecutor, RealModelExecutor } from '../harness/executor';
-import { FileExistsVerifier } from '../harness/verifier';
+import { FileExistsVerifier, TestVerifier } from '../harness/verifier';
 import { MarkdownReporter, JsonReporter } from '../harness/reporter';
 
 export interface RunOptions {
@@ -1347,6 +1347,9 @@ export interface HarnessCmdOptions {
   limit: number;
   offset: number;
   mode: 'mock' | 'real';
+  /** P7-1: 验证器类型 file=文件存在（默认）/ test=官方测试通过（TestVerifier，跑 FAIL_TO_PASS） */
+  verifier?: 'file' | 'test';
+  testCommand?: string;
   report?: string;
   json: boolean;
 }
@@ -1366,7 +1369,10 @@ export async function runHarness(opts: HarnessCmdOptions): Promise<void> {
 
   const loader = new SwebenchLoader({ split: opts.split });
   const executor = opts.mode === 'real' ? new RealModelExecutor() : new MockOrchestratorExecutor();
-  const verifier = new FileExistsVerifier();
+  // P7-1: 可插拔验证器——--verifier test 用 TestVerifier 跑 FAIL_TO_PASS 官方测试（真实硬指标）
+  const verifier = opts.verifier === 'test'
+    ? new TestVerifier({ testCommand: opts.testCommand })
+    : new FileExistsVerifier();
   const harness = new Harness({
     loader,
     executor,
