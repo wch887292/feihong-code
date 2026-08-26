@@ -127,6 +127,8 @@ jobs:
         with:
           name: dist-${{ needs.version.outputs.version }}
           path: dist/
+      - name: 安装依赖（prepack build 需要）
+        run: npm ci
       - name: 设置版本号
         run: npm version ${{ needs.version.outputs.version }} --no-git-tag-version --allow-same-version
       - name: 发布到 npm
