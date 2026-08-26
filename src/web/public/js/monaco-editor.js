@@ -197,6 +197,36 @@
    */
   function registerDiagnostics(fetchFn, getActiveEditor) {
     initMonaco().then((monaco) => {
+      // P5-2: 诊断 hover 提示——hover 到有 marker 的行时展示错误/警告详情
+      const langSet = [
+        'typescript', 'javascript', 'json', 'markdown', 'html', 'css', 'scss', 'less',
+        'python', 'java', 'c', 'cpp', 'csharp', 'go', 'rust', 'php', 'ruby', 'swift',
+        'kotlin', 'scala', 'shell', 'sql', 'yaml', 'xml', 'protobuf', 'dockerfile',
+        'ini', 'plaintext',
+      ];
+      const hoverDisp = monaco.languages.registerHoverProvider(langSet, {
+        provideHover(model, position) {
+          let editor;
+          try { editor = typeof getActiveEditor === 'function' ? getActiveEditor() : null; } catch { editor = null; }
+          if (!editor || editor.isDisposed?.()) return null;
+          const cur = editor.getModel();
+          if (!cur || model.uri.toString() !== cur.uri.toString()) return null;
+          const markers = monaco.editor.getModelMarkers({ resource: model.uri })
+            .filter((x) => x.startLineNumber <= position.lineNumber && position.lineNumber <= x.endLineNumber);
+          if (markers.length === 0) return null;
+          const md = markers.map((x) => {
+            const sevName = x.severity === monaco.MarkerSeverity.Error ? '错误' : x.severity === monaco.MarkerSeverity.Warning ? '警告' : '提示';
+            const icon = x.severity === monaco.MarkerSeverity.Error ? '⛔' : x.severity === monaco.MarkerSeverity.Warning ? '⚠️' : 'ℹ️';
+            return '**' + icon + ' ' + sevName + '** (L' + x.startLineNumber + ':' + x.startColumn + ')  \n' + x.message;
+          }).join('\n\n---\n\n');
+          return {
+            contents: [{ value: '#### 飞虹 Code 诊断\n\n' + md, isTrusted: true }],
+            range: new monaco.Range(position.lineNumber, 1, position.lineNumber, 1),
+          };
+        },
+      });
+      hoverDisp; // 引用保持存活（Monaco 内部维护）
+
       // 防抖 + 单飞，避免编辑时高频请求
       let timer = null;
       let inflight = false;

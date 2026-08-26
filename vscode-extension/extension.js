@@ -12,6 +12,7 @@
  * 去除与后缀重复的 prefix），作为服务端后处理就绪前的即时收益。
  */
 const vscode = require('vscode');
+const path = require('path');
 const { ApiClient } = require('./api-client');
 const {
   stripCodeFences,
@@ -67,6 +68,80 @@ async function connect() {
 /* ========== O2：补全结果客户端后处理 ========== */
 /* 纯函数已抽离至 ./completion-utils（可单测），此处仅引用 */
 
+/* ========== P5-1：跨文件上下文收集（工作区 import 关联 + 已打开文档） ========== */
+const CROSS_FILE_LIMIT = 3; // 最多收集 3 个相关文件
+const CROSS_FILE_MAX_BYTES = 6 * 1024; // 每文件最多 6KB
+
+/** 解析 import 说明符为候选绝对路径（仅相对/绝对路径，裸模块跳过） */
+function candidatePaths(document, spec) {
+  const out = [];
+  if (!spec) return out;
+  const isRelative = spec.startsWith('.');
+  const isAbsolute = spec.startsWith('/') || /^[a-zA-Z]:[\\/]/.test(spec);
+  if (!isRelative && !isAbsolute) return out; // 裸模块（node_modules）不参与跨文件上下文
+  let base;
+  if (isAbsolute && !spec.startsWith('.')) {
+    const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    base = root || path.parse(document.uri.fsPath).root;
+  } else {
+    base = path.dirname(document.uri.fsPath);
+  }
+  const exts = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.vue', ''];
+  for (const e of exts) {
+    out.push(path.resolve(base, spec + e));
+  }
+  // 目录入口（index.*）
+  for (const e of ['.ts', '.tsx', '.js', '.jsx']) {
+    out.push(path.resolve(base, spec, 'index' + e));
+  }
+  return out;
+}
+
+/** 收集工作区相关文件内容（已打开文档优先取内存最新，其次磁盘） */
+async function collectCrossFileContext(document, token) {
+  if (cfg().get('enableCrossFileContext') === false) return '';
+  if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length === 0) return '';
+  const text = document.getText();
+  const specs = [];
+  const re = /(?:import\s+[^'"]+?\s+from\s+['"]|import\s*\(\s*['"]|require\s*\(\s*['"])([^'"]+)['"]/g;
+  let m;
+  while ((m = re.exec(text)) !== null) specs.push(m[1]);
+  if (specs.length === 0) return '';
+
+  const docByPath = new Map();
+  for (const d of vscode.workspace.textDocuments) docByPath.set(d.uri.fsPath, d);
+
+  const blocks = [];
+  const seen = new Set();
+  for (const spec of specs) {
+    if (token.isCancellationRequested || blocks.length >= CROSS_FILE_LIMIT) break;
+    for (const p of candidatePaths(document, spec)) {
+      if (seen.has(p) || blocks.length >= CROSS_FILE_LIMIT) continue;
+      seen.add(p);
+      try {
+        let content;
+        const openDoc = docByPath.get(p);
+        if (openDoc) {
+          content = openDoc.getText();
+        } else {
+          await vscode.workspace.fs.stat(vscode.Uri.file(p));
+          const buf = await vscode.workspace.fs.readFile(vscode.Uri.file(p));
+          content = Buffer.from(buf).toString('utf8');
+        }
+        if (!content) continue;
+        if (Buffer.byteLength(content, 'utf8') > CROSS_FILE_MAX_BYTES) {
+          content = content.slice(0, CROSS_FILE_MAX_BYTES) + '\n// ...（截断）';
+        }
+        blocks.push('### ' + path.basename(p) + '\n' + content);
+      } catch {
+        /* 文件不存在则跳过该候选 */
+      }
+    }
+  }
+  if (blocks.length === 0) return '';
+  return '【工作区相关文件】\n' + blocks.join('\n\n');
+}
+
 /* ========== 行内补全 Provider ========== */
 const inlineProvider = {
   async provideInlineCompletionItems(document, position, context, token) {
@@ -82,12 +157,15 @@ const inlineProvider = {
     const language = document.languageId;
 
     try {
+      // P5-1: 收集工作区跨文件上下文（import 关联文件），注入补全请求
+      const crossFileContext = await collectCrossFileContext(document, token);
       const res = await client.completion({
         filePath,
         fileContent,
         cursorOffset,
         mode: 'quick',
         language,
+        crossFileContext,
       });
       if (!res || !res.ok || !Array.isArray(res.suggestions) || res.suggestions.length === 0) {
         return undefined;

@@ -36,6 +36,8 @@ export interface CompletionRequest {
   mode?: 'quick' | 'full';
   /** 最大补全 token 数 */
   maxTokens?: number;
+  /** P5-1: 扩展端收集的工作区跨文件上下文（import 关联/已打开文档），服务端与磁盘检索合并注入 */
+  crossFileContext?: string;
 }
 
 /** 单条补全建议 */
@@ -77,6 +79,10 @@ export interface CompletionEngineConfig {
   minPrefixLength: number;
   /** 是否启用语法校验（默认 true） */
   enableSyntaxCheck: boolean;
+  /** P5-4: quick 模式采样温度（默认 0，确定性，适合 ghost text） */
+  temperatureQuick: number;
+  /** P5-4: full 模式采样温度（默认 0.3，适度多样，适合多候选弹窗） */
+  temperatureFull: number;
 }
 
 const DEFAULT_CONFIG: CompletionEngineConfig = {
@@ -87,6 +93,8 @@ const DEFAULT_CONFIG: CompletionEngineConfig = {
   cacheTtlMs: 10000,
   minPrefixLength: 3,
   enableSyntaxCheck: true,
+  temperatureQuick: 0,
+  temperatureFull: 0.3,
 };
 
 /** 缓存条目 */
@@ -241,13 +249,14 @@ export class CompletionEngine {
     }
 
     // 4. 构造 FIM prompt 并调用模型
-    const messages = this.buildFimMessages(prefix, suffix, req.filePath, req.language || 'typescript');
+    const messages = this.buildFimMessages(prefix, suffix, req.filePath, req.language || 'typescript', req.crossFileContext);
 
     try {
       const resp = await this.router.chat(
         {
           messages,
-          temperature: 0,
+          // P5-4: temperature 分层——quick 用低温（确定性），full 用中温（多候选多样性）
+          temperature: mode === 'full' ? this.config.temperatureFull : this.config.temperatureQuick,
           maxTokens,
           timeoutMs: mode === 'full' ? 5000 : 3000,
         },
@@ -298,9 +307,11 @@ export class CompletionEngine {
   }
 
   /** 构造 FIM 消息（将 FIM 转换为 chat 格式） */
-  private buildFimMessages(prefix: string, suffix: string, filePath: string, language: string): ChatMessage[] {
-    // 阶段一-1：检索跨文件相关符号定义
-    const crossFileContext = this.retrieveCrossFileContext(filePath, prefix, language);
+  private buildFimMessages(prefix: string, suffix: string, filePath: string, language: string, extraCrossFileContext?: string): ChatMessage[] {
+    // 阶段一-1：检索跨文件相关符号定义（服务端磁盘检索）
+    const diskContext = this.retrieveCrossFileContext(filePath, prefix, language);
+    // P5-1: 合并扩展端收集的工作区实时上下文（import 关联/已打开文档），优先贴近磁盘上下文之后注入
+    const crossFileContext = [diskContext, extraCrossFileContext?.trim()].filter(Boolean).join('\n\n');
 
     const systemPrompt = `你是一个 ${language} 代码补全引擎。根据光标前后的代码上下文，生成最可能的补全内容。
 
@@ -310,7 +321,8 @@ export class CompletionEngine {
 3. 保持代码风格和缩进一致
 4. 如果上下文不足以确定补全，输出最可能的单个补全
 5. 不要输出光标后的 suffix 内容
-6. 优先使用【跨文件相关符号定义】中提供的函数/类/接口签名，确保类型匹配`;
+6. 优先使用【跨文件相关符号定义】中提供的函数/类/接口签名，确保类型匹配
+7. 若【工作区相关文件】提供与当前文件同项目模块的导出与签名，应优先据此补全，保证跨文件一致性`;
 
     const userPrompt = `文件: ${filePath}
 语言: ${language}
