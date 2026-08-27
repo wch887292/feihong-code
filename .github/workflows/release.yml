@@ -21,11 +21,11 @@ on:
     inputs:
       version:
         description: '发布版本号（如 1.0.0）'
+        required: true
+        default: 'patch'
 
 permissions:
   contents: write
-        required: true
-        default: 'patch'
 
 env:
   NODE_VERSION: '20'
