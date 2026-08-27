@@ -21,6 +21,9 @@ on:
     inputs:
       version:
         description: '发布版本号（如 1.0.0）'
+
+permissions:
+  contents: write
         required: true
         default: 'patch'
 
