@@ -28,7 +28,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
-      - run: npm install
+      # Node 18 上 electron 41 的 postinstall 因 @electron/get 转 ESM 而 require() 失败；
+      # 构建/测试不需要 electron 二进制，故 Node 18 跳过安装脚本（CLI 为纯 TS 编译）。
+      - run: npm install ${{ matrix.node == 18 && '--ignore-scripts' || '' }}
       - name: 版本号一致性（package.json 为单一权威源）
         run: npm run check:version
       - name: 类型检查

@@ -3,6 +3,8 @@ node_modules/
 dist/
 dist_tmp/
 *.tsbuildinfo
+# SBOM 为 CI 生成产物（每次运行重新生成并作为 artifact 上传），勿入库
+sbom.cdx.json
 
 # Android 构建缓存与产物（Capacitor/Gradle）
 android/.gradle/
