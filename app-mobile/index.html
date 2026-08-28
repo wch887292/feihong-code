@@ -4,226 +4,189 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a1a2e">
-<title>飞虹 Code 移动版</title>
-<!--
-  飞虹 Code 移动版（完整控制台）
-  晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
-  对接服务器：https://www.jb.klai.top/api
-  说明：登录请求内置 Basic 凭据（App 专用），后续 API 走 Bearer token。
--->
-  <link rel="stylesheet" href="css/style.css">
+<title>飞虹 Code · 移动版</title>
+<link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
 <!-- ===== 顶栏 ===== -->
-<div class="headbar" id="headbar" style="display:none;">
+<div class="headbar">
   <div class="brand"><span class="logo">飞</span>飞虹 Code</div>
-  <div class="head-user" id="headUser">
-    <span id="headPhone">未登录</span>
-    <span class="avatar" onclick="showSheet('userSheet')">🦐</span>
+  <div class="head-actions">
+    <button class="icon-btn" id="newChatBtn" title="新对话">＋</button>
+    <button class="icon-btn" id="menuBtn" title="设置">☰</button>
   </div>
-</div>
-
-<!-- ===== 登录页 ===== -->
-<div class="page active" id="loginPage">
-  <div class="login-logo">
-    <div class="big">🤖</div>
-    <h1>飞虹 Code</h1>
-    <p>终端 AI 编程智能体 · 移动控制台</p>
-  </div>
-  <div class="card">
-    <label class="label" for="phone">手机号码</label>
-    <input class="input" id="phone" type="tel" placeholder="请输入手机号" autocomplete="off">
-    <button class="btn" id="loginBtn" style="margin-top:14px;">手机号登录</button>
-    <div class="login-status" id="loginStatus"></div>
-  </div>
-  <p style="text-align:center;font-size:11px;color:var(--ink-2);margin-top:20px;">晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心</p>
 </div>
 
 <!-- ===== 对话页 ===== -->
-<div class="page" id="convPage">
+<div class="page active" id="convPage">
+  <!-- 两排横向滑动功能按钮 -->
+  <div class="func-scroll">
+    <div class="func-row">
+      <button class="func-btn active" data-func="chat">💬<span>对话</span></button>
+      <button class="func-btn" data-func="fix-code">🔧<span>修复代码</span></button>
+      <button class="func-btn" data-func="write-code">✍️<span>编写代码</span></button>
+      <button class="func-btn" data-func="review">🔍<span>代码审查</span></button>
+      <button class="func-btn" data-func="explain">💡<span>代码解释</span></button>
+    </div>
+    <div class="func-row">
+      <button class="func-btn" data-func="comments">📝<span>添加注释</span></button>
+      <button class="func-btn" data-func="optimize">⚡<span>代码优化</span></button>
+      <button class="func-btn" data-func="translate">🌐<span>中英互译</span></button>
+      <button class="func-btn" data-func="regex">🔤<span>正则生成</span></button>
+      <button class="func-btn" data-func="more">⋯<span>更多</span></button>
+    </div>
+  </div>
+
   <div class="conv-head">
-    <div class="goal" id="convGoal">未选择任务</div>
+    <div class="goal" id="convGoal">新对话</div>
     <span class="badge" id="convStatus" style="display:none;"></span>
-    <button class="btn ghost sm" onclick="openNewTask()">＋新建</button>
   </div>
   <div class="messages" id="convMessages">
-    <div class="empty">点击「＋新建」发起任务，或在下方输入指令<br>全部对话与思维链路将实时展示</div>
+    <div class="empty">选择上方功能，或直接输入指令开始对话<br>支持代码生成、修复、审查等</div>
   </div>
   <div class="input-area">
-    <textarea class="input goal-input" id="goalInput" placeholder="输入指令，Ctrl+Enter 发送" rows="1"></textarea>
+    <textarea class="input goal-input" id="goalInput" placeholder="输入指令，Enter 发送，Shift+Enter 换行" rows="1"></textarea>
     <button class="btn send-btn" id="sendBtn">▶</button>
   </div>
 </div>
 
-<!-- ===== 任务页 ===== -->
+<!-- ===== 任务页（独立窗口） ===== -->
 <div class="page" id="taskPage">
   <div class="page-head">
-    <div><h2>📋 任务列表</h2><div class="sub">点击查看思维链路，长按删除</div></div>
-    <button class="btn ghost sm" onclick="loadTasks()">🔄 刷新</button>
+    <div><h2>📋 任务管理</h2><div class="sub">所有任务独立管理，点击打开对话</div></div>
+    <button class="btn sm ghost" id="clearTasksBtn" style="width:auto;padding:6px 12px;">清空</button>
   </div>
-  <div id="taskList"><div class="empty">加载中…</div></div>
+  <div id="taskList"><div class="empty">暂无任务，去对话页发起一个吧</div></div>
 </div>
 
-<!-- ===== 自动化页 ===== -->
-<div class="page" id="autoPage">
-  <div class="page-head">
-    <div><h2>⚡ 自动化</h2><div class="sub">快捷指令一键发起任务</div></div>
-    <button class="btn ghost sm" onclick="openAutoForm()">＋新建</button>
-  </div>
-  <div id="autoList"><div class="empty">加载中…</div></div>
-</div>
-
-<!-- ===== 模板页 ===== -->
-<div class="page" id="tplPage">
-  <div class="page-head">
-    <div><h2>📚 模板库</h2><div class="sub">点击模板填入输入框</div></div>
-  </div>
-  <div class="section-label" style="font-size:13px;font-weight:700;margin-bottom:8px;color:var(--ink-2);">内置模板</div>
-  <div id="tplBuiltin"><div class="empty">加载中…</div></div>
-  <div style="height:12px;"></div>
-  <div class="section-label" style="font-size:13px;font-weight:700;margin-bottom:8px;color:var(--ink-2);">我的模板</div>
-  <div id="tplUser"><div class="empty">暂无自定义模板</div></div>
-</div>
-
-<!-- ===== 我的页 ===== -->
-<div class="page" id="mePage">
-  <div class="card">
-    <div class="list-item" onclick="showSheet('modelSheet')"><span class="li-icon">🧠</span><div class="li-main"><div class="li-title">大模型设置</div><div class="li-desc">配置 API 与默认模型</div></div><span style="color:var(--ink-2);">›</span></div>
-    <div class="list-item" onclick="showSheet('permSheet')"><span class="li-icon">🔒</span><div class="li-main"><div class="li-title">权限设置</div><div class="li-desc">可读范围与操作权限</div></div><span style="color:var(--ink-2);">›</span></div>
-    <div class="list-item" onclick="toggleTheme()"><span class="li-icon">🎨</span><div class="li-main"><div class="li-title">外观</div><div class="li-desc">切换浅色 / 深色</div></div><span style="color:var(--ink-2);">›</span></div>
-  </div>
-  <div class="card">
-    <div class="list-item" onclick="openAbout()"><span class="li-icon">🎖</span><div class="li-main"><div class="li-title">关于</div><div class="li-desc">飞虹 Code v0.5.1 · 移动版</div></div><span style="color:var(--ink-2);">›</span></div>
-    <div class="list-item" onclick="logout()"><span class="li-icon">↩️</span><div class="li-main"><div class="li-title" style="color:var(--err);">退出登录</div></div></div>
-  </div>
-</div>
-
-<!-- ===== 底部 Tab ===== -->
-<div class="tabbar" id="tabbar" style="display:none;">
+<!-- ===== 底部 Tab（仅对话 + 任务） ===== -->
+<div class="tabbar">
   <div class="tab active" data-page="convPage"><span class="ti">💬</span>对话</div>
   <div class="tab" data-page="taskPage"><span class="ti">📋</span>任务</div>
-  <div class="tab" data-page="autoPage"><span class="ti">⚡</span>自动化</div>
-  <div class="tab" data-page="tplPage"><span class="ti">📚</span>模板</div>
-  <div class="tab" data-page="mePage"><span class="ti">👤</span>我的</div>
 </div>
 
-<!-- ===== 用户菜单 Sheet ===== -->
-<div class="sheet-mask" id="userSheet">
-  <div class="sheet">
-    <div class="sheet-head"><div class="sheet-title">用户菜单</div><span class="sheet-close" onclick="hideSheet('userSheet')">✕</span></div>
-    <div class="sheet-body">
-      <div class="card" style="box-shadow:none;margin:0;">
-        <div class="list-item"><span class="li-icon">📱</span><div class="li-main"><div class="li-title" id="sheetPhone">未登录</div><div class="li-desc">免费版 · 移动控制台</div></div></div>
-      </div>
-      <div class="list-item" onclick="hideSheet('userSheet');showSheet('modelSheet')"><span class="li-icon">🧠</span><div class="li-main"><div class="li-title">大模型设置</div></div></div>
-      <div class="list-item" onclick="hideSheet('userSheet');showSheet('permSheet')"><span class="li-icon">🔒</span><div class="li-main"><div class="li-title">权限设置</div></div></div>
-      <div class="list-item" onclick="hideSheet('userSheet');toggleTheme()"><span class="li-icon">🎨</span><div class="li-main"><div class="li-title">外观切换</div></div></div>
-      <div class="list-item" onclick="hideSheet('userSheet');openAbout()"><span class="li-icon">❓</span><div class="li-main"><div class="li-title">关于</div></div></div>
-      <div class="list-item" onclick="hideSheet('userSheet');logout()"><span class="li-icon">↩️</span><div class="li-main"><div class="li-title" style="color:var(--err);">退出登录</div></div></div>
-    </div>
+<!-- ===== 侧边设置抽屉（从右侧滑出，设置完收起） ===== -->
+<div class="drawer-mask" id="drawerMask"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-head">
+    <div class="drawer-title">⚙️ 设置</div>
+    <button class="icon-btn" id="drawerClose">✕</button>
   </div>
-</div>
-
-<!-- ===== 新建任务 Sheet ===== -->
-<div class="sheet-mask" id="newTaskSheet">
-  <div class="sheet">
-    <div class="sheet-head"><div class="sheet-title">＋ 新建对话任务</div><span class="sheet-close" onclick="hideSheet('newTaskSheet')">✕</span></div>
-    <div class="sheet-body">
-      <label class="label">任务描述 *</label>
-      <textarea class="textarea" id="ntGoal" placeholder="例如：读取当前工作区 package.json 告诉我 name 与 version" rows="4"></textarea>
-      <label class="label">智能体类型</label>
-      <select class="input" id="ntAgent"></select>
-      <label class="label">工作区</label>
-      <select class="input" id="ntWs"></select>
-      <div class="footer">
-        <button class="btn ghost" onclick="hideSheet('newTaskSheet')">取消</button>
-        <button class="btn" id="ntCreateBtn">创建任务</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ===== 自动化表单 Sheet ===== -->
-<div class="sheet-mask" id="autoFormSheet">
-  <div class="sheet">
-    <div class="sheet-head"><div class="sheet-title">新建快捷指令</div><span class="sheet-close" onclick="hideSheet('autoFormSheet')">✕</span></div>
-    <div class="sheet-body">
-      <label class="label">指令名称 *</label>
-      <input class="input" id="autoName" placeholder="如：每日构建检查">
-      <label class="label">目标（提交给模型的需求）*</label>
-      <textarea class="textarea" id="autoGoal" placeholder="运行 npm test 并汇总失败用例…" rows="4"></textarea>
-      <div class="footer">
-        <button class="btn ghost" onclick="hideSheet('autoFormSheet')">取消</button>
-        <button class="btn" id="autoSaveBtn">保存</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ===== 模型配置 Sheet ===== -->
-<div class="sheet-mask" id="modelSheet">
-  <div class="sheet">
-    <div class="sheet-head"><div class="sheet-title">🧠 大模型设置</div><span class="sheet-close" onclick="hideSheet('modelSheet')">✕</span></div>
-    <div class="sheet-body">
+  <div class="drawer-body">
+    <!-- 大模型设置 -->
+    <div class="drawer-section">
+      <div class="drawer-section-title">🧠 大模型</div>
       <div id="modelList"></div>
-      <div style="border-top:1px solid var(--line);margin:10px 0;"></div>
-      <label class="label">模型名称 *</label>
-      <input class="input" id="mName" placeholder="如 GPT-4o / 通义千问">
-      <label class="label">API 地址</label>
-      <input class="input" id="mBase" placeholder="https://api.openai.com/v1">
-      <label class="label">密钥（API Key）</label>
-      <input class="input" id="mKey" type="password" placeholder="sk-...">
-      <label class="label">推理过程运行内容（可选）</label>
-      <textarea class="textarea" id="mReasoning" rows="2" placeholder="中间环节运行内容…"></textarea>
-      <div class="form-msg" id="mMsg"></div>
-      <div class="footer">
-        <button class="btn ghost" id="mResetBtn">清空</button>
-        <button class="btn" id="mSaveBtn">保存配置</button>
+      <div style="margin-top:12px;">
+        <label class="label">模型名称 *</label>
+        <input class="input" id="mName" placeholder="如 DeepSeek Chat">
+        <label class="label">API 地址</label>
+        <input class="input" id="mBase" placeholder="https://api.deepseek.com/v1">
+        <label class="label">API Key</label>
+        <input class="input" id="mKey" type="password" placeholder="sk-...">
+        <label class="label">推理内容（可选）</label>
+        <textarea class="input" id="mReasoning" rows="2" placeholder="中间环节…"></textarea>
+        <div class="form-msg" id="mMsg"></div>
+        <div class="footer" style="margin-top:10px;">
+          <button class="btn ghost" id="mResetBtn">清空</button>
+          <button class="btn" id="mSaveBtn">保存</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 外观 -->
+    <div class="drawer-section">
+      <div class="drawer-section-title">🎨 外观</div>
+      <button class="btn ghost" id="themeBtn" style="width:100%;">切换深色 / 浅色</button>
+    </div>
+
+    <!-- 关于 -->
+    <div class="drawer-section">
+      <div class="drawer-section-title">🎖 关于</div>
+      <div style="font-size:13px;color:var(--ink-2);line-height:1.8;">
+        飞虹 Code 移动版 v1.2.0<br>
+        纯前端独立 APP · 数据本地存储<br>
+        晋江市飞虹智科技企业管理有限公司
       </div>
     </div>
   </div>
 </div>
 
-<!-- ===== 权限 Sheet ===== -->
-<div class="sheet-mask" id="permSheet">
+<!-- ===== 代码修复 Sheet ===== -->
+<div class="sheet-mask" id="fixCodeSheet">
   <div class="sheet">
-    <div class="sheet-head"><div class="sheet-title">🔒 权限设置</div><span class="sheet-close" onclick="hideSheet('permSheet')">✕</span></div>
+    <div class="sheet-head"><div class="sheet-title">🔧 修复代码</div><span class="sheet-close" onclick="hideSheet('fixCodeSheet')">✕</span></div>
     <div class="sheet-body">
-      <label class="label">可读范围</label>
-      <div class="seg" id="readScopeSeg">
-        <div class="seg-item active" data-v="workspace">仅当前工作区</div>
-        <div class="seg-item" data-v="specified">指定目录</div>
-        <div class="seg-item" data-v="all">全部文件</div>
-      </div>
-      <div id="permPathWrap" style="display:none;">
-        <label class="label">允许的目录路径</label>
-        <input class="input" id="permPath" placeholder="输入允许的目录路径">
-      </div>
-      <label class="label">操作权限</label>
-      <div class="switch-row"><span style="font-size:14px;">📖 读取文件</span><label class="switch"><input type="checkbox" id="pRead" checked><span class="slider"></span></label></div>
-      <div class="switch-row"><span style="font-size:14px;">✍️ 写入文件</span><label class="switch"><input type="checkbox" id="pWrite"><span class="slider"></span></label></div>
-      <div class="switch-row"><span style="font-size:14px;">⚡ 执行命令</span><label class="switch"><input type="checkbox" id="pShell"><span class="slider"></span></label></div>
-      <div class="switch-row"><span style="font-size:14px;">🌐 访问网络</span><label class="switch"><input type="checkbox" id="pNetwork" checked><span class="slider"></span></label></div>
-      <div class="switch-row"><span style="font-size:14px;">🖥 浏览器控制</span><label class="switch"><input type="checkbox" id="pBrowser"><span class="slider"></span></label></div>
+      <label class="label">编程语言</label>
+      <select class="input" id="fcLang">
+        <option value="auto">自动识别</option>
+        <option value="JavaScript">JavaScript</option>
+        <option value="TypeScript">TypeScript</option>
+        <option value="Python">Python</option>
+        <option value="Java">Java</option>
+        <option value="Go">Go</option>
+        <option value="Rust">Rust</option>
+        <option value="C++">C++</option>
+        <option value="其他">其他</option>
+      </select>
+      <label class="label">需要修复的代码 *</label>
+      <textarea class="input" id="fcCode" rows="6" placeholder="粘贴有问题的代码…"></textarea>
+      <label class="label">错误信息或问题描述（可选）</label>
+      <textarea class="input" id="fcError" rows="3" placeholder="粘贴报错信息…"></textarea>
       <div class="footer">
-        <button class="btn ghost" onclick="hideSheet('permSheet')">取消</button>
-        <button class="btn" id="permSaveBtn">保存</button>
+        <button class="btn ghost" onclick="hideSheet('fixCodeSheet')">取消</button>
+        <button class="btn" id="fcRunBtn">开始修复</button>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ===== 任务详情 Sheet ===== -->
-<div class="sheet-mask" id="taskDetailSheet">
+<!-- ===== 代码编写 Sheet ===== -->
+<div class="sheet-mask" id="writeCodeSheet">
   <div class="sheet">
-    <div class="sheet-head"><div class="sheet-title">任务详情</div><span class="sheet-close" onclick="hideSheet('taskDetailSheet')">✕</span></div>
-    <div class="sheet-body detail-grid" id="taskDetailBody"></div>
+    <div class="sheet-head"><div class="sheet-title">✍️ 编写代码</div><span class="sheet-close" onclick="hideSheet('writeCodeSheet')">✕</span></div>
+    <div class="sheet-body">
+      <label class="label">编程语言 *</label>
+      <select class="input" id="wcLang">
+        <option value="JavaScript">JavaScript</option>
+        <option value="TypeScript">TypeScript</option>
+        <option value="Python">Python</option>
+        <option value="Java">Java</option>
+        <option value="Go">Go</option>
+        <option value="Rust">Rust</option>
+        <option value="C++">C++</option>
+        <option value="HTML/CSS">HTML/CSS</option>
+        <option value="SQL">SQL</option>
+        <option value="Shell">Shell</option>
+      </select>
+      <label class="label">代码需求 *</label>
+      <textarea class="input" id="wcReq" rows="6" placeholder="描述你想要的功能…"></textarea>
+      <div class="footer">
+        <button class="btn ghost" onclick="hideSheet('writeCodeSheet')">取消</button>
+        <button class="btn" id="wcRunBtn">开始生成</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 插件输入 Sheet ===== -->
+<div class="sheet-mask" id="pluginSheet">
+  <div class="sheet">
+    <div class="sheet-head"><div class="sheet-title" id="pluginTitle">插件</div><span class="sheet-close" onclick="hideSheet('pluginSheet')">✕</span></div>
+    <div class="sheet-body">
+      <label class="label">输入内容 *</label>
+      <textarea class="input" id="pluginInput" rows="6" placeholder="输入代码或文本…"></textarea>
+      <div class="footer">
+        <button class="btn ghost" onclick="hideSheet('pluginSheet')">取消</button>
+        <button class="btn" id="pluginRunBtn">运行</button>
+      </div>
+    </div>
   </div>
 </div>
 
 <div class="toast" id="toast"></div>
 
-  <script src="js/app.js"></script>
+<script src="js/app.js"></script>
 </body>
 </html>

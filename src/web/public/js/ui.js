@@ -1082,6 +1082,10 @@
         const out = (d.output || '').toString();
         return '<div class="step result ' + (ok ? 'ok' : 'fail') + '"><div class="res-head">' + (ok ? '✅' : '❌') + ' ' + escapeHtml(d.name || '') + ' ' + (ok ? '成功' : '失败') + '</div>' + (out.trim() ? '<div class="res-out">' + escapeHtml(out).slice(0, 500) + '</div>' : '') + '</div>';
       } else if (step.type === 'self-heal') {
+        // 区分「普通反思重试」与「连续失败换路线继续」
+        if (d.strategy === 'bypass-and-continue') {
+          return '<div class="step note">🔄 连续失败已自动换路线：放弃当前方案，正在尝试<b>其他方式继续任务</b>（第 ' + (d.iteration != null ? d.iteration : '?') + ' 轮）</div>';
+        }
         return '<div class="step note">🩹 进入自愈：检测到 <b>' + escapeHtml(d.category || '') + '</b> 类错误，已注入反思重试（第 ' + (d.iteration != null ? d.iteration : '?') + ' 轮）</div>';
       } else if (step.type === 'context.compact') {
         return '<div class="step note">📦 上下文压缩：从 ' + (d.originalLength != null ? d.originalLength : '?') + ' 条压缩至 ' + (d.compressedLength != null ? d.compressedLength : '?') + ' 条，保留首条目标与近期对话</div>';
@@ -1181,48 +1185,10 @@
         }
         html += '<div class="msg assistant error-msg">任务遇到问题：' + escapeHtml(task.error || '未知错误') + '</div>';
       } else if (task.status === 'running') {
-        // 计算已运行时间，让用户知道等了多久
-        let waitTip = '';
-        if (task.createdAt) {
-          const elapsed = Math.floor((Date.now() - new Date(task.createdAt).getTime()) / 1000);
-          if (elapsed > 5) {
-            const mins = Math.floor(elapsed / 60);
-            const secs = elapsed % 60;
-            const timeStr = mins > 0 ? `${mins}分${secs}秒` : `${secs}秒`;
-            waitTip = `<span style="color:var(--muted);font-size:12px;margin-left:8px;">已等待 ${timeStr}</span>`;
-          }
-          // 分级超时警告：让用户明确感知任务可能卡住，而非无限期"思考中"
-          if (elapsed >= 300 && elapsed < 900) {
-            // 5-15 分钟：橙色温和提醒
-            waitTip += '<div style="color:#e65100;font-size:12px;margin-top:8px;line-height:1.6;background:#fff3e0;padding:8px 10px;border-radius:6px;border-left:3px solid #ff9800;">'
-              + '⚠️ 已等待较久，模型可能正在处理复杂推理或执行耗时操作。'
-              + '<br>若长时间无任何输出，可点击右上角「停止」后重新提交。'
-              + '</div>';
-          } else if (elapsed >= 900 && elapsed < 1500) {
-            // 15-25 分钟：红色明确警告
-            waitTip += '<div style="color:#c62828;font-size:12px;margin-top:8px;line-height:1.6;background:#ffebee;padding:8px 10px;border-radius:6px;border-left:3px solid #e53935;">'
-              + '🚨 任务可能已卡住（已等待超过15分钟无输出）。'
-              + '<br>常见原因：模型 API 无响应、网络中断、或工具调用死锁。'
-              + '<br>建议点击下方按钮停止任务，检查模型配置后重新提交。'
-              + '<br><button onclick="document.getElementById(\'tchStop\')?.click()" style="margin-top:6px;background:#e53935;color:#fff;border:none;padding:4px 14px;border-radius:5px;cursor:pointer;font-size:12px;">⏹ 停止当前任务</button>'
-              + '</div>';
-          } else if (elapsed >= 1500) {
-            // 25 分钟以上：紧急警告，提示即将自动超时
-            const remain = Math.max(0, 30 - Math.floor(elapsed / 60));
-            waitTip += '<div style="color:#b71c1c;font-size:12px;margin-top:8px;line-height:1.6;background:#ffcdd2;padding:8px 10px;border-radius:6px;border-left:3px solid #c62828;font-weight:500;">'
-              + `⛔ 任务即将到达 30 分钟自动超时限制（约 ${remain} 分钟后自动终止）。`
-              + '<br>可立即点击下方按钮手动停止，或等待系统自动终止。'
-              + '<br><button onclick="document.getElementById(\'tchStop\')?.click()" style="margin-top:6px;background:#c62828;color:#fff;border:none;padding:4px 14px;border-radius:5px;cursor:pointer;font-size:12px;">⏹ 立即停止任务</button>'
-              + '</div>';
-          } else if (elapsed > 60) {
-            // 1-5 分钟：普通提示
-            waitTip += '<div style="color:var(--muted);font-size:12px;margin-top:6px;line-height:1.5;">模型正在深度思考或执行复杂操作，请耐心等待...</div>';
-          }
-        }
+        // 仅显示思考动画，不显示已等待时间
         html += '<div class="thinking-indicator">'
           + '<span class="dot"></span><span class="dot"></span><span class="dot"></span>'
           + '<span>思考中...</span>'
-          + waitTip
           + '</div>';
       } else if (task.status === 'queued') {
         html += '<div class="msg sys">任务已入队，等待执行…</div>';

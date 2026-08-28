@@ -1,7 +1,7 @@
 # Feihong Code v7.2.0 Benchmark Report
 
 **Benchmark Date**: August 27, 2026
-**Version**: Feihong Code v7.2.0
+**Version**: Feihong Code v7.6.0
 **Benchmark Team**: Feiyang Qiyuan R&D Center
 **Nature**: Objective Public Benchmark (with quantified results and sources)
 

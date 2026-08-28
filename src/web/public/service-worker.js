@@ -3,9 +3,9 @@
  * 支持离线缓存、PWA 安装、移动端适配
  */
 
-const CACHE_NAME = 'feihong-code-v1';
-const STATIC_CACHE = 'feihong-static-v1';
-const RUNTIME_CACHE = 'feihong-runtime-v1';
+const CACHE_NAME = 'feihong-code-v2';
+const STATIC_CACHE = 'feihong-static-v2';
+const RUNTIME_CACHE = 'feihong-runtime-v2';
 
 // 静态资源缓存列表
 const STATIC_ASSETS = [
@@ -60,33 +60,9 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // API 请求：网络优先，失败时回退到缓存
+  // API 请求：直接透传，不缓存（API 响应是动态的，缓存会导致公钥/认证/模型配置等数据过期）
   if (url.pathname.startsWith('/api/')) {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          // 缓存成功的 API 响应
-          if (response.status === 200) {
-            const clone = response.clone();
-            caches.open(RUNTIME_CACHE).then((cache) => cache.put(request, clone));
-          }
-          return response;
-        })
-        .catch(() => {
-          return caches.match(request).then((cached) => {
-            if (cached) return cached;
-            // 返回离线错误
-            return new Response(JSON.stringify({
-              ok: false,
-              error: '网络连接失败，显示离线数据',
-              offline: true,
-            }), {
-              status: 503,
-              headers: { 'Content-Type': 'application/json' },
-            });
-          });
-        })
-    );
+    // 安全相关 API 强制不缓存，直接走网络
     return;
   }
 

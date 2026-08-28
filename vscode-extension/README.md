@@ -2,7 +2,7 @@
 
 > 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
 
-把 **飞虹 Code（Muse Code 复刻 / fhcode）** 接入 VS Code：编辑器内**行内补全** +
+把 **飞虹 Code（对标 Muse Code / fhcode）** 接入 VS Code：编辑器内**行内补全** +
 侧边栏**对话式 Agent**。逻辑全部下沉到本地 `fhcode serve`，本扩展只做 UI 与协议桥接（薄壳原则）。
 
 ## 为什么是薄壳

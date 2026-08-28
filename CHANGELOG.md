@@ -1,5 +1,28 @@
 # 飞虹 Code 更新日志 / Changelog
 
+> **版本体系说明**：**7.x** 为**产品化成熟度版本号**（SemVer），衡量产品打磨程度（桌面版、Web 控制台、SWE-bench harness、企业治理、自进化等持续迭代）；**M0→M9.1** 为**能力里程碑编号**（工程开发阶段），2026-08 上旬全部交付后已冻结、不再扩展。两套编号相互解耦——M 编号停止增长是设计使然，后续能力演进体现在 7.x 次版本号中。
+
+## v7.6.0 (2026-08-28)
+
+### 重大更新 / Major Updates
+
+- **SWE harness 升级为 SWE-bench 差分语义**：`TestVerifier` 三段式校验（修复前 FAIL_TO_PASS 原本失败 → 修复后 FTP 全部通过 → PASS_TO_PASS 回归不破坏既有功能），杜绝假阳性与回归破坏；mock 管道跑分报告产出（`bench/run-2026-08-28-mock.md`，诚实标注口径）
+- **自进化双系统收敛为单一经验库**：旧式 `self-evolve` 的失败/解决/技能沉淀统一回流共享 `experiences.jsonl`，与新一代 `self-improve` 同库同 upsert 语义，orchestrator 统一检索形成学习闭环
+- **voice-programming 加固**：补齐 5 个死类型命令规则（copy/paste/cut/close_file/replace）、修复「创建一个叫 X 的文件」识别与面板类命令抢占、新增 7 项单元测试（此前零覆盖）
+
+### 工程 / Engineering
+
+- 仓库卫生：清理 163 个 android 构建产物 + 29 个根目录调试截图 + `.idsig` 的 git 跟踪；`.gitignore` 补全（android assets public / `*.idsig` / 根目录 `/*.png` / `release2/`）
+- manager `loadJSON` 兼容 BOM（PowerShell UTF8 写入的 JSON 可正常读取）
+- 版本号 7.5.0 → 7.6.0（package.json / version.ts / android versionCode 8）
+
+### 文档 / Documentation
+
+- 新增《技术设计说明书》（v7.6.0 权威版，重写 `docs/技术说明书.md`）
+- 新增《使用说明书》（v7.6.0 权威版，重写 `docs/使用说明书.md`）
+- 新增《版本升级说明书》（`docs/UPGRADE_GUIDE_7_6.md`）
+- 全库现行态文档版本头统一对齐 v7.6.0
+
 ## v7.5.0 (2026-08-27)
 
 ### 重大更新 / Major Updates

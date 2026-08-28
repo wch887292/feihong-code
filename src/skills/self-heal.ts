@@ -1,5 +1,5 @@
 /**
- * 飞虹 Code (Muse Code 参照复刻)
+ * 飞虹 Code (对标 Muse Code · 自研内核)
  * 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
  *
  * /self-heal 技能：系统化自我修复错误。
@@ -30,6 +30,10 @@ const VERIFY_BY_CATEGORY: Record<string, string[]> = {
   timeout: ['检查死循环/长任务，缩短超时或分批执行', 'ps 查看残留进程'],
   'permission-denied': ['检查文件权限/目录存在性', '确认进程用户是否有写权限'],
   'model-error': ['检查 API Key / 配额 / 网络连通性', 'curl 直连模型端点验证'],
+  'file-not-found': ['list_dir 勘察当前目录结构', 'read_file 确认目标文件路径存在'],
+  'build-error': ['npm install 确保依赖齐全', 'npm run build 查看完整错误日志'],
+  'command-not-found': ['which <命令> 确认是否安装', '检查 PATH 或改用已安装的等价命令'],
+  'invalid-args': ['查阅目标工具的参数文档', '核对参数名与工具名称是否匹配'],
 };
 
 function categoryName(cat: string): string {
@@ -54,8 +58,10 @@ export function runSelfHeal(errorText: string, context = ''): SelfHealResult {
   const text = (errorText || '').trim();
   const ctx = (context || '').trim();
   const analysis = classifyError(text);
-  const known = analysis !== null;
-  const category = known ? analysis.category : 'unknown';
+  // classifyError 永不返回 null（未命中规则时返回 category='unknown' 兜底），
+  // 因此必须用 category 判定是否已知，而不是 `analysis !== null`（那会恒为 true，导致未知错误被误判为可自动修复）。
+  const known = analysis.category !== 'unknown';
+  const category = analysis.category;
   const fixHint = known ? analysis.fixHint : '无法按规则表归类，建议人工查看完整堆栈与上下文。';
   const verifyCommands = VERIFY_BY_CATEGORY[category] || ['重跑原失败操作确认'];
 

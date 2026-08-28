@@ -1,5 +1,5 @@
 /**
- * 飞虹 Code (Muse Code 参照复刻)
+ * 飞虹 Code (对标 Muse Code · 自研内核)
  * 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
  *
  * P4-1/P6-4 云执行任务队列：
@@ -79,9 +79,9 @@ export interface TaskRecord {
 export function buildAgentGoal(goal: string, agentType?: AgentType): string {
   switch (agentType) {
     case 'fix-code':
-      return '[修复代码] 请定位并修复以下问题，最后给出验证步骤：\n' + goal;
+      return '[修复代码] 请定位并修复以下问题，最后给出验证步骤。要求：1.直接给出修复后的完整代码，不要反复尝试相同方法；2.如果第一种修复思路不行，立即换一种方法，不要重复劳作；3.确保修复后的代码可以直接运行。\n' + goal;
     case 'write-code':
-      return '[编写代码] 请用 production-ready 代码实现以下需求，附必要测试与说明：\n' + goal;
+      return '[编写代码] 请用 production-ready 代码实现以下需求，附必要测试与说明。要求：1.直接给出完整可运行代码，不要反复尝试相同方法；2.如果一种实现方式有问题，立即换一种思路，不要重复劳作；3.代码简洁高效有注释，确保可以直接复制运行。\n' + goal;
     case 'exec-command':
       return '[执行命令] 请在安全前提下执行以下操作并返回结果：\n' + goal;
     default:
@@ -476,16 +476,7 @@ export class TaskQueue {
     void this.fireWebhook(id, 'running'); // running 节点回调
     void this.channels?.notify(record, 'running'); // P5-6 消息渠道推送
 
-    // 任务整体超时保护：executeTask 内部若因模型 API 无响应 / 流式中断 / 工具死锁等卡住，
-    // 30 分钟后自动 abort 并标记 failed，避免任务永远停在 running 变成僵尸任务。
-    const TASK_TIMEOUT_MS = 30 * 60 * 1000;
-    let timeoutReached = false;
-    const timeoutTimer = setTimeout(() => {
-      timeoutReached = true;
-      controller.abort();
-      logger.warn('task timeout, auto-aborting', { taskId: id, timeoutMs: TASK_TIMEOUT_MS });
-    }, TASK_TIMEOUT_MS);
-
+    // 任务不设自动超时，等待执行完毕才结束；仅保留手动停止（controller.abort）
     try {
       const taskGoal = buildPermissionPrefix(record.permissions) + buildAgentGoal(record.goal, record.agentType);
 
@@ -533,15 +524,9 @@ export class TaskQueue {
       logger.info('task finished', { taskId: id, status: record.status, iterations: result.iterations });
     } catch (e) {
       record.status = 'failed';
-      // 超时中止：使用明确的超时错误信息，而非 AbortError
-      if (timeoutReached) {
-        record.error = '任务执行超时（30分钟），已自动终止。可能原因：模型无响应、网络中断或复杂操作死锁，建议停止后重新提交。';
-      } else {
-        record.error = e instanceof Error ? e.message : String(e);
-      }
-      logger.error('task failed', { taskId: id, error: record.error, timeout: timeoutReached });
+      record.error = e instanceof Error ? e.message : String(e);
+      logger.error('task failed', { taskId: id, error: record.error });
     } finally {
-      clearTimeout(timeoutTimer);
       this.controllers.delete(id); // 清理中断控制器
       record.updatedAt = new Date().toISOString();
       this.persist(record); // P6-4 落盘终态

@@ -1,6 +1,6 @@
 # Feihong Code (fhcode)
 
-> **Terminal AI Coding Agent** · Inspired by Meta Muse Code · Full M0→M9.1 complete · Enterprise RBAC / Audit / SWE Agent
+> **Terminal AI Coding Agent** · Benchmarked against Meta Muse Code / Claude Code / Cursor CLI · Differentiated in-house core · Full M0→M9.1 complete · Enterprise RBAC / Audit / SWE Agent
 > Jinjiang Feihongzhi Technology Enterprise Management Co., Ltd. · Feiyang Qiyuan R&D Center · Lead: Wu Cihong
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
@@ -59,7 +59,9 @@ export FH_ROLE=developer
 
 ## 1. Product Positioning
 
-**Feihong Code (fhcode)** is a **terminal AI coding agent** inspired by Meta Muse Code: describe requirements in natural language, and the agent autonomously completes the closed loop of **planning → read/write code → run verification → report results**.
+**Feihong Code (fhcode)** is a **terminal AI coding agent** that uses Meta Muse Code, Claude Code and Cursor CLI as its **benchmark reference frame**, built on an independent in-house core: describe requirements in natural language, and the agent autonomously completes the closed loop of **planning → read/write code → run verification → report results**.
+
+> **A note on wording**: this project consistently uses **"benchmark / compare / reference / differentiate"**. *Benchmark* means using peer products as an industry reference frame to calibrate capability; *reference* means drawing on proven interaction paradigms and product form; *differentiate* means capabilities this project implements in-house that set it apart from the reference set. This is an **independently designed and implemented original project** — not a fork, not a port, not a clone — and contains no third-party closed-source or restricted code.
 
 **🎯 Use cases**:
 - Code generation and modification (functions, modules, full features)
@@ -75,7 +77,9 @@ export FH_ROLE=developer
 
 ---
 
-### 🆚 Comparison with other tools
+### 🆚 Benchmark comparison matrix
+
+> A **functional benchmark reference** table describing capability-coverage differences — not a performance benchmark. Compiled from public documentation of each product and from this project's own testing, for side-by-side evaluation.
 
 | Capability | **fhcode** | Claude Code | Cursor CLI | Aider | OpenCode |
 |---|---|---|---|---|---|
@@ -89,6 +93,22 @@ export FH_ROLE=developer
 | Open-source / self-hostable (MIT) | ✅ | ❌ | ❌ | ✅ Apache-2.0 | ✅ MIT |
 
 > Best for: teams and individual developers who need **data to stay in the intranet**, require **enterprise permission auditing**, and want to **mix multiple LLM vendors**.
+
+### 🎯 Differentiation (in-house core)
+
+The table above covers *which* capabilities exist; this one covers *how* fhcode implements them differently — the part independently designed and built by this project, and the core of what sets it apart from its benchmark peers.
+
+| Dimension | fhcode implementation | Common state of peer products |
+|---|---|---|
+| Model dispatch | Unified gateway abstraction; dynamic routing across DeepSeek / Tongyi / Ollama / any OpenAI-compatible endpoint by cost and capability | Mostly locked to a single vendor; switching is costly |
+| Offline / on-prem | Local Ollama inference plus full offline operation — code and data never leave the intranet | Mostly depend on cloud APIs; cannot meet intranet compliance |
+| Enterprise governance | RBAC permission matrix + tamper-evident audit hash chain + physical multi-tenant isolation + quota/cost circuit breaker, all out of the box | Mostly individual-oriented tools lacking governance |
+| Self-evolution (M6) | Experience library plus self-healing loop; failure patterns reused across sessions | Little to no equivalent mechanism |
+| Parallel isolation (M2) | `git worktree` gives each sub-agent a physically isolated workspace — concurrency without conflicts | Partial support; isolation strength varies |
+| Recoverability (M3) | Append-only event log as single source of truth; sessions resumable from checkpoints and fully replayable | Session state usually unrecoverable; interruption means restart |
+| Licensing & self-hosting | MIT licensed, source available, fully private deployment and secondary development supported | Mainstream products are closed-source commercial services |
+
+> **One-line distinction**: benchmark products solve "how an individual developer writes code faster"; fhcode additionally solves "**how a team puts AI coding into production — within compliance boundaries, auditable, at controllable cost**".
 
 ## 2. Core Features
 
@@ -450,6 +470,12 @@ node dist/cli/index.js --version
 ---
 
 ## 12. Milestone Progress
+
+> **📌 Version numbers and milestones are two decoupled numbering systems**
+>
+> - **M0→M9.1** are **capability milestones** (engineering phase numbers): all delivered in early Aug 2026 and **frozen — no further extension**. They answer "which core capabilities are built".
+> - **7.x** is the **product-maturity version number** (SemVer): since v7.0.0, continuous productization iterations ship under 7.x — desktop app, web console, SWE-bench differential harness, enterprise governance, self-evolving experience base, voice programming, etc. It answers "how mature is the product".
+> - There is **no contradiction** in "v7.6 but only M9": the M numbering stopped by design; ongoing capability evolution is reflected in 7.x minor versions.
 
 | Milestone | Content | Status |
 | --- | --- | --- |

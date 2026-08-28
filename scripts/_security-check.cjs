@@ -1,5 +1,5 @@
 /**
- * 飞虹 Code (Muse Code 参照复刻)
+ * 飞虹 Code (对标 Muse Code · 自研内核)
  * P6-4 安全 CI：npm audit + SBOM（CycloneDX）+ 可选 osv-scanner
  * 运行：npm run security  （或 node scripts/_security-check.cjs）
  *

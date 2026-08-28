@@ -1,5 +1,5 @@
 /**
- * 飞虹 Code (Muse Code 参照复刻)
+ * 飞虹 Code (对标 Muse Code · 自研内核)
  * 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
  *
  * M5 Web 控制台鉴权：Bearer Token 中间件（FH_WEB_TOKEN）。
@@ -167,6 +167,19 @@ export class SessionStore {
     return { token: newToken, isFirstLogin: true };
   }
 
+  /**
+   * 清除会话的首次登录标记（引导任务完成后调用）
+   * @param token 会话令牌
+   * @returns 是否成功
+   */
+  clearFirstLogin(token: string): boolean {
+    const session = this.sessions.get(token);
+    if (!session) return false;
+    session.isFirstLogin = false;
+    this.persist();
+    return true;
+  }
+
   has(token: string): boolean {
     const s = this.sessions.get(token);
     if (!s) return false;
@@ -189,9 +202,28 @@ export class SessionStore {
   }
 }
 
-/** 返回 Express 中间件：校验 Authorization: Bearer <token> */
-export function requireToken(masterToken: string, sessions?: SessionStore) {
+/** 返回 Express 中间件：校验 Authorization: Bearer <token>
+ *  @param masterToken 主令牌（FH_WEB_TOKEN，CLI/自动化场景免登录）
+ *  @param sessions 会话存储（手机号登录场景）
+ *  @param whitelist 免认证路径白名单（如 /api/security/public-key、/api/auth/login），匹配前缀即放行
+ */
+export function requireToken(masterToken: string, sessions?: SessionStore, whitelist: string[] = []) {
   return (req: Request, res: Response, next: NextFunction): void => {
+    // 白名单路径直接放行（公钥、登录等无需认证的接口）
+    // 注意：app.use('/api', ...) 挂载时 req.path 是去掉 /api 后的相对路径，
+    // 因此同时检查 req.originalUrl（完整原始路径）和 req.path（相对路径）
+    const origPath = String((req as Request & { originalUrl?: string }).originalUrl || req.url || '');
+    const relPath = String(req.path || '');
+    for (const wp of whitelist) {
+      // 白名单项可能是完整路径 /api/xxx 或相对路径 /xxx，两种都尝试匹配
+      const wpRel = wp.startsWith('/api/') ? wp.slice(4) : wp;
+      if (origPath === wp || origPath.startsWith(wp + '/') || origPath.startsWith(wp + '?') ||
+          relPath === wp || relPath.startsWith(wp + '/') ||
+          relPath === wpRel || relPath.startsWith(wpRel + '/')) {
+        next();
+        return;
+      }
+    }
     const header = req.header('authorization') || '';
     const m = /^Bearer\s+(.+)$/i.exec(header);
     if (!m) {

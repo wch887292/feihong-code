@@ -61,12 +61,18 @@ const COMMAND_RULES: Array<{
 }> = [
   {
     type: 'new_file',
-    patterns: [/新建文件|创建文件|新文件|new file/i],
+    patterns: [/新建文件|创建文件|新文件|new file|create file|创建一个?/i],
     extractParams: (text) => {
-      const match = text.match(/(?:新建|创建|new)\s*(?:文件|file)?\s*(?:叫|名为|named)?\s*([\w.]+)/i);
+      const match = text.match(/(?:新建|创建|new|create)(?:文件|file)?(?:一个)?(?:叫|名为|named)?\s*([\w.-]+)/i);
       return match ? { fileName: match[1] } : {};
     },
   },
+  // 面板/视图类开关（语义更具体）须排在 open_file 之前：
+  // 「打开终端/侧边栏/全屏」与 open_file 的宽泛「打开」匹配置信度相同，
+  // 并列时先匹配者胜，若排在后面会被 open_file 错误抢占。
+  { type: 'toggle_terminal', patterns: [/终端|terminal|控制台/i] },
+  { type: 'toggle_sidebar', patterns: [/侧边栏|侧栏|sidebar/i] },
+  { type: 'toggle_fullscreen', patterns: [/全屏|fullscreen/i] },
   {
     type: 'open_file',
     patterns: [/打开文件|打开|open file|open/i],
@@ -76,6 +82,7 @@ const COMMAND_RULES: Array<{
     },
   },
   { type: 'save_file', patterns: [/保存|存盘|save/i] },
+  { type: 'close_file', patterns: [/关闭文件|关掉文件|close file|close/i] },
   { type: 'run_code', patterns: [/运行|执行|跑一下|run|execute/i] },
   { type: 'debug_code', patterns: [/调试|debug/i] },
   { type: 'stop_code', patterns: [/停止|终止|stop/i] },
@@ -88,6 +95,14 @@ const COMMAND_RULES: Array<{
     },
   },
   {
+    type: 'replace',
+    patterns: [/替换|replace/i],
+    extractParams: (text) => {
+      const m = text.match(/(?:把|将)?\s*([^\s，。]+?)\s*(?:替换|replace)\s*(?:成|为|换成)?\s*([^\s，。]+)/i);
+      return m ? { from: m[1], to: m[2] } : {};
+    },
+  },
+  {
     type: 'goto_line',
     patterns: [/跳到第?\d+行|跳转到|goto line|go to line/i],
     extractParams: (text) => {
@@ -96,12 +111,13 @@ const COMMAND_RULES: Array<{
     },
   },
   { type: 'comment', patterns: [/注释|comment/i] },
+  { type: 'uncomment', patterns: [/取消注释|去掉注释|uncomment/i] },
   { type: 'format', patterns: [/格式化|format|美化代码/i] },
   { type: 'undo', patterns: [/撤销|undo/i] },
   { type: 'redo', patterns: [/重做|恢复|redo/i] },
-  { type: 'toggle_terminal', patterns: [/终端|terminal|控制台/i] },
-  { type: 'toggle_sidebar', patterns: [/侧边栏|侧栏|sidebar/i] },
-  { type: 'toggle_fullscreen', patterns: [/全屏|fullscreen/i] },
+  { type: 'copy', patterns: [/复制|拷贝|copy/i] },
+  { type: 'paste', patterns: [/粘贴|paste/i] },
+  { type: 'cut', patterns: [/剪切|cut/i] },
   {
     type: 'generate_code',
     patterns: [/生成代码|写代码|帮我写|generate code|write code/i],
@@ -111,7 +127,7 @@ const COMMAND_RULES: Array<{
     },
     needConfirm: true,
   },
-  { type: 'explain_code', patterns: [/解释代码|解释一下|explain code|explain/i] },
+  { type: 'explain_code', patterns: [/解释|讲解|explain/i] },
   { type: 'refactor_code', patterns: [/重构|优化代码|refactor/i], needConfirm: true },
   { type: 'review_code', patterns: [/审查代码|代码审查|review code|code review/i] },
   { type: 'zoom_in', patterns: [/放大|zoom in/i] },
@@ -256,14 +272,21 @@ export class VoiceProgrammingManager {
       { type: 'new_file', description: '新建文件', examples: ['新建文件', '创建一个叫 utils 的文件'] },
       { type: 'open_file', description: '打开文件', examples: ['打开 index.ts', '打开配置文件'] },
       { type: 'save_file', description: '保存文件', examples: ['保存', '存盘'] },
+      { type: 'close_file', description: '关闭文件', examples: ['关闭文件', 'close file'] },
       { type: 'run_code', description: '运行代码', examples: ['运行', '执行一下', '跑一下'] },
       { type: 'debug_code', description: '调试代码', examples: ['调试', 'debug'] },
+      { type: 'stop_code', description: '停止代码', examples: ['停止', '终止运行'] },
       { type: 'search', description: '搜索', examples: ['搜索函数', '查找 TODO'] },
+      { type: 'replace', description: '替换', examples: ['把 A 替换成 B'] },
       { type: 'goto_line', description: '跳转到指定行', examples: ['跳到第100行', '跳转到50行'] },
       { type: 'comment', description: '注释代码', examples: ['注释', '注释这行'] },
+      { type: 'uncomment', description: '取消注释', examples: ['取消注释', 'uncomment'] },
       { type: 'format', description: '格式化代码', examples: ['格式化', '美化代码'] },
       { type: 'undo', description: '撤销', examples: ['撤销', 'undo'] },
       { type: 'redo', description: '重做', examples: ['重做', '恢复', 'redo'] },
+      { type: 'copy', description: '复制', examples: ['复制', 'copy'] },
+      { type: 'paste', description: '粘贴', examples: ['粘贴', 'paste'] },
+      { type: 'cut', description: '剪切', examples: ['剪切', 'cut'] },
       { type: 'generate_code', description: '生成代码', examples: ['生成一个排序函数', '帮我写一个登录接口'] },
       { type: 'explain_code', description: '解释代码', examples: ['解释这段代码', 'explain'] },
       { type: 'refactor_code', description: '重构代码', examples: ['重构', '优化这段代码'] },
@@ -271,6 +294,9 @@ export class VoiceProgrammingManager {
       { type: 'toggle_terminal', description: '切换终端', examples: ['打开终端', '关闭终端'] },
       { type: 'toggle_sidebar', description: '切换侧边栏', examples: ['打开侧边栏', '关闭侧栏'] },
       { type: 'toggle_fullscreen', description: '切换全屏', examples: ['全屏', '退出全屏'] },
+      { type: 'zoom_in', description: '放大', examples: ['放大', 'zoom in'] },
+      { type: 'zoom_out', description: '缩小', examples: ['缩小', 'zoom out'] },
+      { type: 'reset_zoom', description: '重置缩放', examples: ['重置缩放', 'reset zoom'] },
     ];
   }
 }

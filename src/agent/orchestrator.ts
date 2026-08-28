@@ -1,5 +1,5 @@
 /**
- * 飞虹 Code (Muse Code 参照复刻)
+ * 飞虹 Code (对标 Muse Code · 自研内核)
  * 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
  *
  * 编排器：ReAct 循环（模型 → 工具调用 → 结果回填 → 完成）。
@@ -73,7 +73,7 @@ export type OrchestratorEvent =
   | { type: 'model.response'; provider: string; model: string; content: string; toolCalls: string[] }
   | { type: 'tool.call'; name: string; args: Record<string, unknown> }
   | { type: 'tool.result'; name: string; ok: boolean; output: string }
-  | { type: 'self-heal'; category: string; iteration: number }
+  | { type: 'self-heal'; category: string; iteration: number; strategy?: 'bypass-and-continue' | 'reflect-retry' | 'loop-break' }
   | { type: 'context.compact'; originalLength: number; compressedLength: number }
   | { type: 'session.end'; iterations: number; costUsd: number; ok: boolean };
 
@@ -144,6 +144,8 @@ export class Orchestrator {
 
   /** 成功工具调用结果缓存：key = toolName + JSON.stringify(args)，防止模型重复调用相同工具 */
   private toolResultCache = new Map<string, { ok: boolean; output: string; error?: string }>();
+  /** 相同工具+相同参数命中缓存的次数：用于把"重复成功调用"升级为强制失败，交回大模型重新决策 */
+  private repeatCallHits = new Map<string, number>();
 
   async run(goal: string, resume?: ResumeContext): Promise<RunResult> {
     const {
@@ -155,8 +157,9 @@ export class Orchestrator {
     const maxIter = this.deps.maxIterations ?? 50;
     const maxCost = this.deps.maxCostUsd ?? 0;
     const compactThreshold = getCompactionThreshold({ compactEvery: contextCompactEvery });
-    // 每次 run 重置工具结果缓存
+    // 每次 run 重置工具结果缓存与重复调用计数
     this.toolResultCache.clear();
+    this.repeatCallHits.clear();
 
     let messages: ChatMessage[];
     let loadedExperiences: Experience[] = [];
@@ -230,6 +233,10 @@ export class Orchestrator {
     let cost = carryCost;
     let calls = 0;
     let consecutiveErrors = 0;
+    // 原地打转检测：模型连续输出相同文案且仍调用工具 → 强制注入卡死提示交回大模型重新规划
+    let lastAssistantText = '';
+    let sameTextStreak = 0;
+    let loopBreaks = 0;
 
     // 检查点落盘（闭包引用最新 calls/cost/touchedFiles）
     const emitCheckpoint = async (status: SessionStatus): Promise<void> => {
@@ -342,6 +349,41 @@ export class Orchestrator {
         logger.warn('orchestrator hit cost limit', { runId: session.runId, cost, maxCost });
         calls++;
         break;
+      }
+
+      // 原地打转检测：模型连续 N 轮输出完全相同的文案且仍在调用工具 → 任务无进展，
+      // 强制注入卡死提示并交回大模型重新规划，避免空转刷屏直至迭代上限。
+      const textNow = (msg.content || '').trim();
+      if (textNow.length > 0) {
+        if (textNow === lastAssistantText) sameTextStreak++;
+        else { sameTextStreak = 0; lastAssistantText = textNow; }
+      } else {
+        sameTextStreak = 0;
+        lastAssistantText = '';
+      }
+      if (sameTextStreak >= 3) {
+        const loopPrompt = `⚠️ **检测到你连续 ${sameTextStreak + 1} 轮输出了完全相同的内容「${textNow.slice(0, 120)}」，而任务目标尚未完成——这说明你在原地打转、没有任何进展。**
+
+请立即停止当前做法，重新审视任务目标，换一种完全不同的执行方式：
+1. 先 read_file 读回你刚才写入/修改的文件，确认磁盘上的真实内容；
+2. 如果目标文件已经生成，不要再重复生成，直接运行它（run_shell / build_check）验证是否生效；
+3. 如果某个动作已经成功执行过，不要再重复执行，直接进入下一步；
+4. 如果确实遇到无法绕开的障碍，明确说出障碍，并先交付一个能跑的最小版本或阶段成果。`;
+        const loopMsg: ChatMessage = { role: 'user', content: loopPrompt };
+        messages.push(loopMsg);
+        session.append(loopMsg);
+        loopBreaks++;
+        sameTextStreak = 0;
+        lastAssistantText = '';
+        await eventLog.append('self-heal', { category: 'loop-detected', iteration: calls, totalHeals: loopBreaks, strategy: 'loop-break' });
+        this.deps.onEvent?.({ type: 'self-heal', category: 'loop-detected', iteration: calls, strategy: 'loop-break' });
+        logger.warn('orchestrator detected same-text loop, injected break prompt', { runId: session.runId, streak: sameTextStreak + 1, loopBreaks });
+        if (loopBreaks >= 3) {
+          finalAnswer = `检测到任务连续在原地打转（已注入卡死提示 ${loopBreaks} 次仍无进展），已自动终止，避免无限空转。请重新描述目标、换一种思路，或在对话区细化指令后重新发起任务。`;
+          await eventLog.append('error', { reason: 'loop-abort', loopBreaks });
+          break;
+        }
+        continue; // 跳过本轮工具执行，让模型基于卡死提示重新决策
       }
 
       const roundErrors = await this.executeToolRound(msg, { tools, eventLog, session, cwd, security, approve, guard }, messages);
@@ -519,15 +561,26 @@ export class Orchestrator {
       await ctx.eventLog.append('tool.call', { name: tc.name, args: tc.arguments });
       this.deps.onEvent?.({ type: 'tool.call', name: tc.name, args: tc.arguments });
 
-      // 去重检测：相同工具+相同参数如果之前已成功，直接返回缓存结果并警告模型不要重复调用
+      // 去重检测：相同工具+相同参数如果之前已成功，返回缓存并警告；若多次重复仍不推进，
+      // 则升级为「强制失败」，把问题交回大模型重新决策，避免模型在成功动作上原地空转刷屏。
       const cacheKey = tc.name + '::' + JSON.stringify(tc.arguments ?? {});
       const cached = this.toolResultCache.get(cacheKey);
       let result: { ok: boolean; output: string; error?: string };
       if (cached && cached.ok) {
-        const warning = `[重复调用警告] 工具 ${tc.name} 用相同参数之前已成功执行过，以下是缓存的结果。请不要重复调用相同工具，直接利用已有信息推进任务。\n`;
-        result = { ok: true, output: warning + cached.output };
-        await ctx.eventLog.append('tool.result', { name: tc.name, ok: true, output: result.output.slice(0, 500) });
-        this.deps.onEvent?.({ type: 'tool.result', name: tc.name, ok: true, output: result.output.slice(0, 500) });
+        const hits = (this.repeatCallHits.get(cacheKey) ?? 0) + 1;
+        this.repeatCallHits.set(cacheKey, hits);
+        if (hits >= 2) {
+          // 第 3 次及以上相同调用：不再缓存放行，强制失败并交回大模型（计入 roundErrors → 触发反思）
+          const forceError = `工具 ${tc.name} 用相同参数已被重复调用 ${hits + 1} 次，任务没有任何进展。请立即停止重复操作，重新规划策略：先 read_file 读回实际文件内容确认现状，再决定下一步；换用其他工具、其他参数或完全不同的实现方式推进任务。`;
+          result = { ok: false, output: '', error: forceError };
+          await ctx.eventLog.append('tool.result', { name: tc.name, ok: false, output: forceError.slice(0, 500) });
+          this.deps.onEvent?.({ type: 'tool.result', name: tc.name, ok: false, output: forceError.slice(0, 500) });
+        } else {
+          const warning = `[重复调用警告] 工具 ${tc.name} 用相同参数之前已成功执行过，以下是缓存的结果。请不要重复调用相同工具，直接利用已有信息推进任务。\n`;
+          result = { ok: true, output: warning + cached.output };
+          await ctx.eventLog.append('tool.result', { name: tc.name, ok: true, output: result.output.slice(0, 500) });
+          this.deps.onEvent?.({ type: 'tool.result', name: tc.name, ok: true, output: result.output.slice(0, 500) });
+        }
       } else {
         result = await ctx.tools.execute(tc.name, tc.arguments, {
           runId: ctx.session.runId,
@@ -658,28 +711,41 @@ export class Orchestrator {
 
     const consecutiveErrors = errors;
     if (failed) {
+      // 连续 maxRetryErrors 次错误仍未修复：不再终止任务，而是注入「换路线」强指令，
+      // 引导模型放弃当前失败路径，从其他方式继续执行任务（绕开问题，而不是停下）
       const errorTypes = input.errorHistory.map((e) => e.category).join(', ');
       const lastError = input.errorHistory[input.errorHistory.length - 1];
       const fixHint = lastError?.fixHint || '请检查工作区和日志，定位具体错误原因后修复。';
-      const finalAnswer = `任务执行遇到连续 ${input.maxRetryErrors} 次错误，已尝试自动修复但未能成功。
+      const bypassPrompt = `⚠️ 任务已连续失败 ${input.maxRetryErrors} 次（累计自愈 ${totalHeals} 次），继续在当前路径上修复已经没有意义。
+      
+**错误类型**: ${errorTypes}
+**最后错误**: ${lastError?.message || '未知'}
+**已尝试的修复**: ${fixHint}
 
-错误类型: ${errorTypes}
-最后错误: ${lastError?.message || '未知'}
-修复建议: ${fixHint}
+🚨 **现在必须彻底换路线继续完成任务，而不是停下或再次重试**：
 
-你可以：
-1. 在对话区发送"继续"让任务以 resume 方式接着跑
-2. 或发送新的指令，告知具体需要修复的内容
-3. 检查工作区文件，手动修复后重新提交任务`;
-      await input.eventLog.append('error', { reason: 'max-retry-errors', errors: input.errorHistory });
-      logger.warn('orchestrator hit max retry errors', { runId: input.sessionRunId, errors: input.errorHistory });
-      return { signal: 'break', messages, consecutiveErrors, selfHealed: false, finalAnswer };
+1. **绕开问题**：放弃当前失败的操作/代码/工具，用完全不同的方式实现同一个目标。例如：
+   - 代码写不进去 → 先勘察目录，改用其他工具或简化代码
+   - 某个命令失败 → 换一个命令、换一种写法、或换一个实现方案
+   - 某个功能实现不了 → 先跳过它，把能跑的基础版本做出来，再回头处理
+2. **先勘察再行动**：用 list_dir / read_file 确认当前环境、目录结构、有哪些文件可用，找到替代路径
+3. **分步推进**：把大目标拆成小步骤，先完成不受错误影响的那些步骤，最后再尝试攻克难点
+4. **绝对不要**：用相同参数重复调用同一个已失败 N 次的工具；不要死磕同一个思路
+5. **最终兜底**：如果确实绕不开，也要先交付一个可用的中间结果（如：能运行的简化版、报告/说明文档、列出已完成的进展和剩余阻碍），而不是空手停止
+
+请重新规划执行路径，换一种方式继续推进任务。`;
+      const reflectMsg: ChatMessage = { role: 'user', content: bypassPrompt };
+      const newMessages = [...messages, reflectMsg];
+      await input.eventLog.append('self-heal', { category: errorAnalysis.category, iteration: input.iteration, totalHeals, strategy: 'bypass-and-continue' });
+      this.deps.onEvent?.({ type: 'self-heal', category: errorAnalysis.category, iteration: input.iteration, strategy: 'bypass-and-continue' });
+      logger.warn('orchestrator bypassing repeated errors, continue with new strategy', { runId: input.sessionRunId, errors: input.errorHistory, totalHeals });
+      return { signal: 'continue', messages: newMessages, consecutiveErrors, selfHealed: true, finalAnswer: '' };
     }
     const selfHealed = true;
     // 传入累计修复次数 totalHeals，让提示词根据次数动态调整策略（次数越多越强调换思路）
     const newMessages = injectReflection(messages, errorAnalysis, input.goal, lastToolCall, totalHeals);
     await input.eventLog.append('self-heal', { category: errorAnalysis.category, iteration: input.iteration, totalHeals });
-    this.deps.onEvent?.({ type: 'self-heal', category: errorAnalysis.category, iteration: input.iteration });
+    this.deps.onEvent?.({ type: 'self-heal', category: errorAnalysis.category, iteration: input.iteration, strategy: 'reflect-retry' });
     logger.info('self-heal: injected reflection', { iteration: input.iteration, category: errorAnalysis.category, totalHeals });
     return { signal: 'continue', messages: newMessages, consecutiveErrors, selfHealed, finalAnswer: '' };
   }

@@ -1,5 +1,5 @@
 /**
- * 飞虹 Code (Muse Code 参照复刻)
+ * 飞虹 Code (对标 Muse Code · 自研内核)
  * 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
  *
  * 自我修复循环（Self-Healing Loop）：
@@ -22,6 +22,7 @@ export type ErrorCategory =
   | 'build-error'
   | 'command-not-found'
   | 'invalid-args'
+  | 'loop-detected'
   | 'unknown';
 
 export interface ErrorAnalysis {
@@ -87,6 +88,11 @@ const ERROR_RULES: ErrorRule[] = [
     category: 'model-error',
     keywords: ['api error', 'rate limit', '429', '500', '模型', '限流'],
     fixHint: '模型 API 错误。检查 API 密钥、速率限制或网络连通性。',
+  },
+  {
+    category: 'loop-detected',
+    keywords: ['重复调用', '原地打转', '没有任何进展', '已成功执行过', '相同参数'],
+    fixHint: '检测到你在重复执行相同操作、任务没有任何进展。请立即停止重复，先 read_file 读回刚才写入的文件确认实际内容，再决定下一步：要么验证/运行已生成的文件，要么换一种完全不同的实现方式；不要再次调用相同工具或重复生成已存在的文件。',
   },
 ];
 

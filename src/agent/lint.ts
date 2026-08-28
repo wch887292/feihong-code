@@ -1,5 +1,5 @@
 /**
- * 飞虹 Code (Muse Code 参照复刻)
+ * 飞虹 Code (对标 Muse Code · 自研内核)
  * P6-1 轻量语法校验（lint）：
  *  - 用于补全结果"接受后自动 lint"反馈：Monaco/VS Code 接受补全后调用 /api/lint
  *  - 不依赖重型编译器，用括号/引号配平 + 常见错误模式做快速、可单测的校验

@@ -1,5 +1,5 @@
 /**
- * 飞虹 Code (Muse Code 参照复刻)
+ * 飞虹 Code (对标 Muse Code · 自研内核)
  * 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
  *
  * 国际化（i18n）基础设施：中英文双语界面支持。
@@ -52,7 +52,7 @@ export function setLang(lang?: Lang | string | null): void {
 /* ============================ 中文词条 ============================ */
 const ZH: Record<string, string> = {
   'app.product': '飞虹 Code',
-  'app.tagline': '终端 AI 编程智能体（Muse Code 参照复刻）',
+  'app.tagline': '终端 AI 编程智能体（对标 Muse Code / Claude Code / Cursor CLI · 自研内核差异化）',
   'app.signature':
     '晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹',
   'cli.brand': '[飞虹 Code]',

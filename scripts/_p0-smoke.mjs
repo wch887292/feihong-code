@@ -15,10 +15,10 @@ const root = process.cwd();
 console.log('===== P0-1 官方 SWE-bench Verified 链路 =====');
 try {
   const out = execSync('node scripts/_verified-sample-smoke.mjs', { cwd: root, encoding: 'utf8' });
-  const ok = !/❌/.test(out) && /通过: 11/.test(out);
-  report('官方格式链路验证 11 项', ok);
+  const ok = !/❌/.test(out) && /全部通过/.test(out);
+  report('官方格式链路验证', ok, out.match(/通过: (\d+)/)?.[1] || '');
   report('官方格式样本存在', existsSync(join(root, 'bench/swe-bench-verified-sample.json')));
-} catch { report('官方格式链路验证', false, '脚本执行失败'); }
+} catch (e) { report('官方格式链路验证', false, '脚本执行失败'); }
 
 console.log('\n===== P0-2 安全 CI + SBOM =====');
 const ci = readFileSync(join(root, '.github/workflows/ci.yml'), 'utf8');

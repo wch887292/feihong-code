@@ -58,7 +58,9 @@ test('scanDirectory: 扫描 TS 文件并跳过 node_modules/.git', () => {
     writeFileSync(join(root, 'src', 'b.ts'), 'export class Beta {}');
     writeFileSync(join(root, 'node_modules', 'x', 'junk.ts'), 'export function skipped() {}');
     writeFileSync(join(root, '.git', 'cfg.ts'), 'export function alsoSkipped() {}');
-    const symbols = scanDirectory(root, 2000);
+    // 当前 API：scanDirectory 返回 FileNode[]（每个节点含 symbols/imports），先扁平化再取符号名
+    const nodes = scanDirectory(root, 2000);
+    const symbols = nodes.flatMap((n) => n.symbols);
     const names = symbols.map((s) => s.name);
     assert.ok(names.includes('alpha'));
     assert.ok(names.includes('Beta'));
@@ -66,6 +68,9 @@ test('scanDirectory: 扫描 TS 文件并跳过 node_modules/.git', () => {
     assert.ok(!names.includes('alsoSkipped'), '.git 应跳过');
     // 路径为相对路径
     assert.ok(symbols.every((s) => s.file.startsWith('src/')));
+    // 文件节点本身带哈希与依赖信息（供增量更新/依赖图使用）
+    assert.ok(nodes.every((n) => n.path.startsWith('src/')), 'FileNode.path 应为相对路径');
+    assert.ok(nodes.every((n) => typeof n.hash === 'string' && n.hash.length > 0));
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -94,18 +99,43 @@ test('cacheSymbolIndex + loadCachedSymbolIndex: 写读往返且根路径匹配',
 });
 
 test('findSymbol / symbolsForFile / indexStats', () => {
+  // 图 API：findSymbol / symbolsForFile 接收 CodeGraph（files 记录）
+  const graph = {
+    root: '/repo',
+    builtAt: '',
+    files: {
+      'src/auth.ts': {
+        path: 'src/auth.ts',
+        hash: 'h1',
+        symbols: [
+          { name: 'login', kind: 'function', file: 'src/auth.ts', line: 10, signature: '', exported: true },
+          { name: 'User', kind: 'interface', file: 'src/auth.ts', line: 1, signature: '', exported: true },
+        ],
+        imports: [],
+      },
+      'src/legacy.ts': {
+        path: 'src/legacy.ts',
+        hash: 'h2',
+        symbols: [
+          { name: 'login', kind: 'function', file: 'src/legacy.ts', line: 3, signature: '', exported: false },
+        ],
+        imports: [],
+      },
+    },
+  };
+  assert.equal(findSymbol(graph, 'login').length, 2);
+  assert.equal(findSymbol(graph, 'nope').length, 0);
+  assert.deepEqual(symbolsForFile(graph, 'src/auth.ts').map((s) => s.name), ['login', 'User']);
+  // 兼容 API：indexStats 接收扁平 SymbolIndex
   const index = {
     root: '/repo',
     builtAt: '',
     symbols: [
-      { name: 'login', kind: 'function', file: 'src/auth.ts', line: 10 },
-      { name: 'login', kind: 'function', file: 'src/legacy.ts', line: 3 },
-      { name: 'User', kind: 'interface', file: 'src/auth.ts', line: 1 },
+      { name: 'login', kind: 'function', file: 'src/auth.ts', line: 10, signature: '', exported: true },
+      { name: 'login', kind: 'function', file: 'src/legacy.ts', line: 3, signature: '', exported: false },
+      { name: 'User', kind: 'interface', file: 'src/auth.ts', line: 1, signature: '', exported: true },
     ],
   };
-  assert.equal(findSymbol(index, 'login').length, 2);
-  assert.equal(findSymbol(index, 'nope').length, 0);
-  assert.deepEqual(symbolsForFile(index, 'src/auth.ts').map((s) => s.name), ['login', 'User']);
   const stats = indexStats(index);
   assert.equal(stats.files, 2);
   assert.equal(stats.symbols, 3);

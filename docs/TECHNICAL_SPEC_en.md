@@ -1,6 +1,6 @@
 # Feihong Code v7.0.0 Technical Specification
 
-**Version**: 7.0.0
+**Version**: 7.6.0
 **Date**: August 24, 2026
 **R&D Team**: Feihongzhi Technology Enterprise Management Co., Ltd. · Feiyang Qiyuan R&D Center
 

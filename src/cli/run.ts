@@ -1,5 +1,5 @@
 /**
- * 飞虹 Code (Muse Code 参照复刻)
+ * 飞虹 Code (对标 Muse Code · 自研内核)
  * 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
  *
  * 运行装配：把模型路由、工具、运行时、编排器组装成一次任务执行。
@@ -47,6 +47,7 @@ import {
 } from '../enterprise';
 import { startWebServer } from '../web/server';
 import { scheduleDailySummary } from '../memory/auto-summarize';
+import { scheduleSelfHeal, runSelfHealIfDue } from '../self-evolve/self-heal-scheduler';
 import { installPlugin, listPlugins } from '../plugins/plugin-loader';
 import { runTeam } from '../agent/team';
 import { fetchMarketIndex, searchMarket, installMarketSkill, isSchemaSupported } from '../skills/skill-market';
@@ -1117,6 +1118,9 @@ export function runServe(port?: number): void {
   console.log(t('serve.stop'));
   // 启动每日记忆总结定时器（每天 00:00 UTC）
   scheduleDailySummary();
+  // 自我修复调度：每天 00:00 统一执行；常驻进程启动时若今日未做则补做（"第二天第一次开机修复"）
+  scheduleSelfHeal();
+  void runSelfHealIfDue().catch(() => {});
   // 注意：app.listen 保持事件循环运行，进程持续存活直到收到 SIGINT；本函数返回后 main() 结束不影响服务。
 }
 
@@ -1127,7 +1131,7 @@ export async function runCodeWrite(goal: string): Promise<void> {
   const writer = createCodeWriter(process.cwd());
   // 离线演示：生成一个简单的工具函数
   const sampleCode = `/**
- * 飞虹 Code (Muse Code 参照复刻)
+ * 飞虹 Code (对标 Muse Code · 自研内核)
  * 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
  *
  * 示例：M8 自主编写演示
@@ -1215,6 +1219,15 @@ export async function runSelfImprove(): Promise<void> {
   console.log('\n' + t('selfimp.learnPreview', { goal: '实现一个 REST API 功能' }));
   const learned = await improver.getLearnedPrompt('实现一个 REST API 功能');
   console.log(learned || t('selfimp.noLearned'));
+}
+
+/** fhcode self-evolve <子命令>：自我迭代元技能系统（失败记录 / 技能库 / 每日复盘 / 错误模式分析）。
+ *  复用 self-evolve-cli.js 的 runCli（自包含零依赖实现），避免重复逻辑。 */
+export async function runSelfEvolve(action: string, args: string[]): Promise<void> {
+  // 该模块为 CommonJS JS 文件，无类型声明；此处用 createRequire 显式加载。
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { runCli } = require('../cli/self-evolve-cli.js') as { runCli: (argv: string[]) => void };
+  runCli([action, ...args]);
 }
 
 /* ===================== M9：全自动软件工程 Agent ===================== */
