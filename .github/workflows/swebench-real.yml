@@ -1,0 +1,84 @@
+name: SWE-bench 真实模型跑分
+
+# 在 GitHub 托管 runner 上运行（具备正常 GitHub 克隆 + Docker 能力），
+# 用真实模型（agnes-2.5-flash）生成 patch 并做真实测试验证。
+# 注意：本 workflow 需在仓库 Settings → Secrets 配置 AGNES_API_KEY。
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: '实例数上限'
+        required: false
+        default: '2'
+      instances:
+        description: '实例清单路径'
+        required: false
+        default: 'bench/swe-bench-verified-sample.json'
+  # 可选：定时跑（UTC 18:00）
+  # schedule:
+  #   - cron: '0 18 * * *'
+
+jobs:
+  real-run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 安装 swebench（验证用）
+        run: pip install --quiet swebench
+
+      - name: 克隆实例仓库到 base_commit
+        run: |
+          python - <<'PY'
+          import json, subprocess, os
+          insts = json.load(open("${{ inputs.instances }}"))
+          os.makedirs("bench/real/work", exist_ok=True)
+          for i in insts[:int("${{ inputs.limit }}")]:
+              owner, name = i["repo"].split("/")
+              d = "bench/real/work/" + name
+              if not os.path.exists(d):
+                  subprocess.run(["git", "clone", "https://github.com/%s/%s.git" % (owner, name), d], check=True)
+              subprocess.run(["git", "-C", d, "checkout", "-q", i["base_commit"]], check=True)
+          print("仓库就绪")
+          PY
+
+      - name: 真实模型生成 patch
+        env:
+          AGNES_API_KEY: ${{ secrets.AGNES_API_KEY }}
+        run: node scripts/swebench-real.mjs --instances "${{ inputs.instances }}" --limit "${{ inputs.limit }}"
+
+      - name: 真实测试验证（env-reconstructed）
+        run: python bench/real/verify.py --instances "${{ inputs.instances }}" --limit "${{ inputs.limit }}"
+
+      - name: 上传结果
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: swebench-real-results
+          path: |
+            bench/real/patches/
+            bench/real/runs/
+            bench/real/summary.json
+            bench/real/verify_summary.json
+
+      - name: 输出汇总
+        if: always()
+        run: |
+          echo "## SWE-bench 真实跑分汇总" >> "$GITHUB_STEP_SUMMARY"
+          python - <<'PY'
+          import json
+          try:
+              s = json.load(open("bench/real/verify_summary.json"))
+              print("resolved: %d / %d" % (s.get("resolved",0), s.get("total",0)), file=open("$GITHUB_STEP_SUMMARY","a"))
+          except Exception as e:
+              print("无验证结果: %s" % e, file=open("$GITHUB_STEP_SUMMARY","a"))
+          PY

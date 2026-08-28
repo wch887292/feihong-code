@@ -1,0 +1,12 @@
+diff --git a/calc.py b/calc.py
+index 3afdd0d..3a18e54 100644
+--- a/calc.py
++++ b/calc.py
+@@ -1,6 +1,6 @@
+ def add(a, b):
+     # BUG: 返回了减法结果，应为加法
+-    return a - b
++    return a + b
+ 
+ def mul(a, b):
+     return a * b
