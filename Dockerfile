@@ -11,9 +11,11 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm install
 
-# 再拷贝源码并构建（tsc 编译 + 复制 Web 静态资源，不依赖 scripts/copy-web.cjs）
+# 再拷贝源码并构建（tsc 编译 + 复制运行时资源，与 npm run build 完全一致：
+# 统一走 scripts/copy-web.cjs —— Web 静态资源 + self-evolve/manager.js + cli/self-evolve-cli.js，
+# 缺任一项启动链 require 即 MODULE_NOT_FOUND，勿再改回内联 node -e）
 COPY . .
-RUN npx tsc && node -e "const {cpSync,mkdirSync,existsSync}=require('fs'),{join}=require('path');const s=join(process.cwd(),'src','web','public'),d=join(process.cwd(),'dist','web','public');if(existsSync(s)){mkdirSync(d,{recursive:true});cpSync(s,d,{recursive:true});console.log('[copy-web] done')}"
+RUN npx tsc && node scripts/copy-web.cjs
 
 # ---------- 运行阶段 ----------
 FROM node:20-slim AS runtime
