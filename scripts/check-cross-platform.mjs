@@ -158,7 +158,11 @@ if (extPkg) {
 }
 
 // ---------- F. 运行时冒烟（可选） ----------
-if (runtime && has('dist/cli/index.js')) {
+// playwright-core 要求 Node >= 20（Node 18 下 CLI 启动即报错退出），故 Node 18 跳过 F12 并降级为警告
+const nodeMajor = Number(process.versions.node.split('.')[0]);
+if (runtime && nodeMajor < 20) {
+  warnings.push(`F12 运行时冒烟在 Node ${nodeMajor} 上跳过（playwright-core 要求 Node >= 20），请在 Node 20+ 矩阵中验证`);
+} else if (runtime && has('dist/cli/index.js')) {
   try {
     const out = execFileSync(process.execPath, [path.join(root, 'dist/cli/index.js'), '--version'], {
       encoding: 'utf8', timeout: 30000,

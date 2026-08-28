@@ -25,13 +25,16 @@ const RUNS_DIR = join(REAL_DIR, 'runs');
 mkdirSync(PATCHES_DIR, { recursive: true });
 mkdirSync(RUNS_DIR, { recursive: true });
 
-// ---- 真实模型配置（来自 ~/.feihong-code/web-config.json，agnes-2.5-flash 已验证可用）----
+// ---- 真实模型配置（密钥只从环境变量读取，严禁硬编码）----
 const MODEL = {
   name: 'agnes-2.5-flash',
-  baseURL: 'https://api.agnes-ai.cn/v1',
-  // 优先读环境变量（CI 中用 secret 注入），本地回退到内置 key
-  apiKey: process.env.AGNES_API_KEY || 'sk-SGmo9yhSYV7Pn6BwOdgzuhFTrnTlALZXpnNYsK1FsDGDLNRj',
+  baseURL: process.env.AGNES_BASE_URL || 'https://api.agnes-ai.cn/v1',
+  apiKey: process.env.AGNES_API_KEY || '',
 };
+if (!MODEL.apiKey) {
+  console.error('缺少环境变量 AGNES_API_KEY（评测专用，勿提交任何真实密钥到仓库）');
+  process.exit(1);
+}
 const MAX_ITER = 28;
 const MAX_TOOL_CALLS = 60;
 const SHELL_TIMEOUT_MS = 60000;

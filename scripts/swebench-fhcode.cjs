@@ -67,7 +67,7 @@ function cloneOrEnsureWorktree(repo, baseCommit, worktreeDir) {
   const wtPath = join(WORK_DIR, worktreeDir);
   // 若工作区已存在且 checkout 正确则直接返回
   if (existsSync(wtPath)) {
-    const current = execSync('git rev-parse --short HEAD', { cwd: wtPath, encoding: 'utf8', stdio: 'pipe' }).trim();
+    const current = execSync('git rev-parse --short=8 HEAD', { cwd: wtPath, encoding: 'utf8', stdio: 'pipe' }).trim();
     if (current === baseCommit.slice(0, 8)) {
       // reset 到干净状态
       execSync('git checkout -- . && git clean -fd', { cwd: wtPath, encoding: 'utf8', stdio: 'pipe' });
@@ -150,6 +150,7 @@ async function loadInstances(instancesPath, limit) {
   let raw;
   if (instancesPath && existsSync(instancesPath)) {
     raw = JSON.parse(readFileSync(instancesPath, 'utf8'));
+    if (limit < Infinity) raw = raw.slice(0, limit);
   } else {
     console.log('  从 HuggingFace 加载 SWE-bench_Verified（首次较慢）...');
     const { load_dataset } = require('datasets');
@@ -209,6 +210,7 @@ async function main() {
   }
   if (skipped.length) console.log(`\n⚠️ 剔除: ${skipped.join(', ')}`);
 
+  // 不设置 exitCode；SWE-bench 本来就不会 100% 通过
   if (opts.report) {
     writeFileSync(opts.report, JSON.stringify({
       date: new Date().toISOString().slice(0, 10),

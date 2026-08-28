@@ -1,9 +1,11 @@
 // 用 fhcode 同款 OpenAI-compatible 协议探测真实模型连通性
+// ⚠️ 密钥一律从环境变量读取，严禁硬编码（CI 的明文密钥扫描会拦截）
 const endpoints = [
-  { name: 'opencode/deepseek-v4-flash', base: 'https://opencode.ai/zen/v1', key: 'sk-VcQifdtS8ipKQDLFE9S09a1Fdc7F0Vlk1LmJBfzMhaUERMcj4pkmcPx6o1dJGXVN', model: 'deepseek-v4-flash' },
-  { name: 'agnes/agnes-2.5-flash', base: 'https://api.agnes-ai.cn/v1', key: 'sk-SGmo9yhSYV7Pn6BwOdgzuhFTrnTlALZXpnNYsK1FsDGDLNRj', model: 'agnes-2.5-flash' },
+  { name: 'opencode/deepseek-v4-flash', base: 'https://opencode.ai/zen/v1', key: process.env.OPENCODE_API_KEY || '', model: 'deepseek-v4-flash' },
+  { name: 'agnes/agnes-2.5-flash', base: 'https://api.agnes-ai.cn/v1', key: process.env.AGNES_API_KEY || '', model: 'agnes-2.5-flash' },
 ];
 for (const e of endpoints) {
+  if (!e.key) { console.log('[' + e.name + '] SKIP：未设置 ' + (e.name.includes('opencode') ? 'OPENCODE_API_KEY' : 'AGNES_API_KEY')); continue; }
   try {
     const r = await fetch(e.base + '/chat/completions', {
       method: 'POST',
