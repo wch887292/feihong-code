@@ -75,3 +75,4 @@ release2/
 # 本地备份与临时补丁（不入库）
 dist.bak-*/
 tp.patch
+bench/real/work/
