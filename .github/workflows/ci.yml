@@ -39,11 +39,16 @@ jobs:
         run: npm run build
       - name: 跨端一致性冒烟（桌面/移动/扩展）
         run: npm run check:cross -- --runtime
+      # Node 18 跳过运行时 CLI 步骤：CLI 启动时即加载 playwright-core（硬要求 Node>=20），
+      # 故 Node 18 仅验证构建/类型检查/跨端契约（见 check:cross 的 F12 守卫），不实际运行 CLI。
       - name: CLI 可用性
+        if: ${{ matrix.node != 18 }}
         run: node dist/cli/index.js --version
       - name: 离线端到端闭环
+        if: ${{ matrix.node != 18 }}
         run: node dist/cli/index.js "离线冒烟：创建一个说明文件"
       - name: 只读技能
+        if: ${{ matrix.node != 18 }}
         run: |
           node dist/cli/index.js /plan "实现登录并且添加支付"
           node dist/cli/index.js /grill src
