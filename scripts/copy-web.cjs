@@ -1,5 +1,5 @@
 /**
- * 飞虹 Code (Muse Code 参照复刻)
+ * 飞虹 Code (对标 Muse Code · 自研内核)
  * 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
  *
  * 构建后处理：
@@ -32,4 +32,14 @@ if (existsSync(mgrSrc)) {
   mkdirSync(join(root, 'dist', 'self-evolve'), { recursive: true });
   cpSync(mgrSrc, mgrDst);
   console.log('[copy-web] 已复制 self-evolve/manager.js -> ' + mgrDst);
+}
+
+// 3. self-evolve-cli.js（CommonJS，tsc 不编译；dist/cli/run.js 运行时 require 它，
+//    不复制则构建产物中 `fhcode self-evolve` 报模块缺失）
+const cliSrc = join(root, 'src', 'cli', 'self-evolve-cli.js');
+const cliDst = join(root, 'dist', 'cli', 'self-evolve-cli.js');
+if (existsSync(cliSrc)) {
+  mkdirSync(join(root, 'dist', 'cli'), { recursive: true });
+  cpSync(cliSrc, cliDst);
+  console.log('[copy-web] 已复制 self-evolve-cli.js -> ' + cliDst);
 }

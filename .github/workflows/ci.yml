@@ -29,10 +29,14 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
       - run: npm install
+      - name: 版本号一致性（package.json 为单一权威源）
+        run: npm run check:version
       - name: 类型检查
         run: npm run typecheck
       - name: 编译
         run: npm run build
+      - name: 跨端一致性冒烟（桌面/移动/扩展）
+        run: npm run check:cross -- --runtime
       - name: CLI 可用性
         run: node dist/cli/index.js --version
       - name: 离线端到端闭环
@@ -108,6 +112,8 @@ jobs:
             echo "::error::检出疑似明文 API Key"
             exit 1
           fi
+      - name: 合规宣称扫描（对外材料不得宣称已获第三方认证）
+        run: npm run check:compliance
           echo "密钥扫描通过"
       - run: npm audit --omit=dev --audit-level=high
         continue-on-error: true

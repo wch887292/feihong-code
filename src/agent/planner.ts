@@ -1,5 +1,5 @@
 /**
- * 飞虹 Code (Muse Code 参照复刻)
+ * 飞虹 Code (对标 Muse Code · 自研内核)
  * 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
  *
  * 规划器：
@@ -57,8 +57,11 @@ export function decomposeGoal(goal: string): SubTask[] {
 }
 
 /** 按中文/英文常见并列连词与标点拆分。
- *  拆分后会合并过短的片段（< MIN_FRAGMENT_LEN 字）回前一个，避免连贯句子被撕碎。 */
-const MIN_FRAGMENT_LEN = 12;
+ *  拆分后会合并过短的片段回前一个，避免连贯句子被撕碎。
+ *  阈值取 5：4 字以内（如"修改内容""先读文件"）是悬垂续接片段，应合并；
+ *  5 字以上（如"实现登录模块""添加用户管理"）可承载完整独立任务，应保留为独立子任务。
+ *  （曾用 12 导致"X 并且 Y"中 6 字级的合法任务被合并成一段，拆解失效。） */
+const MIN_FRAGMENT_LEN = 5;
 
 function splitByConjunctions(text: string): string[] {
   const raw = text
@@ -77,7 +80,9 @@ function splitByConjunctions(text: string): string[] {
   }
   // 若合并后只有一段，尝试按「做X和Y」式并列再拆
   if (merged.length <= 1) {
-    const alt = text.split(/(?:和|与|、|以及|并|加上)/).map((s) => s.trim()).filter(Boolean);
+    // 注意：'并且' 必须排在 '并' 之前，否则会先把 '并且' 的 '并' 命中，
+    // 把 '且…' 拆成 5 字级残片，破坏主拆分已形成的语义。
+    const alt = text.split(/(?:并且|和|与|、|以及|并|加上)/).map((s) => s.trim()).filter(Boolean);
     if (alt.length > 1) {
       const mergedAlt: string[] = [];
       for (const frag of alt) {

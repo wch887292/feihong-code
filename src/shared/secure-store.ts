@@ -71,15 +71,21 @@ export function isEncrypted(s: unknown): boolean {
   return typeof s === 'string' && s.startsWith('v1:');
 }
 
-/** RSA-2048 密钥对：首次生成并持久化，后续复用 */
+/** RSA-2048 密钥对：首次生成并持久化，后续复用；读取到空/无效密钥时自动重建 */
 export function getRsaKeys(homeDir: string): { publicKey: string; privateKey: string } {
   const pubFile = join(homeDir, 'rsa_public.pem');
   const prvFile = join(homeDir, 'rsa_private.pem');
   if (existsSync(pubFile) && existsSync(prvFile)) {
-    return {
-      publicKey: readFileSync(pubFile, 'utf8'),
-      privateKey: readFileSync(prvFile, 'utf8'),
-    };
+    try {
+      const pub = readFileSync(pubFile, 'utf8');
+      const prv = readFileSync(prvFile, 'utf8');
+      // 防御性校验：密钥必须包含 PEM 标记且非空，否则视为损坏，重新生成
+      if (pub && pub.includes('BEGIN PUBLIC KEY') && prv && prv.includes('BEGIN PRIVATE KEY')) {
+        return { publicKey: pub, privateKey: prv };
+      }
+    } catch {
+      // 读取失败，走重新生成逻辑
+    }
   }
   try {
     mkdirSync(homeDir, { recursive: true });

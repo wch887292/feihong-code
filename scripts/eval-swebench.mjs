@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 飞虹 Code (Muse Code 参照复刻)
+ * 飞虹 Code (对标 Muse Code · 自研内核)
  * 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
  *
  * v0.5.0-b M2.1：SWE-bench 数据集加载器（下载 + 缓存 + 解析）。

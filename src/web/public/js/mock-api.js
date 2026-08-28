@@ -12,6 +12,22 @@
  */
 (function () {
   if (window.__feihongMockInstalled) return;
+
+  // ========== 环境检测：仅在安卓离线模式下激活 Mock ==========
+  // Web 控制台通过 http://localhost:8080 加载，有真实 Node.js 后端，不应拦截 fetch。
+  // 安卓 WebView 通过 file:// 或 content:// 加载本地 HTML，无后端，才需要 Mock。
+  var proto = (location.protocol || '').toLowerCase();
+  var isAndroid = /android/i.test(navigator.userAgent || '');
+  var isLocalFile = proto === 'file:' || proto === 'content:';
+  // 仅在「安卓 + 本地文件协议」下激活 Mock；其他情况（Web 控制台、远程服务器）直接放行
+  if (!(isAndroid && isLocalFile)) {
+    console.log('[MockAPI] 检测到 HTTP 环境，跳过 Mock 拦截（mode=passthrough）');
+    window.__feihongMockInstalled = true;
+    window.FeiHongApp = window.FeiHongApp || {};
+    window.FeiHongApp.isMock = function () { return false; };
+    return;
+  }
+
   window.__feihongMockInstalled = true;
 
   // ========== 远程服务器配置 ==========
@@ -68,6 +84,15 @@
     // 健康检查
     if (lower === '/api/health') {
       return ok({ product: '飞虹 Code', version: '7.0.0', enterprise: true, signature: '安卓版 · 离线演示模式', mode: 'mock', time: new Date().toISOString() });
+    }
+
+    // 安全：加密公钥（Mock 模式下返回固定测试公钥，仅供前端加密流程演示）
+    if (lower === '/api/security/public-key') {
+      return ok({
+        ok: true,
+        publicKey: '-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmock-public-key-for-demo-only\n-----END PUBLIC KEY-----',
+        algorithm: 'RSA-OAEP-2048-SHA256'
+      });
     }
 
     // 模型

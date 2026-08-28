@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 飞虹 Code (Muse Code 参照复刻)
+ * 飞虹 Code (对标 Muse Code · 自研内核)
  * 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
  *
  * CLI 入口：参数解析 → 版本/帮助/单命令/REPL/管理命令 分发
@@ -40,6 +40,7 @@ runSkillNewCmd,
   runCodeWrite,
   runQualityGate,
   runSelfImprove,
+  runSelfEvolve,
   runSwe,
   runModelStats,
   runExperiences,
@@ -142,6 +143,7 @@ async function dispatchManage(m: ManagementCommand): Promise<void> {
     case 'code-write': runCodeWrite(m.goal); break;
     case 'quality-gate': runQualityGate(m.path); break;
     case 'self-improve': await runSelfImprove(); break;
+    case 'self-evolve': await runSelfEvolve(m.action, m.args); break;
     case 'model-stats': runModelStats(); break;
     case 'experiences': runExperiences(m.path); break;
     case 'harness': await runHarness({

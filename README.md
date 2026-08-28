@@ -6,7 +6,7 @@
   "@context": "https://schema.org",
   "@type": "SoftwareSourceCode",
   "name": "飞虹 Code (fhcode)",
-  "description": "终端 AI 编程智能体，对标 Meta Muse Code。多模型路由、企业级 RBAC/审计/多租户、全自动 SWE Agent、离线私有化。支持 DeepSeek/通义/Ollama/OpenAI 兼容网关。",
+  "description": "终端 AI 编程智能体，对标 Meta Muse Code / Claude Code / Cursor CLI 等国际同类产品，以自研内核实现差异化。多模型路由、企业级 RBAC/审计/多租户、全自动 SWE Agent、离线私有化。支持 DeepSeek/通义/Ollama/OpenAI 兼容网关。",
   "url": "https://github.com/wch887292/feihong-code",
   "license": "https://opensource.org/licenses/MIT",
   "programmingLanguage": {
@@ -14,7 +14,7 @@
     "name": "TypeScript"
   },
   "operatingSystem": "Cross-platform (Windows, Linux, macOS)",
-  "softwareVersion": "0.6.0",
+  "softwareVersion": "7.6.0",
   "dateCreated": "2026-08-12",
   "datePublished": "2026-08-22",
   "author": {
@@ -37,7 +37,7 @@
     "https://www.klai.top/opensource.html"
   ],
   "featureList": [
-    "M0-M9.1 全功能里程碑",
+    "核心能力里程碑 M0-M9.1 全部交付",
     "多模型路由 (DeepSeek/通义/Ollama/OpenAI)",
     "企业级 RBAC 权限矩阵",
     "防篡改审计哈希链",
@@ -55,7 +55,7 @@
 
 # 飞虹 Code（fhcode）
 
-> **终端 AI 编程智能体** · 对标 Meta Muse Code · 全功能 M0→M9.1 完成 · 企业级 RBAC/审计/SWE Agent
+> **终端 AI 编程智能体** · 对标 Meta Muse Code / Claude Code / Cursor CLI · 自研内核实现差异化 · 全功能 M0→M9.1 完成 · 企业级 RBAC/审计/SWE Agent
 > 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
@@ -115,7 +115,9 @@ export FH_ROLE=developer
 
 ## 一、产品定位
 
-**飞虹 Code（fhcode）** 是一款运行在终端的 **AI 编程智能体**，参照 Meta Muse Code 的设计理念：用自然语言描述需求，智能体自主完成**规划 → 读写代码 → 运行验证 → 汇报结果**的闭环。
+**飞虹 Code（fhcode）** 是一款运行在终端的 **AI 编程智能体**，以 Meta Muse Code、Claude Code、Cursor CLI 等国际同类产品为**对标参照系**，独立自研内核：用自然语言描述需求，智能体自主完成**规划 → 读写代码 → 运行验证 → 汇报结果**的闭环。
+
+> **关于"对标"的措辞基线**：本项目对外统一使用 **「对标 / 对比 / 参考 / 差异化」** 四种表述 —— **对标**指以同类产品作为行业参照系来校准能力水位；**参考**指借鉴已被验证的交互范式与产品形态；**差异化**指本项目自研实现、与参照对象形成区隔的独有能力。本项目是**独立设计与实现的原创工程**，非分叉、非移植、非克隆，代码库不包含任何第三方闭源或受限制代码。
 
 **🎯 适用场景**：
 - 代码生成与修改（函数、模块、完整功能）
@@ -131,7 +133,9 @@ export FH_ROLE=developer
 
 ---
 
-### 🆚 与其他工具对比
+### 🆚 对标对比矩阵
+
+> 下表为**功能性对标参考**，用于说明能力覆盖水位差异，非性能跑分；信息依据各产品公开文档与本项目实测整理，供选型时对照参考。
 
 | 能力 | **fhcode（飞虹 Code）** | Claude Code | Cursor CLI | Aider | OpenCode |
 |---|---|---|---|---|---|
@@ -145,6 +149,22 @@ export FH_ROLE=developer
 | 开源可自托管（MIT） | ✅ | ❌ | ❌ | ✅ Apache-2.0 | ✅ MIT |
 
 > 最适合：**数据不出内网**、需要**企业权限审计**、希望**混合调度多家大模型**的团队与个人开发者。
+
+### 🎯 差异化能力（自研内核）
+
+上表说明"能力有无"，下表说明"同样的能力，fhcode 做得有何不同" —— 这部分是本项目**独立设计与实现**的结果，也是与对标对象形成区隔的核心。
+
+| 差异化维度 | fhcode 的实现 | 同类产品普遍现状 |
+|---|---|---|
+| 模型调度 | 统一网关抽象层，DeepSeek / 通义 / Ollama / 任意 OpenAI 兼容端点按成本与能力动态路由 | 多数绑定单一模型厂商，切换成本高 |
+| 离线私有化 | Ollama 本地推理 + 全链路断网可用，代码与数据不出内网 | 多数强依赖云端 API，无法满足内网合规 |
+| 企业治理 | RBAC 权限矩阵 + 防篡改审计哈希链 + 多租户物理隔离 + 配额成本熔断，四件套开箱即用 | 多为个人向工具，缺权限与审计体系 |
+| 自我进化（M6） | 经验库沉淀 + 自愈循环，失败模式跨会话复用，越用越准 | 基本无对应机制 |
+| 并行隔离（M2） | `git worktree` 为每个子代理建立物理隔离工作区，并发推进零冲突 | 部分支持，隔离强度与冲突处理参差 |
+| 可恢复性（M3） | append-only 事件日志为单一可信源，会话可断点恢复、可完整回放 | 会话状态多不可恢复，中断即重来 |
+| 授权与自托管 | MIT 许可，源码开放，支持完全私有化部署与二次开发 | 主流产品为闭源商业服务 |
+
+> **一句话区分**：对标产品解决"个人开发者如何更快写代码"，fhcode 额外解决"**团队如何在合规边界内、可审计地、用可控成本把 AI 编程落地到生产**"。
 
 ### 📸 产品截图
 
@@ -182,11 +202,12 @@ export FH_ROLE=developer
 - **CI/CD 就绪**：GitHub Actions 三流水线（build/enterprise/security），零 Secrets 可跑
 - **Docker 多阶段构建**：支持容器化部署
 
-### 🎯 SWE-bench 真实跑分（v7.2.0 公开，诚实口径）
-- **测试通过率 80%（4/5）**：自建 SWE-bench 格式任务集（problem_statement + FAIL_TO_PASS，5 个自包含 JS 任务），真实模型驱动 Orchestrator 修复 + **预定义测试 `node --test` 真实断言**（不交给模型）。
+### 🎯 SWE-bench 真实跑分（v7.6.0 复测，诚实口径）
+- **测试通过率 100%（5/5）**：自建 SWE-bench 格式任务集（problem_statement + FAIL_TO_PASS，5 个自包含 JS 任务），真实模型（agnes-2.5-flash）驱动 Orchestrator 修复 + **预定义测试 `node --test` 真实断言**（测试不交给模型，防作弊）。2026-08-27 复测：5 例全过，平均迭代 2.2 次/例。（v7.2.0 首测为 80%/4-5，本次模型稳定性提升至全过。）
 - **harness 闭环 2/2 = 100%**：loader→executor→verifier→reporter 全链路真实可执行。
-- **复现**：`node scripts/_swe-bench-real.mjs`（真实跑分）、`node scripts/_swe-smoke.mjs`（mock 闭环）。
-- **诚实说明**：以上为自建任务集实测，非官方 SWE-bench Verified 500 任务集成绩；官方集需 Docker+pytest 环境，尚未复测，故不对官方榜单声明成绩。行业参考（SWE-bench Verified，2026 公开）：Claude Opus 4.8=88.6%、豆包 Doubao-Seed-Code+TRAE=78.80%。详见 `docs/BENCHMARK_REPORT_zh.md` 第十三章。
+- **官方 SWE-bench Verified 数据集已验证可达**：`node scripts/_swe-fetch.mjs` 成功从 HuggingFace datasets-server 拉取官方实例（django/django-11099），官方 harness（`--verifier test` 跑 FAIL_TO_PASS）已就绪。
+- **复现**：`node scripts/_swe-bench-real.mjs`（真实跑分）、`node scripts/_swe-smoke.mjs`（mock 闭环）、`node scripts/_swe-fetch.mjs`（拉取官方数据集）。
+- **诚实说明**：以上 100% 为自建 JS 任务集实测，**非官方 SWE-bench Verified 500 任务集成绩**；官方集为 Python 大仓库（django/sympy/astropy 等），需 Docker+pytest 环境逐例 clone 执行，耗时较长，尚未出全量分数，故不对官方榜单声明成绩。官方跑分命令见 `docs/SWE_BENCH_REPORT.md`。行业参考（SWE-bench Verified，2026 公开）：Claude Opus 4.8=88.6%、豆包 Doubao-Seed-Code+TRAE=78.80%。详见 `docs/BENCHMARK_REPORT_zh.md` 第十三章。
 
 ---
 
@@ -520,6 +541,12 @@ node dist/cli/index.js --version
 ---
 
 ## 十二、里程碑进度
+
+> **📌 版本号与里程碑是两套编号，相互解耦**
+>
+> - **M0→M9.1** 是**能力里程碑**（工程开发阶段编号）：2026-08 上旬全部交付后**冻结，不再扩展**。它回答"哪些核心能力已建成"。
+> - **7.x** 是**产品化成熟度版本号**（SemVer）：M 里程碑交付完成后（v7.0.0 起）进入持续产品化迭代——桌面版、Web 控制台、SWE-bench 差分验证 harness、企业治理、自进化经验库、语音编程等均以 7.x 版本号发布。它回答"产品打磨到了什么程度"。
+> - 因此**不存在"版本 7.6 却只有 M9"的矛盾**：M 编号停止增长是设计使然，能力演进体现在 7.x 的次版本号中。
 
 | 里程碑 | 内容 | 状态 |
 | --- | --- | --- |

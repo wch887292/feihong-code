@@ -83,8 +83,13 @@ test('TestVerifier 命令未过受管约束时判不通过', async () => {
   try {
     // 用拼接构造危险命令，避免测试源码出现字面量触发静态过滤
     const dangerous = ['rm', '-rf', '/'].join(' ');
+    // 无 FAIL_TO_PASS 实例 → testCommand 会被直接执行，必须被受管约束拦截
+    const noFtp: HarnessInstance = { ...BASE_INSTANCE, FAIL_TO_PASS: [], PASS_TO_PASS: [] };
     const v = new TestVerifier({ testCommand: dangerous });
-    assert.equal(await v.verify(dir, BASE_INSTANCE), false, '危险命令应被拦截');
+    assert.equal(await v.verify(dir, noFtp), false, '危险命令应被拦截');
+    // 有 FAIL_TO_PASS 时优先跑用例命令（npm test -- <id>），testCommand 不会被执行
+    const v2 = new TestVerifier({ testCommand: dangerous });
+    assert.equal(await v2.verify(dir, BASE_INSTANCE), false, '空工作区 npm test 应失败');
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -103,6 +108,73 @@ test('TestVerifier 空工作区跑默认套件失败，含可运行测试时通�
       'utf8',
     );
     assert.equal(await v.verify(dir, BASE_INSTANCE), true, '测试命令退出码 0 应通过');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('TestVerifier SWE-bench 语义：FAIL_TO_PASS 与 PASS_TO_PASS 缺一不可', async () => {
+  const dir = tmpDir();
+  try {
+    // 受管命令白名单只放行 npm/pnpm/yarn/bun，用 npm run 脚本模拟通过/失败
+    writeFileSync(
+      join(dir, 'package.json'),
+      JSON.stringify({
+        name: 't',
+        scripts: {
+          pass: 'node -e "process.exit(0)"',
+          fail: 'node -e "process.exit(1)"',
+        },
+      }),
+      'utf8',
+    );
+    const inst: HarnessInstance = { ...BASE_INSTANCE, PASS_TO_PASS: ['test_legacy'] };
+    const passCmd = 'npm run pass';
+    const failCmd = 'npm run fail';
+
+    // FTP 通过 + P2P 失败 → 回归被破坏，判为不通过
+    const broken = new TestVerifier({ failToPassCommand: passCmd, passToPassCommand: failCmd });
+    assert.equal(await broken.verify(dir, inst), false, 'PASS_TO_PASS 回归失败应拦截');
+
+    // FTP 通过 + P2P 通过 → 通过
+    const ok = new TestVerifier({ failToPassCommand: passCmd, passToPassCommand: passCmd });
+    assert.equal(await ok.verify(dir, inst), true, 'FTP 与 P2P 均通过才算通过');
+
+    // FTP 失败 → 不通过（不再跑 P2P）
+    const ftpFail = new TestVerifier({ failToPassCommand: failCmd, passToPassCommand: passCmd });
+    assert.equal(await ftpFail.verify(dir, inst), false, 'FAIL_TO_PASS 未通过应拦截');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('TestVerifier beforeCommand：修复前 FAIL_TO_PASS 原本失败才算有效验证', async () => {
+  const dir = tmpDir();
+  try {
+    writeFileSync(
+      join(dir, 'package.json'),
+      JSON.stringify({
+        name: 't',
+        scripts: {
+          pass: 'node -e "process.exit(0)"',
+          fail: 'node -e "process.exit(1)"',
+        },
+      }),
+      'utf8',
+    );
+    const inst: HarnessInstance = { ...BASE_INSTANCE, PASS_TO_PASS: [] };
+    // 修复前用例本来已通过（无失败）→ 验证无效，判不通过（防"测试本来就过"假阳性）
+    const noPreFail = new TestVerifier({
+      failToPassCommand: 'npm run pass',
+      beforeCommand: 'npm run pass',
+    });
+    assert.equal(await noPreFail.verify(dir, inst), false, '修复前无失败用例应判不通过');
+    // 修复前失败 + 修复后通过 → 有效通过
+    const valid = new TestVerifier({
+      failToPassCommand: 'npm run pass',
+      beforeCommand: 'npm run fail',
+    });
+    assert.equal(await valid.verify(dir, inst), true, '修复前失败、修复后通过才算有效');
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

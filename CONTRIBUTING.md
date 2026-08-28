@@ -1,6 +1,6 @@
 # 贡献指南（CONTRIBUTING）
 
-感谢关注 **飞虹 Code（Muse Code 参照复刻）**。本文件约定开发协作规范，请提交前阅读。
+感谢关注 **飞虹 Code（对标 Muse Code，自研内核）**。本文件约定开发协作规范，请提交前阅读。
 
 ## 一、项目署名（强制）
 
@@ -14,7 +14,7 @@
 
 ```ts
 /**
- * 飞虹 Code (Muse Code 参照复刻)
+ * 飞虹 Code (对标 Muse Code / 自研内核)
  * 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
  */
 ```
@@ -52,6 +52,13 @@ src/
 - 提交信息用中文，句式「动词 + 内容」，如：`feat: 新增 ollama provider`、`fix: 修复 zod v4 record 校验`。
 - 不提交 `node_modules/`、`dist/`、`.env`、日志与本地 demo 产物（见 `.gitignore`）。
 - 大改动先建分支，描述清楚动机与验证方式。
+
+## 四点五、版本号管理（单一权威源）
+
+- **权威源只有一处：`package.json` 的 `version` 字段**。其余落点（`src/cli/version.ts`、`android/app/build.gradle` 的 `versionName`、`CHANGELOG.md` 最新段、`README.md` JSON-LD `softwareVersion`）均为**派生值，禁止手改**。
+- **升版一律用脚本**：`npm run bump -- 7.7.0`（自动同步全部派生落点 + versionCode 自增），随后在 `CHANGELOG.md` 顶部补写新版本段。
+- **CI 强制校验**：`npm run check:version` 已接入 `npm run verify` 与 CI build job，任何不一致会阻塞合并。
+- **两套编号解耦**：M0→M9.1 为能力里程碑（已冻结），7.x 为产品化成熟度版本号，说明见 README §十二。
 
 ## 五、本地开发
 

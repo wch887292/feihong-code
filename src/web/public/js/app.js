@@ -953,11 +953,12 @@
       const box = document.getElementById('messages');
       const el = document.createElement('div');
       el.className = 'msg ' + role;
-      if (extras.html) el.innerHTML = extras.html;
+      const actionsHtml = (typeof renderMsgActions === 'function') ? renderMsgActions() : '';
+      if (extras.html) el.innerHTML = actionsHtml + extras.html;
       else if (extras.file) {
-        el.innerHTML = '<span class="file-chip" data-path="' + escapeHtml(extras.file) + '" data-type="' + escapeHtml(extras.mime || 'file') + '">📎 ' + escapeHtml(extras.name) + '</span>';
+        el.innerHTML = actionsHtml + '<span class="file-chip" data-path="' + escapeHtml(extras.file) + '" data-type="' + escapeHtml(extras.mime || 'file') + '">📎 ' + escapeHtml(extras.name) + '</span>';
       } else {
-        el.innerHTML = linkifyArtifacts(text);
+        el.innerHTML = actionsHtml + linkifyArtifacts(text);
       }
       box.appendChild(el);
       box.scrollTop = box.scrollHeight;
@@ -1178,142 +1179,164 @@
     });
 
 
-    // 截图锁，防止重复触发
-    let screenshotRunning = false;
+    // ========== 截图功能（极简重写版） ==========
+    let _screenshotBusy = false;
 
     async function takeScreenshot() {
-      if (screenshotRunning) {
-        toast('正在截图中，请稍候...');
-        return;
-      }
-      screenshotRunning = true;
+      if (_screenshotBusy) { toast('正在截图中，按 ESC 可取消'); return; }
+      _screenshotBusy = true;
+
+      const overlay = document.getElementById('cropOverlay');
+      const selection = document.getElementById('cropSelection');
+      let stream = null;
+      let cleanup = null;
+
       try {
-        const overlay = document.getElementById('cropOverlay');
-        const selection = document.getElementById('cropSelection');
-        const video = document.getElementById('cropVideo');
+        // 1. 获取屏幕共享流（请求高分辨率）
+        toast('请选择要截取的屏幕或窗口...');
+        stream = await navigator.mediaDevices.getDisplayMedia({
+          video: { width: { ideal: 3840 }, height: { ideal: 2160 }, frameRate: { ideal: 30 } }
+        });
 
-        let srcImage = null; // 用于裁剪的源图像（Image 对象）
-        let stream = null;   // 浏览器模式下的视频流
+        // 2. 用 video 播放流，等待元数据加载完成（确保 videoWidth/Height 有效）
+        const video = document.createElement('video');
+        video.style.display = 'none';
+        video.srcObject = stream;
+        video.muted = true;
+        await new Promise((resolve, reject) => {
+          video.onloadedmetadata = () => { video.play().then(resolve).catch(reject); };
+          video.onerror = () => reject(new Error('视频加载失败'));
+          setTimeout(() => reject(new Error('视频加载超时')), 5000);
+        });
 
-        // Electron 环境：用主进程截图，更稳定
-        if (window.isElectron && window.electronAPI && window.electronAPI.screenshot) {
-          toast('正在截取屏幕...');
-          const result = await window.electronAPI.screenshot.capture();
-          if (!result || !result.success) {
-            toast('截图失败：' + (result?.error || '未知错误'));
-            return;
-          }
-          // 加载截图为 Image 对象
-          srcImage = new Image();
-          srcImage.src = result.dataUrl;
-          await new Promise((resolve, reject) => {
-            srcImage.onload = resolve;
-            srcImage.onerror = () => reject(new Error('截图加载失败'));
-          });
-          // 把截图显示到 video 元素的位置（用一个 img 覆盖）
-          video.style.display = 'none';
-          let bgImg = document.getElementById('cropBgImg');
-          if (!bgImg) {
-            bgImg = document.createElement('img');
-            bgImg.id = 'cropBgImg';
-            bgImg.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;object-fit:cover;z-index:9998;';
-            overlay.appendChild(bgImg);
-          }
-          bgImg.src = result.dataUrl;
-          bgImg.style.display = 'block';
-        } else {
-          // 浏览器模式：用 getDisplayMedia
-          stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-          video.srcObject = stream;
-          await video.play();
-          video.style.display = 'block';
-          const bgImg = document.getElementById('cropBgImg');
-          if (bgImg) bgImg.style.display = 'none';
+        const vw = video.videoWidth, vh = video.videoHeight;
+        if (!vw || !vh) throw new Error('屏幕画面尺寸无效');
+
+        // 3. 隐藏当前页面，避免截到自己（抓帧后立即恢复）
+        const docEl = document.documentElement;
+        const prevVis = docEl.style.visibility;
+        docEl.style.visibility = 'hidden';
+        await new Promise(r => requestAnimationFrame(r));
+        await new Promise(r => setTimeout(r, 200));
+
+        // 4. canvas 抓帧
+        const capCanvas = document.createElement('canvas');
+        capCanvas.width = vw; capCanvas.height = vh;
+        capCanvas.getContext('2d').drawImage(video, 0, 0, vw, vh);
+        const fullDataUrl = capCanvas.toDataURL('image/png');
+
+        // 5. 停止流 + 恢复页面
+        stream.getTracks().forEach(t => t.stop());
+        stream = null;
+        docEl.style.visibility = prevVis;
+
+        // 6. 加载为 Image 对象供裁剪
+        const srcImg = new Image();
+        srcImg.src = fullDataUrl;
+        await new Promise((resolve, reject) => {
+          srcImg.onload = resolve;
+          srcImg.onerror = () => reject(new Error('截图加载失败'));
+        });
+
+        // 7. 显示裁剪 overlay
+        let bgImg = document.getElementById('cropBgImg');
+        if (!bgImg) {
+          bgImg = document.createElement('img');
+          bgImg.id = 'cropBgImg';
+          bgImg.style.cssText = 'position:fixed;inset:0;width:100vw;height:100vh;object-fit:scale-down;object-position:center;background:#000;z-index:9998;pointer-events:none;';
+          overlay.appendChild(bgImg);
         }
-
+        bgImg.src = fullDataUrl;
+        bgImg.style.display = 'block';
         overlay.style.display = 'block';
         selection.style.display = 'none';
-        let startX = 0, startY = 0, drawing = false;
 
-        const onDown = (e) => {
-          drawing = true;
-          startX = e.clientX; startY = e.clientY;
-          selection.style.display = 'block';
-          selection.style.left = startX + 'px';
-          selection.style.top = startY + 'px';
-          selection.style.width = '0px';
-          selection.style.height = '0px';
-        };
-        const onMove = (e) => {
-          if (!drawing) return;
-          const x = Math.min(e.clientX, startX), y = Math.min(e.clientY, startY);
-          const w = Math.abs(e.clientX - startX), h = Math.abs(e.clientY - startY);
-          selection.style.left = x + 'px';
-          selection.style.top = y + 'px';
-          selection.style.width = w + 'px';
-          selection.style.height = h + 'px';
-        };
-        const finish = async (e) => {
-          if (!drawing) return;
-          drawing = false;
-          window.removeEventListener('mousedown', onDown);
-          window.removeEventListener('mousemove', onMove);
-          window.removeEventListener('mouseup', finish);
-          const x = Math.min(e.clientX, startX), y = Math.min(e.clientY, startY);
-          const w = Math.abs(e.clientX - startX), h = Math.abs(e.clientY - startY);
-          overlay.style.display = 'none';
-          if (w < 8 || h < 8) {
-            if (stream) stream.getTracks().forEach((t) => t.stop());
-            return;
-          }
-          try {
-            let srcW, srcH, source;
-            if (srcImage) {
-              // Electron 模式：从 Image 裁剪
-              srcW = srcImage.naturalWidth;
-              srcH = srcImage.naturalHeight;
-              source = srcImage;
-            } else {
-              // 浏览器模式：从 video 裁剪
-              srcW = video.videoWidth;
-              srcH = video.videoHeight;
-              source = video;
-            }
-            const scaleX = srcW / window.innerWidth, scaleY = srcH / window.innerHeight;
-            const sx = Math.round(x * scaleX), sy = Math.round(y * scaleY);
-            const sw = Math.round(w * scaleX), sh = Math.round(h * scaleY);
-            const canvas = document.createElement('canvas');
-            canvas.width = sw; canvas.height = sh;
-            canvas.getContext('2d').drawImage(source, sx, sy, sw, sh, 0, 0, sw, sh);
-            if (stream) stream.getTracks().forEach((t) => t.stop());
-            const dataUrl = canvas.toDataURL('image/png');
-            stageFile({ name: 'screenshot.png', mime: 'image/png', dataUrl });
-            toast('截图已添加到输入框，可直接输入文字发送');
-          } catch (err) { toast('截图失败：' + err.message); }
-          screenshotRunning = false;
-        };
-        const onKey = (e) => {
-          if (e.key === 'Escape') {
-            overlay.style.display = 'none';
-            if (stream) stream.getTracks().forEach((t) => t.stop());
+        // 8. 等待用户拖拽选择区域
+        const result = await new Promise((resolve) => {
+          let sx = 0, sy = 0, dragging = false;
+
+          const onDown = (e) => {
+            dragging = true;
+            sx = e.clientX; sy = e.clientY;
+            selection.style.display = 'block';
+            selection.style.left = sx + 'px';
+            selection.style.top = sy + 'px';
+            selection.style.width = '0px';
+            selection.style.height = '0px';
+          };
+          const onMove = (e) => {
+            if (!dragging) return;
+            const x = Math.min(e.clientX, sx), y = Math.min(e.clientY, sy);
+            const w = Math.abs(e.clientX - sx), h = Math.abs(e.clientY - sy);
+            selection.style.left = x + 'px';
+            selection.style.top = y + 'px';
+            selection.style.width = w + 'px';
+            selection.style.height = h + 'px';
+          };
+          const onUp = (e) => {
+            if (!dragging) return;
+            dragging = false;
+            const x = Math.min(e.clientX, sx), y = Math.min(e.clientY, sy);
+            const w = Math.abs(e.clientX - sx), h = Math.abs(e.clientY - sy);
+            cleanup();
+            if (w < 10 || h < 10) { resolve(null); return; }
+            resolve({ x, y, w, h });
+          };
+          const onKey = (e) => {
+            if (e.key === 'Escape') { cleanup(); resolve(null); }
+          };
+
+          cleanup = () => {
             window.removeEventListener('mousedown', onDown);
             window.removeEventListener('mousemove', onMove);
-            window.removeEventListener('mouseup', finish);
+            window.removeEventListener('mouseup', onUp);
             window.removeEventListener('keydown', onKey);
-            screenshotRunning = false;
-          }
-        };
-        window.addEventListener('mousedown', onDown);
-        window.addEventListener('mousemove', onMove);
-        window.addEventListener('mouseup', finish);
-        window.addEventListener('keydown', onKey);
-      } catch (e) {
-        if (e.name === 'NotAllowedError') {
-          toast('已取消截图。也可以用 Win+Shift+S 截图后直接粘贴到输入框');
-        } else {
-          toast('截图失败：' + e.message);
+            overlay.style.display = 'none';
+            selection.style.display = 'none';
+          };
+
+          window.addEventListener('mousedown', onDown);
+          window.addEventListener('mousemove', onMove);
+          window.addEventListener('mouseup', onUp);
+          window.addEventListener('keydown', onKey);
+        });
+
+        // 9. 用户取消
+        if (!result) {
+          toast('已取消截图');
+          _screenshotBusy = false;
+          return;
         }
-        screenshotRunning = false;
+
+        // 10. 裁剪选中区域
+        const scaleX = srcImg.naturalWidth / window.innerWidth;
+        const scaleY = srcImg.naturalHeight / window.innerHeight;
+        const cropCanvas = document.createElement('canvas');
+        cropCanvas.width = Math.round(result.w * scaleX);
+        cropCanvas.height = Math.round(result.h * scaleY);
+        cropCanvas.getContext('2d').drawImage(
+          srcImg,
+          Math.round(result.x * scaleX), Math.round(result.y * scaleY),
+          Math.round(result.w * scaleX), Math.round(result.h * scaleY),
+          0, 0, cropCanvas.width, cropCanvas.height
+        );
+        const croppedUrl = cropCanvas.toDataURL('image/png');
+
+        // 11. 添加到输入框
+        stageFile({ name: 'screenshot.png', mime: 'image/png', dataUrl: croppedUrl });
+        toast('截图已添加到输入框');
+      } catch (err) {
+        if (err.name === 'NotAllowedError') {
+          toast('已取消截图。也可用 Win+Shift+S 截图后粘贴');
+        } else {
+          console.error('[screenshot] 失败:', err);
+          toast('截图失败：' + err.message);
+        }
+        if (stream) { try { stream.getTracks().forEach(t => t.stop()); } catch(e){} }
+        if (cleanup) { try { cleanup(); } catch(e){} }
+        else { overlay.style.display = 'none'; selection.style.display = 'none'; }
+      } finally {
+        _screenshotBusy = false;
       }
     }
 

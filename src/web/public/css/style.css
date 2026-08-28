@@ -1,4 +1,4 @@
-:root {
+﻿:root {
       --bg: #f5f7fa;
       --card: #ffffff;
       --ink: #1f2933;
@@ -35,7 +35,7 @@
       overflow: hidden;
     }
 
-    /* ========== 登录遮罩 ========== */
+    /* ========== 鐧诲綍閬僵 ========== */
     #loginOverlay {
       position: fixed; inset: 0; background: var(--bg); z-index: 50;
       display: flex; align-items: center; justify-content: center;
@@ -58,7 +58,7 @@
     #loginOverlay .login-status { font-size: 13px; margin-top: 10px; min-height: 18px; }
     #loginOverlay .login-status.err { color: var(--err); }
 
-    /* ========== 主布局 ========== */
+    /* ========== 涓诲竷灞€ ========== */
     .app-layout {
       display: flex;
       flex-direction: column;
@@ -66,11 +66,11 @@
       display: none;
     }
     .app-layout.show { display: flex; }
-    /* 已登录状态：提前隐藏登录页，显示应用布局，避免闪烁（感觉像打开两次） */
+    /* 宸茬櫥褰曠姸鎬侊細鎻愬墠闅愯棌鐧诲綍椤碉紝鏄剧ず搴旂敤甯冨眬锛岄伩鍏嶉棯鐑侊紙鎰熻鍍忔墦寮€涓ゆ锛?*/
     html.logged-in #loginOverlay { display: none !important; }
     html.logged-in .app-layout { display: flex !important; }
 
-    /* ========== 顶部导航栏 ========== */
+    /* ========== 椤堕儴瀵艰埅鏍?========== */
     .topbar {
       height: var(--topbar-height);
       background: var(--card);
@@ -152,9 +152,9 @@
     .lang-btn.active { background: var(--brand); color: #fff; }
     .lang-btn:hover:not(.active) { background: var(--bg); }
 
-    /* ========== 主体内容区 ========== */
-    /* overflow 必须为 hidden：约束内部 .messages / .sidebar 各自滚动，
-       原生 <select> 弹层由浏览器绘制在顶层，不受此裁剪影响。 */
+    /* ========== 涓讳綋鍐呭鍖?========== */
+    /* overflow 蹇呴』涓?hidden锛氱害鏉熷唴閮?.messages / .sidebar 鍚勮嚜婊氬姩锛?
+       鍘熺敓 <select> 寮瑰眰鐢辨祻瑙堝櫒缁樺埗鍦ㄩ《灞傦紝涓嶅彈姝よ鍓奖鍝嶃€?*/
     .main-area {
       flex: 1;
       display: flex;
@@ -165,7 +165,7 @@
       width: 100%;
     }
 
-    /* ========== 左侧侧边栏 ========== */
+    /* ========== 宸︿晶渚ц竟鏍?========== */
     .sidebar {
       width: 200px;
       background: var(--card);
@@ -290,7 +290,7 @@
     .task-item .task-actions .delete-btn:hover { background: #fee2e2; color: var(--err); }
     .task-pinned { color: var(--warn); }
 
-    /* ========== 中间对话区 ========== */
+    /* ========== 涓棿瀵硅瘽鍖?========== */
     .chat-area {
       flex: 1;
       display: flex;
@@ -299,7 +299,7 @@
       background: var(--bg);
     }
 
-    /* ========== 任务上下文头部 ========== */
+    /* ========== 浠诲姟涓婁笅鏂囧ご閮?========== */
     .task-context-header {
       display: flex;
       align-items: center;
@@ -315,7 +315,7 @@
     .tch-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
     .tch-time { font-size: 12px; color: var(--muted); }
 
-    /* ========== 思维链路线程 ========== */
+    /* ========== 鎬濈淮閾捐矾绾跨▼ ========== */
     .messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 16px; padding-right: 4px; }
     .step { max-width: 92%; font-size: 13.5px; line-height: 1.6; word-break: break-word; }
     .step.created {
@@ -350,7 +350,7 @@
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; color: var(--muted);
     }
     .step.note { align-self: stretch; background: var(--bg); border-radius: 8px; padding: 6px 12px; color: var(--muted); font-size: 12px; }
-    /* 对话流与思维链路分隔标题 */
+    /* 瀵硅瘽娴佷笌鎬濈淮閾捐矾鍒嗛殧鏍囬 */
     .conv-divider {
       align-self: stretch; text-align: center; font-size: 11px; color: var(--muted);
       border-top: 1px solid var(--line); padding-top: 8px; margin-top: 4px;
@@ -378,7 +378,7 @@
       padding: 12px 16px; white-space: pre-wrap; word-break: break-word; max-width: 92%;
     }
 
-    /* 对话消息区 */
+    /* 瀵硅瘽娑堟伅鍖?*/
     .conv {
       flex: 1;
       display: flex;
@@ -410,26 +410,31 @@
     }
     .msg-actions {
       position: absolute;
-      top: 6px;
-      right: 6px;
-      display: none;
+      bottom: 4px;
+      right: 8px;
+      display: flex;
       gap: 4px;
-      background: rgba(255,255,255,0.95);
+      background: rgba(255,255,255,0.92);
       border-radius: 6px;
-      padding: 2px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      padding: 2px 4px;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.08);
+      opacity: 0.35;
+      transition: opacity 0.2s ease;
+      user-select: none;
+      z-index: 2;
     }
     .msg:hover .msg-actions {
-      display: flex;
+      opacity: 1;
     }
     .msg-action-btn {
       background: none;
       border: none;
-      padding: 4px 8px;
+      padding: 5px 10px;
       font-size: 12px;
       cursor: pointer;
       border-radius: 4px;
       color: var(--ink-2);
+      white-space: nowrap;
     }
     .msg-action-btn:hover {
       background: var(--brand-soft);
@@ -444,7 +449,7 @@
       border: 1px solid var(--border);
       align-self: flex-start;
     }
-    /* ========== 思考过程气泡（Cursor 风格） ========== */
+    /* ========== 鎬濊€冭繃绋嬫皵娉★紙Cursor 椋庢牸锛?========== */
     .msg.assistant.thinking-msg {
       background: var(--card);
       border: 1px solid var(--border);
@@ -554,7 +559,7 @@
       padding-top: 8px;
       border-top: 1px solid var(--line);
     }
-    /* 思考中状态指示 */
+    /* 鎬濊€冧腑鐘舵€佹寚绀?*/
     .thinking-indicator {
       display: flex;
       align-items: center;
@@ -584,7 +589,7 @@
     }
     .dark .msg.sys { background: #334155; }
     .msg .artifact { color: var(--brand); text-decoration: underline; cursor: pointer; }
-    /* 内部执行过程：默认折叠，避免"一直都在调用/验证"的噪声；点击展开查看思考与工具调用 */
+    /* 鍐呴儴鎵ц杩囩▼锛氶粯璁ゆ姌鍙狅紝閬垮厤"涓€鐩撮兘鍦ㄨ皟鐢?楠岃瘉"鐨勫櫔澹帮紱鐐瑰嚮灞曞紑鏌ョ湅鎬濊€冧笌宸ュ叿璋冪敤 */
     .proc-details {
       align-self: stretch; margin-top: 6px; border-top: 1px dashed var(--line);
       padding: 8px 0 2px; display: flex; flex-direction: column; gap: 8px;
@@ -600,7 +605,7 @@
     .error-msg { border-left: 3px solid var(--err); align-self: flex-start; color: var(--err); }
     .msg .artifact:hover { opacity: 0.8; }
 
-    /* 输入栏 */
+    /* 杈撳叆鏍?*/
     .input-area {
       padding: 0 16px 16px;
       flex-shrink: 0;
@@ -645,7 +650,7 @@
     .pill:hover { border-color: var(--brand); }
     .voice-badge { display: inline-flex; align-items: center; gap: 6px; color: var(--err); font-size: 12px; }
 
-    /* 工作区条 */
+    /* 宸ヤ綔鍖烘潯 */
     .workspace-bar {
       display: flex;
       align-items: center;
@@ -692,7 +697,7 @@
     }
     .wb-perm:hover { border-color: var(--brand); }
 
-    /* 通话栏 */
+    /* 閫氳瘽鏍?*/
     .call-bar {
       display: flex;
       align-items: center;
@@ -716,7 +721,7 @@
     .call-btn.hangup { background: #fee2e2; color: var(--err); border-color: #fecaca; }
     .call-status { font-size: 12px; color: var(--muted); margin-left: auto; }
 
-    /* 视频通话窗口 */
+    /* 瑙嗛閫氳瘽绐楀彛 */
     .video-call-window {
       position: fixed;
       bottom: 100px;
@@ -765,7 +770,7 @@
       background: #000;
     }
 
-    /* 底部工具栏 */
+    /* 搴曢儴宸ュ叿鏍?*/
     .chat-footbar {
       display: flex;
       align-items: center;
@@ -795,7 +800,7 @@
     }
     .ghost-btn:hover { background: var(--brand-soft); }
 
-    /* 新建任务按钮（侧边栏） */
+    /* 鏂板缓浠诲姟鎸夐挳锛堜晶杈规爮锛?*/
     .new-task-btn {
       border: 1px solid var(--border);
       background: var(--brand);
@@ -809,7 +814,7 @@
     }
     .new-task-btn:hover { opacity: 0.88; }
 
-    /* 新建对话任务弹窗 */
+    /* 鏂板缓瀵硅瘽浠诲姟寮圭獥 */
     .nt-form { display: flex; flex-direction: column; gap: 12px; margin-top: 4px; }
     .nt-label { font-size: 12.5px; font-weight: 600; color: var(--ink-2); display: block; margin-bottom: 4px; }
     .nt-form textarea, .nt-form select {
@@ -822,7 +827,7 @@
     .nt-row > div { flex: 1; }
     .nt-hint { font-size: 12px; color: var(--muted); }
 
-    /* ========== 右侧面板 ========== */
+    /* ========== 鍙充晶闈㈡澘 ========== */
     .right-panel {
       width: 320px;
       background: var(--card);
@@ -861,7 +866,7 @@
     }
     .preview-content pre { margin: 0; white-space: pre-wrap; word-break: break-word; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
 
-    /* 电脑操作面板 */
+    /* 鐢佃剳鎿嶄綔闈㈡澘 */
     .computer-controls { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
     .screen-preview {
       background: var(--bg);
@@ -891,7 +896,7 @@
     }
     .computer-actions .pill:hover { background: var(--brand-soft); border-color: var(--brand); color: var(--brand); }
 
-    /* 任务详情 */
+    /* 浠诲姟璇︽儏 */
     .detail-ops {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -921,7 +926,7 @@
     }
     .artifact-file:hover { background: var(--brand-soft); color: var(--brand); }
 
-    /* ========== 功能页面 ========== */
+    /* ========== 鍔熻兘椤甸潰 ========== */
     .page-view {
       flex: 1;
       display: none;
@@ -948,7 +953,7 @@
     .tile .desc { color: var(--muted); font-size: 12px; line-height: 1.5; }
     .tile .ops { display: flex; gap: 6px; margin-top: 12px; }
     .tile .ops button { padding: 6px 12px; font-size: 12px; flex: 1; }
-    /* 预置指令卡片：带渐变边框，和用户自定义区分 */
+    /* 棰勭疆鎸囦护鍗＄墖锛氬甫娓愬彉杈规锛屽拰鐢ㄦ埛鑷畾涔夊尯鍒?*/
     .tile.builtin-tile {
       background: linear-gradient(135deg, var(--card) 0%, rgba(37,99,235,0.03) 100%);
       border: 1px solid var(--brand-soft);
@@ -957,7 +962,7 @@
     .tile.builtin-tile .ops { flex-wrap: wrap; }
     .tile.builtin-tile .ops button { flex: 1 1 auto; }
 
-    /* ========== 产品发布故事页面 ========== */
+    /* ========== 浜у搧鍙戝竷鏁呬簨椤甸潰 ========== */
     .release-container { max-width: 900px; margin: 0 auto; }
     .release-hero {
       text-align: center;
@@ -1189,7 +1194,7 @@
     .cta-btn.secondary:hover { background: var(--brand-soft); }
     .cta-sub { color: var(--muted); font-size: 13px; }
 
-    /* ========== 通用样式 ========== */
+    /* ========== 閫氱敤鏍峰紡 ========== */
     .card {
       background: var(--card);
       border: 1px solid var(--border);
@@ -1234,7 +1239,7 @@
     .badge.done { background: #f0fdf4; color: var(--ok); }
     .badge.failed { background: #fef2f2; color: var(--err); }
 
-    /* ========== 模态框 ========== */
+    /* ========== 妯℃€佹 ========== */
     .mask {
       position: fixed;
       inset: 0;
@@ -1260,7 +1265,7 @@
     .modal .footer { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
     .close-x { float: right; cursor: pointer; color: var(--muted); font-size: 18px; }
 
-    /* ========== 下拉菜单 ========== */
+    /* ========== 涓嬫媺鑿滃崟 ========== */
     .dropdown { position: relative; }
     .dropdown-menu {
       position: absolute;
@@ -1281,21 +1286,21 @@
     .dropdown-item:hover { background: var(--bg); }
     .dropdown-divider { height: 1px; background: var(--line); margin: 6px 0; }
 
-    /* ========== 权限窗口 ========== */
+    /* ========== 鏉冮檺绐楀彛 ========== */
     .perm-section { margin-bottom: 14px; }
     .perm-title { font-size: 13px; font-weight: 600; margin-bottom: 8px; }
     .perm-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font-size: 13px; }
     .perm-row input[type="checkbox"] { width: auto; margin: 0; }
     .perm-row label { margin: 0; color: var(--ink-2); }
 
-    /* ========== 智能体选择 ========== */
+    /* ========== 鏅鸿兘浣撻€夋嫨 ========== */
     .agent-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .agent-card { border: 1px solid var(--border); border-radius: 12px; padding: 14px; text-align: center; cursor: pointer; }
     .agent-card:hover, .agent-card.selected { border-color: var(--brand); background: var(--brand-soft); }
     .agent-card .icon { font-size: 24px; }
     .agent-card .title { font-size: 13px; font-weight: 600; margin-top: 6px; }
 
-    /* ========== 大模型管理 ========== */
+    /* ========== 澶фā鍨嬬鐞?========== */
     .model-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; max-height: 200px; overflow-y: auto; }
     .model-item {
       border: 1px solid var(--border);
@@ -1344,7 +1349,7 @@
     .ghost { background: var(--card); color: var(--ink-2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 16px; cursor: pointer; font-size: 13px; }
     .primary.sm, .ghost.sm { padding: 5px 12px; font-size: 12px; }
 
-    /* ========== 设置面板 ========== */
+    /* ========== 璁剧疆闈㈡澘 ========== */
     .settings-layout { display: flex; gap: 0; min-height: 360px; }
     .settings-nav { flex: 0 0 130px; border-right: 1px solid var(--line); padding-right: 8px; }
     .settings-cat { padding: 9px 10px; border-radius: 8px; cursor: pointer; font-size: 13px; color: var(--ink-2); }
@@ -1369,7 +1374,7 @@
     .settings-item .si-desc { font-size: 12px; color: var(--muted); }
     .settings-item .si-arrow { color: var(--muted); }
 
-    /* ========== 设置·大模型管理（简洁卡片风） ========== */
+    /* ========== 璁剧疆路澶фā鍨嬬鐞嗭紙绠€娲佸崱鐗囬锛?========== */
     .model-manage { margin-top: 4px; }
     .mm-list { display: flex; flex-direction: column; gap: 8px; }
     .mm-empty {
@@ -1413,7 +1418,7 @@
       align-items: center;
       gap: 4px;
     }
-    .mm-card-url::before { content: '🔗'; font-size: 11px; opacity: 0.7; }
+    .mm-card-url::before { content: '馃敆'; font-size: 11px; opacity: 0.7; }
     .mm-card-meta { font-size: 11px; color: var(--muted); }
     .mm-card-actions {
       display: flex;
@@ -1438,7 +1443,7 @@
     .mm-act-primary:hover { background: var(--brand-soft); }
     .mm-act-danger { color: var(--muted); }
     .mm-act-danger:hover { color: var(--err); background: transparent; }
-    /* 分隔 */
+    /* 鍒嗛殧 */
     .mm-divider {
       display: flex;
       align-items: center;
@@ -1453,7 +1458,7 @@
       height: 1px;
       background: var(--line);
     }
-    /* 表单 */
+    /* 琛ㄥ崟 */
     .mm-form {
       display: flex;
       flex-direction: column;
@@ -1482,7 +1487,7 @@
     .mm-form-actions .mm-form-msg { font-size: 12px; color: var(--muted); margin-left: auto; }
     .mm-form-actions .mm-form-msg.err { color: var(--err); }
 
-    /* ========== 用户菜单（右侧侧边栏样式） ========== */
+    /* ========== 鐢ㄦ埛鑿滃崟锛堝彸渚т晶杈规爮鏍峰紡锛?========== */
     .bottom-sheet-mask {
       position: fixed;
       inset: 0;
@@ -1511,7 +1516,7 @@
     .sheet-item .icon { width: 22px; text-align: center; }
     .sheet-item .right { margin-left: auto; font-size: 12px; color: var(--muted); }
 
-    /* ========== 工作区 ========== */
+    /* ========== 宸ヤ綔鍖?========== */
     .workspace-box { border: 1px solid var(--border); border-radius: 10px; padding: 10px; background: var(--bg); }
     .workspace-cwd { font-size: 12px; color: var(--ink-2); word-break: break-all; margin-bottom: 8px; }
     .workspace-input { display: flex; gap: 6px; }
@@ -1525,10 +1530,10 @@
     .drive-option { padding: 3px 10px; margin-top: 4px; border-radius: 4px; font-size: 11px; cursor: pointer; color: var(--ink-2); }
     .drive-option:hover { background: var(--brand-soft); color: var(--brand); }
 
-    /* ========== 文件芯片 ========== */
+    /* ========== 鏂囦欢鑺墖 ========== */
     .file-chip { display: inline-flex; align-items: center; gap: 6px; background: var(--brand-soft); color: var(--brand); padding: 4px 8px; border-radius: 6px; font-size: 12px; cursor: pointer; }
     .file-chip:hover { opacity: 0.85; }
-    /* 输入区·待发送附件暂存（点发送时统一上传给 AI） */
+    /* 杈撳叆鍖郝峰緟鍙戦€侀檮浠舵殏瀛橈紙鐐瑰彂閫佹椂缁熶竴涓婁紶缁?AI锛?*/
     .staged-area {
       display: none;
       flex-wrap: wrap;
@@ -1574,10 +1579,10 @@
       margin-left: 4px;
     }
 
-    /* ========== 截图遮罩 ========== */
-    .crop-overlay { position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,0.35); cursor: crosshair; }
-    .crop-tip { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); color: #fff; padding: 6px 14px; border-radius: 20px; font-size: 13px; pointer-events: none; }
-    .crop-selection { position: fixed; border: 2px dashed #fff; background: rgba(255,255,255,0.12); box-shadow: 0 0 0 9999px rgba(0,0,0,0.25); pointer-events: none; }
+    /* ========== 鎴浘閬僵 ========== */
+    .crop-overlay { position: fixed; inset: 0; z-index: 9999; background: #000; cursor: crosshair; }
+    .crop-tip { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: #fff; padding: 8px 18px; border-radius: 20px; font-size: 13px; pointer-events: none; z-index: 10001; }
+    .crop-selection { position: fixed; border: 2px dashed #00ffcc; background: rgba(0,255,204,0.08); box-shadow: 0 0 0 9999px rgba(0,0,0,0.5); pointer-events: none; z-index: 10000; display: none; }
 
     /* ========== Toast ========== */
     .toast {
@@ -1597,10 +1602,10 @@
     }
     .toast.show { opacity: 1; }
 
-    /* ========== 隐藏文件输入 ========== */
+    /* ========== 闅愯棌鏂囦欢杈撳叆 ========== */
     input[type="file"] { display: none; }
 
-    /* ========== 记忆系统 ========== */
+    /* ========== 璁板繂绯荤粺 ========== */
     .stat-card { text-align: center; padding: 16px; }
     .stat-label { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
     .stat-value { font-size: 24px; font-weight: 700; color: var(--brand); }
@@ -1610,7 +1615,7 @@
     .memory-content pre { background: var(--bg); padding: 12px; border-radius: 8px; overflow-x: auto; }
     .memory-content code { background: var(--bg); padding: 2px 6px; border-radius: 4px; font-size: 12px; }
 
-    /* ========== 欢迎引导弹窗 ========== */
+    /* ========== 娆㈣繋寮曞寮圭獥 ========== */
     #welcomeGuideModal .modal { width: 480px; }
     .welcome-guide-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
     .welcome-guide-header .icon { font-size: 32px; }
@@ -1670,7 +1675,7 @@
       font-size: 13px;
     }
 
-/* ========== 后端服务断连提示横幅 ========== */
+/* ========== 鍚庣鏈嶅姟鏂繛鎻愮ず妯箙 ========== */
 .backend-offline-banner {
   position: fixed;
   top: 0;
@@ -1713,7 +1718,7 @@
   to   { transform: translateY(0);     opacity: 1; }
 }
 
-/* ========== P2-1: 设计稿转代码 ========== */
+/* ========== P2-1: 璁捐绋胯浆浠ｇ爜 ========== */
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
@@ -1727,3 +1732,25 @@
   background: var(--card, #f5f5f5);
 }
 
+
+/* ===== 文字选择优化（精确选择、长按复制、不跳开） ===== */
+.msg, .msg * {
+  -webkit-user-select: text !important;
+  user-select: text !important;
+  -webkit-touch-callout: default !important;
+}
+.msg {
+  cursor: text;
+}
+.msg ::selection, .msg::selection {
+  background: rgba(79, 110, 247, 0.25);
+  color: inherit;
+}
+.msg ::-moz-selection {
+  background: rgba(79, 110, 247, 0.25);
+}
+/* 代码块内文字也可选择 */
+pre, code, .code-block, .code-block * {
+  -webkit-user-select: text !important;
+  user-select: text !important;
+}

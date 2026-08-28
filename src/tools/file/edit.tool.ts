@@ -1,5 +1,5 @@
 /**
- * 飞虹 Code (Muse Code 参照复刻)
+ * 飞虹 Code (对标 Muse Code · 自研内核)
  * 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
  *
  * 工具：精确替换文件中的文本片段
@@ -28,7 +28,23 @@ export const editFileTool: Tool = {
     try {
       const content = await readFile(abs, 'utf8');
       const idx = content.indexOf(oldText);
-      if (idx < 0) return { ok: false, output: '', error: '未找到 oldText' };
+      if (idx < 0) {
+        // 把问题完整交回大模型：附上文件当前真实内容摘要，让模型基于实际内容重新提供 oldText，
+        // 避免模型在不知晓文件现状时反复盲猜 oldText 而陷入死循环。
+        const lines = content.split('\n');
+        const head = lines.slice(0, 40).join('\n');
+        const tail = lines.slice(-15).join('\n');
+        const ellipsis = lines.length > 55 ? '\n...(中间省略)...\n' : '\n';
+        const summary = `未找到 oldText。你提供的 oldText 与文件当前内容不匹配（可能被其他步骤改写、或包含空白/缩进差异）。
+文件 "${path}" 当前真实内容（共 ${lines.length} 行 / ${content.length} 字符）：
+
+--- 文件开头 ---
+${head}${ellipsis}--- 文件结尾 ---
+${tail}
+
+请基于以上真实内容重新提供 oldText（必须与文件中的字符完全一致，注意空白与缩进）；若你只是想新增代码，请先 read_file 读取目标位置附近内容，或用 write_file 直接整体重写。`;
+        return { ok: false, output: '', error: summary };
+      }
       const updated = content.slice(0, idx) + newText + content.slice(idx + oldText.length);
       await writeFile(abs, updated, 'utf8');
       return { ok: true, output: `已更新 ${path}` };

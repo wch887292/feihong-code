@@ -1,5 +1,5 @@
 /**
- * 飞虹 Code (Muse Code 参照复刻)
+ * 飞虹 Code (对标 Muse Code · 自研内核)
  * 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
  *
  * 命令行参数解析：
@@ -49,6 +49,7 @@ export type ManagementCommand =
   | { kind: 'code-write'; goal: string; filePath: string }
   | { kind: 'quality-gate'; path: string }
   | { kind: 'self-improve' }
+  | { kind: 'self-evolve'; action: string; args: string[] }
   | { kind: 'harness'; split: string; limit: number; offset: number; mode: 'mock' | 'real'; verifier?: 'file' | 'test'; testCommand?: string; report?: string; json: boolean }
   | {
       kind: 'swe';
@@ -206,6 +207,11 @@ const MANAGE_BUILDERS: Record<string, ManageBuilder> = {
   'code-write': ({ rest }) => ({ kind: 'code-write', goal: rest.join(' ') || 'auto-generate', filePath: 'output.ts' }),
   'quality-gate': ({ rest }) => ({ kind: 'quality-gate', path: rest[0] || '.' }),
   'self-improve': () => ({ kind: 'self-improve' }),
+  'self-evolve': ({ rest }) => ({
+    kind: 'self-evolve',
+    action: rest[0] ?? 'status',
+    args: rest.slice(1),
+  }),
   harness: ({ flags, rest }) => ({
     kind: 'harness',
     split: flags.split ?? rest[0] ?? 'lite',

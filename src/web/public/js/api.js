@@ -295,7 +295,10 @@
       if (!text) return '';
       const d = await api('/api/security/public-key');
       const b64 = String(d.publicKey || '').replace(/-----[^-]+-----/g, '').replace(/\s+/g, '');
-      if (!b64) throw new Error('未获取到加密公钥');
+      if (!b64) {
+        console.error('[rsaEncryptText] 公钥为空，完整响应:', d);
+        throw new Error('未获取到加密公钥（请按 Ctrl+F5 强制刷新页面，或检查服务是否已重启）');
+      }
       const bin = atob(b64);
       const buf = new Uint8Array(bin.length);
       for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
@@ -357,7 +360,7 @@
     async function api(path, method = 'GET', body) {
       let res;
       try {
-        res = await fetch(path, { method, headers: authHeaders(), body: body ? JSON.stringify(body) : undefined });
+        res = await fetch(path, { method, headers: authHeaders(), body: body ? JSON.stringify(body) : undefined, cache: 'no-store' });
       } catch (e) {
         // 网络层失败（Failed to fetch / 连接拒绝 / 超时中断）：标记后端可能已断开
         if (typeof BackendConn !== 'undefined') BackendConn.markFailure();

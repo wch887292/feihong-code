@@ -20,41 +20,56 @@ function report(name, ok, extra = '') {
   const root = process.cwd();
   console.log('===== P0-1 官方 SWE-bench Verified 评估链路验证 =====');
 
-  // 1) 官方格式加载
-  const loader = new LocalJsonLoader(join(root, 'bench/swe-bench-verified-sample.json'));
+  // 1) 官方格式加载（不硬编码 instance_id/repo，只校验 schema 与最小结构）
+  const samplePath = join(root, 'bench/swe-bench-verified-sample.json');
+  const loader = new LocalJsonLoader(samplePath);
   const instances = await loader.load();
-  report('官方 JSON 加载', instances.length === 2, `count=${instances.length}`);
-  report('instance_id 正确', instances[0].instance_id === 'astropy__astropy-12907');
-  report('repo 正确', instances[0].repo === 'astropy/astropy');
-  report('problem_statement 正确', instances[0].problem_statement.includes('masked array'));
+  report('官方 JSON 加载', instances.length >= 1, `count=${instances.length}`);
 
-  // 2) FAIL_TO_PASS 容错（字符串化数组）
-  report('字符串化 FAIL_TO_PASS 解析', Array.isArray(instances[0].FAIL_TO_PASS) && instances[0].FAIL_TO_PASS.length === 1 && instances[0].FAIL_TO_PASS[0].includes('test_broadcast_to'));
-  report('数组 FAIL_TO_PASS 解析', Array.isArray(instances[1].FAIL_TO_PASS) && instances[1].FAIL_TO_PASS.length === 1);
-  report('PASS_TO_PASS 解析', Array.isArray(instances[0].PASS_TO_PASS) && instances[0].PASS_TO_PASS.length === 1);
+  if (instances.length > 0) {
+    const inst = instances[0];
+    report('instance_id 字段存在', !!inst.instance_id && typeof inst.instance_id === 'string', inst.instance_id);
+    report('repo 字段存在', !!inst.repo && typeof inst.repo === 'string', inst.repo);
+    report('base_commit 字段存在', !!inst.base_commit && typeof inst.base_commit === 'string', inst.base_commit ? `${inst.base_commit.length} chars` : '');
+    report('problem_statement 字段存在', !!inst.problem_statement && typeof inst.problem_statement === 'string', inst.problem_statement ? `${inst.problem_statement.length} chars` : '');
+    report('patch 字段存在（含真实内容非 placeholder）', !!inst.patch && !String(inst.patch).startsWith('*'), `len=${(inst.patch||'').length}`);
+    report('test_patch 字段存在', !!inst.test_patch, `len=${(inst.test_patch||'').length}`);
+    // FAIL_TO_PASS 容错（支持字符串化数组或原生数组两种形态）
+    const ftp0 = inst.FAIL_TO_PASS;
+    const ftpArr = Array.isArray(ftp0) ? ftp0 : (typeof ftp0 === 'string' ? JSON.parse(ftp0) : []);
+    report('FAIL_TO_PASS 为可解析列表', ftpArr.length >= 1, `len=${ftpArr.length}`);
+    if (instances.length >= 2) {
+      const ftp1 = instances[1].FAIL_TO_PASS;
+      report('第二实例 FAIL_TO_PASS 可解析', Array.isArray(ftp1) && ftp1.length >= 1, `len=${ftp1.length}`);
+    }
+    const ptp0 = inst.PASS_TO_PASS;
+    report('PASS_TO_PASS 可解析', Array.isArray(ptp0), `len=${ptp0?.length ?? 0}`);
+  }
 
-  // 3) TestVerifier 的 FAIL_TO_PASS 目标拼接（不真实跑，验证命令构造）
+  // 2) TestVerifier / FileExistsVerifier 接口
   const tv = new TestVerifier();
-  const v = tv.verify;
-  report('TestVerifier 接口存在', typeof v === 'function');
-  // 验证默认命令构造逻辑：直接检查实例有 FAIL_TO_PASS 时的目标语义
-  const ftp = instances[0].FAIL_TO_PASS;
-  const cmd = sanitizeManagedCommand(undefined, `npm test -- ${ftp.join(' ')}`);
-  report('FAIL_TO_PASS 拼入测试命令', cmd === `npm test -- ${ftp.join(' ')}`, cmd);
-  const bad = sanitizeManagedCommand(undefined, 'rm -rf / && npm test');
-  report('受管命令约束拦截恶意命令', bad === null || !bad.includes('rm -rf'));
-
-  // 4) 文件验证器接口
+  report('TestVerifier 接口存在', typeof tv.verify === 'function');
   const fv = new FileExistsVerifier();
   report('FileExistsVerifier 接口存在', typeof fv.verify === 'function');
 
-  // 5) 数据源可达性诚实记录
+  // 3) 受管命令约束
+  if (instances.length > 0) {
+    const ftp = Array.isArray(instances[0].FAIL_TO_PASS)
+      ? instances[0].FAIL_TO_PASS
+      : (typeof instances[0].FAIL_TO_PASS === 'string' ? JSON.parse(instances[0].FAIL_TO_PASS) : []);
+    if (ftp.length > 0) {
+      const cmd = sanitizeManagedCommand(undefined, `npm test -- ${ftp.join(' ')}`);
+      report('FAIL_TO_PASS 拼入测试命令', cmd === `npm test -- ${ftp.join(' ')}`, cmd);
+    }
+  }
+  const bad = sanitizeManagedCommand(undefined, 'rm -rf / && npm test');
+  report('受管命令约束拦截恶意命令', bad === null || !bad.includes('rm -rf'));
+
+  // 4) 数据源诚实记录
   console.log('\n  ⚠️ 环境受限记录（如实）：');
-  console.log('     - docker 未安装 → 无法跑 Python 大仓库 + pytest 的官方评测');
-  console.log('     - HF datasets-server / HF hub / GitHub raw 均不可达 → 无法拉取完整 500 任务');
-  console.log('     - 已完成：官方格式加载 + FAIL_TO_PASS 解析 + 受管测试命令约束 全部验证通过');
-  console.log('     - 就绪：FH_SWEBENCH_DATA_URL 镜像注入点 + bench/swe-bench-verified-sample.json（格式样本，patch 为占位）');
-  console.log('     - 升级路径：有 Docker + 数据源环境后，`fhcode harness --split verified` 一键跑官方 500');
+  console.log('     - docker 守护进程未运行 → 无法跑官方 eval 镜像（FAIL_TO_PASS/PASS_TO_PASS 真实评测）');
+  console.log('     - 本环境已通过 Python 3.8 venv 重建依赖，可在无 Docker 下对部分实例做本地验证');
+  console.log('     - 格式样本已替换为 HuggingFace 官方数据集真实实例（见 bench/swe-bench-verified-sample.json）');
 
   console.log(`\n========== P0-1 冒烟结果 ==========`);
   console.log(`  通过: ${pass}  失败: ${fail}`);

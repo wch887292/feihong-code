@@ -6,9 +6,11 @@
 
 const fs = require('fs');
 const path = require('path');
-const { v4: uuidv4 } = require('uuid');
 
-// 确保uuid已安装或实现简单的UUID
+// 注意：不再 require('uuid')——该依赖从未安装且 uuidv4 从未被使用，
+// 本项目自带 generateId()（下方 RFC-4122 v4 实现），移除后 CLI 不再崩溃。
+
+// 实现简单的 UUID v4
 function generateId() {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
     const r = Math.random() * 16 | 0;
@@ -23,9 +25,88 @@ class SelfEvolveManager {
     this.failuresFile = path.join(this.baseDir, 'failures.json');
     this.skillsIndexFile = path.join(this.baseDir, 'skills-index.json');
     this.historyFile = path.join(this.baseDir, 'history.json');
-    
+    // 双系统收敛：失败/技能/解决 统一回流到共享经验库（experiences.jsonl），
+    // 与新一代 self-improve（src/agent/experience.ts）共用同一存储，供 orchestrator 检索注入。
+    this.experiencesDir = path.join(process.env.HOME || process.env.USERPROFILE || '.', '.feihong-code', 'experiences');
+    this.experiencesFile = path.join(this.experiencesDir, 'experiences.jsonl');
+
     this.ensureDirs();
     this.loadData();
+  }
+
+  /** 稳定短哈希（与 src/agent/experience.ts shortHash 语义一致，保证跨系统 id 可对齐） */
+  static shortHash(s) {
+    let h = 5381;
+    for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+    return (h >>> 0).toString(36);
+  }
+
+  /** 生成与 experience.ts 一致的稳定经验 id */
+  static experienceId(type, key) {
+    return `exp-${SelfEvolveManager.shortHash(`${type}:${key}`)}`;
+  }
+
+  /** 读取共享经验库全部记录 */
+  loadExperiences() {
+    if (!fs.existsSync(this.experiencesFile)) return [];
+    try {
+      return fs
+        .readFileSync(this.experiencesFile, 'utf8')
+        .split('\n')
+        .filter(Boolean)
+        .map((line) => {
+          try { return JSON.parse(line); } catch { return null; }
+        })
+        .filter(Boolean);
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * 追加/合并一条经验到共享经验库（upsert 语义，与 experience.ts 一致）：
+   * 同 id 已存在 → sessionCount+1、成功率按次数加权平均、标签合并、刷新 lastUsedAt；
+   * 否则新增。失败学习因此回流到 orchestrator 的检索闭环。
+   */
+  upsertExperience(type, key, title, content, tags, successRate) {
+    const id = SelfEvolveManager.experienceId(type, key);
+    const now = new Date().toISOString();
+    const entry = {
+      id,
+      type,
+      title,
+      content,
+      metadata: {
+        sessionCount: 1,
+        successRate: typeof successRate === 'number' ? successRate : 0,
+        tags,
+        createdAt: now,
+        lastUsedAt: now,
+      },
+    };
+    try {
+      if (!fs.existsSync(this.experiencesDir)) fs.mkdirSync(this.experiencesDir, { recursive: true });
+      const existing = this.loadExperiences();
+      const idx = existing.findIndex((e) => e && e.id === id);
+      if (idx >= 0) {
+        const prev = existing[idx];
+        const prevCount = prev.metadata && prev.metadata.sessionCount ? prev.metadata.sessionCount : 0;
+        entry.metadata = {
+          sessionCount: prevCount + 1,
+          successRate: (prev.metadata.successRate * prevCount + entry.metadata.successRate) / (prevCount + 1),
+          tags: [...new Set([...(prev.metadata.tags || []), ...tags])],
+          createdAt: prev.metadata.createdAt || now,
+          lastUsedAt: now,
+        };
+        existing[idx] = entry;
+      } else {
+        existing.push(entry);
+      }
+      fs.writeFileSync(this.experiencesFile, existing.map((e) => JSON.stringify(e)).join('\n') + '\n', 'utf8');
+    } catch (e) {
+      console.error(`[自我迭代] 写入共享经验库失败: ${e.message}`);
+    }
+    return entry;
   }
 
   ensureDirs() {
@@ -36,6 +117,10 @@ class SelfEvolveManager {
     const userSkillsDir = path.join(process.env.HOME || process.env.USERPROFILE || '.', '.feihong-code', 'skills');
     if (!fs.existsSync(userSkillsDir)) {
       fs.mkdirSync(userSkillsDir, { recursive: true });
+    }
+    // 双系统收敛：共享经验库目录
+    if (!fs.existsSync(this.experiencesDir)) {
+      fs.mkdirSync(this.experiencesDir, { recursive: true });
     }
   }
 
@@ -48,7 +133,8 @@ class SelfEvolveManager {
   loadJSON(file, defaultValue) {
     try {
       if (fs.existsSync(file)) {
-        const content = fs.readFileSync(file, 'utf8');
+        // 去除 BOM（EF BB BF），兼容 PowerShell Set-Content -Encoding UTF8 等写入的带 BOM JSON
+        const content = fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, '');
         return JSON.parse(content);
       }
     } catch (e) {
@@ -97,6 +183,15 @@ class SelfEvolveManager {
     });
     
     this.saveData();
+    // 双系统收敛：失败 → error-pattern 经验回流共享库
+    this.upsertExperience(
+      'error-pattern',
+      failure.error_type,
+      `常见错误模式: ${failure.error_type}`,
+      `任务「${String(failure.task).slice(0, 120)}」遇到 ${failure.error_type} 类错误：${String(failure.error_message).slice(0, 200)}。规避建议：提前校验前置条件（路径/权限/依赖），增加超时重试与最小改动原则。`,
+      [failure.error_type, 'failure'],
+      0
+    );
     console.log(`[自我迭代] 记录失败任务 #${failure.id.slice(0, 8)}`);
     return failure;
   }
@@ -171,6 +266,17 @@ class SelfEvolveManager {
     });
 
     this.saveData();
+    // 双系统收敛：解决 → success-pattern 经验回流共享库（含可复用方案）
+    if (solution) {
+      this.upsertExperience(
+        'success-pattern',
+        `fix:${failure.error_type}`,
+        `自愈修复经验: ${failure.error_type}`,
+        `问题「${String(failure.task).slice(0, 120)}」的 ${failure.error_type} 类错误已解决${skillName ? `（应用技能 ${skillName}）` : ''}，可用方案：${String(solution).slice(0, 300)}`,
+        [failure.error_type, 'self-heal', 'fix', 'success'],
+        1.0
+      );
+    }
     console.log(`[自我迭代] 问题 #${failureId.slice(0, 8)} 已解决`);
     return failure;
   }
@@ -214,6 +320,15 @@ class SelfEvolveManager {
     });
 
     this.saveData();
+    // 双系统收敛：新技能 → success-pattern 经验回流共享库（未来任务可检索到该技能）
+    this.upsertExperience(
+      'success-pattern',
+      `skill:${name}`,
+      `技能沉淀: ${name}`,
+      `已沉淀可复用技能「${name}」（触发词：${triggers.join(', ')}；错误模式：${errorPattern}），处理方案：${String(solution).slice(0, 300)}。未来遇到同类问题直接应用该技能。`,
+      [name, errorPattern, 'skill', 'success'],
+      1.0
+    );
     console.log(`[自我迭代] 新技能已创建: ${name}`);
     return skill;
   }
@@ -318,7 +433,8 @@ ${skill.created_at}
       resolution_rate: totalFailures > 0 ? ((resolved / totalFailures) * 100).toFixed(1) + '%' : '0%',
       by_type: byType,
       total_skills: this.skillsIndex.length,
-      history_entries: this.history.length
+      history_entries: this.history.length,
+      total_experiences: this.loadExperiences().length
     };
   }
 

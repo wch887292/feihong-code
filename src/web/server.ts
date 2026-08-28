@@ -1,5 +1,5 @@
 /**
- * 飞虹 Code (Muse Code 参照复刻)
+ * 飞虹 Code (对标 Muse Code · 自研内核)
  * 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
  *
  * M5 Web 控制台：自包含 Express 服务骨架 + 多视图 API。
@@ -27,6 +27,7 @@ import {
   unlinkSync,
 } from 'fs';
 import { spawn, exec } from 'child_process';
+import dns from 'node:dns';
 import { requireToken, SessionStore, type Session, WELCOME_TASKS } from './auth';
 import { registerExtraApis } from './extra-apis';
 import {
@@ -290,7 +291,19 @@ export function startWebServer(opts: ServeOptions = {}): {
     res.json({ ok: true, history });
   });
 
-  app.use('/api', requireToken(token, sessions));
+  app.post('/api/auth/clear-first-login', (req: Request, res: Response) => {
+    const header = req.header('authorization') || '';
+    const m = /^Bearer\s+(.+)$/i.exec(header);
+    if (!m) {
+      res.status(401).json({ ok: false, error: 'unauthorized' });
+      return;
+    }
+    const token = m[1];
+    const ok = sessions.clearFirstLogin(token);
+    res.json({ ok, cleared: ok });
+  });
+
+  app.use('/api', requireToken(token, sessions, ['/api/security/public-key']));
 
   // ===== v7.2.0 能力接线层：voice / knowledge / figma / sso / collaboration / plugins / self-correction =====
   // 将原"孤立代码"模块接入 Web API（修复：从 404 变为可调用）
@@ -1763,7 +1776,7 @@ export function startWebServer(opts: ServeOptions = {}): {
         : node.url;
       const headers: Record<string, string> = { 'User-Agent': 'fhcode-node/1.0' };
       if (node.apiKey) headers['Authorization'] = 'Bearer ' + node.apiKey;
-      const r = await fetchWithRetry(url, 10000, 0);
+      const r = await fetchWithRetry(url, 25000, 0);
       if (!r.ok) return { ok: false, error: `HTTP ${r.status}` };
       if (node.type === 'http') {
         const data = await r.json().catch(() => ({}));
@@ -2027,7 +2040,10 @@ export function startWebServer(opts: ServeOptions = {}): {
   const AGENT_FOUNDRY_CATALOG =
     'https://raw.githubusercontent.com/hebertzhu/agent-foundry/main/catalog/skills-catalog.json';
 
-  async function fetchWithRetry(url: string, timeoutMs = 15000, retries = 1): Promise<any> {
+  async function fetchWithRetry(url: string, timeoutMs = 25000, retries = 1): Promise<any> {
+    // 强制 IPv4 优先：规避 IPv6 链路故障（部分网络 IPv6 路由不可达时，
+    // 默认 verbatim 解析会优先走 IPv6 导致连接超时/失败）。幂等，重复调用无副作用。
+    dns.setDefaultResultOrder('ipv4first');
     let lastErr: unknown;
     for (let attempt = 0; attempt <= retries; attempt++) {
       const ctrl = new AbortController();
@@ -2089,7 +2105,7 @@ export function startWebServer(opts: ServeOptions = {}): {
 
   async function fetchAgentFoundrySkills(keyword: string, limit: number): Promise<MarketSkill[]> {
     try {
-      const r = await fetchWithRetry(AGENT_FOUNDRY_CATALOG);
+      const r = await fetchWithRetry(AGENT_FOUNDRY_CATALOG, 30000);
       if (!r.ok) return [];
       const data = (await r.json()) as { skills?: Array<Record<string, any>> };
       const arr = Array.isArray(data.skills) ? data.skills : [];
@@ -2161,7 +2177,7 @@ export function startWebServer(opts: ServeOptions = {}): {
       for (const src of loadSources()) {
         if (!src.enabled || src.type !== 'skills') continue;
         try {
-          const r = await fetchWithRetry(src.url, 10000, 0);
+          const r = await fetchWithRetry(src.url, 25000, 0);
           if (r.ok) {
             const data = await r.json();
             const list = Array.isArray(data) ? data : (data.items || data.skills || []);
@@ -2497,7 +2513,7 @@ export function startWebServer(opts: ServeOptions = {}): {
     for (const src of loadSources()) {
       if (!src.enabled || src.type !== 'templates') continue;
       try {
-        const r = await fetchWithRetry(src.url, 10000, 0);
+        const r = await fetchWithRetry(src.url, 25000, 0);
         if (r.ok) {
           const data = await r.json();
           const list = Array.isArray(data) ? data : (data.items || data.templates || []);
@@ -2624,7 +2640,7 @@ export function startWebServer(opts: ServeOptions = {}): {
     for (const src of loadSources()) {
       if (!src.enabled || src.type !== 'office') continue;
       try {
-        const r = await fetchWithRetry(src.url, 10000, 0);
+        const r = await fetchWithRetry(src.url, 25000, 0);
         if (r.ok) {
           const data = await r.json();
           const list = Array.isArray(data) ? data : (data.items || data.capabilities || []);

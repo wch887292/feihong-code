@@ -17,7 +17,8 @@ Self-Evolve 是飞虹 Code 的**元技能系统**，让它能够：
 - `skills/self-evolve/SKILL.md` - Self-Evolve 技能定义
 - `src/self-evolve/manager.js` - 核心管理器
 - `src/self-evolve/hook.ts` - 集成钩子
-- `src/cli/self-evolve-cli.js` - 命令行接口
+- `src/cli/self-evolve-cli.js` - 命令行接口（自包含、零外部依赖）
+- `src/agent/self-improver.ts` - 新一代闭环自我改进（与 orchestrator 共用 experiences 经验库，实现真正的回流闭环）
 
 ### 文档
 - `docs/self-evolve.md` - 用户文档
@@ -27,33 +28,22 @@ Self-Evolve 是飞虹 Code 的**元技能系统**，让它能够：
 - `tests/unit/self-evolve.test.js` - 单元测试
 - `tests/demo/self-evolve-demo.js` - 演示脚本
 
-### 脚本
-- `scripts/self-evolve-setup.sh` - 初始化脚本
-- `scripts/quick-start.js` - 快速开始脚本
-
 ## 🚀 快速开始
 
-### 1. 初始化系统
+> 无需安装脚本：`self-evolve` 已接入主 CLI（`fhcode self-evolve`），首次调用即自动初始化数据目录。
+
+### 1. 查看系统状态
 
 ```bash
-# 运行安装脚本
-bash scripts/self-evolve-setup.sh
+# 查看统计（自动初始化）
+fhcode self-evolve status
 
-# 或使用 Node.js 快速开始
-node scripts/quick-start.js
-```
-
-### 2. 查看系统状态
-
-```bash
-# 设置别名（可选）
+# 或设置别名（可选）
 alias fe='fhcode self-evolve'
-
-# 查看统计
 fe status
 ```
 
-### 3. 开始使用
+### 2. 开始使用
 
 ```bash
 # 列出失败记录
@@ -98,11 +88,13 @@ fe create-skill \
 ### 定期复盘
 ```bash
 # 每日复盘
-fe review --daily
+fhcode self-evolve review --daily
 
-# 查看周统计
-fe status --week
+# 错误模式分析（建议创建技能）
+fhcode self-evolve analyze --days 7
 ```
+
+> 说明：`fe status --week`（周统计）尚未实现；如需查看跨任务学习沉淀，请用 `fhcode self-improve`（新一代闭环系统，读写 `~/.feihong-code/experiences/`）。
 
 ## 🔄 工作流程
 
@@ -133,15 +125,23 @@ fe status --week
 ~/.feihong-code/
 ├── self-evolve/
 │   ├── config.json          # 配置
-│   ├── failures.json        # 失败记录
+│   ├── failures.json        # 失败记录（运维视图）
 │   ├── skills-index.json    # 技能索引
 │   ├── history.json         # 操作历史
 │   └── report-YYYY-MM-DD.json  # 每日报告
 ├── skills/
 │   └── <skill-name>/
 │       └── SKILL.md
+├── experiences/             # ★ 统一经验库（self-evolve 与 self-improve 共用）
+│   └── experiences.jsonl    #   失败/反思/技能 全部回流至此，供 orchestrator 检索
 └── ...
 ```
+
+> **统一经验库（双系统已收敛）**：本系统与新一代 `self-improve`（`src/agent/experience.ts`）**共用同一经验库** `~/.feihong-code/experiences/experiences.jsonl`。
+> - 本系统记录的**失败** → 自动写入 `error-pattern` 经验；**解决问题/沉淀技能** → 写入 `success-pattern` 经验
+> - 新一代系统的任务反思也写入同一文件，二者以「稳定 id + upsert」合并（同一模式重复出现只累加权重，不无限膨胀）
+> - orchestrator 在后续任务启动时检索注入这批经验，形成「执行 → 反思 → 回流 → 更强执行」的闭环
+> - 查询学习沉淀统一用 `fhcode self-improve`；本系统的 `fhcode self-evolve` 聚焦「失败记录/技能/复盘」的运维视图
 
 ## 🔧 集成开发
 
@@ -241,6 +241,11 @@ fe review --daily
 
 ## 📈 版本历史
 
+- **v1.1.0** (2026-08-28) - 修复与接入
+  - 移除未安装的 `uuid` 依赖（修复 CLI 崩溃）
+  - CLI 重写为自包含零依赖解析（移除未声明的 commander）
+  - `self-evolve` 正式接入主 CLI（`fhcode self-evolve ...` 可直接使用）
+  - 消除文档中不存在的脚本引用，标注新旧两套系统差异
 - **v1.0.0** (2026-08-16) - 初始版本
   - 基础失败记录功能
   - 技能自动生成

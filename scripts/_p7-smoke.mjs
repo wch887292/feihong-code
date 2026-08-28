@@ -1,4 +1,4 @@
-// P7 批次冒烟：SWE-bench harness + Docker 沙箱加固 + 合规文档 + 协作可视化 + 7.5.0 发布自动化
+// P7 批次冒烟：SWE-bench harness + Docker 沙箱加固 + 合规文档 + 协作可视化 + 7.6.0 发布自动化
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { execSync } from 'child_process';
@@ -47,11 +47,11 @@ report('协作总览含成员负载分布', ui.includes('成员负载'));
 report('loadTeamData 调用 renderTeamOverview', ui.includes('renderTeamOverview(d)'));
 report('HTML 含 teamOverview 容器', idx.includes('id="teamOverview"'));
 
-console.log('\n===== P7-5 GitHub/npm 发布自动化（7.5.0） =====');
+console.log('\n===== P7-5 GitHub/npm 发布自动化（7.6.0） =====');
 const vts = readFileSync(join(root, 'src/cli/version.ts'), 'utf8');
 const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
-report('版本号升级 7.5.0（version.ts）', vts.includes("VERSION = '7.5.0'"));
-report('版本号升级 7.5.0（package.json）', pkg.version === '7.5.0');
+report('版本号升级 7.6.0（version.ts）', vts.includes("VERSION = '7.6.0'"));
+report('版本号升级 7.6.0（package.json）', pkg.version === '7.6.0');
 const rel = existsSync(join(root, '.github/workflows/release.yml')) ? readFileSync(join(root, '.github/workflows/release.yml'), 'utf8') : '';
 report('release.yml 含 npm publish', rel.includes('npm publish'));
 report('release.yml 含 GitHub Release', rel.includes('action-gh-release'));
@@ -59,16 +59,16 @@ report('release.yml 含 Docker 镜像发布', rel.includes('docker-publish') || 
 report('release.yml 含安全 CI 门禁', rel.includes('npm run security'));
 report('release.yml 含综合冒烟门禁', rel.includes('_smoke-full.mjs'));
 report('release.yml 含 SWE harness 冒烟', rel.includes('harness lite'));
-report('CHANGELOG 含 v7.5.0', readFileSync(join(root, 'CHANGELOG.md'), 'utf8').includes('## v7.5.0'));
+report('CHANGELOG 含 v7.6.0', readFileSync(join(root, 'CHANGELOG.md'), 'utf8').includes('## v7.6.0'));
 report('升级说明书存在', existsSync(join(root, 'docs/UPGRADE_GUIDE_7_5.md')));
 
-// HTTP：/api/health 应返回 7.5.0
+// HTTP：/api/health 应返回 7.6.0
 const BASE = process.env.FH_SMOKE_BASE || 'http://127.0.0.1:8099';
 (async () => {
   try {
     const h = await (await fetch(BASE + '/api/health')).json();
-    report('POST /api/health 返回 7.5.0', h.version === '7.5.0', `（${h.version}）`);
-  } catch (e) { report('health 7.5.0', false, String(e)); }
+    report('POST /api/health 返回 7.6.0', h.version === '7.6.0', `（${h.version}）`);
+  } catch (e) { report('health 7.6.0', false, String(e)); }
 
   console.log(`\n========== P7 批次冒烟结果 ==========`);
   console.log(`  通过: ${pass}  失败: ${fail}`);

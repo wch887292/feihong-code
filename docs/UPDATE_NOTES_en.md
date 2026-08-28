@@ -1,7 +1,7 @@
 # Feihong Code v7.0.0 Release Notes
 
 **Release Date**: August 24, 2026
-**Version**: 7.0.0
+**Version**: 7.6.0
 **Product Name**: Feihong Code (feihong-code)
 **R&D Team**: Feihongzhi Technology Enterprise Management Co., Ltd. · Feiyang Qiyuan R&D Center
 
