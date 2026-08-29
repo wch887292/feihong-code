@@ -104,7 +104,7 @@
     "url": "https://www.klai.top"
   },
   "devDependencies": {
-    "@capacitor/android": "^7.6.8",
+    "@capacitor/android": "^8.5.0",
     "@capacitor/cli": "^7.6.8",
     "@types/express": "^5.0.6",
     "@types/node": "^26.2.0",
