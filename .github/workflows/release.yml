@@ -107,7 +107,7 @@ jobs:
       - name: P7-1 SWE-bench harness 链路冒烟（mock）
         run: node dist/cli/index.js harness lite --limit 1 --mode mock || echo "⚠️ harness 需网络拉取数据集，失败不阻断（真实跑分见 docs/SWE_BENCH_REPORT.md）"
       - name: 上传构建产物
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dist-${{ needs.version.outputs.version }}
           path: dist/
