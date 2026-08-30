@@ -1,0 +1,50 @@
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-15572"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-15695"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-15731"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-15732"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-15741"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-15814"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-15851"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-15863"}
+{"resolved": 0, "stage": "no_patch", "blocks": 0, "applied": 0, "pytest_rc": -1, "instance_id": "django__django-15916"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-15930"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-15957"}
+{"resolved": 0, "stage": "no_patch", "blocks": 1, "applied": 0, "pytest_rc": -1, "instance_id": "django__django-15973"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-16032"}
+{"resolved": 0, "stage": "no_patch", "blocks": 0, "applied": 0, "pytest_rc": -1, "instance_id": "django__django-16082"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 2, "applied": 2, "pytest_rc": -1, "instance_id": "django__django-16100"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-16136"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-16139"}
+{"resolved": 0, "stage": "no_patch", "blocks": 0, "applied": 0, "pytest_rc": -1, "instance_id": "django__django-16145"}
+{"resolved": 0, "stage": "no_patch", "blocks": 0, "applied": 0, "pytest_rc": -1, "instance_id": "django__django-16255"}
+{"resolved": 0, "stage": "no_patch", "blocks": 0, "applied": 0, "pytest_rc": -1, "instance_id": "django__django-16256"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-16263"}
+{"resolved": false, "stage": "notarget", "error": "no src path", "instance_id": "django__django-15629"}
+{"resolved": false, "stage": "notarget", "error": "no src path", "instance_id": "django__django-15987"}
+{"resolved": false, "stage": "notarget", "error": "no src path", "instance_id": "django__django-16116"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 2, "applied": 2, "pytest_rc": -1, "instance_id": "django__django-16315"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-16333"}
+{"resolved": false, "stage": "notarget", "error": "no src path", "instance_id": "django__django-16429"}
+{"resolved": false, "stage": "notarget", "error": "no src path", "instance_id": "django__django-16454"}
+{"resolved": false, "stage": "notarget", "error": "no src path", "instance_id": "django__django-16485"}
+{"resolved": false, "stage": "notarget", "error": "no src path", "instance_id": "django__django-16493"}
+{"resolved": false, "stage": "notarget", "error": "no src path", "instance_id": "django__django-16502"}
+{"resolved": false, "stage": "notarget", "error": "no src path", "instance_id": "django__django-16527"}
+{"resolved": false, "stage": "notarget", "error": "no src path", "instance_id": "django__django-16560"}
+{"resolved": false, "stage": "notarget", "error": "no src path", "instance_id": "django__django-16569"}
+{"resolved": false, "stage": "notarget", "error": "no src path", "instance_id": "django__django-16595"}
+{"resolved": false, "stage": "notarget", "error": "no src path", "instance_id": "django__django-16612"}
+{"resolved": false, "stage": "notarget", "error": "no src path", "instance_id": "django__django-16631"}
+{"resolved": false, "stage": "notarget", "error": "no src path", "instance_id": "django__django-16642"}
+{"resolved": false, "stage": "notarget", "error": "no src path", "instance_id": "django__django-16661"}
+{"resolved": false, "stage": "notarget", "error": "no src path", "instance_id": "django__django-16662"}
+{"resolved": false, "stage": "notarget", "error": "no src path", "instance_id": "django__django-16667"}
+{"resolved": false, "stage": "notarget", "error": "no src path", "instance_id": "django__django-16801"}
+{"resolved": false, "stage": "notarget", "error": "no src path", "instance_id": "django__django-16819"}
+{"resolved": false, "stage": "notarget", "error": "no src path", "instance_id": "django__django-16877"}
+{"resolved": false, "stage": "notarget", "error": "no src path", "instance_id": "django__django-16899"}
+{"resolved": false, "stage": "notarget", "error": "no src path", "instance_id": "django__django-16901"}
+{"resolved": false, "stage": "notarget", "error": "no src path", "instance_id": "django__django-16938"}
+{"resolved": false, "stage": "notarget", "error": "no src path", "instance_id": "django__django-16950"}
+{"resolved": false, "stage": "notarget", "error": "no src path", "instance_id": "django__django-17029"}
+{"resolved": false, "stage": "notarget", "error": "no src path", "instance_id": "django__django-17084"}

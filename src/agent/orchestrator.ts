@@ -116,6 +116,8 @@ export interface OrchestratorDeps {
   layeredMemory?: LayeredMemory;
   /** P3-1：文件写入暂存回调（注入 change-manager.stageChange），AI 生成的修改自动记录到变更面板 */
   stageChange?: (path: string, content: string) => void;
+  /** P2-1：SessionStart hooks 注入的额外系统提示（如 pua-ext 行为协议），在 systemPrompt 构建完成后追加 */
+  extraSystemPrompt?: string;
 }
 
 /** M3 resume 上下文：携带已完成的对话与计数，避免重复执行 */
@@ -219,6 +221,11 @@ export class Orchestrator {
         } catch (e) {
           logger.warn('RAG context build failed', { error: e instanceof Error ? e.message : String(e) });
         }
+      }
+
+      // P2-1：SessionStart hooks 注入的额外系统提示（如 pua-ext 行为协议）
+      if (this.deps.extraSystemPrompt) {
+        systemPrompt += '\n\n' + this.deps.extraSystemPrompt;
       }
 
       const { messages: initMessages, plan } = planTask(goal);

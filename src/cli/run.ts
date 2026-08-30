@@ -52,6 +52,8 @@ import { installPlugin, listPlugins } from '../plugins/plugin-loader';
 import { runTeam } from '../agent/team';
 import { fetchMarketIndex, searchMarket, installMarketSkill, isSchemaSupported } from '../skills/skill-market';
 import { discoverSkills } from '../skills/skill-loader';
+import { registerPuaHooks } from '../skills/pua-hooks';
+import { runSkillHooks } from '../runtime/hooks';
 import { Orchestrator, type OrchestratorSecurity, type OrchestratorEvent, type ResumeContext } from '../agent/orchestrator';
 import type { ChatMessage } from '../models/model.interface';
 import { runParallel, defaultParallelMock } from '../agent/parallel-orchestrator';
@@ -80,6 +82,8 @@ export interface RunOptions {
   renderer?: (ev: OrchestratorEvent) => void;
   /** 指定模型列表（由 Web 控制台传入，直接构建 ModelRouter，绕过 loadConfig 缓存） */
   modelProviders?: Array<{ id: string; type: 'openai-compatible' | 'ollama'; baseURL: string; apiKey?: string; model?: string }>;
+  /** 指定模型名（如 deepseek-ai/DeepSeek-V4-Flash），覆盖默认模型选择 */
+  model?: string;
   /** 安全配置（Web 控制台可覆盖默认值） */
   security?: Partial<OrchestratorSecurity>;
   /** M3 多轮续接：携带上一轮完整对话与计数，在同一任务内继续对话（Web 控制台任务续接用） */
@@ -237,7 +241,20 @@ export async function executeTask(goal: string, opts: RunOptions = {}): Promise<
     router = new ModelRouter([new ScriptedMockProvider(buildDemoSteps())], 'cost', 0);
   } else {
     const cfg = loadConfig();
-    router = ModelRouter.fromConfig(cfg);
+    // --model 覆盖：只保留指定模型对应的 provider，其余一律排除（用户显式指定时不做自动轮换）
+    if (opts.model) {
+      const matched = cfg.models.providers.filter((p) => p.model === opts.model);
+      if (matched.length === 0) {
+        throw new AppError(
+          `未找到模型 ${opts.model}，请检查 FH_PROVIDERS / fhcode.config.json 中的 model 配置`,
+          'MODEL_NOT_FOUND',
+          400,
+        );
+      }
+      router = ModelRouter.fromConfig({ ...cfg, models: { ...cfg.models, providers: matched } });
+    } else {
+      router = ModelRouter.fromConfig(cfg);
+    }
     security.shellAllowlist = cfg.security.shellAllowlist;
     security.requireApproval = cfg.security.requireApproval;
     security.sandboxMode = cfg.security.sandboxMode;
@@ -280,6 +297,18 @@ export async function executeTask(goal: string, opts: RunOptions = {}): Promise<
     ? rt.makeGuard({ runId, cwd, shellAllowlist: security.shellAllowlist, approve })
     : undefined;
 
+  // P2-1：SessionStart hooks（注册 pua-ext 等技能 hooks，获取系统提示注入）
+  registerPuaHooks();
+  const sessionStartResult = await runSkillHooks('SessionStart', {
+    cwd,
+    runId,
+    goal: effectiveGoal,
+  });
+  const extraSystemPrompt = sessionStartResult.systemInjection;
+  if (extraSystemPrompt) {
+    logger.info('session start hooks injected system prompt', { chars: extraSystemPrompt.length });
+  }
+
   const orchestrator = new Orchestrator({
     router,
     tools,
@@ -295,6 +324,7 @@ export async function executeTask(goal: string, opts: RunOptions = {}): Promise<
     pluginSkillDirs,
     signal: opts.signal,
     stageChange: opts.stageChange,
+    extraSystemPrompt,
   });
 
   if (rt) {

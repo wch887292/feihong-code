@@ -7,12 +7,17 @@
  */
 import { randomUUID } from 'crypto';
 import { readFileSync, existsSync } from 'fs';
+import dns from 'node:dns';
 import { setRunId } from '../shared/logger';
 import { AppError } from '../shared/errors';
 import { loadDotEnv } from '../shared/config';
 import { parseArgs, type SkillCommand, type ManagementCommand } from './commands';
 import { startRepl } from './repl';
 import { runTui } from './tui-run';
+
+// 强制 IPv4 优先：规避 IPv6 链路故障（与 web server 一致，幂等无副作用）。
+// 部分网络 IPv6 路由不可达时，默认 verbatim 解析优先走 IPv6 导致 fetch 连接失败。
+dns.setDefaultResultOrder('ipv4first');
 import {
   runGoal,
   isOfflineByDefault,
@@ -98,6 +103,17 @@ async function main(): Promise<void> {
     await runParallelGoal(args.command);
     return;
   }
+  if (args.flags.exec) {
+    // -e 直接执行命令（不进入 Agent 编排），等价于在终端里跑一遍
+    const { execSync } = await import('child_process');
+    try {
+      execSync(args.flags.exec, { stdio: 'inherit', shell: true } as unknown as Parameters<typeof execSync>[1]);
+    } catch (e) {
+      const code = (e as { status?: number }).status ?? 1;
+      process.exitCode = code;
+    }
+    return;
+  }
   if (args.command) {
     const offline = isOfflineByDefault();
     let goal = args.command;
@@ -108,7 +124,7 @@ async function main(): Promise<void> {
         goal += `\n\n<context-file: ${args.flags.contextFile}>\n${content}\n</context-file>`;
       }
     }
-    await runGoal(goal, { offline, stream: args.flags.stream });
+    await runGoal(goal, { offline, stream: args.flags.stream, model: args.flags.model });
     return;
   }
 

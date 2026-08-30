@@ -1,0 +1,50 @@
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-11477"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 2, "applied": 2, "pytest_rc": -1, "instance_id": "django__django-11490"}
+{"resolved": 0, "stage": "no_patch", "blocks": 1, "applied": 0, "pytest_rc": -1, "instance_id": "django__django-11532"}
+{"resolved": 0, "stage": "no_patch", "blocks": 0, "applied": 0, "pytest_rc": -1, "instance_id": "django__django-11551"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 2, "applied": 2, "pytest_rc": -1, "instance_id": "django__django-11555"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-11603"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-11728"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-11734"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 2, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-11740"}
+{"resolved": 0, "stage": "no_patch", "blocks": 1, "applied": 0, "pytest_rc": -1, "instance_id": "django__django-11749"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-11790"}
+{"resolved": 0, "stage": "no_patch", "blocks": 4, "applied": 0, "pytest_rc": -1, "instance_id": "django__django-11815"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-11820"}
+{"resolved": 0, "stage": "no_patch", "blocks": 1, "applied": 0, "pytest_rc": -1, "instance_id": "django__django-11848"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-11880"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-11885"}
+{"resolved": 0, "stage": "no_patch", "blocks": 0, "applied": 0, "pytest_rc": -1, "instance_id": "django__django-11951"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-11964"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-12039"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 2, "applied": 2, "pytest_rc": -1, "instance_id": "django__django-11999"}
+{"resolved": 0, "stage": "no_patch", "blocks": 1, "applied": 0, "pytest_rc": -1, "instance_id": "django__django-12050"}
+{"resolved": false, "stage": "notarget", "error": "no src path", "instance_id": "django__django-12125"}
+{"resolved": false, "stage": "notarget", "error": "no src path", "instance_id": "django__django-12143"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-12155"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-12193"}
+{"resolved": false, "stage": "notarget", "error": "no src path", "instance_id": "django__django-12209"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-12262"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-12273"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-12276"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-12304"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-12308"}
+{"resolved": 0, "stage": "no_patch", "blocks": 1, "applied": 0, "pytest_rc": -1, "instance_id": "django__django-12325"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-12406"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 2, "applied": 2, "pytest_rc": -1, "instance_id": "django__django-12419"}
+{"resolved": false, "stage": "notarget", "error": "no src path", "instance_id": "django__django-12663"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-12708"}
+{"resolved": 0, "stage": "no_patch", "blocks": 0, "applied": 0, "pytest_rc": -1, "instance_id": "django__django-12713"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-12741"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-12754"}
+{"resolved": false, "stage": "notarget", "error": "no src path", "instance_id": "django__django-12774"}
+{"resolved": false, "stage": "notarget", "error": "no src path", "instance_id": "django__django-12858"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-12965"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-13012"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-13023"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-13028"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-13033"}
+{"resolved": false, "stage": "notarget", "error": "no src path", "instance_id": "django__django-13089"}
+{"resolved": false, "stage": "notarget", "error": "no src path", "instance_id": "django__django-13109"}
+{"resolved": false, "stage": "notarget", "error": "no src path", "instance_id": "django__django-13112"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-13121"}
