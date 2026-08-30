@@ -9,6 +9,7 @@ import type { Tool, ToolContext, ToolResult } from './tool.interface';
 import { toDefinition } from './tool.interface';
 import { checkSandbox, type SandboxMode, type SandboxRules } from './sandbox';
 import { runHooks } from '../runtime/hooks';
+import { runSkillHooks } from '../runtime/hooks';
 import type { ToolDefinition } from '../models/model.interface';
 
 export class ToolRegistry {
@@ -147,6 +148,15 @@ export class ToolRegistry {
       if (result.ok && hookCtx.path) {
         await runHooks(ctx.security.hooks, 'PostEdit', postCtx);
       }
+    }
+
+    // P2-1：进程内技能 hooks（如 pua-ext 压力旁白注入），在 shell hooks 后执行
+    const skillHookResult = await runSkillHooks('PostToolUse', { ...hookCtx, ok: result.ok });
+    if (skillHookResult.outputInjection) {
+      result = {
+        ...result,
+        output: (result.output || '') + skillHookResult.outputInjection,
+      };
     }
 
     return result;

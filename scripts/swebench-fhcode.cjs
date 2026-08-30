@@ -64,7 +64,7 @@ function cloneOrEnsureWorktree(repo, baseCommit, worktreeDir) {
       if (existsSync(altDir)) repoDir = altDir;
     }
   }
-  const wtPath = join(WORK_DIR, worktreeDir);
+  const wtPath = require('path').resolve(join(WORK_DIR, worktreeDir));
   // 若工作区已存在且 checkout 正确则直接返回
   if (existsSync(wtPath)) {
     const current = execSync('git rev-parse --short=8 HEAD', { cwd: wtPath, encoding: 'utf8', stdio: 'pipe' }).trim();

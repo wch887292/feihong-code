@@ -41,6 +41,20 @@ export interface MarketIndex {
 
 /** 抓取并解析市场索引（未知 $schema 告警但返回，由调用方决定） */
 export async function fetchMarketIndex(marketBaseUrl: string): Promise<MarketIndex> {
+  // 本地种子市场源：local:<name> → 读取 templates/market/<name>-index.json（离线可用，零网络）
+  if (marketBaseUrl.startsWith('local:')) {
+    const name = marketBaseUrl.slice('local:'.length).trim() || 'index';
+    const seedPath = join(__dirname, '../../templates/market', `${name}-index.json`);
+    if (!existsSync(seedPath)) throw new Error(`本地市场源不存在：${seedPath}`);
+    const parsed: { $schema?: string; skills?: unknown[] } = JSON.parse(readFileSync(seedPath, 'utf8'));
+    const skills: MarketSkill[] = Array.isArray(parsed.skills)
+      ? parsed.skills.filter(
+          (s): s is MarketSkill =>
+            !!s && typeof s === 'object' && typeof (s as MarketSkill).name === 'string' && typeof (s as MarketSkill).url === 'string',
+        )
+      : [];
+    return { schema: parsed.$schema, skills, source: `local:${name}` };
+  }
   const base = marketBaseUrl.replace(/\/+$/, '');
   const indexUrl = base + WELL_KNOWN_PATH;
   const controller = new AbortController();
@@ -123,14 +137,48 @@ export function verifyDigest(buf: Buffer, digest?: string): boolean {
 }
 
 async function download(url: string, timeoutMs = 30000): Promise<Buffer> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  // 首选 Node 原生 fetch（零依赖）；失败时回退 curl 子进程——
+  // 部分受限网络下 Node undici 连接 raw.githubusercontent 会超时/被重置，而 curl 走系统栈可通。
   try {
-    const res = await fetch(url, { signal: controller.signal, headers: { 'User-Agent': 'fhcode/0.4' } });
-    if (!res.ok) throw new Error(`HTTP ${res.status}（${url}）`);
-    return Buffer.from(await res.arrayBuffer());
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, { signal: controller.signal, headers: { 'User-Agent': 'fhcode/0.4' } });
+      if (!res.ok) throw new Error(`HTTP ${res.status}（${url}）`);
+      return Buffer.from(await res.arrayBuffer());
+    } finally {
+      clearTimeout(timer);
+    }
+  } catch (fetchErr) {
+    try {
+      return await downloadViaCurl(url, timeoutMs);
+    } catch {
+      throw fetchErr instanceof Error ? fetchErr : new Error(String(fetchErr));
+    }
+  }
+}
+
+/** curl 子进程下载（回退通道）：-sL 跟随重定向，--max-time 超时，输出到临时文件后读回 */
+async function downloadViaCurl(url: string, timeoutMs: number): Promise<Buffer> {
+  const { execFile } = await import('child_process');
+  const { tmpdir } = await import('os');
+  const { mkdtempSync, readFileSync, rmSync } = await import('fs');
+  const { join } = await import('path');
+  const { randomUUID } = await import('crypto');
+  const dir = mkdtempSync(join(tmpdir(), 'fhcode-dl-'));
+  const out = join(dir, randomUUID() + '.bin');
+  try {
+    await new Promise<void>((resolve, reject) => {
+      execFile(
+        'curl',
+        ['-sL', '--max-time', String(Math.ceil(timeoutMs / 1000)), '-o', out, url],
+        { timeout: timeoutMs + 5000 },
+        (err) => (err ? reject(err) : resolve()),
+      );
+    });
+    return readFileSync(out);
   } finally {
-    clearTimeout(timer);
+    rmSync(dir, { recursive: true, force: true });
   }
 }
 

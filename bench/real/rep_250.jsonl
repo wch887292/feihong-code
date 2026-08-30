@@ -1,0 +1,10 @@
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-7530"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-9296"}
+{"resolved": false, "stage": "notarget", "error": "no src path", "instance_id": "django__django-17087"}
+{"resolved": false, "stage": "notarget", "error": "no src path", "instance_id": "matplotlib__matplotlib-13989"}
+{"resolved": false, "stage": "notarget", "error": "no src path", "instance_id": "matplotlib__matplotlib-14623"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "matplotlib__matplotlib-20488"}
+{"resolved": false, "stage": "notarget", "error": "no src path", "instance_id": "matplotlib__matplotlib-20676"}
+{"resolved": false, "stage": "notarget", "error": "no src path", "instance_id": "matplotlib__matplotlib-20826"}
+{"resolved": 0, "stage": "no_patch", "blocks": 1, "applied": 0, "pytest_rc": -1, "instance_id": "matplotlib__matplotlib-20859"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "matplotlib__matplotlib-21568"}

@@ -1,0 +1,3494 @@
+[
+ {
+  "key": "anthropics/docx",
+  "owner": "anthropics",
+  "name": "docx",
+  "desc": "Create, edit, and analyze Word documents"
+ },
+ {
+  "key": "anthropics/doc-coauthoring",
+  "owner": "anthropics",
+  "name": "doc-coauthoring",
+  "desc": "Collaborative document editing and co-authoring"
+ },
+ {
+  "key": "anthropics/pptx",
+  "owner": "anthropics",
+  "name": "pptx",
+  "desc": "Create, edit, and analyze PowerPoint presentations"
+ },
+ {
+  "key": "anthropics/xlsx",
+  "owner": "anthropics",
+  "name": "xlsx",
+  "desc": "Create, edit, and analyze Excel spreadsheets"
+ },
+ {
+  "key": "anthropics/pdf",
+  "owner": "anthropics",
+  "name": "pdf",
+  "desc": "Extract text, create PDFs, and handle forms"
+ },
+ {
+  "key": "anthropics/algorithmic-art",
+  "owner": "anthropics",
+  "name": "algorithmic-art",
+  "desc": "Create generative art using p5.js with seeded randomness"
+ },
+ {
+  "key": "anthropics/canvas-design",
+  "owner": "anthropics",
+  "name": "canvas-design",
+  "desc": "Design visual art in PNG and PDF formats"
+ },
+ {
+  "key": "anthropics/frontend-design",
+  "owner": "anthropics",
+  "name": "frontend-design",
+  "desc": "Frontend design and UI/UX development tools"
+ },
+ {
+  "key": "anthropics/slack-gif-creator",
+  "owner": "anthropics",
+  "name": "slack-gif-creator",
+  "desc": "Create animated GIFs optimized for Slack size constraints"
+ },
+ {
+  "key": "anthropics/theme-factory",
+  "owner": "anthropics",
+  "name": "theme-factory",
+  "desc": "Style artifacts with professional themes or generate custom themes"
+ },
+ {
+  "key": "anthropics/web-artifacts-builder",
+  "owner": "anthropics",
+  "name": "web-artifacts-builder",
+  "desc": "Build complex claude.ai HTML artifacts with React and Tailwind"
+ },
+ {
+  "key": "anthropics/mcp-builder",
+  "owner": "anthropics",
+  "name": "mcp-builder",
+  "desc": "Create MCP servers to integrate external APIs and services"
+ },
+ {
+  "key": "anthropics/webapp-testing",
+  "owner": "anthropics",
+  "name": "webapp-testing",
+  "desc": "Test local web applications using Playwright"
+ },
+ {
+  "key": "anthropics/brand-guidelines",
+  "owner": "anthropics",
+  "name": "brand-guidelines",
+  "desc": "Apply Anthropic's brand colors and typography to artifacts"
+ },
+ {
+  "key": "anthropics/internal-comms",
+  "owner": "anthropics",
+  "name": "internal-comms",
+  "desc": "Write status reports, newsletters, and FAQs"
+ },
+ {
+  "key": "anthropics/skill-creator",
+  "owner": "anthropics",
+  "name": "skill-creator",
+  "desc": "Guide for creating skills that extend Claude's capabilities"
+ },
+ {
+  "key": "anthropics/template",
+  "owner": "anthropics",
+  "name": "template",
+  "desc": "Basic template for creating new skills"
+ },
+ {
+  "key": "voltagent/create-voltagent",
+  "owner": "voltagent",
+  "name": "create-voltagent",
+  "desc": "Project setup guide with CLI and manual steps"
+ },
+ {
+  "key": "voltagent/voltagent-best-practices",
+  "owner": "voltagent",
+  "name": "voltagent-best-practices",
+  "desc": "Architecture and usage patterns for agents, workflows, memory, and servers"
+ },
+ {
+  "key": "voltagent/voltagent-core-reference",
+  "owner": "voltagent",
+  "name": "voltagent-core-reference",
+  "desc": "Reference for the VoltAgent class options and lifecycle methods"
+ },
+ {
+  "key": "voltagent/voltagent-docs-bundle",
+  "owner": "voltagent",
+  "name": "voltagent-docs-bundle",
+  "desc": "Lookup embedded docs from @voltagent/core for version-matched documentation"
+ },
+ {
+  "key": "composiohq/composio",
+  "owner": "composiohq",
+  "name": "composio",
+  "desc": "Connect AI agents to 1000+ external apps with managed authentication"
+ },
+ {
+  "key": "supabase/postgres-best-practices",
+  "owner": "supabase",
+  "name": "postgres-best-practices",
+  "desc": "PostgreSQL best practices for Supabase"
+ },
+ {
+  "key": "google-gemini/gemini-api-dev",
+  "owner": "google-gemini",
+  "name": "gemini-api-dev",
+  "desc": "Best practices for developing Gemini-powered apps using the Gemini API"
+ },
+ {
+  "key": "google-gemini/vertex-ai-api-dev",
+  "owner": "google-gemini",
+  "name": "vertex-ai-api-dev",
+  "desc": "Developing Gemini-powered apps on Google Cloud Vertex AI using the Gen AI SDK"
+ },
+ {
+  "key": "google-gemini/gemini-live-api-dev",
+  "owner": "google-gemini",
+  "name": "gemini-live-api-dev",
+  "desc": "Building real-time bidirectional streaming apps with the Gemini Live API"
+ },
+ {
+  "key": "google-gemini/gemini-interactions-api",
+  "owner": "google-gemini",
+  "name": "gemini-interactions-api",
+  "desc": "Building apps with the Gemini Interactions API for text, chat, streaming, and image generation"
+ },
+ {
+  "key": "stripe/stripe-best-practices",
+  "owner": "stripe",
+  "name": "stripe-best-practices",
+  "desc": "Best practices for building Stripe integrations"
+ },
+ {
+  "key": "stripe/upgrade-stripe",
+  "owner": "stripe",
+  "name": "upgrade-stripe",
+  "desc": "Upgrade Stripe SDK and API versions"
+ },
+ {
+  "key": "callstackincubator/react-native-best-practices",
+  "owner": "callstackincubator",
+  "name": "react-native-best-practices",
+  "desc": "Performance optimization for React Native apps from Callstack"
+ },
+ {
+  "key": "callstackincubator/github",
+  "owner": "callstackincubator",
+  "name": "github",
+  "desc": "GitHub workflow patterns for PRs, code review, branching"
+ },
+ {
+  "key": "callstackincubator/upgrading-react-native",
+  "owner": "callstackincubator",
+  "name": "upgrading-react-native",
+  "desc": "React Native upgrade workflow: templates, dependencies, and common pitfalls"
+ },
+ {
+  "key": "better-auth/best-practices",
+  "owner": "better-auth",
+  "name": "best-practices",
+  "desc": "Best practices for Better Auth integration"
+ },
+ {
+  "key": "better-auth/explain-error",
+  "owner": "better-auth",
+  "name": "explain-error",
+  "desc": "Explain Better Auth error messages"
+ },
+ {
+  "key": "better-auth/providers",
+  "owner": "better-auth",
+  "name": "providers",
+  "desc": "Better Auth authentication providers"
+ },
+ {
+  "key": "better-auth/create-auth",
+  "owner": "better-auth",
+  "name": "create-auth",
+  "desc": "Create authentication setup with Better Auth"
+ },
+ {
+  "key": "better-auth/emailAndPassword",
+  "owner": "better-auth",
+  "name": "emailAndPassword",
+  "desc": "Email and password authentication with Better Auth"
+ },
+ {
+  "key": "better-auth/organization",
+  "owner": "better-auth",
+  "name": "organization",
+  "desc": "Organization management with Better Auth"
+ },
+ {
+  "key": "better-auth/twoFactor",
+  "owner": "better-auth",
+  "name": "twoFactor",
+  "desc": "Two-factor authentication with Better Auth"
+ },
+ {
+  "key": "tinybirdco/tinybird-best-practices",
+  "owner": "tinybirdco",
+  "name": "tinybird-best-practices",
+  "desc": "Tinybird project guidelines for datasources, pipes, endpoints, and SQL"
+ },
+ {
+  "key": "tinybirdco/tinybird-cli-guidelines",
+  "owner": "tinybirdco",
+  "name": "tinybird-cli-guidelines",
+  "desc": "Tinybird CLI usage guidelines and commands"
+ },
+ {
+  "key": "tinybirdco/tinybird-python-sdk-guidelines",
+  "owner": "tinybirdco",
+  "name": "tinybird-python-sdk-guidelines",
+  "desc": "Tinybird Python SDK usage guidelines"
+ },
+ {
+  "key": "tinybirdco/tinybird-typescript-sdk-guidelines",
+  "owner": "tinybirdco",
+  "name": "tinybird-typescript-sdk-guidelines",
+  "desc": "Tinybird TypeScript SDK usage guidelines"
+ },
+ {
+  "key": "hashicorp/azure-verified-modules",
+  "owner": "hashicorp",
+  "name": "azure-verified-modules",
+  "desc": "Azure Verified Modules (AVM) certification standards for Terraform modules"
+ },
+ {
+  "key": "hashicorp/new-terraform-provider",
+  "owner": "hashicorp",
+  "name": "new-terraform-provider",
+  "desc": "Scaffold a new Terraform provider project using the Plugin Framework"
+ },
+ {
+  "key": "hashicorp/provider-resources",
+  "owner": "hashicorp",
+  "name": "provider-resources",
+  "desc": "Implement Terraform Provider resources and data sources using the Plugin Framework"
+ },
+ {
+  "key": "hashicorp/provider-test-patterns",
+  "owner": "hashicorp",
+  "name": "provider-test-patterns",
+  "desc": "Acceptance test patterns for Terraform providers using terraform-plugin-testing"
+ },
+ {
+  "key": "hashicorp/provider-actions",
+  "owner": "hashicorp",
+  "name": "provider-actions",
+  "desc": "Implement Terraform Provider Actions using the Plugin Framework"
+ },
+ {
+  "key": "hashicorp/run-acceptance-tests",
+  "owner": "hashicorp",
+  "name": "run-acceptance-tests",
+  "desc": "Run acceptance tests for Terraform providers using Go's test runner"
+ },
+ {
+  "key": "hashicorp/refactor-module",
+  "owner": "hashicorp",
+  "name": "refactor-module",
+  "desc": "Transform monolithic Terraform configurations into reusable modules"
+ },
+ {
+  "key": "hashicorp/terraform-search-import",
+  "owner": "hashicorp",
+  "name": "terraform-search-import",
+  "desc": "Discover existing cloud resources and bulk import them into Terraform state"
+ },
+ {
+  "key": "hashicorp/terraform-style-guide",
+  "owner": "hashicorp",
+  "name": "terraform-style-guide",
+  "desc": "Generate Terraform HCL code following HashiCorp's official style conventions"
+ },
+ {
+  "key": "hashicorp/terraform-stacks",
+  "owner": "hashicorp",
+  "name": "terraform-stacks",
+  "desc": "Manage infrastructure across multiple environments, regions, and cloud accounts"
+ },
+ {
+  "key": "hashicorp/terraform-test",
+  "owner": "hashicorp",
+  "name": "terraform-test",
+  "desc": "Built-in testing framework for Terraform configurations with .tftest.hcl files"
+ },
+ {
+  "key": "sanity-io/sanity-best-practices",
+  "owner": "sanity-io",
+  "name": "sanity-best-practices",
+  "desc": "Best practices for Sanity Studio, GROQ queries, and content workflows"
+ },
+ {
+  "key": "sanity-io/content-modeling-best-practices",
+  "owner": "sanity-io",
+  "name": "content-modeling-best-practices",
+  "desc": "Guidelines for designing scalable content models in Sanity"
+ },
+ {
+  "key": "sanity-io/seo-aeo-best-practices",
+  "owner": "sanity-io",
+  "name": "seo-aeo-best-practices",
+  "desc": "SEO and answer engine optimization patterns for content sites"
+ },
+ {
+  "key": "sanity-io/content-experimentation-best-practices",
+  "owner": "sanity-io",
+  "name": "content-experimentation-best-practices",
+  "desc": "Content A/B testing and experimentation workflows"
+ },
+ {
+  "key": "firecrawl/firecrawl-build",
+  "owner": "firecrawl",
+  "name": "firecrawl-build",
+  "desc": "Integrate Firecrawl into application code for web search, scraping, extraction, and browser interaction"
+ },
+ {
+  "key": "firecrawl/firecrawl-build-interact",
+  "owner": "firecrawl",
+  "name": "firecrawl-build-interact",
+  "desc": "Multi-step Firecrawl browser flows: clicks, form fills, pagination, and auth-aware navigation"
+ },
+ {
+  "key": "firecrawl/firecrawl-build-onboarding",
+  "owner": "firecrawl",
+  "name": "firecrawl-build-onboarding",
+  "desc": "Set up Firecrawl credentials and SDK in a project for the first integration"
+ },
+ {
+  "key": "firecrawl/firecrawl-build-scrape",
+  "owner": "firecrawl",
+  "name": "firecrawl-build-scrape",
+  "desc": "Integrate Firecrawl `/scrape` for single-page extraction from product code"
+ },
+ {
+  "key": "firecrawl/firecrawl-build-search",
+  "owner": "firecrawl",
+  "name": "firecrawl-build-search",
+  "desc": "Integrate Firecrawl `/search` for query-first discovery with optional content hydration"
+ },
+ {
+  "key": "neondatabase/neon-postgres",
+  "owner": "neondatabase",
+  "name": "neon-postgres",
+  "desc": "Best practices for Neon Serverless Postgres"
+ },
+ {
+  "key": "neondatabase/claimable-postgres",
+  "owner": "neondatabase",
+  "name": "claimable-postgres",
+  "desc": "Claimable Postgres database provisioning with Neon"
+ },
+ {
+  "key": "neondatabase/neon-postgres-egress-optimizer",
+  "owner": "neondatabase",
+  "name": "neon-postgres-egress-optimizer",
+  "desc": "Optimize Neon Postgres egress and data transfer"
+ },
+ {
+  "key": "clickhouse/clickhouse-best-practices",
+  "owner": "clickhouse",
+  "name": "clickhouse-best-practices",
+  "desc": "Best practices for working with ClickHouse"
+ },
+ {
+  "key": "clickhouse/chdb-datastore",
+  "owner": "clickhouse",
+  "name": "chdb-datastore",
+  "desc": "Drop-in pandas replacement with ClickHouse performance across 16+ data sources"
+ },
+ {
+  "key": "clickhouse/chdb-sql",
+  "owner": "clickhouse",
+  "name": "chdb-sql",
+  "desc": "In-process ClickHouse SQL engine for Python — query files, databases, and cloud storage without a server"
+ },
+ {
+  "key": "clickhouse/clickhouse-architecture-advisor",
+  "owner": "clickhouse",
+  "name": "clickhouse-architecture-advisor",
+  "desc": "Design ClickHouse architectures and translate best practices into workload-specific decisions"
+ },
+ {
+  "key": "clickhouse/clickhousectl-cloud-deploy",
+  "owner": "clickhouse",
+  "name": "clickhousectl-cloud-deploy",
+  "desc": "Deploy to ClickHouse Cloud and migrate from local setups with clickhousectl"
+ },
+ {
+  "key": "clickhouse/clickhousectl-local-dev",
+  "owner": "clickhouse",
+  "name": "clickhousectl-local-dev",
+  "desc": "Spin up a local ClickHouse development environment from zero with clickhousectl"
+ },
+ {
+  "key": "remotion-dev/remotion",
+  "owner": "remotion-dev",
+  "name": "remotion",
+  "desc": "Programmatic video creation with React"
+ },
+ {
+  "key": "replicate/replicate",
+  "owner": "replicate",
+  "name": "replicate",
+  "desc": "Discover, compare, and run AI models using Replicate's API"
+ },
+ {
+  "key": "typefully/typefully",
+  "owner": "typefully",
+  "name": "typefully",
+  "desc": "Create, schedule, and publish social media content across X, LinkedIn, Threads, Bluesky, and Mastodon"
+ },
+ {
+  "key": "vercel-labs/next-best-practices",
+  "owner": "vercel-labs",
+  "name": "next-best-practices",
+  "desc": "Next.js best practices and recommended patterns"
+ },
+ {
+  "key": "vercel-labs/next-cache-components",
+  "owner": "vercel-labs",
+  "name": "next-cache-components",
+  "desc": "Caching strategies and cache-aware components in Next.js"
+ },
+ {
+  "key": "vercel-labs/next-upgrade",
+  "owner": "vercel-labs",
+  "name": "next-upgrade",
+  "desc": "Upgrade Next.js projects to newer versions"
+ },
+ {
+  "key": "cloudflare/agents-sdk",
+  "owner": "cloudflare",
+  "name": "agents-sdk",
+  "desc": "Build stateful AI agents with scheduling, RPC, and MCP servers"
+ },
+ {
+  "key": "cloudflare/cloudflare",
+  "owner": "cloudflare",
+  "name": "cloudflare",
+  "desc": "Comprehensive Cloudflare platform skill covering Workers, Pages, storage, AI, networking, security, and IaC"
+ },
+ {
+  "key": "cloudflare/cloudflare-email-service",
+  "owner": "cloudflare",
+  "name": "cloudflare-email-service",
+  "desc": "Send transactional email and route inbound mail with Cloudflare Email Sending and Email Routing"
+ },
+ {
+  "key": "cloudflare/durable-objects",
+  "owner": "cloudflare",
+  "name": "durable-objects",
+  "desc": "Stateful coordination with RPC, SQLite, and WebSockets"
+ },
+ {
+  "key": "cloudflare/sandbox-sdk",
+  "owner": "cloudflare",
+  "name": "sandbox-sdk",
+  "desc": "Build sandboxed applications for secure, isolated code execution on Workers"
+ },
+ {
+  "key": "cloudflare/web-perf",
+  "owner": "cloudflare",
+  "name": "web-perf",
+  "desc": "Audit Core Web Vitals and render-blocking resources"
+ },
+ {
+  "key": "cloudflare/workers-best-practices",
+  "owner": "cloudflare",
+  "name": "workers-best-practices",
+  "desc": "Review and author Workers code against production best practices and wrangler.jsonc conventions"
+ },
+ {
+  "key": "cloudflare/wrangler",
+  "owner": "cloudflare",
+  "name": "wrangler",
+  "desc": "Deploy and manage Workers, KV, R2, D1, Vectorize, Queues, Workflows"
+ },
+ {
+  "key": "netlify/netlify-functions",
+  "owner": "netlify",
+  "name": "netlify-functions",
+  "desc": "Build serverless API endpoints and background tasks"
+ },
+ {
+  "key": "netlify/netlify-edge-functions",
+  "owner": "netlify",
+  "name": "netlify-edge-functions",
+  "desc": "Low-latency edge middleware and geolocation logic"
+ },
+ {
+  "key": "netlify/netlify-blobs",
+  "owner": "netlify",
+  "name": "netlify-blobs",
+  "desc": "Key-value object storage for files and data"
+ },
+ {
+  "key": "netlify/netlify-db",
+  "owner": "netlify",
+  "name": "netlify-db",
+  "desc": "Managed Postgres with deploy preview branching"
+ },
+ {
+  "key": "netlify/netlify-image-cdn",
+  "owner": "netlify",
+  "name": "netlify-image-cdn",
+  "desc": "Optimize and transform images via CDN"
+ },
+ {
+  "key": "netlify/netlify-forms",
+  "owner": "netlify",
+  "name": "netlify-forms",
+  "desc": "HTML form handling with spam filtering"
+ },
+ {
+  "key": "netlify/netlify-frameworks",
+  "owner": "netlify",
+  "name": "netlify-frameworks",
+  "desc": "Deploy web frameworks with SSR support"
+ },
+ {
+  "key": "netlify/netlify-caching",
+  "owner": "netlify",
+  "name": "netlify-caching",
+  "desc": "Configure CDN caching and cache purging"
+ },
+ {
+  "key": "netlify/netlify-config",
+  "owner": "netlify",
+  "name": "netlify-config",
+  "desc": "Reference for netlify.toml site configuration"
+ },
+ {
+  "key": "netlify/netlify-cli-and-deploy",
+  "owner": "netlify",
+  "name": "netlify-cli-and-deploy",
+  "desc": "CLI setup, local dev, and deployment workflows"
+ },
+ {
+  "key": "netlify/netlify-deploy",
+  "owner": "netlify",
+  "name": "netlify-deploy",
+  "desc": "Automated deployment workflow for Netlify sites"
+ },
+ {
+  "key": "netlify/netlify-ai-gateway",
+  "owner": "netlify",
+  "name": "netlify-ai-gateway",
+  "desc": "Access AI models via unified gateway endpoint"
+ },
+ {
+  "key": "google-labs-code/design-md",
+  "owner": "google-labs-code",
+  "name": "design-md",
+  "desc": "Create and manage DESIGN.md files"
+ },
+ {
+  "key": "google-labs-code/enhance-prompt",
+  "owner": "google-labs-code",
+  "name": "enhance-prompt",
+  "desc": "Improve prompts with design specs and UI/UX vocabulary"
+ },
+ {
+  "key": "google-labs-code/react-components",
+  "owner": "google-labs-code",
+  "name": "react-components",
+  "desc": "Stitch to React components conversion"
+ },
+ {
+  "key": "google-labs-code/remotion",
+  "owner": "google-labs-code",
+  "name": "remotion",
+  "desc": "Generate walkthrough videos from Stitch app designs"
+ },
+ {
+  "key": "google-labs-code/shadcn-ui",
+  "owner": "google-labs-code",
+  "name": "shadcn-ui",
+  "desc": "Build UI components with shadcn/ui"
+ },
+ {
+  "key": "google-labs-code/stitch-loop",
+  "owner": "google-labs-code",
+  "name": "stitch-loop",
+  "desc": "Iterative design-to-code feedback loop"
+ },
+ {
+  "key": "googleworkspace/gws-shared",
+  "owner": "googleworkspace",
+  "name": "gws-shared",
+  "desc": "Shared authentication, global flags, and output formatting"
+ },
+ {
+  "key": "googleworkspace/gws-drive",
+  "owner": "googleworkspace",
+  "name": "gws-drive",
+  "desc": "Manage Google Drive files, folders, and shared drives"
+ },
+ {
+  "key": "googleworkspace/gws-sheets",
+  "owner": "googleworkspace",
+  "name": "gws-sheets",
+  "desc": "Read and write Google Sheets spreadsheets"
+ },
+ {
+  "key": "googleworkspace/gws-gmail",
+  "owner": "googleworkspace",
+  "name": "gws-gmail",
+  "desc": "Send, read, and manage Gmail email"
+ },
+ {
+  "key": "googleworkspace/gws-calendar",
+  "owner": "googleworkspace",
+  "name": "gws-calendar",
+  "desc": "Manage Google Calendar calendars and events"
+ },
+ {
+  "key": "googleworkspace/gws-admin-reports",
+  "owner": "googleworkspace",
+  "name": "gws-admin-reports",
+  "desc": "Audit logs and usage reports for Workspace"
+ },
+ {
+  "key": "googleworkspace/gws-docs",
+  "owner": "googleworkspace",
+  "name": "gws-docs",
+  "desc": "Read and write Google Docs documents"
+ },
+ {
+  "key": "googleworkspace/gws-slides",
+  "owner": "googleworkspace",
+  "name": "gws-slides",
+  "desc": "Read and write Google Slides presentations"
+ },
+ {
+  "key": "googleworkspace/gws-tasks",
+  "owner": "googleworkspace",
+  "name": "gws-tasks",
+  "desc": "Manage Google Tasks task lists and tasks"
+ },
+ {
+  "key": "googleworkspace/gws-people",
+  "owner": "googleworkspace",
+  "name": "gws-people",
+  "desc": "Manage Google People contacts and profiles"
+ },
+ {
+  "key": "googleworkspace/gws-chat",
+  "owner": "googleworkspace",
+  "name": "gws-chat",
+  "desc": "Manage Google Chat spaces and messages"
+ },
+ {
+  "key": "googleworkspace/gws-classroom",
+  "owner": "googleworkspace",
+  "name": "gws-classroom",
+  "desc": "Manage Google Classroom classes, rosters, and coursework"
+ },
+ {
+  "key": "googleworkspace/gws-forms",
+  "owner": "googleworkspace",
+  "name": "gws-forms",
+  "desc": "Read and write Google Forms"
+ },
+ {
+  "key": "googleworkspace/gws-keep",
+  "owner": "googleworkspace",
+  "name": "gws-keep",
+  "desc": "Manage Google Keep notes"
+ },
+ {
+  "key": "googleworkspace/gws-events",
+  "owner": "googleworkspace",
+  "name": "gws-events",
+  "desc": "Subscribe to Google Workspace events"
+ },
+ {
+  "key": "googleworkspace/gws-modelarmor",
+  "owner": "googleworkspace",
+  "name": "gws-modelarmor",
+  "desc": "Filter user-generated content for safety"
+ },
+ {
+  "key": "googleworkspace/gws-workflow",
+  "owner": "googleworkspace",
+  "name": "gws-workflow",
+  "desc": "Cross-service Google Workspace productivity workflows"
+ },
+ {
+  "key": "expo/building-native-ui",
+  "owner": "expo",
+  "name": "building-native-ui",
+  "desc": "Build apps with Expo Router, styling, components, navigation, and animations"
+ },
+ {
+  "key": "expo/expo-api-routes",
+  "owner": "expo",
+  "name": "expo-api-routes",
+  "desc": "Create API routes in Expo Router with EAS Hosting"
+ },
+ {
+  "key": "expo/expo-cicd-workflows",
+  "owner": "expo",
+  "name": "expo-cicd-workflows",
+  "desc": "CI/CD workflows for Expo projects"
+ },
+ {
+  "key": "expo/expo-deployment",
+  "owner": "expo",
+  "name": "expo-deployment",
+  "desc": "Deploy Expo apps to production"
+ },
+ {
+  "key": "expo/expo-dev-client",
+  "owner": "expo",
+  "name": "expo-dev-client",
+  "desc": "Build and distribute Expo dev clients locally or via TestFlight"
+ },
+ {
+  "key": "expo/expo-tailwind-setup",
+  "owner": "expo",
+  "name": "expo-tailwind-setup",
+  "desc": "Set up Tailwind CSS v4 in Expo with NativeWind v5"
+ },
+ {
+  "key": "expo/expo-ui-jetpack-compose",
+  "owner": "expo",
+  "name": "expo-ui-jetpack-compose",
+  "desc": "Jetpack Compose UI components for Expo"
+ },
+ {
+  "key": "expo/expo-ui-swift-ui",
+  "owner": "expo",
+  "name": "expo-ui-swift-ui",
+  "desc": "SwiftUI components for Expo"
+ },
+ {
+  "key": "expo/native-data-fetching",
+  "owner": "expo",
+  "name": "native-data-fetching",
+  "desc": "Network requests, API calls, caching, and offline support"
+ },
+ {
+  "key": "expo/upgrading-expo",
+  "owner": "expo",
+  "name": "upgrading-expo",
+  "desc": "Upgrade Expo SDK versions"
+ },
+ {
+  "key": "expo/use-dom",
+  "owner": "expo",
+  "name": "use-dom",
+  "desc": "Run web code in a webview on native using DOM components"
+ },
+ {
+  "key": "huggingface/hf-cli",
+  "owner": "huggingface",
+  "name": "hf-cli",
+  "desc": "HF CLI tool for Hub operations"
+ },
+ {
+  "key": "huggingface/hugging-face-dataset-viewer",
+  "owner": "huggingface",
+  "name": "hugging-face-dataset-viewer",
+  "desc": "Browse and query HF datasets with the Dataset Viewer API"
+ },
+ {
+  "key": "huggingface/hugging-face-datasets",
+  "owner": "huggingface",
+  "name": "hugging-face-datasets",
+  "desc": "Create and manage datasets with configs and SQL querying"
+ },
+ {
+  "key": "huggingface/hugging-face-evaluation",
+  "owner": "huggingface",
+  "name": "hugging-face-evaluation",
+  "desc": "Model evaluation with vLLM/lighteval and eval tables"
+ },
+ {
+  "key": "huggingface/hugging-face-jobs",
+  "owner": "huggingface",
+  "name": "hugging-face-jobs",
+  "desc": "Run compute jobs and Python scripts on HF infrastructure"
+ },
+ {
+  "key": "huggingface/hugging-face-model-trainer",
+  "owner": "huggingface",
+  "name": "hugging-face-model-trainer",
+  "desc": "Train models with TRL: SFT, DPO, GRPO, GGUF conversion"
+ },
+ {
+  "key": "huggingface/hugging-face-paper-pages",
+  "owner": "huggingface",
+  "name": "hugging-face-paper-pages",
+  "desc": "Create and manage paper pages on HF Hub"
+ },
+ {
+  "key": "huggingface/hugging-face-paper-publisher",
+  "owner": "huggingface",
+  "name": "hugging-face-paper-publisher",
+  "desc": "Publish papers on HF Hub with model/dataset links"
+ },
+ {
+  "key": "huggingface/hugging-face-tool-builder",
+  "owner": "huggingface",
+  "name": "hugging-face-tool-builder",
+  "desc": "Build reusable scripts for HF API operations"
+ },
+ {
+  "key": "huggingface/hugging-face-trackio",
+  "owner": "huggingface",
+  "name": "hugging-face-trackio",
+  "desc": "Track ML experiments with real-time dashboards"
+ },
+ {
+  "key": "huggingface/hugging-face-vision-trainer",
+  "owner": "huggingface",
+  "name": "hugging-face-vision-trainer",
+  "desc": "Train vision models on HF infrastructure"
+ },
+ {
+  "key": "huggingface/huggingface-gradio",
+  "owner": "huggingface",
+  "name": "huggingface-gradio",
+  "desc": "Build Gradio apps and deploy to HF Spaces"
+ },
+ {
+  "key": "huggingface/transformers.js",
+  "owner": "huggingface",
+  "name": "transformers.js",
+  "desc": "Run ML models in the browser with Transformers.js"
+ },
+ {
+  "key": "trailofbits/ask-questions-if-underspecified",
+  "owner": "trailofbits",
+  "name": "ask-questions-if-underspecified",
+  "desc": "Prompt for clarification on ambiguous requirements"
+ },
+ {
+  "key": "trailofbits/audit-context-building",
+  "owner": "trailofbits",
+  "name": "audit-context-building",
+  "desc": "Deep architectural context via ultra-granular code analysis"
+ },
+ {
+  "key": "trailofbits/building-secure-contracts",
+  "owner": "trailofbits",
+  "name": "building-secure-contracts",
+  "desc": "Smart contract security toolkit with vulnerability scanners for 6 blockchains"
+ },
+ {
+  "key": "trailofbits/burpsuite-project-parser",
+  "owner": "trailofbits",
+  "name": "burpsuite-project-parser",
+  "desc": "Search and extract data from Burp Suite project files"
+ },
+ {
+  "key": "trailofbits/claude-in-chrome-troubleshooting",
+  "owner": "trailofbits",
+  "name": "claude-in-chrome-troubleshooting",
+  "desc": "Diagnose and fix Claude in Chrome MCP extension connectivity issues"
+ },
+ {
+  "key": "trailofbits/constant-time-analysis",
+  "owner": "trailofbits",
+  "name": "constant-time-analysis",
+  "desc": "Detect compiler-induced timing side-channels in crypto code"
+ },
+ {
+  "key": "trailofbits/culture-index",
+  "owner": "trailofbits",
+  "name": "culture-index",
+  "desc": "Index and search culture documentation"
+ },
+ {
+  "key": "trailofbits/differential-review",
+  "owner": "trailofbits",
+  "name": "differential-review",
+  "desc": "Security-focused diff review with git history analysis"
+ },
+ {
+  "key": "trailofbits/dwarf-expert",
+  "owner": "trailofbits",
+  "name": "dwarf-expert",
+  "desc": "DWARF debugging format expertise"
+ },
+ {
+  "key": "trailofbits/entry-point-analyzer",
+  "owner": "trailofbits",
+  "name": "entry-point-analyzer",
+  "desc": "Identify state-changing entry points in smart contracts"
+ },
+ {
+  "key": "trailofbits/firebase-apk-scanner",
+  "owner": "trailofbits",
+  "name": "firebase-apk-scanner",
+  "desc": "Scan Android APKs for Firebase misconfigurations and security vulnerabilities"
+ },
+ {
+  "key": "trailofbits/insecure-defaults",
+  "owner": "trailofbits",
+  "name": "insecure-defaults",
+  "desc": "Detect insecure default configurations like hardcoded secrets, default credentials, and weak crypto"
+ },
+ {
+  "key": "trailofbits/modern-python",
+  "owner": "trailofbits",
+  "name": "modern-python",
+  "desc": "Modern Python tooling with uv, ruff, ty, and pytest best practices"
+ },
+ {
+  "key": "trailofbits/property-based-testing",
+  "owner": "trailofbits",
+  "name": "property-based-testing",
+  "desc": "Property-based testing for multiple languages and smart contracts"
+ },
+ {
+  "key": "trailofbits/semgrep-rule-creator",
+  "owner": "trailofbits",
+  "name": "semgrep-rule-creator",
+  "desc": "Create and refine Semgrep rules for vulnerability detection"
+ },
+ {
+  "key": "trailofbits/semgrep-rule-variant-creator",
+  "owner": "trailofbits",
+  "name": "semgrep-rule-variant-creator",
+  "desc": "Port existing Semgrep rules to new target languages with test-driven validation"
+ },
+ {
+  "key": "trailofbits/sharp-edges",
+  "owner": "trailofbits",
+  "name": "sharp-edges",
+  "desc": "Identify error-prone APIs and dangerous configurations"
+ },
+ {
+  "key": "trailofbits/spec-to-code-compliance",
+  "owner": "trailofbits",
+  "name": "spec-to-code-compliance",
+  "desc": "Specification-to-code compliance checker for blockchain audits"
+ },
+ {
+  "key": "trailofbits/static-analysis",
+  "owner": "trailofbits",
+  "name": "static-analysis",
+  "desc": "Static analysis toolkit with CodeQL, Semgrep, and SARIF"
+ },
+ {
+  "key": "trailofbits/testing-handbook-skills",
+  "owner": "trailofbits",
+  "name": "testing-handbook-skills",
+  "desc": "Testing Handbook skills: fuzzers, static analysis, sanitizers"
+ },
+ {
+  "key": "trailofbits/variant-analysis",
+  "owner": "trailofbits",
+  "name": "variant-analysis",
+  "desc": "Find similar vulnerabilities via pattern-based analysis"
+ },
+ {
+  "key": "getsentry/sentry-sdk-setup",
+  "owner": "getsentry",
+  "name": "sentry-sdk-setup",
+  "desc": "Set up Sentry in any language or framework — detects platform and routes to the right SDK"
+ },
+ {
+  "key": "getsentry/sentry-workflow",
+  "owner": "getsentry",
+  "name": "sentry-workflow",
+  "desc": "End-to-end Sentry workflow: fix production issues and review code with Sentry context"
+ },
+ {
+  "key": "getsentry/sentry-fix-issues",
+  "owner": "getsentry",
+  "name": "sentry-fix-issues",
+  "desc": "Find and fix Sentry issues with stack trace, breadcrumb, and trace context via MCP"
+ },
+ {
+  "key": "getsentry/sentry-code-review",
+  "owner": "getsentry",
+  "name": "sentry-code-review",
+  "desc": "Review code changes using Sentry issue and trace context"
+ },
+ {
+  "key": "getsentry/sentry-pr-code-review",
+  "owner": "getsentry",
+  "name": "sentry-pr-code-review",
+  "desc": "Review PR comments from Seer Bug Prediction and Sentry feedback"
+ },
+ {
+  "key": "getsentry/sentry-create-alert",
+  "owner": "getsentry",
+  "name": "sentry-create-alert",
+  "desc": "Create Sentry alerts with email, Slack, PagerDuty, Discord, and more"
+ },
+ {
+  "key": "getsentry/sentry-feature-setup",
+  "owner": "getsentry",
+  "name": "sentry-feature-setup",
+  "desc": "Configure advanced Sentry features: AI monitoring, OTel pipelines, and alerts"
+ },
+ {
+  "key": "getsentry/sentry-otel-exporter-setup",
+  "owner": "getsentry",
+  "name": "sentry-otel-exporter-setup",
+  "desc": "Configure the OpenTelemetry Collector with Sentry Exporter"
+ },
+ {
+  "key": "getsentry/sentry-setup-ai-monitoring",
+  "owner": "getsentry",
+  "name": "sentry-setup-ai-monitoring",
+  "desc": "Instrument OpenAI, Anthropic, Vercel AI, LangChain, Google GenAI, and Pydantic AI"
+ },
+ {
+  "key": "getsentry/sentry-sdk-upgrade",
+  "owner": "getsentry",
+  "name": "sentry-sdk-upgrade",
+  "desc": "Upgrade the Sentry JavaScript SDK across major versions"
+ },
+ {
+  "key": "getsentry/sentry-sdk-skill-creator",
+  "owner": "getsentry",
+  "name": "sentry-sdk-skill-creator",
+  "desc": "Create a new Sentry SDK skill bundle for a platform"
+ },
+ {
+  "key": "getsentry/sentry-android-sdk",
+  "owner": "getsentry",
+  "name": "sentry-android-sdk",
+  "desc": "Full Sentry SDK setup for Android (Kotlin and Java)"
+ },
+ {
+  "key": "getsentry/sentry-browser-sdk",
+  "owner": "getsentry",
+  "name": "sentry-browser-sdk",
+  "desc": "Full Sentry SDK setup for browser JavaScript"
+ },
+ {
+  "key": "getsentry/sentry-cloudflare-sdk",
+  "owner": "getsentry",
+  "name": "sentry-cloudflare-sdk",
+  "desc": "Full Sentry SDK setup for Cloudflare Workers, Pages, Durable Objects, Queues, and Workflows"
+ },
+ {
+  "key": "getsentry/sentry-cocoa-sdk",
+  "owner": "getsentry",
+  "name": "sentry-cocoa-sdk",
+  "desc": "Full Sentry SDK setup for Apple platforms (iOS, macOS, tvOS, watchOS, visionOS)"
+ },
+ {
+  "key": "getsentry/sentry-dotnet-sdk",
+  "owner": "getsentry",
+  "name": "sentry-dotnet-sdk",
+  "desc": "Full Sentry SDK setup for .NET (ASP.NET Core, MAUI, WPF, WinForms, Blazor, Azure Functions)"
+ },
+ {
+  "key": "getsentry/sentry-elixir-sdk",
+  "owner": "getsentry",
+  "name": "sentry-elixir-sdk",
+  "desc": "Full Sentry SDK setup for Elixir, Phoenix, Plug, LiveView, Oban, and Quantum"
+ },
+ {
+  "key": "getsentry/sentry-flutter-sdk",
+  "owner": "getsentry",
+  "name": "sentry-flutter-sdk",
+  "desc": "Full Sentry SDK setup for Flutter and Dart across all platforms"
+ },
+ {
+  "key": "getsentry/sentry-go-sdk",
+  "owner": "getsentry",
+  "name": "sentry-go-sdk",
+  "desc": "Full Sentry SDK setup for Go (net/http, Gin, Echo, Fiber, FastHTTP, Iris, Negroni)"
+ },
+ {
+  "key": "getsentry/sentry-nestjs-sdk",
+  "owner": "getsentry",
+  "name": "sentry-nestjs-sdk",
+  "desc": "Full Sentry SDK setup for NestJS with Express or Fastify, GraphQL, microservices"
+ },
+ {
+  "key": "getsentry/sentry-nextjs-sdk",
+  "owner": "getsentry",
+  "name": "sentry-nextjs-sdk",
+  "desc": "Full Sentry SDK setup for Next.js 13+ (App Router and Pages Router)"
+ },
+ {
+  "key": "getsentry/sentry-node-sdk",
+  "owner": "getsentry",
+  "name": "sentry-node-sdk",
+  "desc": "Full Sentry SDK setup for Node.js, Bun, and Deno"
+ },
+ {
+  "key": "getsentry/sentry-php-sdk",
+  "owner": "getsentry",
+  "name": "sentry-php-sdk",
+  "desc": "Full Sentry SDK setup for PHP, Laravel, and Symfony"
+ },
+ {
+  "key": "getsentry/sentry-python-sdk",
+  "owner": "getsentry",
+  "name": "sentry-python-sdk",
+  "desc": "Full Sentry SDK setup for Python (Django, Flask, FastAPI, Celery, Starlette, AIOHTTP, Tornado)"
+ },
+ {
+  "key": "getsentry/sentry-react-native-sdk",
+  "owner": "getsentry",
+  "name": "sentry-react-native-sdk",
+  "desc": "Full Sentry SDK setup for React Native and Expo"
+ },
+ {
+  "key": "getsentry/sentry-react-sdk",
+  "owner": "getsentry",
+  "name": "sentry-react-sdk",
+  "desc": "Full Sentry SDK setup for React (React Router v5-v7, TanStack Router, Redux, Vite, webpack)"
+ },
+ {
+  "key": "getsentry/sentry-ruby-sdk",
+  "owner": "getsentry",
+  "name": "sentry-ruby-sdk",
+  "desc": "Full Sentry SDK setup for Ruby (Rails, Sinatra, Rack, Sidekiq, Resque)"
+ },
+ {
+  "key": "getsentry/sentry-svelte-sdk",
+  "owner": "getsentry",
+  "name": "sentry-svelte-sdk",
+  "desc": "Full Sentry SDK setup for Svelte and SvelteKit"
+ },
+ {
+  "key": "microsoft/cloud-solution-architect",
+  "owner": "microsoft",
+  "name": "cloud-solution-architect",
+  "desc": "Design well-architected Azure cloud systems"
+ },
+ {
+  "key": "microsoft/continual-learning",
+  "owner": "microsoft",
+  "name": "continual-learning",
+  "desc": "Continual learning patterns for Azure AI"
+ },
+ {
+  "key": "microsoft/copilot-sdk",
+  "owner": "microsoft",
+  "name": "copilot-sdk",
+  "desc": "Build applications powered by GitHub Copilot SDK"
+ },
+ {
+  "key": "microsoft/entra-agent-id",
+  "owner": "microsoft",
+  "name": "entra-agent-id",
+  "desc": "Microsoft Entra Agent ID OAuth2 identities via Graph API"
+ },
+ {
+  "key": "microsoft/frontend-design-review",
+  "owner": "microsoft",
+  "name": "frontend-design-review",
+  "desc": "Review and create distinctive frontend interfaces"
+ },
+ {
+  "key": "microsoft/github-issue-creator",
+  "owner": "microsoft",
+  "name": "github-issue-creator",
+  "desc": "Structured GitHub issue reports from notes"
+ },
+ {
+  "key": "microsoft/mcp-builder",
+  "owner": "microsoft",
+  "name": "mcp-builder",
+  "desc": "MCP server creation guide for LLM tool integration"
+ },
+ {
+  "key": "microsoft/podcast-generation",
+  "owner": "microsoft",
+  "name": "podcast-generation",
+  "desc": "AI podcast audio with Azure OpenAI Realtime API"
+ },
+ {
+  "key": "microsoft/skill-creator",
+  "owner": "microsoft",
+  "name": "skill-creator",
+  "desc": "Guide for creating effective skills for AI coding agents"
+ },
+ {
+  "key": "microsoft/azure-ai-document-intelligence-dotnet",
+  "owner": "microsoft",
+  "name": "azure-ai-document-intelligence-dotnet",
+  "desc": "Document text, table, and data extraction"
+ },
+ {
+  "key": "microsoft/azure-ai-openai-dotnet",
+  "owner": "microsoft",
+  "name": "azure-ai-openai-dotnet",
+  "desc": "GPT-4, embeddings, DALL-E, and Whisper client"
+ },
+ {
+  "key": "microsoft/azure-ai-projects-dotnet",
+  "owner": "microsoft",
+  "name": "azure-ai-projects-dotnet",
+  "desc": "AI Foundry project management SDK"
+ },
+ {
+  "key": "microsoft/azure-ai-voicelive-dotnet",
+  "owner": "microsoft",
+  "name": "azure-ai-voicelive-dotnet",
+  "desc": "Real-time bidirectional voice AI"
+ },
+ {
+  "key": "microsoft/azure-eventgrid-dotnet",
+  "owner": "microsoft",
+  "name": "azure-eventgrid-dotnet",
+  "desc": "Event Grid topic and domain publishing"
+ },
+ {
+  "key": "microsoft/azure-eventhub-dotnet",
+  "owner": "microsoft",
+  "name": "azure-eventhub-dotnet",
+  "desc": "High-throughput event streaming"
+ },
+ {
+  "key": "microsoft/azure-identity-dotnet",
+  "owner": "microsoft",
+  "name": "azure-identity-dotnet",
+  "desc": "Microsoft Entra ID authentication"
+ },
+ {
+  "key": "microsoft/azure-maps-search-dotnet",
+  "owner": "microsoft",
+  "name": "azure-maps-search-dotnet",
+  "desc": "Geocoding, routing, and weather services"
+ },
+ {
+  "key": "microsoft/azure-mgmt-apicenter-dotnet",
+  "owner": "microsoft",
+  "name": "azure-mgmt-apicenter-dotnet",
+  "desc": "API inventory and governance"
+ },
+ {
+  "key": "microsoft/azure-mgmt-apimanagement-dotnet",
+  "owner": "microsoft",
+  "name": "azure-mgmt-apimanagement-dotnet",
+  "desc": "API Management provisioning via ARM"
+ },
+ {
+  "key": "microsoft/azure-mgmt-applicationinsights-dotnet",
+  "owner": "microsoft",
+  "name": "azure-mgmt-applicationinsights-dotnet",
+  "desc": "Application Insights resource management"
+ },
+ {
+  "key": "microsoft/azure-mgmt-arizeaiobservabilityeval-dotnet",
+  "owner": "microsoft",
+  "name": "azure-mgmt-arizeaiobservabilityeval-dotnet",
+  "desc": "Arize AI observability management"
+ },
+ {
+  "key": "microsoft/azure-mgmt-botservice-dotnet",
+  "owner": "microsoft",
+  "name": "azure-mgmt-botservice-dotnet",
+  "desc": "Bot Service provisioning via ARM"
+ },
+ {
+  "key": "microsoft/azure-mgmt-fabric-dotnet",
+  "owner": "microsoft",
+  "name": "azure-mgmt-fabric-dotnet",
+  "desc": "Microsoft Fabric capacity management"
+ },
+ {
+  "key": "microsoft/azure-mgmt-mongodbatlas-dotnet",
+  "owner": "microsoft",
+  "name": "azure-mgmt-mongodbatlas-dotnet",
+  "desc": "MongoDB Atlas as ARM resources"
+ },
+ {
+  "key": "microsoft/azure-mgmt-weightsandbiases-dotnet",
+  "owner": "microsoft",
+  "name": "azure-mgmt-weightsandbiases-dotnet",
+  "desc": "Weights & Biases deployment management"
+ },
+ {
+  "key": "microsoft/azure-resource-manager-cosmosdb-dotnet",
+  "owner": "microsoft",
+  "name": "azure-resource-manager-cosmosdb-dotnet",
+  "desc": "Cosmos DB resource provisioning"
+ },
+ {
+  "key": "microsoft/azure-resource-manager-durabletask-dotnet",
+  "owner": "microsoft",
+  "name": "azure-resource-manager-durabletask-dotnet",
+  "desc": "Durable Task Scheduler management"
+ },
+ {
+  "key": "microsoft/azure-resource-manager-mysql-dotnet",
+  "owner": "microsoft",
+  "name": "azure-resource-manager-mysql-dotnet",
+  "desc": "MySQL Flexible Server management"
+ },
+ {
+  "key": "microsoft/azure-resource-manager-playwright-dotnet",
+  "owner": "microsoft",
+  "name": "azure-resource-manager-playwright-dotnet",
+  "desc": "Playwright Testing workspace management"
+ },
+ {
+  "key": "microsoft/azure-resource-manager-postgresql-dotnet",
+  "owner": "microsoft",
+  "name": "azure-resource-manager-postgresql-dotnet",
+  "desc": "PostgreSQL Flexible Server management"
+ },
+ {
+  "key": "microsoft/azure-resource-manager-redis-dotnet",
+  "owner": "microsoft",
+  "name": "azure-resource-manager-redis-dotnet",
+  "desc": "Azure Cache for Redis provisioning"
+ },
+ {
+  "key": "microsoft/azure-resource-manager-sql-dotnet",
+  "owner": "microsoft",
+  "name": "azure-resource-manager-sql-dotnet",
+  "desc": "Azure SQL resource management"
+ },
+ {
+  "key": "microsoft/azure-search-documents-dotnet",
+  "owner": "microsoft",
+  "name": "azure-search-documents-dotnet",
+  "desc": "Full-text, vector, and hybrid search"
+ },
+ {
+  "key": "microsoft/azure-security-keyvault-keys-dotnet",
+  "owner": "microsoft",
+  "name": "azure-security-keyvault-keys-dotnet",
+  "desc": "Cryptographic key management"
+ },
+ {
+  "key": "microsoft/azure-servicebus-dotnet",
+  "owner": "microsoft",
+  "name": "azure-servicebus-dotnet",
+  "desc": "Enterprise messaging with queues and topics"
+ },
+ {
+  "key": "microsoft/m365-agents-dotnet",
+  "owner": "microsoft",
+  "name": "m365-agents-dotnet",
+  "desc": "M365, Teams, and Copilot Studio agents"
+ },
+ {
+  "key": "microsoft/microsoft-azure-webjobs-extensions-authentication-events-dotnet",
+  "owner": "microsoft",
+  "name": "microsoft-azure-webjobs-extensions-authentication-events-dotnet",
+  "desc": "Entra ID custom auth events handler"
+ },
+ {
+  "key": "microsoft/azure-ai-anomalydetector-java",
+  "owner": "microsoft",
+  "name": "azure-ai-anomalydetector-java",
+  "desc": "Anomaly detection applications"
+ },
+ {
+  "key": "microsoft/azure-ai-contentsafety-java",
+  "owner": "microsoft",
+  "name": "azure-ai-contentsafety-java",
+  "desc": "Content moderation and safety"
+ },
+ {
+  "key": "microsoft/azure-ai-formrecognizer-java",
+  "owner": "microsoft",
+  "name": "azure-ai-formrecognizer-java",
+  "desc": "Document analysis and form extraction"
+ },
+ {
+  "key": "microsoft/azure-ai-projects-java",
+  "owner": "microsoft",
+  "name": "azure-ai-projects-java",
+  "desc": "AI Foundry project management"
+ },
+ {
+  "key": "microsoft/azure-ai-vision-imageanalysis-java",
+  "owner": "microsoft",
+  "name": "azure-ai-vision-imageanalysis-java",
+  "desc": "Image captioning, OCR, and object detection"
+ },
+ {
+  "key": "microsoft/azure-ai-voicelive-java",
+  "owner": "microsoft",
+  "name": "azure-ai-voicelive-java",
+  "desc": "Real-time bidirectional voice AI"
+ },
+ {
+  "key": "microsoft/azure-appconfiguration-java",
+  "owner": "microsoft",
+  "name": "azure-appconfiguration-java",
+  "desc": "Centralized app configuration management"
+ },
+ {
+  "key": "microsoft/azure-communication-callautomation-java",
+  "owner": "microsoft",
+  "name": "azure-communication-callautomation-java",
+  "desc": "Call automation with IVR and AI"
+ },
+ {
+  "key": "microsoft/azure-communication-callingserver-java",
+  "owner": "microsoft",
+  "name": "azure-communication-callingserver-java",
+  "desc": "CallingServer legacy SDK"
+ },
+ {
+  "key": "microsoft/azure-communication-chat-java",
+  "owner": "microsoft",
+  "name": "azure-communication-chat-java",
+  "desc": "Real-time chat with threads and receipts"
+ },
+ {
+  "key": "microsoft/azure-communication-common-java",
+  "owner": "microsoft",
+  "name": "azure-communication-common-java",
+  "desc": "Communication Services common utilities"
+ },
+ {
+  "key": "microsoft/azure-communication-sms-java",
+  "owner": "microsoft",
+  "name": "azure-communication-sms-java",
+  "desc": "SMS sending and delivery reports"
+ },
+ {
+  "key": "microsoft/azure-compute-batch-java",
+  "owner": "microsoft",
+  "name": "azure-compute-batch-java",
+  "desc": "Large-scale parallel and HPC batch jobs"
+ },
+ {
+  "key": "microsoft/azure-cosmos-java",
+  "owner": "microsoft",
+  "name": "azure-cosmos-java",
+  "desc": "Cosmos DB NoSQL with global distribution"
+ },
+ {
+  "key": "microsoft/azure-data-tables-java",
+  "owner": "microsoft",
+  "name": "azure-data-tables-java",
+  "desc": "NoSQL key-value table storage"
+ },
+ {
+  "key": "microsoft/azure-eventgrid-java",
+  "owner": "microsoft",
+  "name": "azure-eventgrid-java",
+  "desc": "Event-driven pub/sub messaging"
+ },
+ {
+  "key": "microsoft/azure-eventhub-java",
+  "owner": "microsoft",
+  "name": "azure-eventhub-java",
+  "desc": "Real-time high-throughput streaming"
+ },
+ {
+  "key": "microsoft/azure-identity-java",
+  "owner": "microsoft",
+  "name": "azure-identity-java",
+  "desc": "Microsoft Entra ID authentication"
+ },
+ {
+  "key": "microsoft/azure-messaging-webpubsub-java",
+  "owner": "microsoft",
+  "name": "azure-messaging-webpubsub-java",
+  "desc": "Real-time WebSocket messaging"
+ },
+ {
+  "key": "microsoft/azure-monitor-ingestion-java",
+  "owner": "microsoft",
+  "name": "azure-monitor-ingestion-java",
+  "desc": "Custom log ingestion to Azure Monitor"
+ },
+ {
+  "key": "microsoft/azure-monitor-opentelemetry-exporter-java",
+  "owner": "microsoft",
+  "name": "azure-monitor-opentelemetry-exporter-java",
+  "desc": "OpenTelemetry export to Azure Monitor"
+ },
+ {
+  "key": "microsoft/azure-monitor-query-java",
+  "owner": "microsoft",
+  "name": "azure-monitor-query-java",
+  "desc": "Query Azure Monitor logs and metrics"
+ },
+ {
+  "key": "microsoft/azure-security-keyvault-keys-java",
+  "owner": "microsoft",
+  "name": "azure-security-keyvault-keys-java",
+  "desc": "Cryptographic key management"
+ },
+ {
+  "key": "microsoft/azure-security-keyvault-secrets-java",
+  "owner": "microsoft",
+  "name": "azure-security-keyvault-secrets-java",
+  "desc": "Secret management for passwords and keys"
+ },
+ {
+  "key": "microsoft/azure-storage-blob-java",
+  "owner": "microsoft",
+  "name": "azure-storage-blob-java",
+  "desc": "Blob storage for file management"
+ },
+ {
+  "key": "microsoft/agent-framework-azure-ai-py",
+  "owner": "microsoft",
+  "name": "agent-framework-azure-ai-py",
+  "desc": "Agent Framework for Azure AI Foundry"
+ },
+ {
+  "key": "microsoft/agents-v2-py",
+  "owner": "microsoft",
+  "name": "agents-v2-py",
+  "desc": "Foundry Agents SDK — container-based agents with custom images"
+ },
+ {
+  "key": "microsoft/azure-ai-contentsafety-py",
+  "owner": "microsoft",
+  "name": "azure-ai-contentsafety-py",
+  "desc": "Harmful content detection"
+ },
+ {
+  "key": "microsoft/azure-ai-contentunderstanding-py",
+  "owner": "microsoft",
+  "name": "azure-ai-contentunderstanding-py",
+  "desc": "Multimodal content extraction"
+ },
+ {
+  "key": "microsoft/azure-ai-ml-py",
+  "owner": "microsoft",
+  "name": "azure-ai-ml-py",
+  "desc": "Azure ML workspace and job management"
+ },
+ {
+  "key": "microsoft/azure-ai-projects-py",
+  "owner": "microsoft",
+  "name": "azure-ai-projects-py",
+  "desc": "AI Foundry project client and agents"
+ },
+ {
+  "key": "microsoft/azure-ai-textanalytics-py",
+  "owner": "microsoft",
+  "name": "azure-ai-textanalytics-py",
+  "desc": "NLP: sentiment, entities, key phrases"
+ },
+ {
+  "key": "microsoft/azure-ai-transcription-py",
+  "owner": "microsoft",
+  "name": "azure-ai-transcription-py",
+  "desc": "Speech-to-text transcription"
+ },
+ {
+  "key": "microsoft/azure-ai-translation-document-py",
+  "owner": "microsoft",
+  "name": "azure-ai-translation-document-py",
+  "desc": "Batch document translation"
+ },
+ {
+  "key": "microsoft/azure-ai-translation-text-py",
+  "owner": "microsoft",
+  "name": "azure-ai-translation-text-py",
+  "desc": "Real-time text translation"
+ },
+ {
+  "key": "microsoft/azure-ai-vision-imageanalysis-py",
+  "owner": "microsoft",
+  "name": "azure-ai-vision-imageanalysis-py",
+  "desc": "Image captions, tags, OCR, objects"
+ },
+ {
+  "key": "microsoft/azure-ai-voicelive-py",
+  "owner": "microsoft",
+  "name": "azure-ai-voicelive-py",
+  "desc": "Real-time bidirectional voice AI"
+ },
+ {
+  "key": "microsoft/azure-appconfiguration-py",
+  "owner": "microsoft",
+  "name": "azure-appconfiguration-py",
+  "desc": "Feature flags and dynamic settings"
+ },
+ {
+  "key": "microsoft/azure-containerregistry-py",
+  "owner": "microsoft",
+  "name": "azure-containerregistry-py",
+  "desc": "Container image and registry management"
+ },
+ {
+  "key": "microsoft/azure-cosmos-db-py",
+  "owner": "microsoft",
+  "name": "azure-cosmos-db-py",
+  "desc": "Cosmos DB with Python/FastAPI patterns"
+ },
+ {
+  "key": "microsoft/azure-cosmos-py",
+  "owner": "microsoft",
+  "name": "azure-cosmos-py",
+  "desc": "Cosmos DB NoSQL client library"
+ },
+ {
+  "key": "microsoft/azure-data-tables-py",
+  "owner": "microsoft",
+  "name": "azure-data-tables-py",
+  "desc": "NoSQL key-value table storage"
+ },
+ {
+  "key": "microsoft/azure-eventgrid-py",
+  "owner": "microsoft",
+  "name": "azure-eventgrid-py",
+  "desc": "Event-driven pub/sub routing"
+ },
+ {
+  "key": "microsoft/azure-eventhub-py",
+  "owner": "microsoft",
+  "name": "azure-eventhub-py",
+  "desc": "High-throughput event streaming"
+ },
+ {
+  "key": "microsoft/azure-identity-py",
+  "owner": "microsoft",
+  "name": "azure-identity-py",
+  "desc": "Microsoft Entra ID authentication"
+ },
+ {
+  "key": "microsoft/azure-keyvault-py",
+  "owner": "microsoft",
+  "name": "azure-keyvault-py",
+  "desc": "Secrets, keys, and certificate management"
+ },
+ {
+  "key": "microsoft/azure-messaging-webpubsubservice-py",
+  "owner": "microsoft",
+  "name": "azure-messaging-webpubsubservice-py",
+  "desc": "Real-time WebSocket messaging"
+ },
+ {
+  "key": "microsoft/azure-mgmt-apicenter-py",
+  "owner": "microsoft",
+  "name": "azure-mgmt-apicenter-py",
+  "desc": "API inventory and governance"
+ },
+ {
+  "key": "microsoft/azure-mgmt-apimanagement-py",
+  "owner": "microsoft",
+  "name": "azure-mgmt-apimanagement-py",
+  "desc": "API Management service administration"
+ },
+ {
+  "key": "microsoft/azure-mgmt-botservice-py",
+  "owner": "microsoft",
+  "name": "azure-mgmt-botservice-py",
+  "desc": "Bot Service resource management"
+ },
+ {
+  "key": "microsoft/azure-mgmt-fabric-py",
+  "owner": "microsoft",
+  "name": "azure-mgmt-fabric-py",
+  "desc": "Microsoft Fabric capacity management"
+ },
+ {
+  "key": "microsoft/azure-monitor-ingestion-py",
+  "owner": "microsoft",
+  "name": "azure-monitor-ingestion-py",
+  "desc": "Custom log ingestion to Azure Monitor"
+ },
+ {
+  "key": "microsoft/azure-monitor-opentelemetry-exporter-py",
+  "owner": "microsoft",
+  "name": "azure-monitor-opentelemetry-exporter-py",
+  "desc": "OpenTelemetry export to Application Insights"
+ },
+ {
+  "key": "microsoft/azure-monitor-opentelemetry-py",
+  "owner": "microsoft",
+  "name": "azure-monitor-opentelemetry-py",
+  "desc": "One-line Application Insights setup"
+ },
+ {
+  "key": "microsoft/azure-monitor-query-py",
+  "owner": "microsoft",
+  "name": "azure-monitor-query-py",
+  "desc": "Query Azure Monitor logs and metrics"
+ },
+ {
+  "key": "microsoft/azure-search-documents-py",
+  "owner": "microsoft",
+  "name": "azure-search-documents-py",
+  "desc": "Full-text, vector, and hybrid search"
+ },
+ {
+  "key": "microsoft/azure-servicebus-py",
+  "owner": "microsoft",
+  "name": "azure-servicebus-py",
+  "desc": "Enterprise messaging with queues and topics"
+ },
+ {
+  "key": "microsoft/azure-speech-to-text-rest-py",
+  "owner": "microsoft",
+  "name": "azure-speech-to-text-rest-py",
+  "desc": "REST speech-to-text for short audio"
+ },
+ {
+  "key": "microsoft/azure-storage-blob-py",
+  "owner": "microsoft",
+  "name": "azure-storage-blob-py",
+  "desc": "Blob object storage client"
+ },
+ {
+  "key": "microsoft/azure-storage-file-datalake-py",
+  "owner": "microsoft",
+  "name": "azure-storage-file-datalake-py",
+  "desc": "Hierarchical data lake storage"
+ },
+ {
+  "key": "microsoft/azure-storage-file-share-py",
+  "owner": "microsoft",
+  "name": "azure-storage-file-share-py",
+  "desc": "SMB file share management"
+ },
+ {
+  "key": "microsoft/azure-storage-queue-py",
+  "owner": "microsoft",
+  "name": "azure-storage-queue-py",
+  "desc": "Simple message queuing"
+ },
+ {
+  "key": "microsoft/fastapi-router-py",
+  "owner": "microsoft",
+  "name": "fastapi-router-py",
+  "desc": "FastAPI routers with CRUD and auth"
+ },
+ {
+  "key": "microsoft/m365-agents-py",
+  "owner": "microsoft",
+  "name": "m365-agents-py",
+  "desc": "M365, Teams, and Copilot Studio agents"
+ },
+ {
+  "key": "microsoft/pydantic-models-py",
+  "owner": "microsoft",
+  "name": "pydantic-models-py",
+  "desc": "Pydantic models for API schemas"
+ },
+ {
+  "key": "microsoft/azure-cosmos-rust",
+  "owner": "microsoft",
+  "name": "azure-cosmos-rust",
+  "desc": "Cosmos DB NoSQL client"
+ },
+ {
+  "key": "microsoft/azure-eventhub-rust",
+  "owner": "microsoft",
+  "name": "azure-eventhub-rust",
+  "desc": "Event Hubs streaming client"
+ },
+ {
+  "key": "microsoft/azure-identity-rust",
+  "owner": "microsoft",
+  "name": "azure-identity-rust",
+  "desc": "Microsoft Entra ID authentication"
+ },
+ {
+  "key": "microsoft/azure-keyvault-certificates-rust",
+  "owner": "microsoft",
+  "name": "azure-keyvault-certificates-rust",
+  "desc": "Key Vault certificate management"
+ },
+ {
+  "key": "microsoft/azure-keyvault-keys-rust",
+  "owner": "microsoft",
+  "name": "azure-keyvault-keys-rust",
+  "desc": "Key Vault cryptographic key management"
+ },
+ {
+  "key": "microsoft/azure-keyvault-secrets-rust",
+  "owner": "microsoft",
+  "name": "azure-keyvault-secrets-rust",
+  "desc": "Key Vault secret storage"
+ },
+ {
+  "key": "microsoft/azure-storage-blob-rust",
+  "owner": "microsoft",
+  "name": "azure-storage-blob-rust",
+  "desc": "Blob object storage client"
+ },
+ {
+  "key": "microsoft/azure-ai-contentsafety-ts",
+  "owner": "microsoft",
+  "name": "azure-ai-contentsafety-ts",
+  "desc": "Content safety for text and images"
+ },
+ {
+  "key": "microsoft/azure-ai-document-intelligence-ts",
+  "owner": "microsoft",
+  "name": "azure-ai-document-intelligence-ts",
+  "desc": "Document text and table extraction"
+ },
+ {
+  "key": "microsoft/azure-ai-projects-ts",
+  "owner": "microsoft",
+  "name": "azure-ai-projects-ts",
+  "desc": "AI Foundry project client and agents"
+ },
+ {
+  "key": "microsoft/azure-ai-translation-ts",
+  "owner": "microsoft",
+  "name": "azure-ai-translation-ts",
+  "desc": "Text and document translation"
+ },
+ {
+  "key": "microsoft/azure-ai-voicelive-ts",
+  "owner": "microsoft",
+  "name": "azure-ai-voicelive-ts",
+  "desc": "Real-time bidirectional voice AI"
+ },
+ {
+  "key": "microsoft/azure-appconfiguration-ts",
+  "owner": "microsoft",
+  "name": "azure-appconfiguration-ts",
+  "desc": "App config, feature flags, dynamic refresh"
+ },
+ {
+  "key": "microsoft/azure-cosmos-ts",
+  "owner": "microsoft",
+  "name": "azure-cosmos-ts",
+  "desc": "Cosmos DB NoSQL CRUD and queries"
+ },
+ {
+  "key": "microsoft/azure-eventhub-ts",
+  "owner": "microsoft",
+  "name": "azure-eventhub-ts",
+  "desc": "High-throughput event streaming"
+ },
+ {
+  "key": "microsoft/azure-identity-ts",
+  "owner": "microsoft",
+  "name": "azure-identity-ts",
+  "desc": "Microsoft Entra ID authentication"
+ },
+ {
+  "key": "microsoft/azure-keyvault-keys-ts",
+  "owner": "microsoft",
+  "name": "azure-keyvault-keys-ts",
+  "desc": "Cryptographic key management"
+ },
+ {
+  "key": "microsoft/azure-keyvault-secrets-ts",
+  "owner": "microsoft",
+  "name": "azure-keyvault-secrets-ts",
+  "desc": "Secret storage and retrieval"
+ },
+ {
+  "key": "microsoft/azure-microsoft-playwright-testing-ts",
+  "owner": "microsoft",
+  "name": "azure-microsoft-playwright-testing-ts",
+  "desc": "Playwright tests at scale on Azure"
+ },
+ {
+  "key": "microsoft/azure-monitor-opentelemetry-ts",
+  "owner": "microsoft",
+  "name": "azure-monitor-opentelemetry-ts",
+  "desc": "Application Insights tracing and metrics"
+ },
+ {
+  "key": "microsoft/azure-postgres-ts",
+  "owner": "microsoft",
+  "name": "azure-postgres-ts",
+  "desc": "PostgreSQL Flexible Server connection"
+ },
+ {
+  "key": "microsoft/azure-search-documents-ts",
+  "owner": "microsoft",
+  "name": "azure-search-documents-ts",
+  "desc": "Vector/hybrid search with semantic ranking"
+ },
+ {
+  "key": "microsoft/azure-servicebus-ts",
+  "owner": "microsoft",
+  "name": "azure-servicebus-ts",
+  "desc": "Messaging with queues and topics"
+ },
+ {
+  "key": "microsoft/azure-storage-blob-ts",
+  "owner": "microsoft",
+  "name": "azure-storage-blob-ts",
+  "desc": "Blob upload, download, and management"
+ },
+ {
+  "key": "microsoft/azure-storage-file-share-ts",
+  "owner": "microsoft",
+  "name": "azure-storage-file-share-ts",
+  "desc": "SMB file share operations"
+ },
+ {
+  "key": "microsoft/azure-storage-queue-ts",
+  "owner": "microsoft",
+  "name": "azure-storage-queue-ts",
+  "desc": "Queue message operations"
+ },
+ {
+  "key": "microsoft/azure-web-pubsub-ts",
+  "owner": "microsoft",
+  "name": "azure-web-pubsub-ts",
+  "desc": "Real-time WebSocket pub/sub messaging"
+ },
+ {
+  "key": "microsoft/frontend-ui-dark-ts",
+  "owner": "microsoft",
+  "name": "frontend-ui-dark-ts",
+  "desc": "Dark-themed React with Tailwind and animations"
+ },
+ {
+  "key": "microsoft/m365-agents-ts",
+  "owner": "microsoft",
+  "name": "m365-agents-ts",
+  "desc": "M365, Teams, and Copilot Studio agents"
+ },
+ {
+  "key": "microsoft/react-flow-node-ts",
+  "owner": "microsoft",
+  "name": "react-flow-node-ts",
+  "desc": "React Flow node components with Zustand"
+ },
+ {
+  "key": "microsoft/zustand-store-ts",
+  "owner": "microsoft",
+  "name": "zustand-store-ts",
+  "desc": "Zustand stores with middleware patterns"
+ },
+ {
+  "key": "fal-ai-community/fal-3d",
+  "owner": "fal-ai-community",
+  "name": "fal-3d",
+  "desc": "Generate 3D models from text or images"
+ },
+ {
+  "key": "fal-ai-community/fal-audio",
+  "owner": "fal-ai-community",
+  "name": "fal-audio",
+  "desc": "Text-to-speech and speech-to-text using fal.ai audio models"
+ },
+ {
+  "key": "fal-ai-community/fal-generate",
+  "owner": "fal-ai-community",
+  "name": "fal-generate",
+  "desc": "Generate images and videos using fal.ai AI models"
+ },
+ {
+  "key": "fal-ai-community/fal-image-edit",
+  "owner": "fal-ai-community",
+  "name": "fal-image-edit",
+  "desc": "AI-powered image editing with style transfer and object removal"
+ },
+ {
+  "key": "fal-ai-community/fal-kling-o3",
+  "owner": "fal-ai-community",
+  "name": "fal-kling-o3",
+  "desc": "Generate images and videos with Kling O3 — Kling's most powerful model family"
+ },
+ {
+  "key": "fal-ai-community/fal-lip-sync",
+  "owner": "fal-ai-community",
+  "name": "fal-lip-sync",
+  "desc": "Create talking head videos and lip sync audio to video"
+ },
+ {
+  "key": "fal-ai-community/fal-platform",
+  "owner": "fal-ai-community",
+  "name": "fal-platform",
+  "desc": "Platform APIs for model management, pricing, and usage tracking"
+ },
+ {
+  "key": "fal-ai-community/fal-realtime",
+  "owner": "fal-ai-community",
+  "name": "fal-realtime",
+  "desc": "Real-time and streaming AI image generation"
+ },
+ {
+  "key": "fal-ai-community/fal-restore",
+  "owner": "fal-ai-community",
+  "name": "fal-restore",
+  "desc": "Restore and fix image quality — deblur, denoise, fix faces, restore documents"
+ },
+ {
+  "key": "fal-ai-community/fal-train",
+  "owner": "fal-ai-community",
+  "name": "fal-train",
+  "desc": "Train custom AI models (LoRA) on fal.ai for personalized image generation"
+ },
+ {
+  "key": "fal-ai-community/fal-tryon",
+  "owner": "fal-ai-community",
+  "name": "fal-tryon",
+  "desc": "Virtual try-on — see how clothes look on a person"
+ },
+ {
+  "key": "fal-ai-community/fal-upscale",
+  "owner": "fal-ai-community",
+  "name": "fal-upscale",
+  "desc": "Upscale and enhance image and video resolution using AI"
+ },
+ {
+  "key": "fal-ai-community/fal-video-edit",
+  "owner": "fal-ai-community",
+  "name": "fal-video-edit",
+  "desc": "Edit existing videos using AI — remix style, upscale, remove background, add audio"
+ },
+ {
+  "key": "fal-ai-community/fal-vision",
+  "owner": "fal-ai-community",
+  "name": "fal-vision",
+  "desc": "Analyze images — segment objects, detect, OCR, describe, visual Q&A"
+ },
+ {
+  "key": "fal-ai-community/fal-workflow",
+  "owner": "fal-ai-community",
+  "name": "fal-workflow",
+  "desc": "Generate workflow JSON files for chaining AI models"
+ },
+ {
+  "key": "WordPress/wordpress-router",
+  "owner": "WordPress",
+  "name": "wordpress-router",
+  "desc": "Classifies WordPress repos and routes to the right workflow"
+ },
+ {
+  "key": "WordPress/wp-project-triage",
+  "owner": "WordPress",
+  "name": "wp-project-triage",
+  "desc": "Detects project type, tooling, and versions automatically"
+ },
+ {
+  "key": "WordPress/wp-block-development",
+  "owner": "WordPress",
+  "name": "wp-block-development",
+  "desc": "Gutenberg blocks: block.json, attributes, rendering, deprecations"
+ },
+ {
+  "key": "WordPress/wp-block-themes",
+  "owner": "WordPress",
+  "name": "wp-block-themes",
+  "desc": "Block themes: theme.json, templates, patterns, style variations"
+ },
+ {
+  "key": "WordPress/wp-plugin-development",
+  "owner": "WordPress",
+  "name": "wp-plugin-development",
+  "desc": "Plugin architecture, hooks, settings API, security"
+ },
+ {
+  "key": "WordPress/wp-rest-api",
+  "owner": "WordPress",
+  "name": "wp-rest-api",
+  "desc": "REST API routes/endpoints, schema, auth, and response shaping"
+ },
+ {
+  "key": "WordPress/wp-interactivity-api",
+  "owner": "WordPress",
+  "name": "wp-interactivity-api",
+  "desc": "Frontend interactivity with data-wp-* directives and stores"
+ },
+ {
+  "key": "WordPress/wp-abilities-api",
+  "owner": "WordPress",
+  "name": "wp-abilities-api",
+  "desc": "Capability-based permissions and REST API authentication"
+ },
+ {
+  "key": "WordPress/wp-wpcli-and-ops",
+  "owner": "WordPress",
+  "name": "wp-wpcli-and-ops",
+  "desc": "WP-CLI commands, automation, multisite, search-replace"
+ },
+ {
+  "key": "WordPress/wp-performance",
+  "owner": "WordPress",
+  "name": "wp-performance",
+  "desc": "Profiling, caching, database optimization, Server-Timing"
+ },
+ {
+  "key": "WordPress/wp-phpstan",
+  "owner": "WordPress",
+  "name": "wp-phpstan",
+  "desc": "PHPStan static analysis for WordPress projects"
+ },
+ {
+  "key": "WordPress/wp-playground",
+  "owner": "WordPress",
+  "name": "wp-playground",
+  "desc": "WordPress Playground for instant local environments"
+ },
+ {
+  "key": "WordPress/wpds",
+  "owner": "WordPress",
+  "name": "wpds",
+  "desc": "WordPress Design System"
+ },
+ {
+  "key": "openai/cloudflare-deploy",
+  "owner": "openai",
+  "name": "cloudflare-deploy",
+  "desc": "Deploy apps to Cloudflare using Workers, Pages, and platform services"
+ },
+ {
+  "key": "openai/develop-web-game",
+  "owner": "openai",
+  "name": "develop-web-game",
+  "desc": "Build and test web games iteratively using Playwright with time-stepping"
+ },
+ {
+  "key": "openai/doc",
+  "owner": "openai",
+  "name": "doc",
+  "desc": "Read, create, and edit .docx documents with formatting and layout fidelity"
+ },
+ {
+  "key": "openai/gh-address-comments",
+  "owner": "openai",
+  "name": "gh-address-comments",
+  "desc": "Address review and issue comments on open GitHub PRs via CLI"
+ },
+ {
+  "key": "openai/gh-fix-ci",
+  "owner": "openai",
+  "name": "gh-fix-ci",
+  "desc": "Debug and fix failing GitHub Actions PR checks using log inspection"
+ },
+ {
+  "key": "openai/imagegen",
+  "owner": "openai",
+  "name": "imagegen",
+  "desc": "Generate and edit images using OpenAI's Image API for projects"
+ },
+ {
+  "key": "openai/jupyter-notebook",
+  "owner": "openai",
+  "name": "jupyter-notebook",
+  "desc": "Create clean, reproducible Jupyter notebooks for experiments and tutorials"
+ },
+ {
+  "key": "openai/linear",
+  "owner": "openai",
+  "name": "linear",
+  "desc": "Manage issues, projects, and team workflows in Linear"
+ },
+ {
+  "key": "openai/netlify-deploy",
+  "owner": "openai",
+  "name": "netlify-deploy",
+  "desc": "Automate Netlify deployments with CLI auth, linking, and environment support"
+ },
+ {
+  "key": "openai/notion-knowledge-capture",
+  "owner": "openai",
+  "name": "notion-knowledge-capture",
+  "desc": "Convert conversations into structured, searchable Notion wiki entries"
+ },
+ {
+  "key": "openai/notion-meeting-intelligence",
+  "owner": "openai",
+  "name": "notion-meeting-intelligence",
+  "desc": "Prep meetings by pulling Notion context and tailoring agendas"
+ },
+ {
+  "key": "openai/notion-research-documentation",
+  "owner": "openai",
+  "name": "notion-research-documentation",
+  "desc": "Research Notion content and synthesize findings into structured briefs"
+ },
+ {
+  "key": "openai/notion-spec-to-implementation",
+  "owner": "openai",
+  "name": "notion-spec-to-implementation",
+  "desc": "Convert Notion specs into linked implementation plans and tasks"
+ },
+ {
+  "key": "openai/openai-docs",
+  "owner": "openai",
+  "name": "openai-docs",
+  "desc": "Provide authoritative guidance from OpenAI developer documentation"
+ },
+ {
+  "key": "openai/pdf",
+  "owner": "openai",
+  "name": "pdf",
+  "desc": "Read, create, and review PDFs with layout and visual formatting integrity"
+ },
+ {
+  "key": "openai/playwright",
+  "owner": "openai",
+  "name": "playwright",
+  "desc": "Automate real browser interactions for navigation, forms, and scraping"
+ },
+ {
+  "key": "openai/render-deploy",
+  "owner": "openai",
+  "name": "render-deploy",
+  "desc": "Deploy applications to Render's cloud platform using Git-backed services"
+ },
+ {
+  "key": "openai/screenshot",
+  "owner": "openai",
+  "name": "screenshot",
+  "desc": "Capture desktop, app windows, or pixel regions across OS platforms"
+ },
+ {
+  "key": "openai/security-best-practices",
+  "owner": "openai",
+  "name": "security-best-practices",
+  "desc": "Review code for language-specific security vulnerabilities"
+ },
+ {
+  "key": "openai/security-ownership-map",
+  "owner": "openai",
+  "name": "security-ownership-map",
+  "desc": "Map people-to-file ownership, compute bus factor, and identify risks"
+ },
+ {
+  "key": "openai/security-threat-model",
+  "owner": "openai",
+  "name": "security-threat-model",
+  "desc": "Generate repo-specific threat models identifying trust boundaries"
+ },
+ {
+  "key": "openai/sentry",
+  "owner": "openai",
+  "name": "sentry",
+  "desc": "Inspect Sentry issues, summarize production errors, and pull health data"
+ },
+ {
+  "key": "openai/sora",
+  "owner": "openai",
+  "name": "sora",
+  "desc": "Generate, remix, and manage short video clips via OpenAI's Sora API"
+ },
+ {
+  "key": "openai/speech",
+  "owner": "openai",
+  "name": "speech",
+  "desc": "Generate spoken audio from text using OpenAI's API with built-in voices"
+ },
+ {
+  "key": "openai/spreadsheet",
+  "owner": "openai",
+  "name": "spreadsheet",
+  "desc": "Create, edit, analyze, and visualize spreadsheets with formulas"
+ },
+ {
+  "key": "openai/transcribe",
+  "owner": "openai",
+  "name": "transcribe",
+  "desc": "Transcribe audio files to text with optional speaker diarization"
+ },
+ {
+  "key": "openai/vercel-deploy",
+  "owner": "openai",
+  "name": "vercel-deploy",
+  "desc": "Deploy applications and websites to Vercel with preview or production options"
+ },
+ {
+  "key": "openai/yeet",
+  "owner": "openai",
+  "name": "yeet",
+  "desc": "Stage, commit, push code, and open a GitHub pull request via CLI"
+ },
+ {
+  "key": "openai/aspnet-core",
+  "owner": "openai",
+  "name": "aspnet-core",
+  "desc": "Build, review, and architect ASP.NET Core apps (Blazor, MVC, Minimal APIs, etc.)"
+ },
+ {
+  "key": "openai/chatgpt-apps",
+  "owner": "openai",
+  "name": "chatgpt-apps",
+  "desc": "Build, scaffold, and troubleshoot ChatGPT Apps SDK apps with MCP server and widget UI"
+ },
+ {
+  "key": "openai/figma",
+  "owner": "openai",
+  "name": "figma",
+  "desc": "Use the Figma MCP server to fetch design context and translate nodes into production code"
+ },
+ {
+  "key": "openai/figma-code-connect-components",
+  "owner": "openai",
+  "name": "figma-code-connect-components",
+  "desc": "Connect Figma design components to code components using Code Connect"
+ },
+ {
+  "key": "openai/figma-create-design-system-rules",
+  "owner": "openai",
+  "name": "figma-create-design-system-rules",
+  "desc": "Rules for implementing Figma designs using the Figma MCP server"
+ },
+ {
+  "key": "openai/figma-create-new-file",
+  "owner": "openai",
+  "name": "figma-create-new-file",
+  "desc": "Create a new blank Figma file or FigJam file"
+ },
+ {
+  "key": "openai/figma-generate-design",
+  "owner": "openai",
+  "name": "figma-generate-design",
+  "desc": "Translate app pages and layouts into Figma using design system tokens"
+ },
+ {
+  "key": "openai/figma-generate-library",
+  "owner": "openai",
+  "name": "figma-generate-library",
+  "desc": "Build or update a professional-grade design system in Figma from a codebase"
+ },
+ {
+  "key": "openai/figma-implement-design",
+  "owner": "openai",
+  "name": "figma-implement-design",
+  "desc": "Translate Figma designs into production-ready code with 1:1 visual fidelity"
+ },
+ {
+  "key": "openai/figma-use",
+  "owner": "openai",
+  "name": "figma-use",
+  "desc": "Prerequisite skill for every use_figma tool call — write/read actions in Figma context"
+ },
+ {
+  "key": "openai/frontend-skill",
+  "owner": "openai",
+  "name": "frontend-skill",
+  "desc": "Create visually strong landing pages, websites, and app UIs with restrained composition"
+ },
+ {
+  "key": "openai/playwright-interactive",
+  "owner": "openai",
+  "name": "playwright-interactive",
+  "desc": "Persistent browser and Electron interaction via js_repl for iterative UI debugging"
+ },
+ {
+  "key": "openai/slides",
+  "owner": "openai",
+  "name": "slides",
+  "desc": "Create and edit .pptx presentation decks with PptxGenJS"
+ },
+ {
+  "key": "openai/winui-app",
+  "owner": "openai",
+  "name": "winui-app",
+  "desc": "Bootstrap and develop modern WinUI 3 desktop apps with C# and Windows App SDK"
+ },
+ {
+  "key": "figma/figma-code-connect-components",
+  "owner": "figma",
+  "name": "figma-code-connect-components",
+  "desc": "Connect Figma design components to code components using Code Connect"
+ },
+ {
+  "key": "figma/figma-create-design-system-rules",
+  "owner": "figma",
+  "name": "figma-create-design-system-rules",
+  "desc": "Generate project-specific design system rules for Figma-to-code workflows"
+ },
+ {
+  "key": "figma/figma-create-new-file",
+  "owner": "figma",
+  "name": "figma-create-new-file",
+  "desc": "Create a new blank Figma Design or FigJam file"
+ },
+ {
+  "key": "figma/figma-generate-design",
+  "owner": "figma",
+  "name": "figma-generate-design",
+  "desc": "Build or update screens in Figma from code or description using design system components"
+ },
+ {
+  "key": "figma/figma-generate-library",
+  "owner": "figma",
+  "name": "figma-generate-library",
+  "desc": "Build or update a design system library in Figma from a codebase"
+ },
+ {
+  "key": "figma/figma-implement-design",
+  "owner": "figma",
+  "name": "figma-implement-design",
+  "desc": "Translate Figma designs into production-ready application code with 1:1 fidelity"
+ },
+ {
+  "key": "figma/figma-use",
+  "owner": "figma",
+  "name": "figma-use",
+  "desc": "Run Figma Plugin API scripts for canvas writes, inspections, variables, and design-system work"
+ },
+ {
+  "key": "binance/crypto-market-rank",
+  "owner": "binance",
+  "name": "crypto-market-rank",
+  "desc": "Query crypto market rankings including trending tokens, smart money inflows, meme rankings, and top trader PnL leaderboards"
+ },
+ {
+  "key": "binance/meme-rush",
+  "owner": "binance",
+  "name": "meme-rush",
+  "desc": "Track real-time meme token lists from launchpads (Pump.fun, Four.meme) and AI-powered hot market topics ranked by net inflow"
+ },
+ {
+  "key": "binance/query-address-info",
+  "owner": "binance",
+  "name": "query-address-info",
+  "desc": "Retrieve all token holdings and portfolio positions for any wallet address on BSC, Base, or Solana"
+ },
+ {
+  "key": "binance/query-token-audit",
+  "owner": "binance",
+  "name": "query-token-audit",
+  "desc": "Audit token security to detect scams, honeypots, and malicious contracts across BSC, Base, Solana, and Ethereum"
+ },
+ {
+  "key": "binance/query-token-info",
+  "owner": "binance",
+  "name": "query-token-info",
+  "desc": "Search tokens and fetch metadata, real-time market data, and K-Line candlestick charts by keyword or contract address"
+ },
+ {
+  "key": "binance/trading-signal",
+  "owner": "binance",
+  "name": "trading-signal",
+  "desc": "Monitor on-chain Smart Money buy/sell signals with price, max gain, and exit rate data on Solana and BSC"
+ },
+ {
+  "key": "binance/spot",
+  "owner": "binance",
+  "name": "spot",
+  "desc": "Place and manage spot trading orders on Binance via API key authentication, supporting mainnet and testnet"
+ },
+ {
+  "key": "apollographql/apollo-client",
+  "owner": "apollographql",
+  "name": "apollo-client",
+  "desc": "Build React applications with Apollo Client 4"
+ },
+ {
+  "key": "apollographql/apollo-connectors",
+  "owner": "apollographql",
+  "name": "apollo-connectors",
+  "desc": "Integrate REST APIs into GraphQL supergraphs using Apollo Connectors"
+ },
+ {
+  "key": "apollographql/apollo-federation",
+  "owner": "apollographql",
+  "name": "apollo-federation",
+  "desc": "Write Apollo Federation 2 subgraph schemas and compose them into a supergraph"
+ },
+ {
+  "key": "apollographql/apollo-kotlin",
+  "owner": "apollographql",
+  "name": "apollo-kotlin",
+  "desc": "A GraphQL client for Android, JVM, and Kotlin Multiplatform projects"
+ },
+ {
+  "key": "apollographql/apollo-mcp-server",
+  "owner": "apollographql",
+  "name": "apollo-mcp-server",
+  "desc": "Connect AI agents to GraphQL APIs through the Model Context Protocol"
+ },
+ {
+  "key": "apollographql/apollo-router",
+  "owner": "apollographql",
+  "name": "apollo-router",
+  "desc": "Version-aware configuration generator for the Rust-based Apollo Router"
+ },
+ {
+  "key": "apollographql/apollo-router-plugin-creator",
+  "owner": "apollographql",
+  "name": "apollo-router-plugin-creator",
+  "desc": "Write native Rust plugins for Apollo Router"
+ },
+ {
+  "key": "apollographql/apollo-server",
+  "owner": "apollographql",
+  "name": "apollo-server",
+  "desc": "Build GraphQL servers using Apollo Server 5"
+ },
+ {
+  "key": "apollographql/graphql-operations",
+  "owner": "apollographql",
+  "name": "graphql-operations",
+  "desc": "Write GraphQL queries, mutations, and subscriptions following best practices"
+ },
+ {
+  "key": "apollographql/graphql-schema",
+  "owner": "apollographql",
+  "name": "graphql-schema",
+  "desc": "Reference guide for designing clean, evolvable GraphQL schemas"
+ },
+ {
+  "key": "apollographql/rover",
+  "owner": "apollographql",
+  "name": "rover",
+  "desc": "CLI tool for managing GraphQL schemas in Apollo GraphOS"
+ },
+ {
+  "key": "apollographql/rust-best-practices",
+  "owner": "apollographql",
+  "name": "rust-best-practices",
+  "desc": "Rust coding guidelines drawn from Apollo GraphQL's internal handbook"
+ },
+ {
+  "key": "apollographql/skill-creator",
+  "owner": "apollographql",
+  "name": "skill-creator",
+  "desc": "Create and structure Agent Skills focused on Apollo GraphQL"
+ },
+ {
+  "key": "auth0/auth0-android",
+  "owner": "auth0",
+  "name": "auth0-android",
+  "desc": "Add authentication to native Android apps using the Auth0 SDK"
+ },
+ {
+  "key": "auth0/auth0-angular",
+  "owner": "auth0",
+  "name": "auth0-angular",
+  "desc": "Add authentication to Angular apps using @auth0/auth0-angular"
+ },
+ {
+  "key": "auth0/auth0-aspnetcore-api",
+  "owner": "auth0",
+  "name": "auth0-aspnetcore-api",
+  "desc": "Add JWT access token validation to ASP.NET Core APIs"
+ },
+ {
+  "key": "auth0/auth0-express",
+  "owner": "auth0",
+  "name": "auth0-express",
+  "desc": "Add session-based authentication to Express.js apps"
+ },
+ {
+  "key": "auth0/auth0-fastify",
+  "owner": "auth0",
+  "name": "auth0-fastify",
+  "desc": "Add session-based authentication to Fastify web apps"
+ },
+ {
+  "key": "auth0/auth0-fastify-api",
+  "owner": "auth0",
+  "name": "auth0-fastify-api",
+  "desc": "Secure Fastify API endpoints with JWT Bearer token validation"
+ },
+ {
+  "key": "auth0/auth0-mfa",
+  "owner": "auth0",
+  "name": "auth0-mfa",
+  "desc": "Add Multi-Factor Authentication to Auth0-powered apps"
+ },
+ {
+  "key": "auth0/auth0-migration",
+  "owner": "auth0",
+  "name": "auth0-migration",
+  "desc": "Migrate users and auth flows from other providers to Auth0"
+ },
+ {
+  "key": "auth0/auth0-nextjs",
+  "owner": "auth0",
+  "name": "auth0-nextjs",
+  "desc": "Add authentication to Next.js apps"
+ },
+ {
+  "key": "auth0/auth0-nuxt",
+  "owner": "auth0",
+  "name": "auth0-nuxt",
+  "desc": "Add Auth0 authentication to Nuxt 3/4 apps with encrypted cookie sessions"
+ },
+ {
+  "key": "auth0/auth0-quickstart",
+  "owner": "auth0",
+  "name": "auth0-quickstart",
+  "desc": "Detect your framework and scaffold Auth0 integration automatically"
+ },
+ {
+  "key": "auth0/auth0-react",
+  "owner": "auth0",
+  "name": "auth0-react",
+  "desc": "Add authentication to React SPAs using @auth0/auth0-react"
+ },
+ {
+  "key": "auth0/auth0-react-native",
+  "owner": "auth0",
+  "name": "auth0-react-native",
+  "desc": "Add authentication to React Native and Expo mobile apps"
+ },
+ {
+  "key": "auth0/auth0-vue",
+  "owner": "auth0",
+  "name": "auth0-vue",
+  "desc": "Add authentication to Vue.js apps"
+ },
+ {
+  "key": "brave/answers",
+  "owner": "brave",
+  "name": "answers",
+  "desc": "AI-generated answers grounded in live web search results"
+ },
+ {
+  "key": "brave/bx",
+  "owner": "brave",
+  "name": "bx",
+  "desc": "CLI tool for web search built for AI agents"
+ },
+ {
+  "key": "brave/images-search",
+  "owner": "brave",
+  "name": "images-search",
+  "desc": "Search for images using the Brave Search API"
+ },
+ {
+  "key": "brave/llm-context",
+  "owner": "brave",
+  "name": "llm-context",
+  "desc": "Return pre-extracted web content (text, tables, code) from Brave Search"
+ },
+ {
+  "key": "brave/local-descriptions",
+  "owner": "brave",
+  "name": "local-descriptions",
+  "desc": "Fetch AI-generated text descriptions for points of interest"
+ },
+ {
+  "key": "brave/local-pois",
+  "owner": "brave",
+  "name": "local-pois",
+  "desc": "Retrieve detailed local business and POI information"
+ },
+ {
+  "key": "brave/news-search",
+  "owner": "brave",
+  "name": "news-search",
+  "desc": "Search Brave's news index with article metadata"
+ },
+ {
+  "key": "brave/spellcheck",
+  "owner": "brave",
+  "name": "spellcheck",
+  "desc": "Check search queries for spelling errors and get corrections"
+ },
+ {
+  "key": "brave/suggest",
+  "owner": "brave",
+  "name": "suggest",
+  "desc": "Query autocomplete suggestions via the Brave Search API"
+ },
+ {
+  "key": "brave/videos-search",
+  "owner": "brave",
+  "name": "videos-search",
+  "desc": "Search for videos across the web via the Brave Search API"
+ },
+ {
+  "key": "brave/web-search",
+  "owner": "brave",
+  "name": "web-search",
+  "desc": "Search the web via Brave's Search API with ranked results"
+ },
+ {
+  "key": "browserbase/browser",
+  "owner": "browserbase",
+  "name": "browser",
+  "desc": "Automate web browser interactions through natural language CLI commands"
+ },
+ {
+  "key": "browserbase/browserbase-cli",
+  "owner": "browserbase",
+  "name": "browserbase-cli",
+  "desc": "CLI wrapper around the Browserbase platform"
+ },
+ {
+  "key": "browserbase/cookie-sync",
+  "owner": "browserbase",
+  "name": "cookie-sync",
+  "desc": "Export cookies from local Chrome into a Browserbase persistent context"
+ },
+ {
+  "key": "browserbase/fetch",
+  "owner": "browserbase",
+  "name": "fetch",
+  "desc": "Fetch HTML, JSON, headers, and status codes through the Browserbase API"
+ },
+ {
+  "key": "browserbase/functions",
+  "owner": "browserbase",
+  "name": "functions",
+  "desc": "Deploy browser automation scripts as serverless cloud functions"
+ },
+ {
+  "key": "browserbase/search",
+  "owner": "browserbase",
+  "name": "search",
+  "desc": "Search the web via the Browserbase API with structured results"
+ },
+ {
+  "key": "browserbase/ui-test",
+  "owner": "browserbase",
+  "name": "ui-test",
+  "desc": "Run adversarial UI tests by analyzing git diffs in a real browser"
+ },
+ {
+  "key": "coderabbitai/autofix",
+  "owner": "coderabbitai",
+  "name": "autofix",
+  "desc": "Fetch unresolved CodeRabbit review comments from GitHub PRs and apply fixes"
+ },
+ {
+  "key": "coderabbitai/code-review",
+  "owner": "coderabbitai",
+  "name": "code-review",
+  "desc": "Run AI-powered code reviews through the CodeRabbit CLI"
+ },
+ {
+  "key": "coinbase/authenticate-wallet",
+  "owner": "coinbase",
+  "name": "authenticate-wallet",
+  "desc": "Handle sign-in for the Coinbase payments wallet via email OTP"
+ },
+ {
+  "key": "coinbase/fund",
+  "owner": "coinbase",
+  "name": "fund",
+  "desc": "Add USDC to a Coinbase-powered wallet through Coinbase Onramp"
+ },
+ {
+  "key": "coinbase/monetize-service",
+  "owner": "coinbase",
+  "name": "monetize-service",
+  "desc": "Scaffold an Express server that charges USDC per request using x402"
+ },
+ {
+  "key": "coinbase/pay-for-service",
+  "owner": "coinbase",
+  "name": "pay-for-service",
+  "desc": "Call paid API endpoints that use the x402 protocol with automatic USDC"
+ },
+ {
+  "key": "coinbase/query-onchain-data",
+  "owner": "coinbase",
+  "name": "query-onchain-data",
+  "desc": "Query decoded onchain data (events, tx, blocks) on Base"
+ },
+ {
+  "key": "coinbase/search-for-service",
+  "owner": "coinbase",
+  "name": "search-for-service",
+  "desc": "Search and browse the x402 bazaar marketplace"
+ },
+ {
+  "key": "coinbase/send-usdc",
+  "owner": "coinbase",
+  "name": "send-usdc",
+  "desc": "Send USDC to any Ethereum address or ENS name on Base"
+ },
+ {
+  "key": "coinbase/trade",
+  "owner": "coinbase",
+  "name": "trade",
+  "desc": "Swap and trade tokens on Base using the CDP Swap API"
+ },
+ {
+  "key": "coinbase/x402",
+  "owner": "coinbase",
+  "name": "x402",
+  "desc": "Discover and call paid API endpoints using the x402 payment protocol"
+ },
+ {
+  "key": "datadog-labs/dd-apm",
+  "owner": "datadog-labs",
+  "name": "dd-apm",
+  "desc": "Query Datadog APM data directly from your editor"
+ },
+ {
+  "key": "datadog-labs/dd-docs",
+  "owner": "datadog-labs",
+  "name": "dd-docs",
+  "desc": "Look up Datadog documentation via the LLM-optimized docs index"
+ },
+ {
+  "key": "datadog-labs/dd-llmo-eval-bootstrap",
+  "owner": "datadog-labs",
+  "name": "dd-llmo-eval-bootstrap",
+  "desc": "Analyze production LLM traces and generate evaluators"
+ },
+ {
+  "key": "datadog-labs/dd-llmo-eval-trace-rca",
+  "owner": "datadog-labs",
+  "name": "dd-llmo-eval-trace-rca",
+  "desc": "Root-cause LLM app failures using eval traces"
+ },
+ {
+  "key": "datadog-labs/dd-llmo-experiment-analyzer",
+  "owner": "datadog-labs",
+  "name": "dd-llmo-experiment-analyzer",
+  "desc": "Analyze single or comparative LLM experiment results"
+ },
+ {
+  "key": "datadog-labs/dd-logs",
+  "owner": "datadog-labs",
+  "name": "dd-logs",
+  "desc": "Search, filter, and archive Datadog logs through pup CLI"
+ },
+ {
+  "key": "datadog-labs/dd-monitors",
+  "owner": "datadog-labs",
+  "name": "dd-monitors",
+  "desc": "Manage Datadog monitors through the pup CLI"
+ },
+ {
+  "key": "datadog-labs/dd-pup",
+  "owner": "datadog-labs",
+  "name": "dd-pup",
+  "desc": "Rust-based CLI (pup) for talking to the Datadog API"
+ },
+ {
+  "key": "firebase/developing-genkit-dart",
+  "owner": "firebase",
+  "name": "developing-genkit-dart",
+  "desc": "Build AI apps with the Genkit Dart SDK"
+ },
+ {
+  "key": "firebase/developing-genkit-go",
+  "owner": "firebase",
+  "name": "developing-genkit-go",
+  "desc": "Build AI apps with the Genkit Go SDK"
+ },
+ {
+  "key": "firebase/developing-genkit-js",
+  "owner": "firebase",
+  "name": "developing-genkit-js",
+  "desc": "Build AI-powered apps with Firebase Genkit in Node.js"
+ },
+ {
+  "key": "firebase/firebase-ai-logic-basics",
+  "owner": "firebase",
+  "name": "firebase-ai-logic-basics",
+  "desc": "Call Gemini models from web and mobile apps via Firebase AI Logic"
+ },
+ {
+  "key": "firebase/firebase-app-hosting-basics",
+  "owner": "firebase",
+  "name": "firebase-app-hosting-basics",
+  "desc": "Deploy and manage full-stack web apps (Next.js, Angular, etc.)"
+ },
+ {
+  "key": "firebase/firebase-auth-basics",
+  "owner": "firebase",
+  "name": "firebase-auth-basics",
+  "desc": "Set up Firebase Authentication with sign-in providers"
+ },
+ {
+  "key": "firebase/firebase-basics",
+  "owner": "firebase",
+  "name": "firebase-basics",
+  "desc": "Handle Firebase CLI install, auth, and day-to-day workflow"
+ },
+ {
+  "key": "firebase/firebase-data-connect-basics",
+  "owner": "firebase",
+  "name": "firebase-data-connect-basics",
+  "desc": "Build Firebase Data Connect backends backed by Cloud SQL"
+ },
+ {
+  "key": "firebase/firebase-firestore-enterprise-native-mode",
+  "owner": "firebase",
+  "name": "firebase-firestore-enterprise-native-mode",
+  "desc": "Set up and use Firestore Enterprise Native Mode"
+ },
+ {
+  "key": "firebase/firebase-firestore-standard",
+  "owner": "firebase",
+  "name": "firebase-firestore-standard",
+  "desc": "Complete guide for Cloud Firestore Standard Edition"
+ },
+ {
+  "key": "firebase/firebase-hosting-basics",
+  "owner": "firebase",
+  "name": "firebase-hosting-basics",
+  "desc": "Deploy static sites, SPAs, and microservices to Firebase Hosting"
+ },
+ {
+  "key": "firebase/firebase-security-rules-auditor",
+  "owner": "firebase",
+  "name": "firebase-security-rules-auditor",
+  "desc": "Audit Firestore security rules and flag risky patterns"
+ },
+ {
+  "key": "flutter/flutter-adding-home-screen-widgets",
+  "owner": "flutter",
+  "name": "flutter-adding-home-screen-widgets",
+  "desc": "Add home screen widgets to Flutter apps on Android and iOS"
+ },
+ {
+  "key": "flutter/flutter-animating-apps",
+  "owner": "flutter",
+  "name": "flutter-animating-apps",
+  "desc": "Implement animated effects, transitions, and motion"
+ },
+ {
+  "key": "flutter/flutter-architecting-apps",
+  "owner": "flutter",
+  "name": "flutter-architecting-apps",
+  "desc": "Structure a Flutter app using layered architecture"
+ },
+ {
+  "key": "flutter/flutter-building-forms",
+  "owner": "flutter",
+  "name": "flutter-building-forms",
+  "desc": "Build Flutter forms with validation and user input"
+ },
+ {
+  "key": "flutter/flutter-building-layouts",
+  "owner": "flutter",
+  "name": "flutter-building-layouts",
+  "desc": "Build and fix layouts using the constraint system (Row, Column, Stack)"
+ },
+ {
+  "key": "flutter/flutter-building-plugins",
+  "owner": "flutter",
+  "name": "flutter-building-plugins",
+  "desc": "Create Flutter plugins that bridge Dart with platform code"
+ },
+ {
+  "key": "flutter/flutter-caching-data",
+  "owner": "flutter",
+  "name": "flutter-caching-data",
+  "desc": "Implement offline-first caching strategies"
+ },
+ {
+  "key": "flutter/flutter-embedding-native-views",
+  "owner": "flutter",
+  "name": "flutter-embedding-native-views",
+  "desc": "Embed native Android, iOS, and macOS views in Flutter widgets"
+ },
+ {
+  "key": "flutter/flutter-handling-concurrency",
+  "owner": "flutter",
+  "name": "flutter-handling-concurrency",
+  "desc": "Run heavy work in background Dart isolates"
+ },
+ {
+  "key": "flutter/flutter-handling-http-and-json",
+  "owner": "flutter",
+  "name": "flutter-handling-http-and-json",
+  "desc": "Handle HTTP requests and JSON serialization"
+ },
+ {
+  "key": "flutter/flutter-implementing-navigation-and-routing",
+  "owner": "flutter",
+  "name": "flutter-implementing-navigation-and-routing",
+  "desc": "Handle routing, navigation, and deep linking"
+ },
+ {
+  "key": "flutter/flutter-improving-accessibility",
+  "owner": "flutter",
+  "name": "flutter-improving-accessibility",
+  "desc": "Configure Flutter for screen readers and assistive tech"
+ },
+ {
+  "key": "flutter/flutter-interoperating-with-native-apis",
+  "owner": "flutter",
+  "name": "flutter-interoperating-with-native-apis",
+  "desc": "Bridge Flutter with native platform APIs"
+ },
+ {
+  "key": "flutter/flutter-localizing-apps",
+  "owner": "flutter",
+  "name": "flutter-localizing-apps",
+  "desc": "Configure Flutter for multiple languages and regions"
+ },
+ {
+  "key": "flutter/flutter-managing-state",
+  "owner": "flutter",
+  "name": "flutter-managing-state",
+  "desc": "Manage local widget state and shared application state"
+ },
+ {
+  "key": "flutter/flutter-reducing-app-size",
+  "owner": "flutter",
+  "name": "flutter-reducing-app-size",
+  "desc": "Measure and optimize Flutter app bundle sizes"
+ },
+ {
+  "key": "flutter/flutter-setting-up-on-linux",
+  "owner": "flutter",
+  "name": "flutter-setting-up-on-linux",
+  "desc": "Set up a Linux machine for Flutter desktop development"
+ },
+ {
+  "key": "flutter/flutter-setting-up-on-macos",
+  "owner": "flutter",
+  "name": "flutter-setting-up-on-macos",
+  "desc": "Set up a macOS machine for Flutter development"
+ },
+ {
+  "key": "flutter/flutter-setting-up-on-windows",
+  "owner": "flutter",
+  "name": "flutter-setting-up-on-windows",
+  "desc": "Set up a Windows machine for Flutter development"
+ },
+ {
+  "key": "flutter/flutter-testing-apps",
+  "owner": "flutter",
+  "name": "flutter-testing-apps",
+  "desc": "Implement unit, widget, and integration tests"
+ },
+ {
+  "key": "flutter/flutter-theming-apps",
+  "owner": "flutter",
+  "name": "flutter-theming-apps",
+  "desc": "Customize Flutter app appearance through the theming system"
+ },
+ {
+  "key": "flutter/flutter-working-with-databases",
+  "owner": "flutter",
+  "name": "flutter-working-with-databases",
+  "desc": "Build a structured data layer using SQLite"
+ },
+ {
+  "key": "MiniMax-AI/cli",
+  "owner": "MiniMax-AI",
+  "name": "cli",
+  "desc": "Generate text, image, video, speech, and music via MiniMax AI"
+ },
+ {
+  "key": "MiniMax-AI/frontend-dev",
+  "owner": "MiniMax-AI",
+  "name": "frontend-dev",
+  "desc": "Full-stack frontend with cinematic animations, AI-generated media via MiniMax API, and generative art"
+ },
+ {
+  "key": "MiniMax-AI/fullstack-dev",
+  "owner": "MiniMax-AI",
+  "name": "fullstack-dev",
+  "desc": "Backend architecture with REST API design, auth flows, real-time features, and database integration"
+ },
+ {
+  "key": "MiniMax-AI/android-native-dev",
+  "owner": "MiniMax-AI",
+  "name": "android-native-dev",
+  "desc": "Android native development with Kotlin/Jetpack Compose, Material Design 3, and accessibility"
+ },
+ {
+  "key": "MiniMax-AI/ios-application-dev",
+  "owner": "MiniMax-AI",
+  "name": "ios-application-dev",
+  "desc": "iOS development with UIKit, SnapKit, and SwiftUI covering navigation, Dark Mode, and HIG compliance"
+ },
+ {
+  "key": "MiniMax-AI/shader-dev",
+  "owner": "MiniMax-AI",
+  "name": "shader-dev",
+  "desc": "GLSL shader techniques for ray marching, fluid simulation, particle systems, and procedural generation"
+ },
+ {
+  "key": "MiniMax-AI/gif-sticker-maker",
+  "owner": "MiniMax-AI",
+  "name": "gif-sticker-maker",
+  "desc": "Convert photos into animated GIF stickers in Funko Pop / Pop Mart style via MiniMax API"
+ },
+ {
+  "key": "MiniMax-AI/minimax-pdf",
+  "owner": "MiniMax-AI",
+  "name": "minimax-pdf",
+  "desc": "Generate, fill, and reformat PDFs with a token-based design system and 15 cover styles"
+ },
+ {
+  "key": "MiniMax-AI/pptx-generator",
+  "owner": "MiniMax-AI",
+  "name": "pptx-generator",
+  "desc": "Create and edit PowerPoint presentations from scratch with PptxGenJS"
+ },
+ {
+  "key": "MiniMax-AI/minimax-xlsx",
+  "owner": "MiniMax-AI",
+  "name": "minimax-xlsx",
+  "desc": "Create, read, analyze, and validate Excel/spreadsheet files with zero format loss"
+ },
+ {
+  "key": "MiniMax-AI/minimax-docx",
+  "owner": "MiniMax-AI",
+  "name": "minimax-docx",
+  "desc": "Professional DOCX document creation and editing using OpenXML SDK"
+ },
+ {
+  "key": "duckdb/attach-db",
+  "owner": "duckdb",
+  "name": "attach-db",
+  "desc": "Attach a DuckDB database file for interactive querying with automatic schema exploration"
+ },
+ {
+  "key": "duckdb/query",
+  "owner": "duckdb",
+  "name": "query",
+  "desc": "Run SQL queries against attached databases or ad-hoc against files using Friendly SQL dialect"
+ },
+ {
+  "key": "duckdb/read-file",
+  "owner": "duckdb",
+  "name": "read-file",
+  "desc": "Read any data file (CSV, JSON, Parquet, Avro, Excel, spatial) locally or from remote storage"
+ },
+ {
+  "key": "duckdb/duckdb-docs",
+  "owner": "duckdb",
+  "name": "duckdb-docs",
+  "desc": "Search DuckDB and DuckLake documentation using full-text search over HTTPS"
+ },
+ {
+  "key": "duckdb/read-memories",
+  "owner": "duckdb",
+  "name": "read-memories",
+  "desc": "Search past Claude Code session logs to recover context from previous conversations"
+ },
+ {
+  "key": "duckdb/install-duckdb",
+  "owner": "duckdb",
+  "name": "install-duckdb",
+  "desc": "Install or update DuckDB CLI and extensions with version management"
+ },
+ {
+  "key": "greensock/gsap-core",
+  "owner": "greensock",
+  "name": "gsap-core",
+  "desc": "Core API with gsap.to(), from(), fromTo(), easing, duration, stagger, and defaults"
+ },
+ {
+  "key": "greensock/gsap-timeline",
+  "owner": "greensock",
+  "name": "gsap-timeline",
+  "desc": "Timelines with sequencing, position parameter, labels, nesting, and playback control"
+ },
+ {
+  "key": "greensock/gsap-scrolltrigger",
+  "owner": "greensock",
+  "name": "gsap-scrolltrigger",
+  "desc": "ScrollTrigger for scroll-linked animations, pinning, scrub, and refresh handling"
+ },
+ {
+  "key": "greensock/gsap-plugins",
+  "owner": "greensock",
+  "name": "gsap-plugins",
+  "desc": "Plugins including ScrollToPlugin, Flip, Draggable, SplitText, SVG, and physics"
+ },
+ {
+  "key": "greensock/gsap-utils",
+  "owner": "greensock",
+  "name": "gsap-utils",
+  "desc": "Utility functions like clamp, mapRange, interpolate, snap, selector, and wrap"
+ },
+ {
+  "key": "greensock/gsap-react",
+  "owner": "greensock",
+  "name": "gsap-react",
+  "desc": "React integration with useGSAP hook, refs, gsap.context(), cleanup, and SSR"
+ },
+ {
+  "key": "greensock/gsap-performance",
+  "owner": "greensock",
+  "name": "gsap-performance",
+  "desc": "Performance tips for transforms, will-change, batching, and ScrollTrigger optimization"
+ },
+ {
+  "key": "greensock/gsap-frameworks",
+  "owner": "greensock",
+  "name": "gsap-frameworks",
+  "desc": "Vue, Svelte, and other frameworks with lifecycle, scoping, and cleanup patterns"
+ },
+ {
+  "key": "garrytan/office-hours",
+  "owner": "garrytan",
+  "name": "office-hours",
+  "desc": "YC Office Hours: six forcing questions that reframe your product before you write code"
+ },
+ {
+  "key": "garrytan/plan-ceo-review",
+  "owner": "garrytan",
+  "name": "plan-ceo-review",
+  "desc": "CEO/Founder plan review with four modes: Expansion, Selective Expansion, Hold Scope, Reduction"
+ },
+ {
+  "key": "garrytan/plan-eng-review",
+  "owner": "garrytan",
+  "name": "plan-eng-review",
+  "desc": "Eng Manager review: lock in architecture, data flow, diagrams, edge cases, and tests"
+ },
+ {
+  "key": "garrytan/plan-design-review",
+  "owner": "garrytan",
+  "name": "plan-design-review",
+  "desc": "Senior Designer review: rates each design dimension 0-10, explains what a 10 looks like, AI Slop detection"
+ },
+ {
+  "key": "garrytan/design-consultation",
+  "owner": "garrytan",
+  "name": "design-consultation",
+  "desc": "Build a complete design system from scratch with creative risks and realistic product mockups"
+ },
+ {
+  "key": "garrytan/design-review",
+  "owner": "garrytan",
+  "name": "design-review",
+  "desc": "Designer Who Codes: visual audit then fixes with atomic commits and before/after screenshots"
+ },
+ {
+  "key": "garrytan/review",
+  "owner": "garrytan",
+  "name": "review",
+  "desc": "Staff Engineer code review: finds bugs that pass CI but blow up in production"
+ },
+ {
+  "key": "garrytan/investigate",
+  "owner": "garrytan",
+  "name": "investigate",
+  "desc": "Systematic root-cause debugging: no fixes without investigation, traces data flow, tests hypotheses"
+ },
+ {
+  "key": "garrytan/qa",
+  "owner": "garrytan",
+  "name": "qa",
+  "desc": "QA Lead: test your app, find bugs, fix them with atomic commits, auto-generate regression tests"
+ },
+ {
+  "key": "garrytan/qa-only",
+  "owner": "garrytan",
+  "name": "qa-only",
+  "desc": "QA Reporter: same methodology as /qa but report only, no code changes"
+ },
+ {
+  "key": "garrytan/cso",
+  "owner": "garrytan",
+  "name": "cso",
+  "desc": "Chief Security Officer: OWASP Top 10 + STRIDE threat model with zero false-positive exclusions"
+ },
+ {
+  "key": "garrytan/ship",
+  "owner": "garrytan",
+  "name": "ship",
+  "desc": "Release Engineer: sync main, run tests, audit coverage, push, open PR"
+ },
+ {
+  "key": "garrytan/land-and-deploy",
+  "owner": "garrytan",
+  "name": "land-and-deploy",
+  "desc": "Merge the PR, wait for CI and deploy, verify production health"
+ },
+ {
+  "key": "garrytan/canary",
+  "owner": "garrytan",
+  "name": "canary",
+  "desc": "SRE post-deploy monitoring: watches for console errors, performance regressions, and page failures"
+ },
+ {
+  "key": "garrytan/benchmark",
+  "owner": "garrytan",
+  "name": "benchmark",
+  "desc": "Performance Engineer: baseline page load times, Core Web Vitals, and resource sizes"
+ },
+ {
+  "key": "garrytan/document-release",
+  "owner": "garrytan",
+  "name": "document-release",
+  "desc": "Technical Writer: update all project docs to match what you just shipped"
+ },
+ {
+  "key": "garrytan/retro",
+  "owner": "garrytan",
+  "name": "retro",
+  "desc": "Eng Manager weekly retro with per-person breakdowns and shipping streaks"
+ },
+ {
+  "key": "garrytan/browse",
+  "owner": "garrytan",
+  "name": "browse",
+  "desc": "Real Chromium browser for QA: real clicks, real screenshots, ~100ms per command"
+ },
+ {
+  "key": "garrytan/setup-browser-cookies",
+  "owner": "garrytan",
+  "name": "setup-browser-cookies",
+  "desc": "Import cookies from your real browser into the headless session"
+ },
+ {
+  "key": "garrytan/autoplan",
+  "owner": "garrytan",
+  "name": "autoplan",
+  "desc": "One command, fully reviewed plan: runs CEO → design → eng review automatically"
+ },
+ {
+  "key": "garrytan/codex",
+  "owner": "garrytan",
+  "name": "codex",
+  "desc": "Second Opinion via OpenAI Codex CLI: review, adversarial challenge, and open consultation"
+ },
+ {
+  "key": "garrytan/careful",
+  "owner": "garrytan",
+  "name": "careful",
+  "desc": "Safety Guardrails: warns before destructive commands (rm -rf, DROP TABLE, force-push)"
+ },
+ {
+  "key": "garrytan/freeze",
+  "owner": "garrytan",
+  "name": "freeze",
+  "desc": "Edit Lock: restrict file edits to one directory while debugging"
+ },
+ {
+  "key": "garrytan/guard",
+  "owner": "garrytan",
+  "name": "guard",
+  "desc": "Full Safety: /careful + /freeze in one command for maximum safety"
+ },
+ {
+  "key": "garrytan/unfreeze",
+  "owner": "garrytan",
+  "name": "unfreeze",
+  "desc": "Unlock: remove the /freeze boundary"
+ },
+ {
+  "key": "garrytan/setup-deploy",
+  "owner": "garrytan",
+  "name": "setup-deploy",
+  "desc": "Deploy Configurator: one-time setup for /land-and-deploy"
+ },
+ {
+  "key": "garrytan/gstack-upgrade",
+  "owner": "garrytan",
+  "name": "gstack-upgrade",
+  "desc": "Self-Updater: upgrade gstack to latest version"
+ },
+ {
+  "key": "makenotion/knowledge-capture",
+  "owner": "makenotion",
+  "name": "knowledge-capture",
+  "desc": "Transform conversations into structured Notion documentation pages with proper organization and linking"
+ },
+ {
+  "key": "makenotion/meeting-intelligence",
+  "owner": "makenotion",
+  "name": "meeting-intelligence",
+  "desc": "Prepare meeting materials by gathering Notion context and creating pre-reads and agendas"
+ },
+ {
+  "key": "makenotion/research-documentation",
+  "owner": "makenotion",
+  "name": "research-documentation",
+  "desc": "Search Notion workspace, synthesize findings, and create comprehensive research reports"
+ },
+ {
+  "key": "makenotion/spec-to-implementation",
+  "owner": "makenotion",
+  "name": "spec-to-implementation",
+  "desc": "Turn product/tech specs into concrete Notion tasks with acceptance criteria and progress tracking"
+ },
+ {
+  "key": "makenotion/knowledge-capture",
+  "owner": "makenotion",
+  "name": "knowledge-capture",
+  "desc": "Transform conversations into structured Notion documentation pages with proper organization and linking"
+ },
+ {
+  "key": "makenotion/meeting-intelligence",
+  "owner": "makenotion",
+  "name": "meeting-intelligence",
+  "desc": "Prepare meeting materials by gathering Notion context and creating pre-reads and agendas"
+ },
+ {
+  "key": "makenotion/research-documentation",
+  "owner": "makenotion",
+  "name": "research-documentation",
+  "desc": "Search Notion workspace, synthesize findings, and create comprehensive research reports"
+ },
+ {
+  "key": "makenotion/spec-to-implementation",
+  "owner": "makenotion",
+  "name": "spec-to-implementation",
+  "desc": "Turn product/tech specs into concrete Notion tasks with acceptance criteria and progress tracking"
+ },
+ {
+  "key": "addyosmani/web-quality-audit",
+  "owner": "addyosmani",
+  "name": "web-quality-audit",
+  "desc": "Comprehensive quality review across performance, accessibility, SEO, and best practices categories"
+ },
+ {
+  "key": "addyosmani/performance",
+  "owner": "addyosmani",
+  "name": "performance",
+  "desc": "Loading speed, runtime efficiency, and resource optimization"
+ },
+ {
+  "key": "addyosmani/core-web-vitals",
+  "owner": "addyosmani",
+  "name": "core-web-vitals",
+  "desc": "LCP, INP, and CLS-specific optimizations"
+ },
+ {
+  "key": "addyosmani/accessibility",
+  "owner": "addyosmani",
+  "name": "accessibility",
+  "desc": "WCAG compliance, screen reader support, and keyboard navigation"
+ },
+ {
+  "key": "addyosmani/seo",
+  "owner": "addyosmani",
+  "name": "seo",
+  "desc": "Search engine optimization, crawlability, and structured data"
+ },
+ {
+  "key": "addyosmani/best-practices",
+  "owner": "addyosmani",
+  "name": "best-practices",
+  "desc": "Security, modern web APIs, and code quality patterns"
+ },
+ {
+  "key": "mongodb/mongodb-mcp-setup",
+  "owner": "mongodb",
+  "name": "mongodb-mcp-setup",
+  "desc": "Set up the MongoDB MCP server with authentication and connection configuration"
+ },
+ {
+  "key": "mongodb/mongodb-connection",
+  "owner": "mongodb",
+  "name": "mongodb-connection",
+  "desc": "Optimize MongoDB client connection pools, timeouts, and serverless patterns"
+ },
+ {
+  "key": "mongodb/mongodb-schema-design",
+  "owner": "mongodb",
+  "name": "mongodb-schema-design",
+  "desc": "Design efficient document schemas with validation and indexing patterns"
+ },
+ {
+  "key": "mongodb/atlas-stream-processing",
+  "owner": "mongodb",
+  "name": "atlas-stream-processing",
+  "desc": "Build, operate, and debug Atlas Stream Processing pipelines with Kafka, S3, and Lambda integrations"
+ },
+ {
+  "key": "mongodb/mongodb-natural-language-querying",
+  "owner": "mongodb",
+  "name": "mongodb-natural-language-querying",
+  "desc": "Translate natural language into MongoDB queries and aggregation pipelines"
+ },
+ {
+  "key": "mongodb/mongodb-query-optimizer",
+  "owner": "mongodb",
+  "name": "mongodb-query-optimizer",
+  "desc": "Analyze and optimize query performance using Atlas Performance Advisor"
+ },
+ {
+  "key": "mongodb/mongodb-search-and-ai",
+  "owner": "mongodb",
+  "name": "mongodb-search-and-ai",
+  "desc": "Implement Atlas Search and AI-powered recommendations with vector search"
+ }
+]
