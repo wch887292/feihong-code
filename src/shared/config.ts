@@ -17,6 +17,7 @@ import { parseMcpServers } from '../tools/mcp';
 import type { HookConfig } from '../runtime/hooks';
 import { parseHooks } from '../runtime/hooks';
 import { loadPlugins, type LoadedPlugins } from '../plugins/plugin-loader';
+import { getGithubMcpServers } from '../integrations/github-mcp';
 
 /**
  * 极简 .env 加载器（不引入第三方依赖，离线可用）。
@@ -216,13 +217,14 @@ export function loadConfig(): AppConfig {
       logDir: process.env.FH_LOG_DIR ? expandTilde(process.env.FH_LOG_DIR) : join(resolveHomeDir(), 'sessions'),
       maxRetries: 3,
     },
-    // P0-3：MCP 服务器（FH_MCP_SERVERS 环境变量优先，其次配置文件 mcp.servers；插件 MCP 叠加）
+    // P0-3：MCP 服务器（FH_MCP_SERVERS 环境变量优先，其次配置文件 mcp.servers；插件 MCP 叠加；GitHub MCP 自动叠加）
     mcp: {
       servers: [
         ...(parseMcpServers(process.env.FH_MCP_SERVERS).length > 0
           ? parseMcpServers(process.env.FH_MCP_SERVERS)
           : (fileCfg?.mcp?.servers ?? [])),
         ...plugins.mcp,
+        ...getGithubMcpServers(fileCfg),
       ],
     },
     // P2-1：hooks（FH_HOOKS 环境变量优先，其次配置文件 hooks；插件 hooks 叠加）

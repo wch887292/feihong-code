@@ -76,6 +76,10 @@ import {
   getRsaKeys,
   rsaDecrypt,
 } from '../shared/secure-store';
+import { initWechatBridge, setWechatTaskQueue, handleWechatCallback, isWechatEnabled } from '../integrations/wechat-bridge';
+import { initFeishuBridge, setFeishuBridgeDeps, handleFeishuCallback, isFeishuEnabled } from '../integrations/feishu-bridge';
+import { initYuanbaoBridge, setYuanbaoTaskQueue, handleYuanbaoCallback, isYuanbaoEnabled } from '../integrations/yuanbao-bridge';
+import { FeishuIntegration } from '../integrations/collaboration';
 
 export interface ServeOptions {
   port?: number;
@@ -108,6 +112,10 @@ export function startWebServer(opts: ServeOptions = {}): {
   const app = express();
   // 放宽请求体上限以支持截图/图片 base64 上传（8MB），仍可有效防御内存耗尽
   app.use(express.json({ limit: '8mb' }));
+  // 微信回调使用 XML body，单独路由用 text 解析
+  app.use('/api/wechat/callback', (express as any).text({ type: ['*/xml', 'text/xml', 'application/xml'], limit: '1mb' }));
+  // 元宝回调需要原始 body 用于 HMAC 签名校验
+  app.use('/api/yuanbao/callback', (express as any).raw({ type: 'application/json', limit: '1mb' }));
   // 静态仪表盘（开发时直接从 src 读取，避免 dist 被锁）
   const publicDir =
     process.env.FH_WEB_SRC_PUBLIC || join(__dirname, 'public');
@@ -154,6 +162,21 @@ export function startWebServer(opts: ServeOptions = {}): {
     },
   });
 
+  // 微信桥接：注入 TaskQueue 引用并初始化
+  setWechatTaskQueue(queue);
+  const wechatConfig = initWechatBridge();
+
+  // 飞书桥接：注入 TaskQueue 和 FeishuIntegration，初始化
+  const feishuConfig = initFeishuBridge();
+  if (isFeishuEnabled(feishuConfig)) {
+    const feishuIntegration = new FeishuIntegration({ appId: feishuConfig.appId, appSecret: feishuConfig.appSecret });
+    setFeishuBridgeDeps(queue, feishuIntegration);
+  }
+
+  // 元宝/豆包桥接：注入 TaskQueue 引用并初始化
+  setYuanbaoTaskQueue(queue);
+  const yuanbaoConfig = initYuanbaoBridge();
+
   // 公开健康检查（仅暴露版本/状态等观测信息，无敏感数据）
   app.get('/api/health', (_req: Request, res: Response) => {
     res.json({
@@ -163,8 +186,45 @@ export function startWebServer(opts: ServeOptions = {}): {
       signature: SIGNATURE,
       enterprise: isEnterpriseEnabled(),
       lang: getLang(),
+      wechat: isWechatEnabled(wechatConfig) ? wechatConfig.mode : 'disabled',
+      feishu: isFeishuEnabled(feishuConfig) ? 'enabled' : 'disabled',
+      yuanbao: isYuanbaoEnabled(yuanbaoConfig) ? 'enabled' : 'disabled',
       time: new Date().toISOString(),
     });
+  });
+
+  // 微信桥接回调（GET=URL验证，POST=消息接收），无需 Bearer Token（微信服务器调用）
+  app.get('/api/wechat/callback', async (req: Request, res: Response) => {
+    const result = (await handleWechatCallback(wechatConfig, req.query as Record<string, string>, '')) as { status: number; body: string; contentType: string };
+    res.status(result.status);
+    res.setHeader('Content-Type', result.contentType);
+    res.send(result.body);
+  });
+  app.post('/api/wechat/callback', async (req: Request, res: Response) => {
+    const body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body || '');
+    const result = (await handleWechatCallback(wechatConfig, req.query as Record<string, string>, body)) as { status: number; body: string; contentType: string };
+    res.status(result.status);
+    res.setHeader('Content-Type', result.contentType);
+    res.send(result.body);
+  });
+
+  // 飞书桥接回调（事件订阅，无需 Bearer Token）
+  app.post('/api/feishu/callback', async (req: Request, res: Response) => {
+    const body = (req.body || {}) as Record<string, unknown>;
+    const result = (await handleFeishuCallback(feishuConfig, body)) as { status: number; body: unknown; contentType: string };
+    res.status(result.status);
+    res.setHeader('Content-Type', result.contentType);
+    res.send(result.body);
+  });
+
+  // 元宝/豆包桥接回调（webhook，无需 Bearer Token，原始 body 用于签名校验）
+  app.post('/api/yuanbao/callback', async (req: Request, res: Response) => {
+    const rawBody = Buffer.isBuffer(req.body) ? req.body.toString('utf8') : (typeof req.body === 'string' ? req.body : JSON.stringify(req.body || ''));
+    const headers = req.headers as Record<string, string | undefined>;
+    const result = (await handleYuanbaoCallback(yuanbaoConfig, rawBody, headers)) as { status: number; body: unknown; contentType: string };
+    res.status(result.status);
+    res.setHeader('Content-Type', result.contentType);
+    res.send(result.body);
   });
 
   // 手机号直登：无短信验证，生成本地会话令牌
@@ -179,24 +239,19 @@ export function startWebServer(opts: ServeOptions = {}): {
     const result = sessions.login(phone);
     const session = sessions.get(result.token);
     
-    // 如果是首次登录，自动创建引导任务
+    // 首次登录：返回引导任务定义（不自动提交执行，由用户在前端点「运行」时再真正发起）
     let welcomeTasks: any[] = [];
     if (result.isFirstLogin) {
       // 标记会话为首次登录（用于后续接口识别）
       if (session) {
         session.isFirstLogin = true;
       }
-      
-      // 创建引导任务
+      // 只返回任务定义，taskId 留空，前端点运行时才提交到任务队列
       for (const task of WELCOME_TASKS) {
-        const record = queue.submit(task.goal, {
-          workspaceDir: serverWorkspaceDir,
-          agentType: 'general' as const,
-        });
         welcomeTasks.push({
           ...task,
-          taskId: record.id,
-          status: record.status,
+          taskId: '',
+          status: 'pending',
         });
       }
     }

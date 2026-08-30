@@ -12,6 +12,7 @@
  */
 import type { ChatMessage } from '../models/model.interface';
 import { logger } from '../shared/logger';
+import { runSkillHooks } from '../runtime/hooks';
 import { routeContext, allocateBudget, exceedsBudget, estimateTokens } from './context-budget';
 
 export interface CompactionStats {
@@ -263,6 +264,17 @@ export function compactContext(
   if (earlyMessages.length === 0) {
     return { messages, stats: { originalLength: messages.length, compressedLength: messages.length, preservedMessages, compressedRounds: 0, timestamp: new Date().toISOString() } };
   }
+
+  // P2-1：PreCompact hooks（如 pua-ext 保存失败计数到 builder-journal.md）
+  // fire-and-forget：不阻塞压缩流程，持久化状态由 hook 自身保证
+  runSkillHooks('PreCompact', {
+    cwd: process.cwd(),
+    runId: '',
+    messageCount: messages.length,
+    preservedCount,
+  }).catch((e) => {
+    logger.warn('PreCompact hook failed', { error: e instanceof Error ? e.message : String(e) });
+  });
 
   // 提取摘要
   const summary = extractSummary(earlyMessages);

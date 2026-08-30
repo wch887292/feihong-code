@@ -80,6 +80,10 @@ export interface ParsedArgs {
     json?: boolean;
     contextFile?: string;
     lang?: string;
+    /** 指定模型（如 deepseek-ai/DeepSeek-V4-Flash），覆盖默认模型选择 */
+    model?: string;
+    /** -e 直接执行命令（不进入 Agent 编排） */
+    exec?: string;
     /** harness 评测：数据集 split / 偏移 / 执行模式 / 报告输出路径 */
     split?: string;
     offset?: number;
@@ -121,6 +125,7 @@ const FLAG_SPECS: Record<string, FlagSpec> = {
   repo: { kind: 'str', key: 'repo' },
   lang: { kind: 'str', key: 'lang' },
   'context-file': { kind: 'str', key: 'contextFile' },
+  model: { kind: 'str', key: 'model' },
   'max-tasks': { kind: 'int', min: 1, key: 'maxTasks' },
   'max-retries': { kind: 'int', min: 0, key: 'maxRetries' },
   'max-iterations': { kind: 'int', min: 1, key: 'maxIterations' },
@@ -133,6 +138,7 @@ const FLAG_SPECS: Record<string, FlagSpec> = {
 const SHORT_FLAGS: Record<string, FlagKey> = {
   '-v': 'version',
   '-h': 'help',
+  '-e': 'exec',
 };
 
 /** 类型安全的标志赋值：用泛型把联合键收敛为单一键，避免联合键写入报错 */

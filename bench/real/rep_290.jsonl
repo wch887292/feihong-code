@@ -1,0 +1,10 @@
+{"resolved": false, "stage": "notarget", "error": "no src path", "instance_id": "psf__requests-1142"}
+{"resolved": false, "stage": "notarget", "error": "no src path", "instance_id": "psf__requests-1724"}
+{"resolved": false, "stage": "notarget", "error": "no src path", "instance_id": "psf__requests-1766"}
+{"resolved": false, "stage": "notarget", "error": "no src path", "instance_id": "psf__requests-1921"}
+{"resolved": 0, "stage": "no_patch", "blocks": 1, "applied": 0, "pytest_rc": -1, "instance_id": "psf__requests-2317"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "psf__requests-2931"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "psf__requests-5414"}
+{"resolved": false, "stage": "notarget", "error": "no src path", "instance_id": "psf__requests-6028"}
+{"resolved": false, "stage": "notarget", "error": "no src path", "instance_id": "pydata__xarray-2905"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "pydata__xarray-3095"}

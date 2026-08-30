@@ -1,0 +1,50 @@
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "astropy__astropy-12907"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "astropy__astropy-13033"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "astropy__astropy-13236"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "astropy__astropy-13453"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "astropy__astropy-13579"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "astropy__astropy-14182"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "astropy__astropy-14309"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "astropy__astropy-14365"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "astropy__astropy-14995"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "astropy__astropy-7606"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "astropy__astropy-7671"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "astropy__astropy-7166"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "astropy__astropy-8707"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "astropy__astropy-8872"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "astropy__astropy-14539"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "astropy__astropy-14598"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "astropy__astropy-13398"}
+{"resolved": 0, "stage": "no_patch", "blocks": 1, "applied": 0, "pytest_rc": -1, "instance_id": "astropy__astropy-13977"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "astropy__astropy-14096"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "astropy__astropy-14369"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "astropy__astropy-14508"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 2, "applied": 2, "pytest_rc": -1, "instance_id": "django__django-10097"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-10554"}
+{"resolved": 0, "stage": "no_patch", "blocks": 0, "applied": 0, "pytest_rc": -1, "instance_id": "django__django-10880"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-10914"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-10973"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-10999"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-11066"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-11087"}
+{"resolved": 0, "stage": "no_patch", "blocks": 0, "applied": 0, "pytest_rc": -1, "instance_id": "django__django-11095"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 2, "applied": 2, "pytest_rc": -1, "instance_id": "django__django-11099"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-11119"}
+{"resolved": 0, "stage": "no_patch", "blocks": 1, "applied": 0, "pytest_rc": -1, "instance_id": "django__django-11133"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-11138"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-11149"}
+{"resolved": 0, "stage": "no_patch", "blocks": 0, "applied": 0, "pytest_rc": -1, "instance_id": "django__django-11163"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-11179"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-11206"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 2, "applied": 2, "pytest_rc": -1, "instance_id": "django__django-11211"}
+{"resolved": false, "stage": "notarget", "error": "no src path", "instance_id": "astropy__astropy-7336"}
+{"resolved": false, "stage": "notarget", "error": "no src path", "instance_id": "django__django-11141"}
+{"resolved": false, "stage": "notarget", "error": "no src path", "instance_id": "django__django-11239"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-11265"}
+{"resolved": 0, "stage": "no_patch", "blocks": 0, "applied": 0, "pytest_rc": -1, "instance_id": "django__django-11276"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-11292"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-11299"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-11333"}
+{"resolved": false, "stage": "notarget", "error": "no src path", "instance_id": "django__django-11400"}
+{"resolved": false, "stage": "notarget", "error": "no src path", "instance_id": "django__django-11433"}
+{"resolved": 1, "stage": "patch_applied", "blocks": 1, "applied": 1, "pytest_rc": -1, "instance_id": "django__django-11451"}
