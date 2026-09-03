@@ -24,13 +24,23 @@
 ```
 src/
   cli/        入口、参数解析、REPL、运行时装配
-  shared/     配置、错误、日志、共享类型（基础设施）
+  shared/     配置、错误、日志、共享类型、SQLite 统一存储（基础设施）
   agent/      Orchestrator / Planner / Prompts
-  tools/      工具实现（file / shell / search / verify）+ registry
+  tools/      工具实现（file / shell / search / verify / docker-sandbox）+ registry
   models/     模型路由 + providers（openai-compatible / ollama / mock）
   runtime/    事件日志、会话状态（单一可信源）
   skills/     高级技能（/plan /grill /goal）
+  memory/     持久记忆 + Honcho 语义记忆（v8.0）
+  web/        Express Web 控制台 + API 路由
 ```
+
+**v8.0 新增模块**：
+
+| 模块 | 路径 | 说明 |
+|------|------|------|
+| SQLite 统一存储 | `src/shared/sqlite-store.ts` | 10 张表，AES-256-GCM 加密，版本化迁移，基于 node:sqlite 零依赖 |
+| Docker 沙盒执行 | `src/tools/docker-sandbox.ts` | 容器隔离、禁网、只读挂载、资源限制、危险命令拦截、超时强杀 |
+| Honcho 语义记忆 | `src/memory/honcho-store.ts` | 用户建模、事实记忆、跨会话检索、记忆注入提示词 |
 
 铁律：
 
@@ -60,7 +70,33 @@ src/
 - **CI 强制校验**：`npm run check:version` 已接入 `npm run verify` 与 CI build job，任何不一致会阻塞合并。
 - **两套编号解耦**：M0→M9.1 为能力里程碑（已冻结），7.x 为产品化成熟度版本号，说明见 README §十二。
 
-## 五、本地开发
+## 五、测试规范
+
+提交 PR 前必须通过以下测试：
+
+```bash
+# 1. 编译检查
+npm run build                    # tsc 编译到 dist/，零错误
+
+# 2. 冒烟测试（v8.0 三项新功能）
+node tests/smoke-v8.js          # 25 项：SQLite 11 + Docker 6 + Honcho 8
+
+# 3. 集成测试（API 全量）
+node tests/integration/api.test.js   # 34 项 API 用例
+
+# 4. 仅运行指定模块（调试用）
+node tests/smoke-v8.js --only=sqlite
+node tests/smoke-v8.js --only=docker
+node tests/smoke-v8.js --only=honcho
+```
+
+**测试要求**：
+- 新功能必须包含测试用例
+- Bug 修复必须包含回归测试（复现该 Bug 的测试）
+- 测试不依赖外部网络（Docker 沙盒测试除外，需本机 Docker）
+- 测试中不包含真实 API Key，使用 Mock 或环境变量
+
+## 六、本地开发
 
 ```bash
 npm install
@@ -69,6 +105,19 @@ npm run dev        # tsx 直接跑源码
 node dist/cli/index.js --version
 node dist/cli/index.js "<需求>"   # 未配 FH_PROVIDERS 自动离线 Mock 闭环
 ```
+
+---
+
+## 相关社区文档
+
+| 文档 | 说明 |
+|------|------|
+| [`GOVERNANCE.md`](GOVERNANCE.md) | 社区治理结构、角色职责、决策机制、版本发布流程 |
+| [`COMMUNITY.md`](COMMUNITY.md) | 社区参与指南、贡献方式、支持渠道、活动信息 |
+| [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) | 社区行为准则 |
+| [`.github/ISSUE_TEMPLATE/`](.github/ISSUE_TEMPLATE/) | Issue 模板（Bug 报告 / 功能请求） |
+| [`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md) | PR 模板 |
+| [`docs/使用说明书-v8.0.0.md`](docs/使用说明书-v8.0.0.md) | 详细使用说明书 |
 
 ---
 

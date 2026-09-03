@@ -1,14 +1,22 @@
 apply plugin: 'com.android.application'
 
 android {
+    signingConfigs {
+        release {
+            storeFile file('../fhcode-release.jks')
+            storePassword 'fhcode2026'
+            keyAlias 'fhcode'
+            keyPassword 'fhcode2026'
+        }
+    }
     namespace "com.feihong.code"
     compileSdk rootProject.ext.compileSdkVersion
     defaultConfig {
         applicationId "com.feihong.code"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 8
-        versionName "7.6.0"
+        versionCode 26
+        versionName "7.9.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -20,6 +28,7 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
         }
     }
 }

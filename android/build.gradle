@@ -22,6 +22,21 @@ allprojects {
         google()
         mavenCentral()
     }
+    configurations.all {
+        resolutionStrategy {
+            // 统一 Kotlin stdlib 版本，排除旧版 jdk7/jdk8 变体（避免类重复冲突）
+            force 'org.jetbrains.kotlin:kotlin-stdlib:1.8.22'
+            eachDependency { details ->
+                if (details.requested.group == 'org.jetbrains.kotlin') {
+                    if (details.requested.name == 'kotlin-stdlib-jdk7' || details.requested.name == 'kotlin-stdlib-jdk8' ||
+                        details.requested.name == 'kotlin-stdlib-jdk7' || details.requested.name == 'kotlin-stdlib-jre7' ||
+                        details.requested.name == 'kotlin-stdlib-jre8') {
+                        details.useVersion '1.8.22'
+                    }
+                }
+            }
+        }
+    }
 }
 
 task clean(type: Delete) {
