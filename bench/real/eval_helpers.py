@@ -388,8 +388,15 @@ def cmd_prompt(args):
         if os.path.isfile(full):
             with open(full, encoding="utf-8", errors="replace") as fh:
                 content = fh.read()
-            if len(content) > 60000:
-                content = content[:60000] + "\n... (truncated)\n"
+            # 2026-08-31 调优：原阈值 60000 字符会产生约 94KB 的 payload，
+            # SiliconFlow 处理该规模请求实测超过 200s（curl --max-time 200 直接返回 000），
+            # 导致所有大文件实例 100% 判为 api_fail（第一轮 54 个 api_fail 的根因）。
+            # 压到 20000 字符（约 8K tokens），实测可在 60~150s 内返回。
+            # 权衡：上下文略损，但「能拿到补丁」远胜于「100% 超时失败」。
+            if len(content) > 8000:
+                head = content[:6000]
+                tail = content[-2000:]
+                content = head + "\n... (middle omitted for brevity) ...\n" + tail
             src_ctx = (
                 f"\n## File you MUST edit: `{src_rel}`\n"
                 f"(Read it carefully. Your SEARCH/REPLACE block MUST reference exactly this path, "
@@ -402,33 +409,57 @@ def cmd_prompt(args):
         if os.path.isfile(tf):
             with open(tf, encoding="utf-8", errors="replace") as fh:
                 t = fh.read()
-            if len(t) > 20000:
-                t = t[:20000] + "\n... (truncated)\n"
+            # 2026-08-31 调优：测试文件仅作上下文，20000 -> 8000，进一步压缩 payload。
+            if len(t) > 8000:
+                t = t[:6000] + "\n... (middle omitted for brevity) ...\n" + t[-1500:]
             test_ctx = (
                 f"\n## Failing test (CONTEXT ONLY — do NOT modify this file): `{test_rel}`\n"
                 f"```python\n{t}\n```\n"
             )
     prompt = (
-        f"You are a software engineer fixing a bug in the GitHub repository `{repo}`.\n"
+        f"You are a senior software engineer fixing a bug in the GitHub repository `{repo}`.\n"
         f"The repository is checked out at the base commit. Your working directory is the repository root.\n\n"
         f"## Bug report / issue\n{ps}\n"
         f"{src_ctx}"
         f"{test_ctx}\n"
         f"## Task\n"
-        f"Produce the MINIMAL source-code change that fixes the bug. "
+        f"Produce the MINIMAL source-code change that fixes the bug described above.\n"
         f"You MUST edit the file `{src_rel}` shown above. Do not modify the test file.\n\n"
-        f"Output ONE OR MORE SEARCH/REPLACE blocks in EXACTLY this format (no other text, no markdown fences):\n\n"
-        f"path/to/file.py\n"
+        f"### CRITICAL INSTRUCTIONS (read carefully)\n"
+        f"1. **OUTPUT ONLY SEARCH/REPLACE BLOCKS** — no explanations, no apologies, no markdown fences.\n"
+        f"   Start your response directly with the file path, then the SEARCH/REPLACE block.\n"
+        f"2. **YOU MUST PRODUCE AT LEAST ONE BLOCK** — even if you believe the file is unrelated,\n"
+        f"   make your best-effort fix based on the bug report. Never respond with \"I can't fix this\" or\n"
+        f"   \"this file doesn't contain the relevant code\". The file IS the correct target — fix it.\n"
+        f"3. **SEARCH LINES MUST MATCH EXACTLY** — copy them VERBATIM from the file content above,\n"
+        f"   including ALL leading whitespace (spaces/tabs), trailing spaces, and exact punctuation.\n"
+        f"4. **INCLUDE SUFFICIENT CONTEXT** — each SEARCH block must contain at least 3-5 lines of\n"
+        f"   surrounding context so the match is UNIQUE in the file. Never use a single-line SEARCH.\n"
+        f"5. **MINIMAL CHANGES** — change only the lines necessary to fix the bug. Keep surrounding\n"
+        f"   context lines identical in both SEARCH and REPLACE sections.\n\n"
+        f"## Output Format\n\n"
+        f"Output ONE OR MORE SEARCH/REPLACE blocks in EXACTLY this format:\n\n"
+        f"{src_rel}\n"
         f"<<<<<<< SEARCH\n"
-        f"<exact lines to replace — copy them VERBATIM from the file above>\n"
+        f"<3-5 lines of exact context including the lines to change>\n"
         f"=======\n"
-        f"<the corrected lines>\n"
+        f"<the same context lines with the minimal fix applied>\n"
         f">>>>>>> REPLACE\n\n"
-        f"Rules:\n"
-        f"- The first line of each block is the file path (use exactly `{src_rel}`).\n"
-        f"- Copy the SEARCH lines EXACTLY as they appear in the file (same indentation and whitespace).\n"
-        f"- Include a few surrounding context lines so the block is unique in the file.\n"
-        f"- If the fix needs more than one change in `{src_rel}`, output multiple SEARCH/REPLACE blocks back-to-back."
+        f"If the fix needs multiple changes, output multiple blocks back-to-back (no blank lines between them).\n"
+        f"Every block must use the exact file path `{src_rel}` as its first line.\n\n"
+        f"## Example\n\n"
+        f"src/utils/helpers.py\n"
+        f"<<<<<<< SEARCH\n"
+        f"def validate_input(value):\n"
+        f"    if value is None:\n"
+        f"        raise ValueError(\"value cannot be None\")\n"
+        f"    return value\n"
+        f"=======\n"
+        f"def validate_input(value):\n"
+        f"    if value is None or value == \"\":\n"
+        f"        raise ValueError(\"value cannot be empty\")\n"
+        f"    return value\n"
+        f">>>>>>> REPLACE\n"
     )
     with open(out, "w", encoding="utf-8") as f:
         f.write(prompt)

@@ -80,3 +80,40 @@ release2/
 dist.bak-*/
 tp.patch
 bench/real/work/
+
+# 本地运行数据目录（含主密钥 .secret，绝不入库）
+.feihong-code/
+.feihong-code/
+
+# 签名密钥与证书（绝不入库）
+*.jks
+*.keystore
+*.p12
+*.pfx
+rsa_private.pem
+*.key
+
+# Python 虚拟环境与测试临时文件
+bench/real/venv*/
+bench/real/.smoke.json
+bench/real/__pycache__/
+**/__pycache__/
+*.pyc
+
+# 开发参考截图（非正式文档配图）
+ref_images/
+
+# 本地 SWE-bench 评测数据与报告（大文件，不入库）
+SWE-bench-Lite-300-*.md
+bench/real/rep_*.jsonl
+bench/real/*_report.json
+bench/real/*_candidates.json
+
+# 本地评测脚本与临时测试（含 API Key，不入库）
+scripts/swebench-siliconflow*.py
+scripts/ensemble_runner.py
+bench/real/agnes_proxy.py
+bench/real/supervisor.py
+test_api.js
+test_models.js
+test_stream.js

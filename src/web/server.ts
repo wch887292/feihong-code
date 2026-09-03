@@ -80,6 +80,9 @@ import { initWechatBridge, setWechatTaskQueue, handleWechatCallback, isWechatEna
 import { initFeishuBridge, setFeishuBridgeDeps, handleFeishuCallback, isFeishuEnabled } from '../integrations/feishu-bridge';
 import { initYuanbaoBridge, setYuanbaoTaskQueue, handleYuanbaoCallback, isYuanbaoEnabled } from '../integrations/yuanbao-bridge';
 import { FeishuIntegration } from '../integrations/collaboration';
+// v8.0：SQLite 数据存储 + Honcho 云端记忆（本地部署）
+import { getStore } from '../shared/sqlite-store';
+import { getHonchoStore } from '../memory/honcho-store';
 
 export interface ServeOptions {
   port?: number;
@@ -179,6 +182,19 @@ export function startWebServer(opts: ServeOptions = {}): {
 
   // 公开健康检查（仅暴露版本/状态等观测信息，无敏感数据）
   app.get('/api/health', (_req: Request, res: Response) => {
+    let storage: { ok: boolean; backend: string; dbFile: string } | null = null;
+    let honcho: { ok: boolean; backend: string } | null = null;
+    try {
+      storage = getStore().health();
+    } catch (e) {
+      storage = { ok: false, backend: 'error', dbFile: '' };
+    }
+    try {
+      const h = getHonchoStore().health();
+      honcho = { ok: h.ok, backend: h.backend };
+    } catch {
+      honcho = { ok: false, backend: 'unavailable' };
+    }
     res.json({
       ok: true,
       product: PRODUCT,
@@ -189,6 +205,9 @@ export function startWebServer(opts: ServeOptions = {}): {
       wechat: isWechatEnabled(wechatConfig) ? wechatConfig.mode : 'disabled',
       feishu: isFeishuEnabled(feishuConfig) ? 'enabled' : 'disabled',
       yuanbao: isYuanbaoEnabled(yuanbaoConfig) ? 'enabled' : 'disabled',
+      // v8.0：SQLite 数据存储 + Honcho 云端记忆状态
+      storage,
+      honcho,
       time: new Date().toISOString(),
     });
   });
@@ -344,6 +363,52 @@ export function startWebServer(opts: ServeOptions = {}): {
     const limit = typeof _req.query.limit === 'string' ? parseInt(_req.query.limit) || 30 : 30;
     const history = getSummaryHistory(memoryConfig, limit);
     res.json({ ok: true, history });
+  });
+
+  // ===== v8.0：SQLite 数据存储 + Honcho 云端记忆 API =====
+  app.get('/api/storage/stats', (_req: Request, res: Response) => {
+    try {
+      const stats = getStore().stats();
+      res.json({ ok: true, ...stats });
+    } catch (e: any) {
+      res.status(500).json({ ok: false, error: e.message });
+    }
+  });
+  app.get('/api/honcho/context', (_req: Request, res: Response) => {
+    try {
+      const honcho = getHonchoStore();
+      res.json({
+        ok: true,
+        profile: honcho.getUserProfile(),
+        memories: honcho.listMemories(10),
+        contextPrompt: honcho.buildContextPrompt(),
+      });
+    } catch (e: any) {
+      res.status(500).json({ ok: false, error: e.message });
+    }
+  });
+  app.post('/api/honcho/remember', (req: Request, res: Response) => {
+    try {
+      const body = (req.body || {}) as { content?: string; importance?: number };
+      if (!body.content) {
+        res.status(400).json({ ok: false, error: 'content required' });
+        return;
+      }
+      getHonchoStore().rememberFact(body.content, body.importance);
+      res.json({ ok: true });
+    } catch (e: any) {
+      res.status(500).json({ ok: false, error: e.message });
+    }
+  });
+  app.get('/api/honcho/recall', (req: Request, res: Response) => {
+    try {
+      const q = typeof req.query.q === 'string' ? req.query.q : '';
+      const limit = typeof req.query.limit === 'string' ? parseInt(req.query.limit) || 5 : 5;
+      const result = getHonchoStore().recall(q, limit);
+      res.json({ ok: true, ...result });
+    } catch (e: any) {
+      res.status(500).json({ ok: false, error: e.message });
+    }
   });
 
   app.post('/api/auth/clear-first-login', (req: Request, res: Response) => {

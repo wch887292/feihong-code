@@ -4,7 +4,7 @@
  *
  * 版本号集中定义
  */
-export const VERSION = '7.6.0';
+export const VERSION = '8.0.0';
 export const PRODUCT = '飞虹 Code';
 export const TAGLINE = '终端 AI 编程智能体（对标 Muse Code / Claude Code / Cursor CLI · 自研内核差异化）';
 export const SIGNATURE =
