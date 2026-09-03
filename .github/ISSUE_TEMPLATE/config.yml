@@ -1,14 +1,11 @@
-blank_issues_enabled: true
+blank_issues_enabled: false
 contact_links:
-  - name: 📚 文档与 FAQ
-    url: https://github.com/wch887292/feihong-code/blob/master/docs/%E5%B8%B8%E8%A7%81%E9%97%AE%E9%A2%98%E4%B8%8E%E6%95%85%E9%9A%9C%E6%8E%92%E6%9F%A5.md
-    about: 查看常见问题与故障排查
-  - name: 💬 讨论与交流
-    url: https://github.com/wch887292/feihong-code/discussions
-    about: 发起讨论、分享经验、寻求帮助
-  - name: 🤝 贡献指南
-    url: https://github.com/wch887292/feihong-code/blob/master/CONTRIBUTING.md
-    about: 了解如何参与项目开发
-  - name: 🔐 安全漏洞报告
-    url: https://github.com/wch887292/feihong-code/blob/master/.github/SECURITY.md
-    about: 发现安全问题，请通过安全渠道报告
+  - name: 文档与使用说明
+    url: https://github.com/feihong-code/feihong-code/blob/main/docs/使用说明书-v8.0.0.md
+    about: 先阅读详细使用说明书，常见问题可在故障排查章节找到答案
+  - name: 社区讨论
+    url: https://github.com/feihong-code/feihong-code/discussions
+    about: 一般性问题、使用交流、想法分享请到 Discussions
+  - name: 贡献指南
+    url: https://github.com/feihong-code/feihong-code/blob/main/CONTRIBUTING.md
+    about: 想贡献代码？先阅读贡献指南

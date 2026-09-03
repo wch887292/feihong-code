@@ -1,0 +1,150 @@
+{
+  "$schema": "https://feihong-code.example/skill-market-schema-v1.json",
+  "source": "voltagent/awesome-agent-skills",
+  "skills": [
+    {
+      "name": "docx",
+      "type": "skill-md",
+      "description": "Create, edit, and analyze Word documents",
+      "url": "https://raw.githubusercontent.com/anthropics/skills/main/skills/docx/SKILL.md"
+    },
+    {
+      "name": "doc-coauthoring",
+      "type": "skill-md",
+      "description": "Collaborative document editing and co-authoring",
+      "url": "https://raw.githubusercontent.com/anthropics/skills/main/skills/doc-coauthoring/SKILL.md"
+    },
+    {
+      "name": "pptx",
+      "type": "skill-md",
+      "description": "Create, edit, and analyze PowerPoint presentations",
+      "url": "https://raw.githubusercontent.com/anthropics/skills/main/skills/pptx/SKILL.md"
+    },
+    {
+      "name": "xlsx",
+      "type": "skill-md",
+      "description": "Create, edit, and analyze Excel spreadsheets",
+      "url": "https://raw.githubusercontent.com/anthropics/skills/main/skills/xlsx/SKILL.md"
+    },
+    {
+      "name": "pdf",
+      "type": "skill-md",
+      "description": "Extract text, create PDFs, and handle forms",
+      "url": "https://raw.githubusercontent.com/anthropics/skills/main/skills/pdf/SKILL.md"
+    },
+    {
+      "name": "algorithmic-art",
+      "type": "skill-md",
+      "description": "Create generative art using p5.js with seeded randomness",
+      "url": "https://raw.githubusercontent.com/anthropics/skills/main/skills/algorithmic-art/SKILL.md"
+    },
+    {
+      "name": "canvas-design",
+      "type": "skill-md",
+      "description": "Design visual art in PNG and PDF formats",
+      "url": "https://raw.githubusercontent.com/anthropics/skills/main/skills/canvas-design/SKILL.md"
+    },
+    {
+      "name": "frontend-design",
+      "type": "skill-md",
+      "description": "Frontend design and UI/UX development tools",
+      "url": "https://raw.githubusercontent.com/anthropics/skills/main/skills/frontend-design/SKILL.md"
+    },
+    {
+      "name": "slack-gif-creator",
+      "type": "skill-md",
+      "description": "Create animated GIFs optimized for Slack size constraints",
+      "url": "https://raw.githubusercontent.com/anthropics/skills/main/skills/slack-gif-creator/SKILL.md"
+    },
+    {
+      "name": "theme-factory",
+      "type": "skill-md",
+      "description": "Style artifacts with professional themes or generate custom themes",
+      "url": "https://raw.githubusercontent.com/anthropics/skills/main/skills/theme-factory/SKILL.md"
+    },
+    {
+      "name": "web-artifacts-builder",
+      "type": "skill-md",
+      "description": "Build complex claude.ai HTML artifacts with React and Tailwind",
+      "url": "https://raw.githubusercontent.com/anthropics/skills/main/skills/web-artifacts-builder/SKILL.md"
+    },
+    {
+      "name": "mcp-builder",
+      "type": "skill-md",
+      "description": "Create MCP servers to integrate external APIs and services",
+      "url": "https://raw.githubusercontent.com/anthropics/skills/main/skills/mcp-builder/SKILL.md"
+    },
+    {
+      "name": "webapp-testing",
+      "type": "skill-md",
+      "description": "Test local web applications using Playwright",
+      "url": "https://raw.githubusercontent.com/anthropics/skills/main/skills/webapp-testing/SKILL.md"
+    },
+    {
+      "name": "brand-guidelines",
+      "type": "skill-md",
+      "description": "Apply Anthropic's brand colors and typography to artifacts",
+      "url": "https://raw.githubusercontent.com/anthropics/skills/main/skills/brand-guidelines/SKILL.md"
+    },
+    {
+      "name": "internal-comms",
+      "type": "skill-md",
+      "description": "Write status reports, newsletters, and FAQs",
+      "url": "https://raw.githubusercontent.com/anthropics/skills/main/skills/internal-comms/SKILL.md"
+    },
+    {
+      "name": "skill-creator",
+      "type": "skill-md",
+      "description": "Guide for creating skills that extend Claude's capabilities",
+      "url": "https://raw.githubusercontent.com/anthropics/skills/main/skills/skill-creator/SKILL.md"
+    },
+    {
+      "name": "composio",
+      "type": "skill-md",
+      "description": "Connect AI agents to 1000+ external apps with managed authentication",
+      "url": "https://raw.githubusercontent.com/composiohq/skills/main/skills/composio/SKILL.md"
+    },
+    {
+      "name": "agents-sdk",
+      "type": "skill-md",
+      "description": "Build stateful AI agents with scheduling, RPC, and MCP servers",
+      "url": "https://raw.githubusercontent.com/cloudflare/skills/main/skills/agents-sdk/SKILL.md"
+    },
+    {
+      "name": "cloudflare",
+      "type": "skill-md",
+      "description": "Comprehensive Cloudflare platform skill covering Workers, Pages, storage, AI, networking, security, and IaC",
+      "url": "https://raw.githubusercontent.com/cloudflare/skills/main/skills/cloudflare/SKILL.md"
+    },
+    {
+      "name": "cloudflare-email-service",
+      "type": "skill-md",
+      "description": "Send transactional email and route inbound mail with Cloudflare Email Sending and Email Routing",
+      "url": "https://raw.githubusercontent.com/cloudflare/skills/main/skills/cloudflare-email-service/SKILL.md"
+    },
+    {
+      "name": "durable-objects",
+      "type": "skill-md",
+      "description": "Stateful coordination with RPC, SQLite, and WebSockets",
+      "url": "https://raw.githubusercontent.com/cloudflare/skills/main/skills/durable-objects/SKILL.md"
+    },
+    {
+      "name": "web-perf",
+      "type": "skill-md",
+      "description": "Audit Core Web Vitals and render-blocking resources",
+      "url": "https://raw.githubusercontent.com/cloudflare/skills/main/skills/web-perf/SKILL.md"
+    },
+    {
+      "name": "workers-best-practices",
+      "type": "skill-md",
+      "description": "Review and author Workers code against production best practices and wrangler.jsonc conventions",
+      "url": "https://raw.githubusercontent.com/cloudflare/skills/main/skills/workers-best-practices/SKILL.md"
+    },
+    {
+      "name": "wrangler",
+      "type": "skill-md",
+      "description": "Deploy and manage Workers, KV, R2, D1, Vectorize, Queues, Workflows",
+      "url": "https://raw.githubusercontent.com/cloudflare/skills/main/skills/wrangler/SKILL.md"
+    }
+  ]
+}

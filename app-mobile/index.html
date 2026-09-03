@@ -3,84 +3,129 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#1a1a2e">
+<meta name="theme-color" content="#ffffff">
 <title>飞虹 Code · 移动版</title>
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
-<!-- ===== 顶栏 ===== -->
+<!-- ===== 顶栏（豆包式：居中标题 + 左右图标） ===== -->
 <div class="headbar">
-  <div class="brand"><span class="logo">飞</span>飞虹 Code</div>
-  <div class="head-actions">
-    <button class="icon-btn" id="newChatBtn" title="新对话">＋</button>
-    <button class="icon-btn" id="menuBtn" title="设置">☰</button>
-  </div>
+  <button class="hb-btn" id="menuBtn" title="菜单"><span class="hb-ico">☰</span></button>
+  <div class="hb-title">飞虹 Code</div>
+  <button class="hb-btn" id="newChatBtn" title="新对话"><span class="hb-ico">✎</span></button>
 </div>
+<div class="notice-bar">AI 生成可能有误 · 注意核实</div>
 
 <!-- ===== 对话页 ===== -->
 <div class="page active" id="convPage">
-  <!-- 两排横向滑动功能按钮 -->
-  <div class="func-scroll">
-    <div class="func-row">
-      <button class="func-btn active" data-func="chat">💬<span>对话</span></button>
-      <button class="func-btn" data-func="fix-code">🔧<span>修复代码</span></button>
-      <button class="func-btn" data-func="write-code">✍️<span>编写代码</span></button>
-      <button class="func-btn" data-func="review">🔍<span>代码审查</span></button>
-      <button class="func-btn" data-func="explain">💡<span>代码解释</span></button>
-    </div>
-    <div class="func-row">
-      <button class="func-btn" data-func="comments">📝<span>添加注释</span></button>
-      <button class="func-btn" data-func="optimize">⚡<span>代码优化</span></button>
-      <button class="func-btn" data-func="translate">🌐<span>中英互译</span></button>
-      <button class="func-btn" data-func="regex">🔤<span>正则生成</span></button>
-      <button class="func-btn" data-func="more">⋯<span>更多</span></button>
-    </div>
+  <div class="messages" id="convMessages">
+    <div class="empty">选择下方功能，或直接输入指令开始对话<br>支持代码生成、修复、审查等</div>
   </div>
 
-  <div class="conv-head">
-    <div class="goal" id="convGoal">新对话</div>
-    <span class="badge" id="convStatus" style="display:none;"></span>
+  <!-- 底部快捷功能横排（豆包式：图标+文字胶囊） -->
+  <div class="quick-bar" id="quickBar">
+    <button class="q-btn active" data-func="chat"><span class="q-ico">💬</span><span>对话</span></button>
+    <button class="q-btn" data-func="game"><span class="q-ico">🎮</span><span>游戏</span></button>
+    <button class="q-btn" data-func="create"><span class="q-ico">🎨</span><span>创作</span></button>
+    <button class="q-btn" data-func="flashapp"><span class="q-ico">✨</span><span>闪应用</span></button>
+    <button class="q-btn" data-func="translate"><span class="q-ico">🌐</span><span>翻译</span></button>
   </div>
-  <div class="messages" id="convMessages">
-    <div class="empty">选择上方功能，或直接输入指令开始对话<br>支持代码生成、修复、审查等</div>
-  </div>
-  <div class="input-area">
-    <textarea class="input goal-input" id="goalInput" placeholder="输入指令，Enter 发送，Shift+Enter 换行" rows="1"></textarea>
-    <button class="btn send-btn" id="sendBtn">▶</button>
+
+  <!-- 底部输入区（胶囊输入框 + 附件按钮 + 圆形发送键） -->
+  <div class="input-wrap">
+    <div class="input-attach-bar">
+      <button class="attach-btn" id="attachImageBtn" title="添加图片"><span class="attach-ico">🖼️</span><span class="attach-label">图片</span></button>
+      <button class="attach-btn" id="attachFileBtn" title="上传文件"><span class="attach-ico">📄</span><span class="attach-label">文件</span></button>
+      <button class="attach-btn" id="attachScreenshotBtn" title="截图"><span class="attach-ico">📸</span><span class="attach-label">截图</span></button>
+      <button class="attach-btn" id="attachCameraBtn" title="拍照"><span class="attach-ico">📷</span><span class="attach-label">拍照</span></button>
+      <input type="file" id="imageInput" accept="image/*" style="display:none;">
+      <input type="file" id="fileInput" style="display:none;">
+      <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none;">
+    </div>
+    <div class="input-box">
+      <textarea class="goal-input" id="goalInput" placeholder="发消息或按住说…" rows="1"></textarea>
+      <button class="send-btn" id="sendBtn">➤</button>
+    </div>
+    <div class="input-tools">
+      <span class="tool-tip muted" id="toolTip">💬 对话模式</span>
+      <span class="attach-preview" id="attachPreview" style="display:none;"></span>
+    </div>
   </div>
 </div>
 
-<!-- ===== 任务页（独立窗口） ===== -->
+<!-- ===== 任务页 ===== -->
 <div class="page" id="taskPage">
-  <div class="page-head">
+  <div class="task-head">
     <div><h2>📋 任务管理</h2><div class="sub">所有任务独立管理，点击打开对话</div></div>
     <button class="btn sm ghost" id="clearTasksBtn" style="width:auto;padding:6px 12px;">清空</button>
   </div>
-  <div id="taskList"><div class="empty">暂无任务，去对话页发起一个吧</div></div>
+  <div class="task-scroll" id="taskList"><div class="empty">暂无任务，去对话页发起一个吧</div></div>
 </div>
 
-<!-- ===== 底部 Tab（仅对话 + 任务） ===== -->
-<div class="tabbar">
-  <div class="tab active" data-page="convPage"><span class="ti">💬</span>对话</div>
-  <div class="tab" data-page="taskPage"><span class="ti">📋</span>任务</div>
+<!-- ===== 左侧导航（豆包式侧边栏） ===== -->
+<div class="sidenav-mask" id="sidenavMask"></div>
+<div class="sidenav" id="sidenav">
+  <div class="sn-head">
+    <div class="sn-search">
+      <span class="sn-search-ico">⌕</span>
+      <input id="snSearch" placeholder="搜索会话、文档…">
+    </div>
+    <button class="hb-btn" id="snEditBtn" title="编辑"><span class="hb-ico">✎</span></button>
+  </div>
+
+  <div class="sn-menu">
+    <div class="sn-menu-item active" data-menu="conv"><span class="q-ico">💬</span>AI 对话</div>
+    <div class="sn-menu-item" data-menu="tasks"><span class="q-ico">📋</span>任务管理</div>
+    <div class="sn-menu-item" data-menu="skills"><span class="q-ico">🔌</span>技能·连接器</div>
+    <div class="sn-menu-item" data-menu="cloud"><span class="q-ico">☁️</span>云盘</div>
+  </div>
+
+  <div class="sn-section-title">置顶</div>
+  <div class="sn-doc-list" id="snDocList">
+    <div class="empty" style="padding:20px;">暂无历史会话<br>去对话页发起一个吧</div>
+  </div>
+
+  <div class="sn-foot">
+    <div class="sn-user" id="snUser">
+      <div class="sn-avatar">飞</div>
+      <div class="sn-user-info">
+        <div class="sn-name">飞虹智科技</div>
+        <div class="sn-plan">标准套餐</div>
+      </div>
+      <button class="hb-btn" id="snSettingsBtn" title="设置"><span class="hb-ico">⚙</span></button>
+    </div>
+  </div>
 </div>
 
-<!-- ===== 侧边设置抽屉（从右侧滑出，设置完收起） ===== -->
+<!-- ===== 右侧设置抽屉（大模型配置） ===== -->
 <div class="drawer-mask" id="drawerMask"></div>
 <div class="drawer" id="drawer">
   <div class="drawer-head">
     <div class="drawer-title">⚙️ 设置</div>
-    <button class="icon-btn" id="drawerClose">✕</button>
+    <button class="hb-btn" id="drawerClose"><span class="hb-ico">✕</span></button>
   </div>
   <div class="drawer-body">
-    <!-- 大模型设置 -->
     <div class="drawer-section">
       <div class="drawer-section-title">🧠 大模型</div>
       <div id="modelList"></div>
       <div style="margin-top:12px;">
+        <label class="label">快速选择 API 提供商</label>
+        <select class="input" id="mProvider">
+          <option value="">— 自定义 / 手动填写 —</option>
+          <option value="siliconflow">硅基流动 SiliconFlow</option>
+          <option value="deepseek">DeepSeek 官方</option>
+          <option value="openai">OpenAI 官方</option>
+          <option value="qwen">通义千问 Qwen</option>
+          <option value="zhipu">智谱 AI GLM</option>
+          <option value="moonshot">月之暗面 Kimi</option>
+          <option value="doubao">豆包 Doubao</option>
+          <option value="ollama">Ollama 本地</option>
+        </select>
         <label class="label">模型名称 *</label>
         <input class="input" id="mName" placeholder="如 DeepSeek Chat">
+        <label class="label">模型 ID（接口调用名）*</label>
+        <input class="input" id="mModelId" placeholder="如 deepseek-ai/DeepSeek-V4-Flash">
         <label class="label">API 地址</label>
         <input class="input" id="mBase" placeholder="https://api.deepseek.com/v1">
         <label class="label">API Key</label>
@@ -89,23 +134,125 @@
         <textarea class="input" id="mReasoning" rows="2" placeholder="中间环节…"></textarea>
         <div class="form-msg" id="mMsg"></div>
         <div class="footer" style="margin-top:10px;">
+          <button class="btn ghost" id="mTestBtn">测试连接</button>
           <button class="btn ghost" id="mResetBtn">清空</button>
           <button class="btn" id="mSaveBtn">保存</button>
         </div>
+        <div style="margin-top:12px;">
+          <button class="btn ghost" id="mRestoreBtn" style="width:100%;color:var(--ok);">➕ 一键添加 Agnes-2.5-Flash 模型</button>
+        </div>
       </div>
     </div>
-
-    <!-- 外观 -->
+    <div class="drawer-section">
+      <div class="drawer-section-title">🖼️ 视觉大模型（图片识别理解）</div>
+      <div style="font-size:12px;color:var(--ink-2);margin-bottom:8px;">上传图片/照片时自动调用此模型进行识别、描述、分析</div>
+      <label class="label">API 地址</label>
+      <input class="input" id="vlApiBase" placeholder="https://api.agnes-ai.cn/v1">
+      <label class="label">API Key</label>
+      <input class="input" id="vlApiKey" type="password" placeholder="sk-...">
+      <label class="label">模型 ID</label>
+      <input class="input" id="vlModelId" placeholder="qwen-vl-max / gpt-4-vision-preview">
+      <div class="form-msg" id="vlMsg"></div>
+      <div class="footer">
+        <button class="btn ghost" id="vlTestBtn">测试连接</button>
+        <button class="btn" id="vlSaveBtn">保存</button>
+      </div>
+      <div style="margin-top:8px;">
+        <button class="btn ghost" id="vlSfBtn" style="width:100%;color:var(--ok);margin-bottom:6px;">⭐ 一键填充 硅基流动 DeepSeek-OCR（推荐）</button>
+        <button class="btn ghost" id="vlRestoreBtn" style="width:100%;">➕ 一键填充 Agnes 视觉模型</button>
+      </div>
+    </div>
+    <div class="drawer-section">
+      <div class="drawer-section-title">🎨 创作模型配置（文生图/文生视频/图生视频）</div>
+      <div style="font-size:12px;color:var(--ink-2);margin-bottom:8px;">分别配置三种创作能力的 API，支持 OpenAI 兼容格式</div>
+      <div style="font-size:13px;font-weight:600;margin:6px 0 4px;color:var(--ink-1);">🖼️ 文生图</div>
+      <input class="input" id="cgT2IBase" placeholder="API 地址，如 https://api.siliconflow.cn/v1">
+      <input class="input" id="cgT2IKey" type="password" placeholder="API Key">
+      <input class="input" id="cgT2IModel" placeholder="模型 ID，如 stabilityai/stable-diffusion-xl-base-1.0">
+      <div style="font-size:13px;font-weight:600;margin:10px 0 4px;color:var(--ink-1);">🎬 文生视频</div>
+      <input class="input" id="cgT2VBase" placeholder="API 地址">
+      <input class="input" id="cgT2VKey" type="password" placeholder="API Key">
+      <input class="input" id="cgT2VModel" placeholder="模型 ID">
+      <div style="font-size:13px;font-weight:600;margin:10px 0 4px;color:var(--ink-1);">🎞️ 图生视频</div>
+      <input class="input" id="cgI2VBase" placeholder="API 地址">
+      <input class="input" id="cgI2VKey" type="password" placeholder="API Key">
+      <input class="input" id="cgI2VModel" placeholder="模型 ID">
+      <div class="form-msg" id="cgMsg"></div>
+      <div class="footer" style="margin-top:10px;">
+        <button class="btn ghost" id="cgSfBtn" style="color:var(--ok);">⭐ 一键填充硅基流动文生图</button>
+        <button class="btn" id="cgSaveBtn">保存配置</button>
+      </div>
+    </div>
+    <div class="drawer-section">
+      <div class="drawer-section-title">🔓 免密网络层（Keyless Web Tier）</div>
+      <div style="font-size:12px;color:var(--ink-2);margin-bottom:8px;">内置 5 家厂商免费模型环形轮转池，装完即聊，无需配置任何 API Key。哪家挂了自动切下一家（ring failover）。网页搜索同样开箱即用。</div>
+      <div id="keylessStatus" style="background:var(--bg-2);border-radius:8px;padding:10px;margin-bottom:10px;font-size:12px;line-height:1.8;"></div>
+      <div class="footer">
+        <button class="btn ghost" id="keylessRefreshBtn">🔄 刷新状态</button>
+        <button class="btn" id="keylessTestBtn">🧪 测试免密聊天</button>
+      </div>
+      <div style="margin-top:10px;">
+        <div class="label">搜索测试</div>
+        <div class="create-row">
+          <input class="input" id="keylessSearchInput" placeholder="输入关键词测试免密搜索" style="flex:1;">
+          <button class="btn ghost" id="keylessSearchBtn" style="flex-shrink:0;">搜索</button>
+        </div>
+        <div id="keylessSearchResult" style="font-size:12px;color:var(--ink-2);max-height:150px;overflow-y:auto;white-space:pre-wrap;"></div>
+      </div>
+    </div>
+    <div class="drawer-section">
+      <div class="drawer-section-title">🧠 Hermes Agent（自我进化智能体）</div>
+      <div style="font-size:12px;color:var(--ink-2);margin-bottom:10px;">持久记忆 + 自演化技能 + 自动化调度，运行越久越懂你</div>
+      <div class="create-tabs" style="margin-bottom:10px;">
+        <button class="create-tab active" data-htab="memory">📝 记忆</button>
+        <button class="create-tab" data-htab="skills">⚡ 技能</button>
+        <button class="create-tab" data-htab="schedule">⏰ 调度</button>
+      </div>
+      <!-- 记忆面板 -->
+      <div class="create-panel" id="htab-memory">
+        <div style="font-size:12px;color:var(--ink-2);margin-bottom:6px;">MEMORY.md — 项目上下文与长期记忆</div>
+        <textarea class="input" id="hermesMemoryMD" rows="5" style="font-size:11px;font-family:monospace;"></textarea>
+        <div style="font-size:12px;color:var(--ink-2);margin:8px 0 6px;">USER.md — 用户画像与偏好</div>
+        <textarea class="input" id="hermesUserMD" rows="4" style="font-size:11px;font-family:monospace;"></textarea>
+        <div class="footer" style="margin-top:8px;">
+          <button class="btn ghost" id="hermesMemRefreshBtn">🔄 刷新</button>
+          <button class="btn" id="hermesMemSaveBtn">💾 保存记忆</button>
+        </div>
+        <div id="hermesMemStats" style="font-size:11px;color:var(--ink-2);margin-top:6px;"></div>
+      </div>
+      <!-- 技能面板 -->
+      <div class="create-panel hidden" id="htab-skills">
+        <div id="hermesSkillList" style="max-height:200px;overflow-y:auto;"></div>
+        <div style="margin-top:8px;">
+          <label class="label">安装技能（JSON 格式，兼容 agentskills.io）</label>
+          <textarea class="input" id="hermesSkillInstall" rows="3" placeholder='{"name":"技能名","description":"描述","trigger":"触发词","prompt":"提示词模板"}'></textarea>
+          <div class="footer" style="margin-top:6px;">
+            <button class="btn ghost" id="hermesSkillRefreshBtn">🔄 刷新</button>
+            <button class="btn" id="hermesSkillInstallBtn">📦 安装技能</button>
+          </div>
+        </div>
+      </div>
+      <!-- 调度面板 -->
+      <div class="create-panel hidden" id="htab-schedule">
+        <div id="hermesScheduleList" style="max-height:150px;overflow-y:auto;margin-bottom:8px;"></div>
+        <label class="label">新建定时任务（自然语言）</label>
+        <input class="input" id="hermesSchedTime" placeholder="如：每天 9:00 / 每周一 10:00 / 每隔 30 分钟" style="margin-bottom:6px;">
+        <input class="input" id="hermesSchedPrompt" placeholder="任务内容，如：生成今日待办摘要" style="margin-bottom:6px;">
+        <div class="footer">
+          <button class="btn ghost" id="hermesSchedRefreshBtn">🔄 刷新</button>
+          <button class="btn" id="hermesSchedAddBtn">➕ 添加任务</button>
+        </div>
+        <div id="hermesSchedMsg" class="form-msg" style="margin-top:6px;"></div>
+      </div>
+    </div>
     <div class="drawer-section">
       <div class="drawer-section-title">🎨 外观</div>
       <button class="btn ghost" id="themeBtn" style="width:100%;">切换深色 / 浅色</button>
     </div>
-
-    <!-- 关于 -->
     <div class="drawer-section">
       <div class="drawer-section-title">🎖 关于</div>
       <div style="font-size:13px;color:var(--ink-2);line-height:1.8;">
-        飞虹 Code 移动版 v1.2.0<br>
+        飞虹 Code 移动版 v7.9.0<br>
         纯前端独立 APP · 数据本地存储<br>
         晋江市飞虹智科技企业管理有限公司
       </div>
@@ -185,8 +332,163 @@
   </div>
 </div>
 
+<!-- ===== 小游戏创作 Sheet ===== -->
+<div class="sheet-mask" id="gameSheet">
+  <div class="sheet">
+    <div class="sheet-head"><div class="sheet-title">🎮 游戏中心</div><span class="sheet-close" onclick="hideSheet('gameSheet')">✕</span></div>
+    <div class="sheet-body">
+      <div style="font-size:13px;color:var(--ink-2);margin-bottom:10px;">点击任意游戏，立即全屏开玩 🚀</div>
+      <div class="game-center-grid" id="gameCenterGrid"></div>
+      <div style="margin:14px 0;border-top:1px solid var(--border);text-align:center;font-size:12px;color:var(--ink-2);padding-top:10px;">— 最近玩过 —</div>
+      <div id="gameRecentList" style="max-height:120px;overflow-y:auto;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 闪应用 Sheet（灵光式应用生成） ===== -->
+<div class="sheet-mask" id="flashAppSheet">
+  <div class="sheet">
+    <div class="sheet-head"><div class="sheet-title">✨ 闪应用创作</div><span class="sheet-close" onclick="hideSheet('flashAppSheet')">✕</span></div>
+    <div class="sheet-body">
+      <div style="font-size:12px;color:var(--ink-2);margin-bottom:10px;">一句话描述需求，30秒生成可交互小应用（如：情感测试、今天吃什么、BMI计算器）</div>
+      <label class="label">描述你想要的应用 *</label>
+      <textarea class="input" id="faDesc" rows="3" placeholder="例如：做一个今天吃什么的随机选择器，有中餐/西餐/日料/火锅等选项，点击按钮随机推荐"></textarea>
+      <div class="form-msg" id="faMsg"></div>
+      <div class="footer">
+        <button class="btn ghost" onclick="hideSheet('flashAppSheet')">取消</button>
+        <button class="btn" id="faRunBtn">✨ 生成应用</button>
+      </div>
+      <div style="margin-top:12px;">
+        <div class="label">我的应用</div>
+        <div id="faList" style="max-height:160px;overflow-y:auto;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== AI 创作中心 Sheet（文生图/文生视频/图生视频） ===== -->
+<div class="sheet-mask" id="createSheet">
+  <div class="sheet">
+    <div class="sheet-head"><div class="sheet-title">🎨 AI 创作</div><span class="sheet-close" onclick="hideSheet('createSheet')">✕</span></div>
+    <div class="sheet-body">
+      <div class="create-tabs">
+        <button class="create-tab active" data-ctab="t2i">🖼️ 文生图</button>
+        <button class="create-tab" data-ctab="t2v">🎬 文生视频</button>
+        <button class="create-tab" data-ctab="i2v">🎞️ 图生视频</button>
+      </div>
+      <!-- 文生图 -->
+      <div class="create-panel" id="ctab-t2i">
+        <label class="label">图片描述 *</label>
+        <textarea class="input" id="t2iPrompt" rows="3" placeholder="描述你想生成的图片，如：一只在海边奔跑的金毛犬，夕阳，电影感画质"></textarea>
+        <div class="create-row">
+          <select class="input" id="t2iSize" style="flex:1;">
+            <option value="1024x1024">1:1 正方形</option>
+            <option value="768x1024">3:4 竖版</option>
+            <option value="1024x768">4:3 横版</option>
+            <option value="1024x576">16:9 宽屏</option>
+          </select>
+          <button class="btn" id="t2iBtn" style="flex-shrink:0;">✨ 生成</button>
+        </div>
+        <div class="form-msg" id="t2iMsg"></div>
+        <div id="t2iResult" class="create-result"></div>
+      </div>
+      <!-- 文生视频 -->
+      <div class="create-panel hidden" id="ctab-t2v">
+        <label class="label">视频描述 *</label>
+        <textarea class="input" id="t2vPrompt" rows="3" placeholder="描述你想生成的视频内容，如：清晨的森林，阳光透过树叶，微风轻拂"></textarea>
+        <div class="create-row">
+          <select class="input" id="t2vDuration" style="flex:1;">
+            <option value="5">5 秒</option>
+            <option value="10">10 秒</option>
+          </select>
+          <select class="input" id="t2vRatio" style="flex:1;">
+            <option value="9:16">9:16 竖屏</option>
+            <option value="16:9">16:9 横屏</option>
+            <option value="1:1">1:1 方形</option>
+          </select>
+          <button class="btn" id="t2vBtn" style="flex-shrink:0;">🎬 生成</button>
+        </div>
+        <div class="form-msg" id="t2vMsg"></div>
+        <div id="t2vResult" class="create-result"></div>
+      </div>
+      <!-- 图生视频 -->
+      <div class="create-panel hidden" id="ctab-i2v">
+        <label class="label">起始图片 *</label>
+        <div class="create-upload" id="i2vUpload">
+          <input type="file" id="i2vFile" accept="image/*" hidden>
+          <div id="i2vPreview">📷 点击上传图片</div>
+        </div>
+        <label class="label" style="margin-top:8px;">运动描述 *</label>
+        <textarea class="input" id="i2vPrompt" rows="2" placeholder="描述视频运动效果，如：镜头缓慢推进，人物微笑，头发随风飘动"></textarea>
+        <div class="create-row">
+          <select class="input" id="i2vDuration" style="flex:1;">
+            <option value="5">5 秒</option>
+            <option value="10">10 秒</option>
+          </select>
+          <button class="btn" id="i2vBtn" style="flex-shrink:0;">🎞️ 生成</button>
+        </div>
+        <div class="form-msg" id="i2vMsg"></div>
+        <div id="i2vResult" class="create-result"></div>
+      </div>
+      <div style="margin-top:12px;font-size:11px;color:var(--ink-2);text-align:center;">⚙️ 未配置模型？点右上角 ⚙️ 设置 → 创作模型配置</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 技能中心 Sheet ===== -->
+<div class="sheet-mask" id="skillCenterSheet">
+  <div class="sheet">
+    <div class="sheet-head"><div class="sheet-title">🎯 技能中心</div><span class="sheet-close" onclick="hideSheet('skillCenterSheet')">✕</span></div>
+    <div class="sheet-body">
+      <div class="skill-grid" style="grid-template-columns:1fr;">
+        <div class="skill-card" data-skill="xiaohongshu">
+          <div class="skill-ico">📕</div>
+          <div class="skill-name">小红书内容生成</div>
+          <div class="skill-desc">生成种草文案、爆款标题、话题标签</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 小红书内容生成 Sheet ===== -->
+<div class="sheet-mask" id="xiaohongshuSheet">
+  <div class="sheet">
+    <div class="sheet-head"><div class="sheet-title">📕 小红书内容生成</div><span class="sheet-close" onclick="hideSheet('xiaohongshuSheet')">✕</span></div>
+    <div class="sheet-body">
+      <label class="label">主题 / 产品 *</label>
+      <input class="input" id="xhsTopic" placeholder="如：秋冬保湿面霜、泉州旅游攻略、飞虹 Code AI编程工具">
+      <label class="label">内容风格</label>
+      <select class="input" id="xhsStyle">
+        <option value="种草">种草推荐</option>
+        <option value="测评">真实测评</option>
+        <option value="教程">干货教程</option>
+        <option value="日常">日常分享</option>
+        <option value="探店">探店打卡</option>
+      </select>
+      <label class="label">目标人群</label>
+      <input class="input" id="xhsAudience" placeholder="如：25-35岁职场女性、学生党、程序员">
+      <label class="label">关键词（逗号分隔，可选）</label>
+      <input class="input" id="xhsKeywords" placeholder="如：保湿,秋冬,平价,学生党">
+      <label class="label">字数</label>
+      <select class="input" id="xhsLength">
+        <option value="300">300字（简短）</option>
+        <option value="500" selected>500字（标准）</option>
+        <option value="800">800字（详细）</option>
+      </select>
+      <div class="footer">
+        <button class="btn ghost" onclick="hideSheet('xiaohongshuSheet')">取消</button>
+        <button class="btn" id="xhsRunBtn">生成文案</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
+<script src="js/game-templates.js"></script>
+<script src="js/keyless.js"></script>
+<script src="js/hermes-agent.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>
