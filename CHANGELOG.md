@@ -2,6 +2,20 @@
 
 > **版本体系说明**：**7.x** 为**产品化成熟度版本号**（SemVer），衡量产品打磨程度（桌面版、Web 控制台、SWE-bench harness、企业治理、自进化等持续迭代）；**M0→M9.1** 为**能力里程碑编号**（工程开发阶段），2026-08 上旬全部交付后已冻结、不再扩展。两套编号相互解耦——M 编号停止增长是设计使然，后续能力演进体现在 7.x 次版本号中。
 
+## v8.0.1 (2026-09-08)
+
+### 重大更新 / Major Updates
+
+- **桌面手脚（desktop-touch MCP 嫁接）**：飞虹获得 Windows 原生 app 操控能力——`feihong_desktop_see / act / verify` 三工具闭环（看屏 → 操作 → 验证）；审批矩阵 + 危险窗口停手线 + 取证留痕三层安全模型；A 配置 / B 策略 / C 内化三层嫁接结构。
+- **AI 员工军团（agent-team）整合**：17 个业务 AI 员工（L1 获客 / L2 内容 / L3 转化 / L4 决策 / L5 管理）随包分发；飞虹原生工具 `feihong_agents_list / submit` 打通，模型路由自动复用飞虹 providers，无配置回退 mock 全链路可跑。
+- **全仓脱敏与清理治理**：移除 app.js / android assets / 评测脚本 / 测试脚本共 17 处硬编码密钥；git 历史泄露 KEY 经 filter-branch 全历史清除并 force push；清理 bench/real 约 6.8GB 评测运行产物与 android build 构建产物；.gitignore 加固防再污染。
+- **工程修复**：copy-web.cjs 重写（Node 22 `fs.cpSync` 原生崩溃 0xC0000409 规避）；steer 人工指挥（M9）注入与事件恢复；单测 269 例全绿。
+
+### 兼容性 / Compatibility
+
+- npm 包 `feihong-code@8.0.1`：files 白名单新增 `agent-team/`（17 员工技能随包分发）；版本号以 package.json 为单一权威源全量同步（version.ts / android / README JSON-LD / CHANGELOG）。
+- **安全提示**：8.0.0 已废弃（deprecated），请升级至 8.0.1；曾泄露的 API 密钥请立即轮换。
+
 ## v7.6.0 (2026-08-28)
 
 ### 重大更新 / Major Updates
