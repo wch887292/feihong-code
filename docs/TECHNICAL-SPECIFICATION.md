@@ -797,9 +797,9 @@ Authorization: Bearer <FH_WEB_TOKEN>
 
 | 项 | 处理 |
 |---|---|
-| app.js 硬编码密钥 | Agnes `sk-H63g…`、AMD `rc-02fd…` → 移除（字节级替换 + 注释），0 残留 |
+| app.js 硬编码密钥 | Agnes `sk-H63g***`、AMD `rc-02fd***` → 移除（字节级替换 + 注释），0 残留 |
 | docs 本机路径 | `C:/Users/Administrator/...` → `%USERPROFILE%`（3 处） |
-| 历史泄露 KEY | SiliconFlow `sk-rzlwfc…`（run_swebench.sh + 跑分报告，跨 6 commit）→ filter-branch（`--tag-name-filter cat --prune-empty`）全历史清除 + reflog/gc 清理 + force push |
+| 历史泄露 KEY | SiliconFlow `sk-rzlwfc***`（run_swebench.sh + 跑分报告，跨 6 commit）→ filter-branch（`--tag-name-filter cat --prune-empty`）全历史清除 + reflog/gc 清理 + force push |
 | 运行产物 | bench/real 约 6.8GB（work/treecache/.venv/base_images/eval_* 等）删除 |
 | .gitignore 加固 | bench/real 产物类 + agent-team/*.db + agent-team/.env |
 
