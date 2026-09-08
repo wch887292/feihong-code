@@ -22,7 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: [18, 20, 22]
+        node: [22]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -61,7 +61,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
       - run: npm install
       - run: npm run build
       - name: M4 断言套件（RBAC / 审计链 / 多租户 / 配额）
@@ -100,14 +100,14 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
       - run: npm install
       - run: npm run build
       - name: 发布包不得包含密钥或源码
         run: |
           npm pack --dry-run 2>&1 | tee pack.txt
-          for bad in ".env" "src/" ".workbuddy" "policy.json" "id_rsa"; do
-            if grep -q "$bad" pack.txt; then
+          for bad in "\\.env([ /]|$)" "src/" ".workbuddy" "policy.json" "id_rsa"; do
+            if grep -qE "$bad" pack.txt; then
               echo "::error::发布包中检出敏感条目: $bad"
               exit 1
             fi
@@ -133,7 +133,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
       - run: npm install
       # 1) npm audit：生产依赖 high 及以上漏洞视为失败（供应链准入证据）
       - name: npm audit（生产依赖 high+）

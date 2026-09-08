@@ -5,6 +5,7 @@
  *
  * CLI 入口：参数解析 → 版本/帮助/单命令/REPL/管理命令 分发
  */
+import './node-guard';
 import { randomUUID } from 'crypto';
 import { readFileSync, existsSync } from 'fs';
 import dns from 'node:dns';
