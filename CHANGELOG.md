@@ -2,6 +2,15 @@
 
 > **版本体系说明**：**7.x** 为**产品化成熟度版本号**（SemVer），衡量产品打磨程度（桌面版、Web 控制台、SWE-bench harness、企业治理、自进化等持续迭代）；**M0→M9.1** 为**能力里程碑编号**（工程开发阶段），2026-08 上旬全部交付后已冻结、不再扩展。两套编号相互解耦——M 编号停止增长是设计使然，后续能力演进体现在 7.x 次版本号中。
 
+## v8.0.2 (2026-09-08)
+
+### 工程修复 / Engineering Fixes
+
+- **Node 22 全链路兼容**：CI matrix 统一为 Node 22，Dockerfile 升级 node:22-slim，engines 声明 >=22.5.0；CLI 新增版本守卫（Node <22.5 给出友好提示，替代 ERR_UNKNOWN_BUILTIN_MODULE 崩溃）。
+- **供应链安全**：overrides 强制 qs 6.16.0（GHSA-x5fp-wj9c-mxmx / GHSA-4mjr-xmp4-gh2g）、uuid 11.1.1（GHSA-w5hq-g745-h8pq），npm audit 全量 0 漏洞，osv-scanner 通过。
+- **CI 修复**：发布包检查修正 .env.example 误报（子串匹配 -> 精确匹配）；仓库密钥扫描排除 voltagent_skills.json 误报（repo slug 命中 sk- 模式）。
+- **版本一致性**：version.ts / android versionName+versionCode / README JSON-LD / 当前文档版本标记全量同步 8.0.2。
+
 ## v8.0.1 (2026-09-08)
 
 ### 重大更新 / Major Updates
