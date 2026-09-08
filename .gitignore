@@ -138,3 +138,6 @@ bench/real/shard_*
 # AI 员工军团运行时数据库与本地配置（验证/演示产生，勿入库）
 agent-team/*.db
 agent-team/.env
+
+# Android 构建产物（勿入库）
+android/**/build/
