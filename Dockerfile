@@ -4,7 +4,7 @@
 # 不依赖 @types/express，因此构建是密封（hermetic）且可复现的。
 
 # ---------- 构建阶段 ----------
-FROM node:20-slim AS build
+FROM node:22-slim AS build
 WORKDIR /app
 
 # 先拷贝清单并安装全部依赖（含 devDependencies：typescript/tsx）
@@ -18,7 +18,7 @@ COPY . .
 RUN npx tsc && node scripts/copy-web.cjs
 
 # ---------- 运行阶段 ----------
-FROM node:20-slim AS runtime
+FROM node:22-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production \
     FH_HOME=/data/fhcode \
