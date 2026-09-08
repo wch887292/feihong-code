@@ -31,7 +31,7 @@ MAX_RELAUNCH = 8
 
 # AMD Radeon API 配置
 AMD_API_URL = "https://developer.amd.com.cn/radeon/api/v1/chat/completions"
-AMD_API_KEY = os.environ.get("AMD_API_KEY", "")
+AMD_API_KEY = os.environ.get("AMD_API_KEY", "")  # 脱敏：原硬编码 key 已移除，改用环境变量
 
 
 def shard_pidfile(s, model):
