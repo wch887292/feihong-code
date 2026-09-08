@@ -1,0 +1,84 @@
+<html style="margin:0;padding:0;">
+<div style="background-color:transparent;box-sizing:border-box;font-family:'Roboto','PingFang SC','Segoe UI',Arial,sans-serif;color:#1A1B1C;max-width:860px;margin:0 auto;padding:8px 4px;">
+
+  <!-- 标题 -->
+  <div style="font-size:17px;font-weight:600;line-height:1.5;margin:4px 0 2px;">Pi-Agent 接入飞虹Code：价值重估（代码实证）</div>
+  <div style="font-size:12px;color:#6B7280;line-height:1.6;margin-bottom:14px;">依据 H:\Muse Code复刻 v8.0.0 源码核验 · 预设 5 大价值点中 4 项已由自研内核覆盖，真实增量仅 2 项</div>
+
+  <!-- 左：飞虹Code 自研内核（已实现） -->
+  <div style="border:1px solid rgba(0,0,0,0.08);border-radius:14px;background:#FFFFFF;padding:14px 16px;margin-bottom:14px;">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+      <span style="background:#A3D5E8;color:#1A1B1C;font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;">飞虹Code 自研内核 · 已实现（80% 重叠）</span>
+      <span style="font-size:12px;color:#6B7280;">Pi 预设价值点在此已存在</span>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <div style="flex:1 1 240px;min-width:0;background:rgba(163,213,232,0.12);border-radius:10px;padding:10px 12px;box-sizing:border-box;margin-bottom:8px;">
+        <div style="font-size:13px;font-weight:600;">Agent 循环（ReAct）</div>
+        <div style="font-size:12px;color:#6B7280;margin-top:3px;line-height:1.5;">检查点续跑 · 自愈重试 · 上下文压缩 · 流式事件 · 中断<br/><span style="color:#4a5568;">orchestrator.ts（36KB）</span></div>
+      </div>
+      <div style="flex:1 1 240px;min-width:0;background:rgba(163,213,232,0.12);border-radius:10px;padding:10px 12px;box-sizing:border-box;margin-bottom:8px;">
+        <div style="font-size:13px;font-weight:600;">工具系统（8+ 工具）</div>
+        <div style="font-size:12px;color:#6B7280;margin-top:3px;line-height:1.5;">read/write/edit/grep/run_shell/web/browser/MCP · zod 校验<br/><span style="color:#4a5568;">src/tools/</span></div>
+      </div>
+      <div style="flex:1 1 240px;min-width:0;background:rgba(163,213,232,0.12);border-radius:10px;padding:10px 12px;box-sizing:border-box;margin-bottom:8px;">
+        <div style="font-size:13px;font-weight:600;">安全三层拦截（Pi 缺失）</div>
+        <div style="font-size:12px;color:#6B7280;margin-top:3px;line-height:1.5;">沙箱4模式 → PreToolUse hook → RBAC守卫（策略/审批/审计）<br/><span style="color:#4a5568;">sandbox.ts · hooks.ts · guard.ts</span></div>
+      </div>
+      <div style="flex:1 1 240px;min-width:0;background:rgba(163,213,232,0.12);border-radius:10px;padding:10px 12px;box-sizing:border-box;margin-bottom:8px;">
+        <div style="font-size:13px;font-weight:600;">哈希链审计（Pi 缺失）</div>
+        <div style="font-size:12px;color:#6B7280;margin-top:3px;line-height:1.5;">SHA-256 防篡改 · 自动脱敏 · 断点定位 · 跨进程锁<br/><span style="color:#4a5568;">enterprise/audit.ts</span></div>
+      </div>
+      <div style="flex:1 1 240px;min-width:0;background:rgba(163,213,232,0.12);border-radius:10px;padding:10px 12px;box-sizing:border-box;margin-bottom:8px;">
+        <div style="font-size:13px;font-weight:600;">多模型路由（≈pi-ai）</div>
+        <div style="font-size:12px;color:#6B7280;margin-top:3px;line-height:1.5;">策略选优 · 自动fallback · 成功率统计 · 成本预算<br/><span style="color:#4a5568;">models/model-router.ts</span></div>
+      </div>
+      <div style="flex:1 1 240px;min-width:0;background:rgba(163,213,232,0.12);border-radius:10px;padding:10px 12px;box-sizing:border-box;margin-bottom:8px;">
+        <div style="font-size:13px;font-weight:600;">变更管理 + Web 控制台</div>
+        <div style="font-size:12px;color:#6B7280;margin-top:3px;line-height:1.5;">diff草稿 · 逐hunk确认 · 原子提交+回滚；Monaco编辑器+任务队列<br/><span style="color:#4a5568;">change-manager.ts · src/web/</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 中：Pi 真实增量 -->
+  <div style="border:1px solid rgba(0,0,0,0.08);border-radius:14px;background:#FFFFFF;padding:14px 16px;margin-bottom:14px;">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+      <span style="background:#F4B393;color:#1A1B1C;font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;">Pi 真实增量 · 仅 2 项值得吸收</span>
+      <span style="font-size:12px;color:#6B7280;">其余预设价值点为重叠项，不构成接入理由</span>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <div style="flex:1 1 260px;min-width:0;background:rgba(244,179,147,0.12);border-radius:10px;padding:10px 12px;box-sizing:border-box;margin-bottom:8px;">
+        <div style="font-size:13px;font-weight:600;">① steer() 中途人工纠偏</div>
+        <div style="font-size:12px;color:#6B7280;margin-top:3px;line-height:1.5;">任务运行中改目标、模型按新指令继续。<br/>当前仅「审批/中断」，此项缺失 → 特性移植（2-3人日）</div>
+      </div>
+      <div style="flex:1 1 260px;min-width:0;background:rgba(244,179,147,0.12);border-radius:10px;padding:10px 12px;box-sizing:border-box;margin-bottom:8px;">
+        <div style="font-size:13px;font-weight:600;">② 事件流 Schema 标准</div>
+        <div style="font-size:12px;color:#6B7280;margin-top:3px;line-height:1.5;">agent_start / tool_call / turn_end 命名规范。<br/>用于统一审计与前端消费 → event-log 加 Schema 映射</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 下：决策路径 -->
+  <div style="border:1px solid rgba(0,0,0,0.08);border-radius:14px;background:#FFFFFF;padding:14px 16px;">
+    <div style="font-size:13px;font-weight:600;margin-bottom:10px;">决策路径（三方案）</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <div style="flex:1 1 250px;min-width:0;border:2px solid #52C41A;border-radius:10px;padding:10px 12px;box-sizing:border-box;margin-bottom:8px;background:rgba(82,196,26,0.06);">
+        <div style="font-size:13px;font-weight:600;color:#1A1B1C;">方案 A · 特性移植 ✅ 推荐</div>
+        <div style="font-size:12px;color:#6B7280;margin-top:3px;line-height:1.5;">不引入 Pi 依赖；吸收 steer 与事件 Schema<br/>成本 2-3 人日 · 安全边界不动 · 自研叙事一致</div>
+      </div>
+      <div style="flex:1 1 250px;min-width:0;border:1px solid rgba(0,0,0,0.08);border-radius:10px;padding:10px 12px;box-sizing:border-box;margin-bottom:8px;">
+        <div style="font-size:13px;font-weight:600;">方案 B · SDK 嵌入 ❌ 不建议</div>
+        <div style="font-size:12px;color:#6B7280;margin-top:3px;line-height:1.5;">双内核+安全重做+上游依赖风险；<br/>须禁用 Pi 原生 bash/文件工具，守卫挂 beforeToolCall</div>
+      </div>
+      <div style="flex:1 1 250px;min-width:0;border:1px solid rgba(0,0,0,0.08);border-radius:10px;padding:10px 12px;box-sizing:border-box;margin-bottom:8px;">
+        <div style="font-size:13px;font-weight:600;">方案 C · RPC 对照 ⚪ 可选</div>
+        <div style="font-size:12px;color:#6B7280;margin-top:3px;line-height:1.5;">Pi 独立进程跑 SWE-bench 对照评测；<br/>仅作数据依据，不进生产内核</div>
+      </div>
+    </div>
+    <div style="font-size:12px;color:#6B7280;line-height:1.6;margin-top:6px;border-top:1px solid rgba(0,0,0,0.08);padding-top:8px;">
+      <b style="color:#1A1B1C;">MVP 落地（2-3 人周，不依赖 Pi）</b>：需求输入 → 仓库上下文(ACL) → diff 草稿(change-manager) → 用户确认(commit) → 审计留痕(audit) —— 5 步闭环全部可用现有组件。
+    </div>
+  </div>
+
+  <div style="font-size:11px;color:#6B7280;margin-top:10px;line-height:1.5;">数据来源：H:\Muse Code复刻 v8.0.0 源码实证（orchestrator / tools / enterprise / models / web 模块）· 全库无 earendil/pi-* 依赖。示意图，非官方架构图。</div>
+</div>
+</html>

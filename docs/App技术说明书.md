@@ -334,15 +334,15 @@ public class MainActivity extends Activity {
 |------|------|------|
 | JDK | 17（Microsoft Build） | JAVA_HOME 指向 |
 | Android SDK | platform 34 + build-tools 34 | ANDROID_HOME 指向 |
-| Gradle | 8.7 | 已解压至 C:/Users/Administrator/.workbuddy/tools/gradle-8.7 |
+| Gradle | 8.7 | 已解压至 %USERPROFILE%/.workbuddy/tools/gradle-8.7 |
 
 ### 7.2 构建命令
 
 ```bash
 cd fhcode-android
 export JAVA_HOME="C:/Program Files/Microsoft/jdk-17.0.12.7-hotspot"
-export ANDROID_HOME="C:/Users/Administrator/AppData/Local/Android/Sdk"
-"C:/Users/Administrator/.workbuddy/tools/gradle-8.7/bin/gradle.bat" assembleDebug --no-daemon
+export ANDROID_HOME="%USERPROFILE%/AppData/Local/Android/Sdk"
+"%USERPROFILE%/.workbuddy/tools/gradle-8.7/bin/gradle.bat" assembleDebug --no-daemon
 ```
 
 产物：`app/build/outputs/apk/debug/app-debug.apk`

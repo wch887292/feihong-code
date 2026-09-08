@@ -1,0 +1,138 @@
+{
+  "date": "2026-09-05T13:01:28.295Z",
+  "mode": "real",
+  "model": "agnes-2.5-flash",
+  "fhcodeVersion": "8.0.0",
+  "piVersion": "0.85.1",
+  "tasks": [
+    {
+      "id": "R1-create-file",
+      "description": "真实模型：创建文件任务"
+    },
+    {
+      "id": "R2-read-summarize",
+      "description": "真实模型：读取并总结"
+    },
+    {
+      "id": "R3-steer-real",
+      "description": "真实模型：中途纠偏"
+    }
+  ],
+  "metrics": [
+    {
+      "taskId": "R1-create-file",
+      "agent": "fhcode",
+      "iterations": 1,
+      "toolCalls": 1,
+      "success": true,
+      "durationMs": 5139,
+      "steerInjected": false,
+      "steerObserved": false,
+      "finalAnswer": "文件已成功创建。我已在当前目录下创建了 hello.ts 文件，内容为 console.log(\"Hello, 飞虹Code!\");。这个 TypeScript 文件可以运行并输出\"Hello, 飞虹Code!\"到控制台。",
+      "verifyReason": "hello.ts 已创建且内容正确"
+    },
+    {
+      "taskId": "R1-create-file",
+      "agent": "pi",
+      "iterations": 2,
+      "toolCalls": 1,
+      "success": true,
+      "durationMs": 1638,
+      "steerInjected": false,
+      "steerObserved": false,
+      "finalAnswer": "[{\"type\":\"text\",\"text\":\"已创建 `hello.ts` 文件，内容为：\\n\\n```typescript\\nconsole.log(\\\"Hello, 飞虹Code!\\\");\\n```\\n\\n使用 `npx ts-node hello.ts` 或 `deno run hello.",
+      "verifyReason": "hello.ts 已创建且内容正确"
+    },
+    {
+      "taskId": "R2-read-summarize",
+      "agent": "fhcode",
+      "iterations": 1,
+      "toolCalls": 1,
+      "success": true,
+      "durationMs": 12593,
+      "steerInjected": false,
+      "steerObserved": false,
+      "finalAnswer": "项目名称是 feihong-code，版本号为 8.0.0。",
+      "verifyReason": "任务已执行"
+    },
+    {
+      "taskId": "R2-read-summarize",
+      "agent": "pi",
+      "iterations": 2,
+      "toolCalls": 1,
+      "success": true,
+      "durationMs": 29920,
+      "steerInjected": false,
+      "steerObserved": false,
+      "finalAnswer": "[{\"type\":\"text\",\"text\":\"项目名称是 feihong-code，版本号为 8.0.0。\"}]",
+      "verifyReason": "任务已执行"
+    },
+    {
+      "taskId": "R3-steer-real",
+      "agent": "fhcode",
+      "iterations": 2,
+      "toolCalls": 2,
+      "success": true,
+      "durationMs": 30179,
+      "steerInjected": true,
+      "steerObserved": true,
+      "finalAnswer": "已在当前目录创建 result.md 文件，内容为\"新内容\"。原有的 test.txt 文件也保持不变。",
+      "verifyReason": "steer 生效：result.md 已创建"
+    },
+    {
+      "taskId": "R3-steer-real",
+      "agent": "pi",
+      "iterations": 3,
+      "toolCalls": 2,
+      "success": true,
+      "durationMs": 2192,
+      "steerInjected": true,
+      "steerObserved": true,
+      "finalAnswer": "[{\"type\":\"text\",\"text\":\"已创建 `result.md` 文件，内容为\\\"新内容\\\"。\"}]",
+      "verifyReason": "steer 生效：result.md 已创建"
+    }
+  ],
+  "comparison": [
+    {
+      "task": "R1-create-file",
+      "fhcode 迭代": 1,
+      "pi 迭代": 2,
+      "fhcode 工具": 1,
+      "pi 工具": 1,
+      "fhcode 耗时ms": 5139,
+      "pi 耗时ms": 1638,
+      "fhcode 成功": true,
+      "pi 成功": true,
+      "fhcode 验证": "hello.ts 已创建且内容正确",
+      "pi 验证": "hello.ts 已创建且内容正确"
+    },
+    {
+      "task": "R2-read-summarize",
+      "fhcode 迭代": 1,
+      "pi 迭代": 2,
+      "fhcode 工具": 1,
+      "pi 工具": 1,
+      "fhcode 耗时ms": 12593,
+      "pi 耗时ms": 29920,
+      "fhcode 成功": true,
+      "pi 成功": true,
+      "fhcode 验证": "任务已执行",
+      "pi 验证": "任务已执行"
+    },
+    {
+      "task": "R3-steer-real",
+      "fhcode 迭代": 2,
+      "pi 迭代": 3,
+      "fhcode 工具": 2,
+      "pi 工具": 2,
+      "fhcode 耗时ms": 30179,
+      "pi 耗时ms": 2192,
+      "fhcode 成功": true,
+      "pi 成功": true,
+      "fhcode steer": true,
+      "pi steer": true,
+      "fhcode 验证": "steer 生效：result.md 已创建",
+      "pi 验证": "steer 生效：result.md 已创建"
+    }
+  ]
+}

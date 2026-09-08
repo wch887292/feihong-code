@@ -22,6 +22,7 @@ import { OpenAICompatibleProvider } from '../models/providers/openai-compatible.
 import { OllamaProvider } from '../models/providers/ollama.provider';
 import { createDefaultRegistry } from '../tools';
 import { attachMcpTools, closeMcpClients } from '../tools/mcp';
+import { attachDesktopTools } from '../tools/desktop';
 import type { McpClient } from '../tools/mcp/mcp-client';
 import { runCommand } from '../tools/shell/exec';
 import { EventLog } from '../runtime/event-log';
@@ -269,6 +270,7 @@ export async function executeTask(goal: string, opts: RunOptions = {}): Promise<
   if (!offline) {
     const cfg = loadConfig();
     mcpClients = await attachMcpTools(tools, cfg.mcp.servers);
+    attachDesktopTools(tools, mcpClients);
   }
   const logDir = getSessionHome(offline);
   const eventLog = new EventLog(runId, logDir);

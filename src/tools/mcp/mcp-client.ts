@@ -29,6 +29,8 @@ export interface McpServerConfig {
   initTimeoutMs?: number;
   /** 工具调用超时（默认 120000ms） */
   callTimeoutMs?: number;
+  /** 工具白名单（按原始工具名过滤；缺省不过滤） */
+  tools?: string[];
 }
 
 export interface McpToolDef {
@@ -71,6 +73,11 @@ export class McpClient {
   private stderrBuf = '';
 
   constructor(private readonly cfg: McpServerConfig) {}
+
+  /** 服务器名（供上层按名查找客户端） */
+  get serverName(): string {
+    return this.cfg.name;
+  }
 
   /** 启动子进程并完成 initialize 握手 */
   async connect(): Promise<void> {

@@ -16,6 +16,7 @@ import { buildCheckTool } from './verify/build-check.tool';
 import { loadSkillTool } from './skills/load-skill.tool';
 import { webFetchTool, webSearchTool } from './web/web.tool';
 import { browserTools } from './browser/browser.tool';
+import { agentsTools } from './agents/agents-bridge';
 
 export function createDefaultRegistry(): ToolRegistry {
   const reg = new ToolRegistry();
@@ -32,6 +33,7 @@ export function createDefaultRegistry(): ToolRegistry {
     webFetchTool,
     webSearchTool,
     ...browserTools,
+    ...agentsTools,
   ]) {
     reg.register(t);
   }

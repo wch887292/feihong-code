@@ -75,6 +75,7 @@ export type OrchestratorEvent =
   | { type: 'tool.result'; name: string; ok: boolean; output: string }
   | { type: 'self-heal'; category: string; iteration: number; strategy?: 'bypass-and-continue' | 'reflect-retry' | 'loop-break' }
   | { type: 'context.compact'; originalLength: number; compressedLength: number }
+  | { type: 'steer'; message: string }
   | { type: 'session.end'; iterations: number; costUsd: number; ok: boolean };
 
 export interface OrchestratorDeps {
@@ -118,6 +119,8 @@ export interface OrchestratorDeps {
   stageChange?: (path: string, content: string) => void;
   /** P2-1：SessionStart hooks 注入的额外系统提示（如 pua-ext 行为协议），在 systemPrompt 构建完成后追加 */
   extraSystemPrompt?: string;
+  /** M9：steer 事件源（人工指挥/中途改向，由 agent-session 注入） */
+  steerSource?: import('./steer').SteerSource;
 }
 
 /** M3 resume 上下文：携带已完成的对话与计数，避免重复执行 */
@@ -278,6 +281,14 @@ export class Orchestrator {
           runId: session.snapshot().runId,
           selfHealed,
         };
+      }
+      // M9：steer 人工指挥——每轮循环顶部 drain 待注入消息，作为 user 消息注入本轮
+      if (this.deps.steerSource) {
+        const pending = this.deps.steerSource.drain();
+        for (const m of pending) {
+          messages.push({ role: 'user', content: '[用户中途指令] ' + m.message });
+          this.deps.onEvent?.({ type: 'steer', message: m.message });
+        }
       }
       const startTime = Date.now();
       // P9：模型调用失败轮询重试（应对 429 限流 / 瞬时网络抖动），最多 maxModelRetries 次，指数退避

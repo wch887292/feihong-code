@@ -1,0 +1,125 @@
+{
+  "date": "2026-09-05T12:25:15.717Z",
+  "mode": "mock",
+  "fhcodeVersion": "8.0.0",
+  "piVersion": "0.85.1",
+  "tasks": [
+    {
+      "id": "T1-single-tool",
+      "description": "单工具调用任务：读文件后总结"
+    },
+    {
+      "id": "T2-multi-tool",
+      "description": "多工具链式任务：读文件 → 写文件 → 总结"
+    },
+    {
+      "id": "T3-steer-correction",
+      "description": "中途纠偏任务：执行到一半时用户改方向"
+    }
+  ],
+  "metrics": [
+    {
+      "taskId": "T1-single-tool",
+      "agent": "fhcode",
+      "iterations": 1,
+      "toolCalls": 1,
+      "success": true,
+      "durationMs": 35,
+      "steerInjected": false,
+      "steerObserved": false,
+      "finalAnswer": "已读取文件，包含 3 个导出函数。"
+    },
+    {
+      "taskId": "T1-single-tool",
+      "agent": "pi",
+      "iterations": 2,
+      "toolCalls": 1,
+      "success": true,
+      "durationMs": 7,
+      "steerInjected": false,
+      "steerObserved": false,
+      "finalAnswer": "[{\"type\":\"text\",\"text\":\"已读取文件，包含 3 个导出函数。\"}]"
+    },
+    {
+      "taskId": "T2-multi-tool",
+      "agent": "fhcode",
+      "iterations": 2,
+      "toolCalls": 2,
+      "success": true,
+      "durationMs": 25,
+      "steerInjected": false,
+      "steerObserved": false,
+      "finalAnswer": "已完成：读取 a.ts，创建 b.ts。"
+    },
+    {
+      "taskId": "T2-multi-tool",
+      "agent": "pi",
+      "iterations": 3,
+      "toolCalls": 2,
+      "success": true,
+      "durationMs": 2,
+      "steerInjected": false,
+      "steerObserved": false,
+      "finalAnswer": "[{\"type\":\"text\",\"text\":\"已完成：读取 a.ts，创建 b.ts。\"}]"
+    },
+    {
+      "taskId": "T3-steer-correction",
+      "agent": "fhcode",
+      "iterations": 1,
+      "toolCalls": 1,
+      "success": true,
+      "durationMs": 25,
+      "steerInjected": true,
+      "steerObserved": true,
+      "finalAnswer": "已按新指令完成：改为读取 new.ts 并总结。"
+    },
+    {
+      "taskId": "T3-steer-correction",
+      "agent": "pi",
+      "iterations": 2,
+      "toolCalls": 1,
+      "success": true,
+      "durationMs": 2,
+      "steerInjected": true,
+      "steerObserved": true,
+      "finalAnswer": "[{\"type\":\"text\",\"text\":\"已按新指令完成：改为读取 new.ts 并总结。\"}]"
+    }
+  ],
+  "comparison": [
+    {
+      "task": "T1-single-tool",
+      "fhcode 迭代": 1,
+      "pi 迭代": 2,
+      "fhcode 工具调用": 1,
+      "pi 工具调用": 1,
+      "fhcode 耗时(ms)": 35,
+      "pi 耗时(ms)": 7,
+      "fhcode 成功": true,
+      "pi 成功": true
+    },
+    {
+      "task": "T2-multi-tool",
+      "fhcode 迭代": 2,
+      "pi 迭代": 3,
+      "fhcode 工具调用": 2,
+      "pi 工具调用": 2,
+      "fhcode 耗时(ms)": 25,
+      "pi 耗时(ms)": 2,
+      "fhcode 成功": true,
+      "pi 成功": true
+    },
+    {
+      "task": "T3-steer-correction",
+      "fhcode 迭代": 1,
+      "pi 迭代": 2,
+      "fhcode 工具调用": 1,
+      "pi 工具调用": 1,
+      "fhcode 耗时(ms)": 25,
+      "pi 耗时(ms)": 2,
+      "fhcode 成功": true,
+      "pi 成功": true,
+      "fhcode steer生效": true,
+      "pi steer生效": true
+    }
+  ]
+}

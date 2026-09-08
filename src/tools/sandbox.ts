@@ -40,6 +40,32 @@ export function normalizeSandboxMode(raw?: string | null): SandboxMode {
 /** 写类工具：read-only 模式下禁止 */
 const WRITE_TOOLS = new Set(['write_file', 'edit_file']);
 
+/** desktop-touch 写工具 + feihong 原生桌面写工具 + AI 员工军团提交（read-only 一律拦截） */
+const DESKTOP_WRITE_TOOLS = new Set([
+  'desktop_launch',
+  'desktop_focus',
+  'desktop_click',
+  'desktop_type',
+  'desktop_keyboard',
+  'desktop_shell',
+  'desktop_terminal',
+  'desktop_terminal_send',
+  'desktop_workspace_launch',
+  'desktop_click_element',
+  'desktop_drag',
+  'desktop_scroll',
+  'desktop_double_click',
+  'desktop_right_click',
+  'desktop_select',
+  'desktop_hover',
+  'desktop_hotkey',
+  'desktop_open_url',
+  'desktop_close_window',
+  'desktop_desktop_act',
+  'feihong_desktop_act',
+  'feihong_agents_submit',
+]);
+
 /** 提取命令中出现的 http(s) 目标主机名（简单解析，不做 DNS 解析） */
 export function extractNetworkHosts(cmd: string): string[] {
   const hosts = new Set<string>();
@@ -106,6 +132,9 @@ export function checkSandbox(
   if (mode === 'read-only') {
     if (WRITE_TOOLS.has(tool)) {
       return { blocked: true, reason: 'read-only 模式禁止写文件（仅允许 read/list/grep）' };
+    }
+    if (DESKTOP_WRITE_TOOLS.has(tool)) {
+      return { blocked: true, reason: 'read-only 模式禁止桌面写操作与 AI 员工任务提交' };
     }
     if (tool === 'run_shell') {
       return { blocked: true, reason: 'read-only 模式禁止执行 shell 命令' };

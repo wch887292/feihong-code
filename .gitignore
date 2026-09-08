@@ -117,3 +117,24 @@ bench/real/supervisor.py
 test_api.js
 test_models.js
 test_stream.js
+
+
+# ── 2026-09-08 清理加固：bench/real 运行时产物（评测工作区/缓存/日志，勿入库）──
+bench/real/base_images/
+bench/real/work/
+bench/real/logs/
+bench/real/treecache/
+bench/real/repo_cache/
+bench/real/.venv/
+bench/real/venv*/
+bench/real/task_repo/
+bench/real/eval_*/
+bench/real/*.log
+bench/real/*.pid
+bench/real/*.jsonl
+bench/real/*.patch
+bench/real/rep_*
+bench/real/shard_*
+# AI 员工军团运行时数据库与本地配置（验证/演示产生，勿入库）
+agent-team/*.db
+agent-team/.env
