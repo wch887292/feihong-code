@@ -731,6 +731,7 @@ Authorization: Bearer <FH_WEB_TOKEN>
 | v7.6.0 | 2026-08-30 | 基础版本，20个子系统 |
 | v7.7.0-v7.7.6 | 2026-08-31 | 移动端多轮对话修复、12款游戏、创作中心、布局修复 |
 | v7.8.0 | 2026-09-02 | 免密网络层（Keyless Web Tier）+ Hermes 记忆基础 |
+| **v8.0.1** | **2026-09-08** | **desktop 手脚嫁接（Windows 原生操控）+ AI 员工军团整合（agent-team 17员工）+ 全仓脱敏与清理加固** |
 | **v7.9.0** | **2026-09-03** | **Hermes Agent 完整框架（持久记忆+自演化技能+自动化调度+工具集），后端版本对齐** |
 
 ---
@@ -744,3 +745,68 @@ Authorization: Bearer <FH_WEB_TOKEN>
 ---
 
 *本文档随版本更新而维护，最新版本以项目仓库 docs/ 目录为准。*
+
+
+---
+
+## 附录 A · v8.0.1 技术增补
+
+### A.1 桌面手脚：desktop-touch MCP 嫁接（Windows 原生操控）
+
+**架构**（三层，自底向上）：
+
+| 层 | 组件 | 说明 |
+|---|---|---|
+| 内核 | desktop-touch MCP | 上游 PowerShell 控制器 + CDP 浏览器桥 + `feihong_desktop_*` 工具声明 |
+| 飞虹侧 | `src/tools/desktop/` | 4 个模块：`desktop-guard.ts`（AutoGuard/WindowGuard/TerminalGuard/GuardEvent）· `feihong-win.ts`（winName/winClass/processName 窗口画像）· `desktop.tool.ts`（see/act/verify 3 工具实现）· `index.ts`（`attachDesktopTools`） |
+| 策略 | `enterprise/policy.ts` + `tools/sandbox.ts` | 审批优先决策 + 只读沙箱拦截（`DESKTOP_APPROVAL_TOOLS` 20+1 / `DESKTOP_WRITE_TOOLS` 20+2） |
+
+**工具契约**：
+- `feihong_desktop_see {filter?}` → 屏幕/窗口树/服务器状态勘察（只读，免审批）
+- `feihong_desktop_act {action, windowTitle?, args, effect?}` → launch/focus/click/type/keyboard/drag/scroll/terminal 等
+- `feihong_desktop_verify {expectText?, expectWindow?, screenshot?}` → 截图+状态回读断言
+
+**安全模型**：
+- 审批矩阵：operator/admin 写操作均需审批（`approvalTools`），`needsApproval` 命中即走审批分支（修复核心隐藏缺陷：不再被 `allowTools='*'` 短路）；
+- 停手线（`WINDOW_BLOCKLIST`）：任务管理器/注册表编辑器/UAC/安全中心/系统配置/设备管理器/磁盘管理/本地组策略，管理员窗口也拦截；
+- 取证：`FEIHONG_FORENSICS_DIR`（默认 `<FH_HOME>/forensics/<runId>/`）JSONL manifest + 截图，操作可复盘；
+- 扩展：`FEIHONG_DESKTOP_BLOCK_WINDOWS` 追加黑名单；MCP 工具白名单由 `mcp.servers[0].tools` 控制。
+
+### A.2 AI 员工军团：agent-team 桥接
+
+**结构**（Python 3.10+ 纯标准库）：`agent-team/{core,agents,llm,skills}/`。
+- `core/`：agent 基类、流程引擎、任务调度（init-db 幂等）、配置；
+- `agents/`：L1-L5 五层 17 员工（l1_acquisition/l2_content/l3_conversion/l4_analysis/l5_management）；
+- `llm/`：飞虹 provider 自动发现（`models.providers` 首个 openai-compatible 带 key 者）+ mock 回退；
+- `skills/`：17 个 SKILL.md + run.py，同时安装到用户级技能目录供飞虹对话直接发现。
+
+**桥接契约**（`src/tools/agents/agents-bridge.ts`）：
+- `feihong_agents_list {scope: agents|stats}`：员工清单 / 任务统计（只读，免审批）；
+- `feihong_agents_submit {agentId, input, executeNow?}`：agentId 1-17 兼容"01"补零，input 为 JSON 字符串；
+  子进程参数契约 `submit --module <两位编号> --input <JSON>`；**写操作，需审批**（已入 `DESKTOP_APPROVAL_TOOLS` 等价审批组）；
+  apiKey 仅作环境变量传入子进程，不回显不落盘。
+- 注册：`src/tools/index.ts` `...agentsTools`；挂载：`src/cli/run.ts` `attachDesktopTools` 后。
+
+### A.3 steer 人工指挥（M9）
+
+- `src/agent/steer.ts`：`SteerSource` 抽象（drain/push）+ `InMemorySteerQueue`；
+- orchestrator 每轮循环顶部 `drain()` 待注入消息 → 以 `[用户中途指令]` 前缀注入为 user 消息 → 发 `{type:'steer'}` 事件；
+- `agent-session.ts` 暴露 `session.steer` / `injectSteer()`，实现任务运行中人工插话纠偏。
+
+### A.4 全仓脱敏与清理治理
+
+| 项 | 处理 |
+|---|---|
+| app.js 硬编码密钥 | Agnes `sk-H63g…`、AMD `rc-02fd…` → 移除（字节级替换 + 注释），0 残留 |
+| docs 本机路径 | `C:/Users/Administrator/...` → `%USERPROFILE%`（3 处） |
+| 历史泄露 KEY | SiliconFlow `sk-rzlwfc…`（run_swebench.sh + 跑分报告，跨 6 commit）→ filter-branch（`--tag-name-filter cat --prune-empty`）全历史清除 + reflog/gc 清理 + force push |
+| 运行产物 | bench/real 约 6.8GB（work/treecache/.venv/base_images/eval_* 等）删除 |
+| .gitignore 加固 | bench/real 产物类 + agent-team/*.db + agent-team/.env |
+
+**事故教训（工程纪要）**：filter-branch 前不可 stash 未提交改动——`reflog expire + gc --prune=now` 会连 stash 对象一并清除，改动不可恢复（dist .js.map 无 sourcesContent 无法反推源码）。正确顺序：先提交 → 再清洗历史。
+
+### A.5 构建修复
+
+- `scripts/copy-web.cjs`：Node v22.23.2 `fs.cpSync({recursive:true})` 触发原生崩溃（0xC0000409），
+  重写为 `readdirSync + copyFileSync` 手写递归复制（3 处复制：web/public、self-evolve/manager.js、self-evolve-cli.js）；
+- 单测 269 例全绿；typecheck 0 错误；`npm run build` 全链路通过。
