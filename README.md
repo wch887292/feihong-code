@@ -52,6 +52,26 @@
   ]
 }
 </script>
+## v8.0.1 新能力（2026-09-08）
+
+**1. 桌面手脚（Windows 原生操控）**
+- 嫁接 desktop-touch MCP：`feihong_desktop_see / act / verify` 三个强类型工具，可看屏、操作、验证原生 app。
+- 三层结构：A 配置接入（fhcode.config.json 零代码）/ B 策略约束（审批 + 只读沙箱 + 危险窗口停手线）/ C 内化封装（守卫 + 取证）。
+- 停手线：任务管理器/注册表编辑器/UAC/安全中心等危险窗口硬拦截，`FEIHONG_DESKTOP_BLOCK_WINDOWS` 可扩展。
+- 取证：每步操作留痕（JSONL manifest + 截图），交付客户可复盘、可审计。
+
+**2. AI 员工军团（agent-team）**
+- 17 个业务 AI 员工（L1 获客 / L2 内容 / L3 转化 / L4 决策 / L5 管理）随仓库分发，`agent-team/`。
+- 飞虹原生工具：`feihong_agents_list`（员工/统计）、`feihong_agents_submit`（提交任务，需审批）。
+- 模型路由打通：自动复用飞虹 models.providers（openai-compatible），无配置时回退 mock 全链路可跑。
+- 17 个技能同时安装到用户级技能目录，`discoverSkills` 可直接发现调用。
+
+**3. 安全治理（脱敏 + 清理）**
+- 移除 app.js 硬编码 API Key、docs 本机路径；历史泄露密钥已通过 filter-branch 全历史清除（force push 交付）。
+- 清理 bench/real 约 6.8GB 评测运行产物；.gitignore 加固防再污染。
+
+> 完整使用见 [docs/使用说明书-v8.0.1.md](docs/使用说明书-v8.0.1.md)；技术细节见 [docs/TECHNICAL-SPECIFICATION.md](docs/TECHNICAL-SPECIFICATION.md)。
+
 
 # 飞虹 Code（fhcode）
 
