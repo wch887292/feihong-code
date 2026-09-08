@@ -97,7 +97,9 @@
   "bugs": {
     "url": "https://github.com/wch887292/feihong-code/issues"
   },
-  "engines": { "node": ">=22.5.0" },
+  "engines": {
+    "node": ">=22.5.0"
+  },
   "funding": {
     "type": "company",
     "url": "https://www.klai.top"
@@ -177,6 +179,7 @@
   },
   "overrides": {
     "dompurify": ">=3.4.13",
-    "qs": "6.16.0"
+    "qs": "6.16.0",
+    "uuid": "11.1.1"
   }
 }
