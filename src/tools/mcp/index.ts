@@ -57,11 +57,20 @@ export async function attachMcpTools(registry: { register(t: Tool): void }, serv
     try {
       const client = await connectMcp(cfg);
       const tools = await client.listTools();
-      for (const t of tools) {
+      // tools 白名单：按原始工具名过滤（desktop 配置 11 个原始名），未命中工具不注册
+      const filtered =
+        cfg.tools && cfg.tools.length > 0
+          ? tools.filter((t) => cfg.tools!.includes(t.name))
+          : tools;
+      for (const t of filtered) {
         registry.register(wrapMcpTool(cfg.name, t, client));
       }
       clients.push(client);
-      logger.info('MCP server attached', { name: cfg.name, tools: tools.length });
+      logger.info('MCP server attached', {
+        name: cfg.name,
+        tools: filtered.length,
+        filtered: tools.length - filtered.length,
+      });
     } catch (e) {
       logger.warn('MCP server attach failed（跳过，不影响主流程）', {
         name: cfg.name,

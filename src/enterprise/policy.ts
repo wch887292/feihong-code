@@ -42,6 +42,31 @@ export interface Policy {
   tenantDailyBudgetUsd: number;
 }
 
+/** desktop-touch MCP 写工具（operator/admin 一律需审批；与 sandbox 只读拦截名单一致） */
+export const DESKTOP_APPROVAL_TOOLS: string[] = [
+  'desktop_launch',
+  'desktop_focus',
+  'desktop_click',
+  'desktop_type',
+  'desktop_keyboard',
+  'desktop_shell',
+  'desktop_terminal',
+  'desktop_terminal_send',
+  'desktop_workspace_launch',
+  'desktop_click_element',
+  'desktop_drag',
+  'desktop_scroll',
+  'desktop_double_click',
+  'desktop_right_click',
+  'desktop_select',
+  'desktop_hover',
+  'desktop_hotkey',
+  'desktop_open_url',
+  'desktop_close_window',
+  'desktop_desktop_act',
+  'feihong_desktop_act',
+];
+
 export const DEFAULT_POLICY: Policy = {
   version: 1,
   roles: {
@@ -65,12 +90,12 @@ export const DEFAULT_POLICY: Policy = {
     },
     operator: {
       allowTools: ['*'],
-      approvalTools: ['run_shell'],
+      approvalTools: ['run_shell', ...DESKTOP_APPROVAL_TOOLS, 'feihong_desktop_act', 'feihong_agents_submit'],
       maxCostUsd: 5,
     },
     admin: {
       allowTools: ['*'],
-      approvalTools: ['run_shell'],
+      approvalTools: ['run_shell', ...DESKTOP_APPROVAL_TOOLS, 'feihong_desktop_act', 'feihong_agents_submit'],
       maxCostUsd: 0,
     },
   },
@@ -235,30 +260,28 @@ export function evaluate(policy: Policy, input: EvalInput): PolicyDecision {
     }
   }
 
-  // 4) 角色-工具矩阵
+  // 4) 角色-工具矩阵（approval 优先：即使 allowTools='*'，approvalTools 命中的工具也必须审批）
   const allowed = rolePolicy.allowTools.includes('*') || rolePolicy.allowTools.includes(tool);
   const needsApproval = rolePolicy.approvalTools.includes(tool);
 
-  if (!allowed && !needsApproval) {
+  if (needsApproval) {
+    // shell 白名单可免审批（仅 run_shell）
+    if (tool === 'run_shell') {
+      const cmd = String(args.command ?? args.cmd ?? '');
+      const head = cmd.trim().split(/\s+/)[0] || '';
+      if (shellAllowlist.includes(head)) {
+        return { effect: 'allow', reason: `命中 shell 白名单: ${head}`, rule: 'shellAllowlist' };
+      }
+    }
+    return { effect: 'approval', reason: `工具 ${tool} 需人工审批`, rule: 'rbac.approval' };
+  }
+
+  if (!allowed) {
     return {
       effect: 'deny',
       reason: `角色 ${role} 无权调用工具 ${tool}`,
       rule: 'rbac',
     };
-  }
-
-  // 5) shell 白名单可免审批
-  if (tool === 'run_shell' && needsApproval) {
-    const cmd = String(args.command ?? args.cmd ?? '');
-    const head = cmd.trim().split(/\s+/)[0] || '';
-    if (shellAllowlist.includes(head)) {
-      return { effect: 'allow', reason: `命中 shell 白名单: ${head}`, rule: 'shellAllowlist' };
-    }
-    return { effect: 'approval', reason: `工具 ${tool} 需人工审批`, rule: 'rbac.approval' };
-  }
-
-  if (needsApproval && !allowed) {
-    return { effect: 'approval', reason: `工具 ${tool} 需人工审批`, rule: 'rbac.approval' };
   }
 
   return { effect: 'allow', reason: `角色 ${role} 允许调用 ${tool}`, rule: 'rbac.allow' };
