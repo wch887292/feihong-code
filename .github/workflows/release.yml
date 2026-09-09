@@ -118,7 +118,7 @@ jobs:
     name: 发布 npm 包
     needs: [version, build]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' || github.event.inputs.version != 'patch'
+    if: (github.event_name == 'push' || github.event.inputs.version != 'patch') && secrets.NPM_TOKEN != ''
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -199,5 +199,6 @@ jobs:
           body_path: RELEASE_NOTES.md
           draft: false
           prerelease: false
+          skipIfReleaseExists: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
