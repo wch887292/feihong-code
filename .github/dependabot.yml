@@ -13,4 +13,4 @@ updates:
     schedule:
       interval: "weekly"
     labels:
-      - "github-actions"
+      - "dependencies"
