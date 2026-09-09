@@ -118,7 +118,7 @@ jobs:
     name: 发布 npm 包
     needs: [version, build]
     runs-on: ubuntu-latest
-    if: (github.event_name == 'push' || github.event.inputs.version != 'patch') && secrets.NPM_TOKEN != ''
+    if: github.event_name == 'push' || github.event.inputs.version != 'patch'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -135,6 +135,7 @@ jobs:
       - name: 设置版本号
         run: npm version ${{ needs.version.outputs.version }} --no-git-tag-version --allow-same-version
       - name: 发布到 npm
+        if: secrets.NPM_TOKEN != ''
         run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
