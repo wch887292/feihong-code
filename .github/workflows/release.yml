@@ -134,8 +134,14 @@ jobs:
         run: npm ci
       - name: 设置版本号
         run: npm version ${{ needs.version.outputs.version }} --no-git-tag-version --allow-same-version
+      - name: 检查 NPM_TOKEN 是否配置
+        id: npm_token_check
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -n "$NPM_TOKEN" ]; then echo "has_token=true" >> "$GITHUB_OUTPUT"; else echo "has_token=false" >> "$GITHUB_OUTPUT"; fi
       - name: 发布到 npm
-        if: secrets.NPM_TOKEN != ''
+        if: steps.npm_token_check.outputs.has_token == 'true'
         run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
