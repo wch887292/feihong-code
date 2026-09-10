@@ -34,6 +34,8 @@ def run(cmd, cwd, timeout=600):
         return r.returncode, out
     except subprocess.TimeoutExpired:
         return 124, "TIMEOUT"
+    except FileNotFoundError as e:
+        return 127, "命令不存在: " + str(e)
 
 def apply_patch(path_diff, cwd):
     # 用 git apply；失败回退 patch -p1
@@ -51,7 +53,21 @@ def setup_venv(cwd, instance_id, repo):
         if rc != 0:
             return None, "venv 创建失败: " + out
     py = os.path.join(venv, "Scripts", "python.exe") if os.name == "nt" else os.path.join(venv, "bin", "python")
-    pip = os.path.join(venv, "Scripts", "pip.exe") if os.name == "nt" else os.path.join(venv, "bin", "pip")
+    # pip 路径探测：不同平台/基础解释器布局不同（Scripts/pip.exe、bin/pip、bin/pip3…），
+    # 找不到时用 venv python -m pip 兜底（Python 3.11+ 均可用）
+    if os.name == "nt":
+        pip_candidates = [os.path.join(venv, "Scripts", "pip.exe"), os.path.join(venv, "Scripts", "pip3.exe")]
+    else:
+        pip_candidates = [os.path.join(venv, "bin", "pip"), os.path.join(venv, "bin", "pip3"), os.path.join(venv, "bin", "pip3.11")]
+    pip = next((p for p in pip_candidates if os.path.exists(p)), None)
+    if pip is None:
+        # ensurepip 兜底：venv 无 pip 时先启用
+        rc, out = run([py, "-m", "ensurepip", "--upgrade"], cwd, timeout=120)
+        if rc != 0:
+            return None, "venv 无 pip 且 ensurepip 失败: " + out
+        pip = next((p for p in pip_candidates if os.path.exists(p)), None)
+    if pip is None:
+        pip = None  # 用 py -m pip 形式
     # 安装依赖（按仓库定制）
     if repo == "django/django":
         pkgs = ["-e", ".", "pytz", "tblib", "docutils", "jinja2", "pytest"]
@@ -59,7 +75,10 @@ def setup_venv(cwd, instance_id, repo):
         pkgs = ["-e", ".", "pytest", "pytest-astropy", "numpy", "pyerfa"]
     else:
         pkgs = ["-e", ".", "pytest"]
-    rc, out = run([pip, "install"] + pkgs, cwd, timeout=900)
+    if pip:
+        rc, out = run([pip, "install"] + pkgs, cwd, timeout=900)
+    else:
+        rc, out = run([py, "-m", "pip", "install"] + pkgs, cwd, timeout=900)
     if rc != 0:
         return py, "依赖安装失败(部分): " + out[-2000:]
     return py, None
