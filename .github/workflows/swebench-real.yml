@@ -15,9 +15,13 @@ on:
         required: false
         default: 'bench/swe-bench-verified-sample.json'
       model:
-        description: '评测模型名（如 agnes-3.0-flash）'
+        description: '评测模型名（如 agnes-3.0-flash / DeepSeek-V4-Flash）'
         required: false
         default: 'agnes-2.5-flash'
+      base_url:
+        description: 'API 通道地址（AMD 填 https://developer.amd.com.cn/radeon/api/v1）'
+        required: false
+        default: 'https://api.agnes-ai.cn/v1'
   # 可选：定时跑（UTC 18:00）
   # schedule:
   #   - cron: '0 18 * * *'
@@ -58,7 +62,9 @@ jobs:
       - name: 真实模型生成 patch
         env:
           AGNES_API_KEY: ${{ secrets.AGNES_API_KEY }}
+          AMD_API_KEY: ${{ secrets.AMD_API_KEY }}
           SWEEBENCH_MODEL: ${{ inputs.model }}
+          SWEEBENCH_BASE_URL: ${{ inputs.base_url }}
         run: node scripts/swebench-real.mjs --instances "${{ inputs.instances }}" --limit "${{ inputs.limit }}"
 
       - name: 真实测试验证（env-reconstructed）
