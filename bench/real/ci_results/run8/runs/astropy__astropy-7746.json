@@ -1,0 +1,147 @@
+{
+  "instance_id": "astropy__astropy-7746",
+  "repo": "astropy/astropy",
+  "model": "agnes-3.0-flash",
+  "iterations": 16,
+  "toolCalls": 15,
+  "finished": true,
+  "patchLength": 1233,
+  "hasPatch": true,
+  "error": null,
+  "trace": [
+    {
+      "iter": 1,
+      "tool": "run_shell",
+      "args": {
+        "command": "find / -path \"*/astropy/wcs/wcs.py\" 2>/dev/null | head -5"
+      },
+      "result": "/home/runner/work/feihong-code/feihong-code/bench/real/work/astropy/astropy/wcs/wcs.py\n"
+    },
+    {
+      "iter": 1,
+      "tool": "list_dir",
+      "args": {},
+      "result": "total 488\ndrwxr-xr-x 11 runner runner   4096 Sep 10 05:27 .\ndrwxr-xr-x 12 runner runner   4096 Sep 10 05:28 ..\n-rw-r--r--  1 runner runner      0 Sep 10 05:27 .astropy-root\ndrwxr-xr-x  2 runner runner   4096 Sep 10 05:27 .circleci\ndrwxr-xr-x  7 runner runner   4096 Sep 10 05:58 .git\n-rw-r--r--  1 runner runner     73 Sep 10 05:27 .gitattributes\n-rw-r--r--  1 runner runner    761 Sep 10 05:27 .gitignore\n-rw-r--r--  1 runner runner    108 Sep 10 05:27 .gitmodules\n-rw-r--r--  1 runner runner   8270 Sep 10 05:27 .mailmap\n-rw-r--r--  1 runner runner   6605 Sep 10 05:27 .travis.yml\n-rw-r--r--  1 run"
+    },
+    {
+      "iter": 2,
+      "tool": "grep",
+      "args": {
+        "path": "/home/runner/work/feihong-code/feihong-code/bench/real/work/astropy/astropy/wcs/wcs.py",
+        "pattern": "_array_converter"
+      },
+      "result": "(无匹配)"
+    },
+    {
+      "iter": 3,
+      "tool": "run_shell",
+      "args": {
+        "command": "ls /home/runner/work/feihong-code/feihong-code/bench/real/work/astropy/"
+      },
+      "result": "CHANGES.rst\nCITATION\nCODE_OF_CONDUCT.md\nCONTRIBUTING.md\nLICENSE.rst\nMANIFEST.in\nREADME.rst\nah_bootstrap.py\nappveyor.yml\nastropy\nastropy_helpers\ncextern\nconftest.py\ndocs\nexamples\nlicenses\npip-requirements\npip-requirements-dev\npip-requirements-doc\nreadthedocs.yml\nsetup.cfg\nsetup.py\nstatic\n"
+    },
+    {
+      "iter": 4,
+      "tool": "run_shell",
+      "args": {
+        "command": "pwd"
+      },
+      "result": "/home/runner/work/feihong-code/feihong-code/bench/real/work/astropy\n"
+    },
+    {
+      "iter": 5,
+      "tool": "grep",
+      "args": {
+        "path": "astropy/wcs/wcs.py",
+        "pattern": "_array_converter"
+      },
+      "result": "1208:    def _array_converter(self, func, sky, *args, ra_dec_order=False):\n1279:        return self._array_converter(\n1352:        return self._array_converter(\n1821:        return self._array_converter(\n2159:        return self._array_converter(\n2220:        return self._array_converter(self._pix2foc, None, *args)\n2250:        return self._array_converter(self._p4_pix2foc, None, *args)\n2279:        return self._array_converter(self._det2im, None, *args)\n2315:        return self._array_converter(self.sip.pix2foc, None, *args)\n2356:        return self._array_converter(self.sip.foc2pix, None, *a"
+    },
+    {
+      "iter": 6,
+      "tool": "read_file",
+      "args": {
+        "limit": 80,
+        "offset": 1208,
+        "path": "astropy/wcs/wcs.py"
+      },
+      "result": "1208\t    def _array_converter(self, func, sky, *args, ra_dec_order=False):\n1209\t        \"\"\"\n1210\t        A helper function to support reading either a pair of arrays\n1211\t        or a single Nx2 array.\n1212\t        \"\"\"\n1213\t\n1214\t        def _return_list_of_arrays(axes, origin):\n1215\t            try:\n1216\t                axes = np.broadcast_arrays(*axes)\n1217\t            except ValueError:\n1218\t                raise ValueError(\n1219\t                    \"Coordinate arrays are not broadcastable to each other\")\n1220\t\n1221\t            xy = np.hstack([x.reshape((x.size, 1)) for x in axes])\n1222\t\n12"
+    },
+    {
+      "iter": 7,
+      "assistant": ""
+    },
+    {
+      "iter": 8,
+      "tool": "read_file",
+      "args": {
+        "limit": 75,
+        "offset": 1208,
+        "path": "astropy/wcs/wcs.py"
+      },
+      "result": "1208\t    def _array_converter(self, func, sky, *args, ra_dec_order=False):\n1209\t        \"\"\"\n1210\t        A helper function to support reading either a pair of arrays\n1211\t        or a single Nx2 array.\n1212\t        \"\"\"\n1213\t\n1214\t        def _return_list_of_arrays(axes, origin):\n1215\t            try:\n1216\t                axes = np.broadcast_arrays(*axes)\n1217\t            except ValueError:\n1218\t                raise ValueError(\n1219\t                    \"Coordinate arrays are not broadcastable to each other\")\n1220\t\n1221\t            xy = np.hstack([x.reshape((x.size, 1)) for x in axes])\n1222\t\n12"
+    },
+    {
+      "iter": 9,
+      "assistant": ""
+    },
+    {
+      "iter": 10,
+      "tool": "edit_file",
+      "args": {
+        "newText": "        def _return_list_of_arrays(axes, origin):\n            try:\n                axes = np.broadcast_arrays(*axes)\n            except ValueError:\n                raise ValueError(\n                    \"Coordinate arrays are not broadcastable to each other\")\n\n            xy = np.hstack([x.reshape((x.size, 1)) for x in axes])\n\n            if xy.size == 0:\n                if ra_dec_order and sky == 'output':\n                    return (np.empty(axes[0].shape, dtype=float),\n                            np.empty(axes[0].shape, dtype=float))\n                return [np.empty(axes[0].shape, dtype=float)\n                        for _ in range(self.naxis)]\n\n            if ra_dec_order and sky == 'input':\n                xy = self._denormalize_sky(xy)\n            output = func(xy, origin)\n            if ra_dec_order and sky == 'output':\n                output = self._normalize_sky(output)\n                return (output[:, 0].reshape(axes[0].shape),\n                        output[:, 1].reshape(axes[0].shape))\n            return [output[:, i].reshape(axes[0].shape)\n                    for i in range(output.shape[1])]\n\n        def _return_single_array(xy, origin):\n            if xy.shape[-1] != self.naxis:\n                raise ValueError(\n                    \"When providing two arguments, the array must be \"\n                    \"of shape (N, {0})\".format(self.naxis))\n            if xy.size == 0:\n                return np.empty((0,) + (self.naxis,), dtype=float)\n            if ra_dec_order and sky == 'input':\n                xy = self._denormalize_sky(xy)\n            result = func(xy, origin)\n            if ra_dec_order and sky == 'output':\n                result = self._normalize_sky(result)\n            return result",
+        "oldText": "        def _return_list_of_arrays(axes, origin):\n            try:\n                axes = np.broadcast_arrays(*axes)\n            except ValueError:\n                raise ValueError(\n                    \"Coordinate arrays are not broadcastable to each other\")\n\n            xy = np.hstack([x.reshape((x.size, 1)) for x in axes])\n\n            if ra_dec_order and sky == 'input':\n                xy = self._denormalize_sky(xy)\n            output = func(xy, origin)\n            if ra_dec_order and sky == 'output':\n                output = self._normalize_sky(output)\n                return (output[:, 0].reshape(axes[0].shape),\n                        output[:, 1].reshape(axes[0].shape))\n            return [output[:, i].reshape(axes[0].shape)\n                    for i in range(output.shape[1])]\n\n        def _return_single_array(xy, origin):\n            if xy.shape[-1] != self.naxis:\n                raise ValueError(\n                    \"When providing two arguments, the array must be \"\n                    \"of shape (N, {0})\".format(self.naxis))\n            if ra_dec_order and sky == 'input':\n                xy = self._denormalize_sky(xy)\n            result = func(xy, origin)\n            if ra_dec_order and sky == 'output':\n                result = self._normalize_sky(result)\n            return result",
+        "path": "astropy/wcs/wcs.py"
+      },
+      "result": "已更新 astropy/wcs/wcs.py"
+    },
+    {
+      "iter": 11,
+      "tool": "read_file",
+      "args": {
+        "limit": 80,
+        "offset": 1208,
+        "path": "astropy/wcs/wcs.py"
+      },
+      "result": "1208\t    def _array_converter(self, func, sky, *args, ra_dec_order=False):\n1209\t        \"\"\"\n1210\t        A helper function to support reading either a pair of arrays\n1211\t        or a single Nx2 array.\n1212\t        \"\"\"\n1213\t\n1214\t        def _return_list_of_arrays(axes, origin):\n1215\t            try:\n1216\t                axes = np.broadcast_arrays(*axes)\n1217\t            except ValueError:\n1218\t                raise ValueError(\n1219\t                    \"Coordinate arrays are not broadcastable to each other\")\n1220\t\n1221\t            xy = np.hstack([x.reshape((x.size, 1)) for x in axes])\n1222\t\n12"
+    },
+    {
+      "iter": 12,
+      "tool": "run_shell",
+      "args": {
+        "command": "cd /home/runner/work/feihong-code/feihong-code/bench/real/work/astropy && python -c \"\nimport numpy as np\nfrom astropy.wcs import WCS\n\n# Create a simple 2D WCS\nw = WCS(naxis=2)\nw.wcs.celtype = ['RA---SIN', 'DEC-SIN']\nw.wcs.crval = [10.0, 20.0]\nw.wcs.cdelt = [0.1, 0.1]\nw.wcs.crpix = [1.0, 1.0]\nw.wcs.proj = ['TAN', 'TAN']\nwcs = WCS(w)\n\n# Test with empty lists\nresult = wcs.wcs_pix2world([], [], 0)\nprint('wcs_pix2world([], [], 0):', result)\nprint('types:', [type(r) for r in result])\nprint('shapes:', [r.shape for r in result])\n\n# Test with empty arrays\nresult = wcs.wcs_pix2world(np.empty((0, 2)), 0)\nprint('wcs_pix2world(np.empty((0,2)), 0):', result)\nprint('shape:', result.shape)\n\"\n"
+      },
+      "result": "工具执行错误: Traceback (most recent call last):\n  File \"<string>\", line 3, in <module>\n  File \"/home/runner/work/feihong-code/feihong-code/bench/real/work/astropy/astropy/__init__.py\", line 287, in <module>\n    log = _init_log()\n          ^^^^^^^^^^^\n  File \"/home/runner/work/feihong-code/feihong-code/bench/real/work/astropy/astropy/logger.py\", line 97, in _init_log\n    log._set_defaults()\n  File \"/home/runner/work/feihong-code/feihong-code/bench/real/work/astropy/astropy/logger.py\", line 473, in _set_defaults\n    self.setLevel(conf.log_level)\n                  ^^^^^^^^^^^^^^\n  File \"/home/runner/w"
+    },
+    {
+      "iter": 13,
+      "tool": "run_shell",
+      "args": {
+        "command": "cd /home/runner/work/feihong-code/feihong-code/bench/real/work/astropy && python --version"
+      },
+      "result": "Python 3.11.16\n"
+    },
+    {
+      "iter": 14,
+      "tool": "run_shell",
+      "args": {
+        "command": "cd /home/runner/work/feihong-code/feihong-code/bench/real/work/astropy && python -c \"\nimport numpy as np\n\n# Simulate the logic of _return_list_of_arrays with empty input\naxes = [np.asarray([]), np.asarray([])]\naxes = np.broadcast_arrays(*axes)\nprint('broadcasted shapes:', [x.shape for x in axes])\nxy = np.hstack([x.reshape((x.size, 1)) for x in axes])\nprint('xy shape:', xy.shape, 'xy.size:', xy.size)\n\n# Simulate the fix: return empty arrays\nnaxis = 2\nresult = [np.empty(axes[0].shape, dtype=float) for _ in range(naxis)]\nprint('result:', result)\nprint('result shapes:', [r.shape for r in result])\n\n# Simulate _return_single_array with empty (0, 2) input\nxy2 = np.empty((0, 2))\nprint('xy2.size:', xy2.size, 'xy2.shape:', xy2.shape)\nresult2 = np.empty((0,) + (naxis,), dtype=float)\nprint('result2 shape:', result2.shape)\n\"\n"
+      },
+      "result": "broadcasted shapes: [(0,), (0,)]\nxy shape: (0, 2) xy.size: 0\nresult: [array([], dtype=float64), array([], dtype=float64)]\nresult shapes: [(0,), (0,)]\nxy2.size: 0 xy2.shape: (0, 2)\nresult2 shape: (0, 2)\n"
+    },
+    {
+      "iter": 15,
+      "tool": "run_shell",
+      "args": {
+        "command": "cd /home/runner/work/feihong-code/feihong-code/bench/real/work/astropy && git diff"
+      },
+      "result": "diff --git a/astropy/wcs/wcs.py b/astropy/wcs/wcs.py\nindex d3a06f2b31..07932c4f67 100644\n--- a/astropy/wcs/wcs.py\n+++ b/astropy/wcs/wcs.py\n@@ -1220,6 +1220,13 @@ reduce these to 2 dimensions using the naxis kwarg.\n \n             xy = np.hstack([x.reshape((x.size, 1)) for x in axes])\n \n+            if xy.size == 0:\n+                if ra_dec_order and sky == 'output':\n+                    return (np.empty(axes[0].shape, dtype=float),\n+                            np.empty(axes[0].shape, dtype=float))\n+                return [np.empty(axes[0].shape, dtype=float)\n+                        for _ in "
+    },
+    {
+      "iter": 16,
+      "tool": "finish",
+      "args": {},
+      "result": "__FINISH__"
+    }
+  ]
+}

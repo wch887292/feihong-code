@@ -1,0 +1,102 @@
+{
+  "total": 10,
+  "resolved": 0,
+  "verified": 5,
+  "details": [
+    {
+      "instance_id": "sympy__sympy-12236",
+      "verified": false,
+      "reason": "模型 patch 为空"
+    },
+    {
+      "instance_id": "pytest-dev__pytest-9359",
+      "verified": false,
+      "reason": "模型 patch 为空"
+    },
+    {
+      "instance_id": "django__django-14787",
+      "verified": true,
+      "model_patch_applied": true,
+      "test_patch_applied": true,
+      "fail_to_pass": {
+        "@method_decorator preserves wrapper assignments.": [
+          false,
+          "enced).\nE\n======================================================================\nERROR: @method_decorator preserves wrapper assignments (unittest.loader._FailedTest.@method_decorator preserves wrapper assignments)\n----------------------------------------------------------------------\nImportError: Failed to import test module: @method_decorator preserves wrapper assignments\nTraceback (most recent call last):\n  File \"/opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/unittest/loader.py\", line 162, in loadTestsFromName\n    module = __import__(module_name)\n             ^^^^^^^^^^^^^^^^^^^^^^^\nModuleNotFoundError: No module named '@method_decorator preserves wrapper assignments'\n\n\n----------------------------------------------------------------------\nRan 1 test in 0.000s\n\nFAILED (errors=1)\n"
+        ]
+      },
+      "resolved": false,
+      "env_note": null
+    },
+    {
+      "instance_id": "pallets__flask-4992",
+      "verified": false,
+      "reason": "模型 patch 为空"
+    },
+    {
+      "instance_id": "astropy__astropy-7746",
+      "verified": true,
+      "model_patch_applied": true,
+      "test_patch_applied": true,
+      "fail_to_pass": {
+        "astropy/wcs/tests/test_wcs.py::test_zero_size_input": [
+          false,
+          "/home/runner/work/feihong-code/feihong-code/bench/real/work/astropy/.verify_venv/bin/python: No module named pytest\n"
+        ]
+      },
+      "resolved": false,
+      "env_note": "依赖安装失败(部分): et_requires_for_build_editable\n          return hook(config_settings)\n                 ^^^^^^^^^^^^^^^^^^^^^\n        File \"/tmp/pip-build-env-a3xxn2mj/overlay/lib/python3.11/site-packages/setuptools/build_meta.py\", line 481, in get_requires_for_build_editable\n          return self.get_requires_for_build_wheel(config_settings)\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n        File \"/tmp/pip-build-env-a3xxn2mj/overlay/lib/python3.11/site-packages/setuptools/build_meta.py\", line 333, in get_requires_for_build_wheel\n          return self._get_build_requires(config_settings, requirements=[])\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n        File \"/tmp/pip-build-env-a3xxn2mj/overlay/lib/python3.11/site-packages/setuptools/build_meta.py\", line 301, in _get_build_requires\n          self.run_setup()\n        File \"/tmp/pip-build-env-a3xxn2mj/overlay/lib/python3.11/site-packages/setuptools/build_meta.py\", line 520, in run_setup\n          super().run_setup(setup_script=setup_script)\n        File \"/tmp/pip-build-env-a3xxn2mj/overlay/lib/python3.11/site-packages/setuptools/build_meta.py\", line 317, in run_setup\n          exec(code, locals())  # noqa: S102 # exec is intentional here\n          ^^^^^^^^^^^^^^^^^^^^\n        File \"<string>\", line 17, in <module>\n        File \"/home/runner/work/feihong-code/feihong-code/bench/real/work/astropy/ah_bootstrap.py\", line 120, in <module>\n          import pkg_resources\n      ModuleNotFoundError: No module named 'pkg_resources'\n      [end of output]\n  \n  note: This error originates from a subprocess, and is likely not a problem with pip.\nerror: subprocess-exited-with-error\n\n× Getting requirements to build editable did not run successfully.\n│ exit code: 1\n╰─> See above for output.\n\nnote: This error originates from a subprocess, and is likely not a problem with pip.\n\n[notice] A new release of pip is available: 24.0 -> 26.2.1\n[notice] To update, run: python -m pip install --upgrade pip\n"
+    },
+    {
+      "instance_id": "sphinx-doc__sphinx-8595",
+      "verified": true,
+      "model_patch_applied": true,
+      "test_patch_applied": true,
+      "fail_to_pass": {
+        "tests/test_ext_autodoc_automodule.py::test_empty_all": [
+          false,
+          "Registry\n  File \"/home/runner/work/feihong-code/feihong-code/bench/real/work/sphinx/sphinx/registry.py\", line 24, in <module>\n    from sphinx.builders import Builder\n  File \"/home/runner/work/feihong-code/feihong-code/bench/real/work/sphinx/sphinx/builders/__init__.py\", line 26, in <module>\n    from sphinx.util import import_object, logging, progress_message, rst, status_iterator\n  File \"/home/runner/work/feihong-code/feihong-code/bench/real/work/sphinx/sphinx/util/rst.py\", line 21, in <module>\n    from jinja2 import Environment, environmentfilter\nImportError: Error importing plugin \"sphinx.testing.fixtures\": cannot import name 'environmentfilter' from 'jinja2' (/home/runner/work/feihong-code/feihong-code/bench/real/work/sphinx/.verify_venv/lib/python3.11/site-packages/jinja2/__init__.py)\n"
+        ]
+      },
+      "resolved": false,
+      "env_note": null
+    },
+    {
+      "instance_id": "matplotlib__matplotlib-25079",
+      "verified": false,
+      "reason": "模型 patch 为空"
+    },
+    {
+      "instance_id": "scikit-learn__scikit-learn-13439",
+      "verified": true,
+      "model_patch_applied": true,
+      "test_patch_applied": true,
+      "fail_to_pass": {
+        "sklearn/tests/test_pipeline.py::test_make_pipeline_memory": [
+          false,
+          "/home/runner/work/feihong-code/feihong-code/bench/real/work/scikit-learn/.verify_venv/bin/python: No module named pytest\n"
+        ]
+      },
+      "resolved": false,
+      "env_note": "依赖安装失败(部分): ihong-code/bench/real/work/scikit-learn/.verify_venv/lib/python3.11/site-packages/pip/_vendor/pyproject_hooks/_in_process/_in_process.py\", line 132, in get_requires_for_build_editable\n          return hook(config_settings)\n                 ^^^^^^^^^^^^^^^^^^^^^\n        File \"/tmp/pip-build-env-3ktwq4_1/overlay/lib/python3.11/site-packages/setuptools/build_meta.py\", line 481, in get_requires_for_build_editable\n          return self.get_requires_for_build_wheel(config_settings)\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n        File \"/tmp/pip-build-env-3ktwq4_1/overlay/lib/python3.11/site-packages/setuptools/build_meta.py\", line 333, in get_requires_for_build_wheel\n          return self._get_build_requires(config_settings, requirements=[])\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n        File \"/tmp/pip-build-env-3ktwq4_1/overlay/lib/python3.11/site-packages/setuptools/build_meta.py\", line 301, in _get_build_requires\n          self.run_setup()\n        File \"/tmp/pip-build-env-3ktwq4_1/overlay/lib/python3.11/site-packages/setuptools/build_meta.py\", line 520, in run_setup\n          super().run_setup(setup_script=setup_script)\n        File \"/tmp/pip-build-env-3ktwq4_1/overlay/lib/python3.11/site-packages/setuptools/build_meta.py\", line 317, in run_setup\n          exec(code, locals())  # noqa: S102 # exec is intentional here\n          ^^^^^^^^^^^^^^^^^^^^\n        File \"<string>\", line 12, in <module>\n      ModuleNotFoundError: No module named 'pkg_resources'\n      [end of output]\n  \n  note: This error originates from a subprocess, and is likely not a problem with pip.\nerror: subprocess-exited-with-error\n\n× Getting requirements to build editable did not run successfully.\n│ exit code: 1\n╰─> See above for output.\n\nnote: This error originates from a subprocess, and is likely not a problem with pip.\n\n[notice] A new release of pip is available: 24.0 -> 26.2.1\n[notice] To update, run: python -m pip install --upgrade pip\n"
+    },
+    {
+      "instance_id": "mwaskom__seaborn-2848",
+      "verified": false,
+      "reason": "模型 patch 为空"
+    },
+    {
+      "instance_id": "pydata__xarray-4493",
+      "verified": true,
+      "model_patch_applied": true,
+      "test_patch_applied": true,
+      "fail_to_pass": {
+        "xarray/tests/test_variable.py::TestVariable::test_as_variable": [
+          false,
+          "ray/core/dask_array_compat.py:61\nxarray/core/dask_array_compat.py:61\n  /home/runner/work/feihong-code/feihong-code/bench/real/work/xarray/xarray/core/dask_array_compat.py:61: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.\n    if LooseVersion(dask_version) > LooseVersion(\"2.9.0\"):\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ============================\nERROR xarray/tests/test_variable.py - AttributeError: `np.unicode_` was removed in the NumPy 2.0 release. Use `np.str_` instead.\n3 warnings, 1 error in 0.49s\nERROR: found no collectors for /home/runner/work/feihong-code/feihong-code/bench/real/work/xarray/xarray/tests/test_variable.py::TestVariable::test_as_variable\n\n"
+        ]
+      },
+      "resolved": false,
+      "env_note": null
+    }
+  ]
+}
