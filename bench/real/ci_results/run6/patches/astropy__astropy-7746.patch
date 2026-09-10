@@ -1,0 +1,13 @@
+diff --git a/astropy/wcs/wcs.py b/astropy/wcs/wcs.py
+index d3a06f2b31..53a6db3ed9 100644
+--- a/astropy/wcs/wcs.py
++++ b/astropy/wcs/wcs.py
+@@ -1200,7 +1200,7 @@ reduce these to 2 dimensions using the naxis kwarg.
+                 raise ValueError(
+                     "WCS does not have both longitude and latitude celestial "
+                     "axes, therefore (ra, dec) data can not be returned")
+-            out = np.empty((sky.shape[0], 2))
++            out = np.empty((max(sky.shape[0], 0), 2))
+             out[:, 0] = sky[:, self.wcs.lng]
+             out[:, 1] = sky[:, self.wcs.lat]
+             return out

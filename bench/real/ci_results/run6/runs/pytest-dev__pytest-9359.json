@@ -1,0 +1,460 @@
+{
+  "instance_id": "pytest-dev__pytest-9359",
+  "repo": "pytest-dev/pytest",
+  "model": "agnes-2.5-flash",
+  "iterations": 28,
+  "toolCalls": 51,
+  "finished": false,
+  "patchLength": 0,
+  "hasPatch": false,
+  "error": null,
+  "trace": [
+    {
+      "iter": 1,
+      "tool": "list_dir",
+      "args": {
+        "path": "."
+      },
+      "result": "total 160\ndrwxr-xr-x 11 runner runner  4096 Sep 10 03:25 .\ndrwxr-xr-x 12 runner runner  4096 Sep 10 03:26 ..\n-rw-r--r--  1 runner runner   633 Sep 10 03:25 .coveragerc\ndrwxr-xr-x  7 runner runner  4096 Sep 10 03:32 .git\n-rw-r--r--  1 runner runner    21 Sep 10 03:25 .gitattributes\n-rw-r--r--  1 runner runner   920 Sep 10 03:25 .gitblameignore\ndrwxr-xr-x  4 runner runner  4096 Sep 10 03:25 .github\n-rw-r--r--  1 runner runner   727 Sep 10 03:25 .gitignore\n-rw-r--r--  1 runner runner  3035 Sep 10 03:25 .pre-commit-config.yaml\n-rw-r--r--  1 runner runner   238 Sep 10 03:25 .readthedocs.yml\n-rw-r--"
+    },
+    {
+      "iter": 1,
+      "tool": "grep",
+      "args": {
+        "pattern": "statement.*lineno|lineno.*statement|_getassertionrewriter|ast",
+        "glob": "*.py"
+      },
+      "result": "(无匹配)"
+    },
+    {
+      "iter": 2,
+      "tool": "list_dir",
+      "args": {
+        "path": "src"
+      },
+      "result": "total 16\ndrwxr-xr-x  4 runner runner 4096 Sep 10 03:25 .\ndrwxr-xr-x 11 runner runner 4096 Sep 10 03:25 ..\ndrwxr-xr-x  7 runner runner 4096 Sep 10 03:25 _pytest\ndrwxr-xr-x  2 runner runner 4096 Sep 10 03:25 pytest\n"
+    },
+    {
+      "iter": 2,
+      "tool": "grep",
+      "args": {
+        "pattern": "lineno|source|assert",
+        "glob": "**/*.py",
+        "path": "src"
+      },
+      "result": "(无匹配)"
+    },
+    {
+      "iter": 3,
+      "tool": "list_dir",
+      "args": {
+        "path": "src/_pytest"
+      },
+      "result": "total 828\ndrwxr-xr-x 7 runner runner  4096 Sep 10 03:25 .\ndrwxr-xr-x 4 runner runner  4096 Sep 10 03:25 ..\n-rw-r--r-- 1 runner runner   356 Sep 10 03:25 __init__.py\n-rw-r--r-- 1 runner runner  3810 Sep 10 03:25 _argcomplete.py\ndrwxr-xr-x 2 runner runner  4096 Sep 10 03:25 _code\ndrwxr-xr-x 2 runner runner  4096 Sep 10 03:25 _io\ndrwxr-xr-x 2 runner runner  4096 Sep 10 03:25 assertion\n-rwxr-xr-x 1 runner runner 20765 Sep 10 03:25 cacheprovider.py\n-rw-r--r-- 1 runner runner 32172 Sep 10 03:25 capture.py\n-rw-r--r-- 1 runner runner 12671 Sep 10 03:25 compat.py\ndrwxr-xr-x 2 runner runner  4096 Sep 10"
+    },
+    {
+      "iter": 3,
+      "tool": "grep",
+      "args": {
+        "pattern": "lineno",
+        "glob": "**/*.py",
+        "path": "src/_pytest"
+      },
+      "result": "(无匹配)"
+    },
+    {
+      "iter": 4,
+      "tool": "list_dir",
+      "args": {
+        "path": "src/_pytest/_code"
+      },
+      "result": "total 64\ndrwxr-xr-x 2 runner runner  4096 Sep 10 03:25 .\ndrwxr-xr-x 7 runner runner  4096 Sep 10 03:25 ..\n-rw-r--r-- 1 runner runner   483 Sep 10 03:25 __init__.py\n-rw-r--r-- 1 runner runner 43755 Sep 10 03:25 code.py\n-rw-r--r-- 1 runner runner  7054 Sep 10 03:25 source.py\n"
+    },
+    {
+      "iter": 4,
+      "tool": "list_dir",
+      "args": {
+        "path": "src/_pytest/assertion"
+      },
+      "result": "total 84\ndrwxr-xr-x 2 runner runner  4096 Sep 10 03:25 .\ndrwxr-xr-x 7 runner runner  4096 Sep 10 03:25 ..\n-rw-r--r-- 1 runner runner  6475 Sep 10 03:25 __init__.py\n-rw-r--r-- 1 runner runner 44157 Sep 10 03:25 rewrite.py\n-rw-r--r-- 1 runner runner  3286 Sep 10 03:25 truncate.py\n-rw-r--r-- 1 runner runner 17035 Sep 10 03:25 util.py\n"
+    },
+    {
+      "iter": 5,
+      "tool": "grep",
+      "args": {
+        "pattern": "def truncate_source|def getstatement|def getstatementandlineno",
+        "path": "src/_pytest/_code"
+      },
+      "result": "/home/runner/work/feihong-code/feihong-code/bench/real/work/pytest/src/_pytest/_code/source.py:90:    def getstatement(self, lineno: int) -> \"Source\":\n/home/runner/work/feihong-code/feihong-code/bench/real/work/pytest/src/_pytest/_code/source.py:96:    def getstatementrange(self, lineno: int) -> Tuple[int, int]:\n/home/runner/work/feihong-code/feihong-code/bench/real/work/pytest/src/_pytest/_code/source.py:168:def getstatementrange_ast(\n"
+    },
+    {
+      "iter": 5,
+      "tool": "grep",
+      "args": {
+        "pattern": "truncate|getsource",
+        "path": "src/_pytest/_code/source.py"
+      },
+      "result": "35:                src = inspect.getsource(rawcode)\n37:                src = inspect.getsource(obj)  # type: ignore[arg-type]\n192:        # by using the BlockFinder helper used which inspect.getsource() uses itself.\n"
+    },
+    {
+      "iter": 6,
+      "tool": "read_file",
+      "args": {
+        "path": "src/_pytest/_code/source.py"
+      },
+      "result": "1\timport ast\n2\timport inspect\n3\timport textwrap\n4\timport tokenize\n5\timport types\n6\timport warnings\n7\tfrom bisect import bisect_right\n8\tfrom typing import Iterable\n9\tfrom typing import Iterator\n10\tfrom typing import List\n11\tfrom typing import Optional\n12\tfrom typing import overload\n13\tfrom typing import Tuple\n14\tfrom typing import Union\n15\t\n16\t\n17\tclass Source:\n18\t    \"\"\"An immutable object holding a source code fragment.\n19\t\n20\t    When using Source(...), the source lines are deindented.\n21\t    \"\"\"\n22\t\n23\t    def __init__(self, obj: object = None) -> None:\n24\t        if not obj:\n25\t           "
+    },
+    {
+      "iter": 6,
+      "tool": "read_file",
+      "args": {
+        "path": "src/_pytest/_code/code.py",
+        "offset": 1,
+        "limit": 100
+      },
+      "result": "1\timport ast\n2\timport inspect\n3\timport re\n4\timport sys\n5\timport traceback\n6\tfrom inspect import CO_VARARGS\n7\tfrom inspect import CO_VARKEYWORDS\n8\tfrom io import StringIO\n9\tfrom pathlib import Path\n10\tfrom traceback import format_exception_only\n11\tfrom types import CodeType\n12\tfrom types import FrameType\n13\tfrom types import TracebackType\n14\tfrom typing import Any\n15\tfrom typing import Callable\n16\tfrom typing import ClassVar\n17\tfrom typing import Dict\n18\tfrom typing import Generic\n19\tfrom typing import Iterable\n20\tfrom typing import List\n21\tfrom typing import Mapping\n22\tfrom typing import Optio"
+    },
+    {
+      "iter": 7,
+      "tool": "read_file",
+      "args": {
+        "path": "src/_pytest/_code/source.py",
+        "offset": 115
+      },
+      "result": "115\t# helper functions\n116\t#\n117\t\n118\t\n119\tdef findsource(obj) -> Tuple[Optional[Source], int]:\n120\t    try:\n121\t        sourcelines, lineno = inspect.findsource(obj)\n122\t    except Exception:\n123\t        return None, -1\n124\t    source = Source()\n125\t    source.lines = [line.rstrip() for line in sourcelines]\n126\t    return source, lineno\n127\t\n128\t\n129\tdef getrawcode(obj: object, trycall: bool = True) -> types.CodeType:\n130\t    \"\"\"Return code object for given function.\"\"\"\n131\t    try:\n132\t        return obj.__code__  # type: ignore[attr-defined,no-any-return]\n133\t    except AttributeError:\n134\t"
+    },
+    {
+      "iter": 8,
+      "tool": "grep",
+      "args": {
+        "pattern": "getstatement|get_statement_startend2",
+        "path": "src/_pytest",
+        "glob": "*.py"
+      },
+      "result": "(无匹配)"
+    },
+    {
+      "iter": 8,
+      "tool": "grep",
+      "args": {
+        "pattern": "9359|extra.*code.*line|statement.*lineno",
+        "path": ".",
+        "glob": "*.py"
+      },
+      "result": "(无匹配)"
+    },
+    {
+      "iter": 9,
+      "tool": "grep",
+      "args": {
+        "pattern": "getstatement",
+        "path": "src/_pytest",
+        "glob": "*.py"
+      },
+      "result": "(无匹配)"
+    },
+    {
+      "iter": 9,
+      "tool": "grep",
+      "args": {
+        "pattern": "getstatement",
+        "path": "testing",
+        "glob": "*.py"
+      },
+      "result": "(无匹配)"
+    },
+    {
+      "iter": 10,
+      "tool": "grep",
+      "args": {
+        "pattern": "getstatement",
+        "path": ".",
+        "glob": "*.py"
+      },
+      "result": "(无匹配)"
+    },
+    {
+      "iter": 10,
+      "tool": "grep",
+      "args": {
+        "pattern": "get_statement_startend2",
+        "path": ".",
+        "glob": "*.py"
+      },
+      "result": "(无匹配)"
+    },
+    {
+      "iter": 11,
+      "tool": "run_shell",
+      "args": {
+        "command": "cd /home/runner/work/feihong-code/feihong-code/bench/real/work/pytest && grep -r \"getstatement\" --include=\"*.py\" ."
+      },
+      "result": "./src/_pytest/_code/code.py:from _pytest._code.source import getstatementrange_ast\n./src/_pytest/_code/code.py:        return self.code.fullsource.getstatement(self.lineno)\n./src/_pytest/_code/code.py:        return source.getstatement(self.lineno)\n./src/_pytest/_code/code.py:            astnode, _, end = getstatementrange_ast(\n./src/_pytest/_code/code.py:            s = str(source.getstatement(len(source) - 1))\n./src/_pytest/_code/source.py:    def getstatement(self, lineno: int) -> \"Source\":\n./src/_pytest/_code/source.py:        start, end = self.getstatementrange(lineno)\n./src/_pytest/_code"
+    },
+    {
+      "iter": 11,
+      "tool": "run_shell",
+      "args": {
+        "command": "cd /home/runner/work/feihong-code/feihong-code/bench/real/work/pytest && grep -r \"get_statement_startend2\" --include=\"*.py\" ."
+      },
+      "result": "./src/_pytest/_code/source.py:def get_statement_startend2(lineno: int, node: ast.AST) -> Tuple[int, Optional[int]]:\n./src/_pytest/_code/source.py:    start, end = get_statement_startend2(lineno, astnode)\n"
+    },
+    {
+      "iter": 12,
+      "tool": "read_file",
+      "args": {
+        "path": "testing/code/test_source.py"
+      },
+      "result": "1\t# flake8: noqa\n2\t# disable flake check on this file because some constructs are strange\n3\t# or redundant on purpose and can't be disable on a line-by-line basis\n4\timport ast\n5\timport inspect\n6\timport linecache\n7\timport sys\n8\timport textwrap\n9\tfrom pathlib import Path\n10\tfrom types import CodeType\n11\tfrom typing import Any\n12\tfrom typing import Dict\n13\tfrom typing import Optional\n14\t\n15\timport pytest\n16\tfrom _pytest._code import Code\n17\tfrom _pytest._code import Frame\n18\tfrom _pytest._code import getfslineno\n19\tfrom _pytest._code import Source\n20\tfrom _pytest.pathlib import import_path\n21\t\n22"
+    },
+    {
+      "iter": 12,
+      "tool": "read_file",
+      "args": {
+        "limit": 100,
+        "offset": 1,
+        "path": "src/_pytest/_code/code.py"
+      },
+      "result": "1\timport ast\n2\timport inspect\n3\timport re\n4\timport sys\n5\timport traceback\n6\tfrom inspect import CO_VARARGS\n7\tfrom inspect import CO_VARKEYWORDS\n8\tfrom io import StringIO\n9\tfrom pathlib import Path\n10\tfrom traceback import format_exception_only\n11\tfrom types import CodeType\n12\tfrom types import FrameType\n13\tfrom types import TracebackType\n14\tfrom typing import Any\n15\tfrom typing import Callable\n16\tfrom typing import ClassVar\n17\tfrom typing import Dict\n18\tfrom typing import Generic\n19\tfrom typing import Iterable\n20\tfrom typing import List\n21\tfrom typing import Mapping\n22\tfrom typing import Optio"
+    },
+    {
+      "iter": 13,
+      "tool": "read_file",
+      "args": {
+        "limit": 200,
+        "offset": 143,
+        "path": "testing/code/test_source.py"
+      },
+      "result": "143\t    def test_getstatementrange_within_constructs(self) -> None:\n144\t        source = Source(\n145\t            \"\"\"\\\n146\t            try:\n147\t                try:\n148\t                    raise ValueError\n149\t                except SomeThing:\n150\t                    pass\n151\t            finally:\n152\t                42\n153\t        \"\"\"\n154\t        )\n155\t        assert len(source) == 7\n156\t        # check all lineno's that could occur in a traceback\n157\t        # assert source.getstatementrange(0) == (0, 7)\n158\t        # assert source.getstatementrange(1) == (1, 5)\n159\t        assert source.getst"
+    },
+    {
+      "iter": 13,
+      "tool": "grep",
+      "args": {
+        "pattern": "fullsource|source.*lineno|lineno.*source",
+        "path": "src/_pytest/_code/code.py"
+      },
+      "result": "103:    def fullsource(self) -> Optional[\"Source\"]:\n156:        if self.code.fullsource is None:\n158:        return self.code.fullsource.getstatement(self.lineno)\n226:        source = self.frame.code.fullsource\n228:        return source.getstatement(self.lineno)\n249:        source = self.frame.code.fullsource\n260:                self.lineno, source, astnode=astnode\n812:                line_index = entry.lineno - entry.getfirstlinesource()\n1200:    \"\"\"Return source location (path, lineno) for the given object.\n1225:                _, lineno = findsource(obj)\n"
+    },
+    {
+      "iter": 14,
+      "tool": "read_file",
+      "args": {
+        "limit": 100,
+        "offset": 100,
+        "path": "src/_pytest/_code/code.py"
+      },
+      "result": "100\t            return self.raw.co_filename\n101\t\n102\t    @property\n103\t    def fullsource(self) -> Optional[\"Source\"]:\n104\t        \"\"\"Return a _pytest._code.Source object for the full source file of the code.\"\"\"\n105\t        full, _ = findsource(self.raw)\n106\t        return full\n107\t\n108\t    def source(self) -> \"Source\":\n109\t        \"\"\"Return a _pytest._code.Source object for the code object's source only.\"\"\"\n110\t        # return source only for that part of code\n111\t        return Source(self.raw)\n112\t\n113\t    def getargs(self, var: bool = False) -> Tuple[str, ...]:\n114\t        \"\"\"Return a tup"
+    },
+    {
+      "iter": 14,
+      "tool": "grep",
+      "args": {
+        "pattern": "issue.*9359|9359",
+        "path": ".",
+        "glob": "*.py"
+      },
+      "result": "(无匹配)"
+    },
+    {
+      "iter": 15,
+      "tool": "read_file",
+      "args": {
+        "limit": 100,
+        "offset": 200,
+        "path": "src/_pytest/_code/code.py"
+      },
+      "result": "200\t        self._rawentry = rawentry\n201\t        self._excinfo = excinfo\n202\t        self._repr_style: Optional['Literal[\"short\", \"long\"]'] = None\n203\t\n204\t    @property\n205\t    def lineno(self) -> int:\n206\t        return self._rawentry.tb_lineno - 1\n207\t\n208\t    def set_repr_style(self, mode: \"Literal['short', 'long']\") -> None:\n209\t        assert mode in (\"short\", \"long\")\n210\t        self._repr_style = mode\n211\t\n212\t    @property\n213\t    def frame(self) -> Frame:\n214\t        return Frame(self._rawentry.tb_frame)\n215\t\n216\t    @property\n217\t    def relline(self) -> int:\n218\t        return sel"
+    },
+    {
+      "iter": 15,
+      "tool": "run_shell",
+      "args": {
+        "command": "cd /home/runner/work/feihong-code/feihong-code/bench/real/work/pytest && python --version"
+      },
+      "result": "Python 3.11.16\n"
+    },
+    {
+      "iter": 16,
+      "tool": "run_shell",
+      "args": {
+        "command": "cd /home/runner/work/feihong-code/feihong-code/bench/real/work/pytest && cat > /tmp/test_issue9359.py << 'EOF'\nfrom pytest import fixture\n\n\ndef t(foo):\n    return foo\n\n\n@fixture\ndef foo():\n    return 1\n\n\ndef test_right_statement(foo):\n    assert foo == (3 + 2) * (6 + 9)\n\n    @t\n    def inner():\n        return 2\n\n    assert 2 == inner\n\n\n@t\ndef outer():\n    return 2\nEOF\npython -m pytest /tmp/test_issue9359.py -v"
+      },
+      "result": "工具执行错误: /opt/hostedtoolcache/Python/3.11.16/x64/bin/python: No module named pytest\n"
+    },
+    {
+      "iter": 17,
+      "tool": "run_shell",
+      "args": {
+        "command": "cd /home/runner/work/feihong-code/feihong-code/bench/real/work/pytest && pip install -e . 2>&1 | tail -5"
+      },
+      "result": "  Stored in directory: /tmp/pip-ephem-wheel-cache-1kvg7m9j/wheels/fa/39/c6/0bff496d84d7072da43db9e761f8da2ea169fe1f23e853b226\nSuccessfully built pytest\nInstalling collected packages: tomli, py, pluggy, iniconfig, pytest\n\nSuccessfully installed iniconfig-2.3.0 pluggy-1.6.0 py-1.11.0 pytest-7.0.0.dev332+ge2ee3144e tomli-2.4.1\n"
+    },
+    {
+      "iter": 17,
+      "tool": "run_shell",
+      "args": {
+        "command": "cd /home/runner/work/feihong-code/feihong-code/bench/real/work/pytest && cat > /tmp/test_issue9359.py << 'EOF'\nfrom pytest import fixture\n\n\ndef t(foo):\n    return foo\n\n\n@fixture\ndef foo():\n    return 1\n\n\ndef test_right_statement(foo):\n    assert foo == (3 + 2) * (6 + 9)\n\n    @t\n    def inner():\n        return 2\n\n    assert 2 == inner\n\n\n@t\ndef outer():\n    return 2\nEOF\nPYTHONPATH=src python -m pytest /tmp/test_issue9359.py -v"
+      },
+      "result": "工具执行错误: Command failed: cd /home/runner/work/feihong-code/feihong-code/bench/real/work/pytest && cat > /tmp/test_issue9359.py << 'EOF'\nfrom pytest import fixture\n\n\ndef t(foo):\n    return foo\n\n\n@fixture\ndef foo():\n    return 1\n\n\ndef test_right_statement(foo):\n    assert foo == (3 + 2) * (6 + 9)\n\n    @t\n    def inner():\n        return 2\n\n    assert 2 == inner\n\n\n@t\ndef outer():\n    return 2\nEOF\nPYTHONPATH=src python -m pytest /tmp/test_issue9359.py -v"
+    },
+    {
+      "iter": 18,
+      "tool": "run_shell",
+      "args": {
+        "command": "cat > /tmp/test_issue9359.py << 'EOF'\nfrom pytest import fixture\n\n\ndef t(foo):\n    return foo\n\n\n@fixture\ndef foo():\n    return 1\n\n\ndef test_right_statement(foo):\n    assert foo == (3 + 2) * (6 + 9)\n\n    @t\n    def inner():\n        return 2\n\n    assert 2 == inner\n\n\n@t\ndef outer():\n    return 2\nEOF"
+      },
+      "result": "(空输出)"
+    },
+    {
+      "iter": 18,
+      "tool": "run_shell",
+      "args": {
+        "command": "python -m pytest /tmp/test_issue9359.py -v"
+      },
+      "result": "工具执行错误: Command failed: python -m pytest /tmp/test_issue9359.py -v"
+    },
+    {
+      "iter": 19,
+      "tool": "run_shell",
+      "args": {
+        "command": "python -m pytest /tmp/test_issue9359.py -v 2>&1"
+      },
+      "result": "工具执行错误: Command failed: python -m pytest /tmp/test_issue9359.py -v 2>&1"
+    },
+    {
+      "iter": 19,
+      "tool": "run_shell",
+      "args": {
+        "command": "python -c \"import pytest; print(pytest.__file__)\""
+      },
+      "result": "/home/runner/work/feihong-code/feihong-code/bench/real/work/pytest/src/pytest/__init__.py\n"
+    },
+    {
+      "iter": 20,
+      "tool": "run_shell",
+      "args": {
+        "command": "python -m pytest /tmp/test_issue9359.py -v"
+      },
+      "result": "工具执行错误: Command failed: python -m pytest /tmp/test_issue9359.py -v"
+    },
+    {
+      "iter": 20,
+      "tool": "run_shell",
+      "args": {
+        "command": "which pytest"
+      },
+      "result": "/opt/hostedtoolcache/Python/3.11.16/x64/bin/pytest\n"
+    },
+    {
+      "iter": 21,
+      "tool": "run_shell",
+      "args": {
+        "command": "pytest /tmp/test_issue9359.py -v 2>&1"
+      },
+      "result": "工具执行错误: Command failed: pytest /tmp/test_issue9359.py -v 2>&1"
+    },
+    {
+      "iter": 21,
+      "tool": "run_shell",
+      "args": {
+        "command": "pip show pytest"
+      },
+      "result": "Name: pytest\nVersion: 7.0.0.dev332+ge2ee3144e\nSummary: pytest: simple powerful testing with Python\nHome-page: https://docs.pytest.org/en/latest/\nAuthor: Holger Krekel, Bruno Oliveira, Ronny Pfannschmidt, Floris Bruynooghe, Brianna Laugher, Florian Bruhin and others\nAuthor-email: \nLicense: MIT\nLocation: /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages\nEditable project location: /home/runner/work/feihong-code/feihong-code/bench/real/work/pytest\nRequires: attrs, iniconfig, packaging, pluggy, py, tomli\nRequired-by: \n"
+    },
+    {
+      "iter": 22,
+      "tool": "run_shell",
+      "args": {
+        "command": "python -c \"\nimport sys\nsys.path.insert(0, 'src')\nfrom _pytest._code.source import Source, getstatementrange_ast\nimport ast\n\nsource = Source('''\\\ndef test_right_statement(foo):\n    assert foo == (3 + 2) * (6 + 9)\n\n    @t\n    def inner():\n        return 2\n\n    assert 2 == inner\n\n\n@t\ndef outer():\n    return 2\n''')\nprint('Lines:')\nfor i, line in enumerate(source.lines):\n    print(f'{i}: {line!r}')\n\nprint()\nprint('getstatementrange(0):', source.getstatementrange(0))\nprint('getstatementrange(1):', source.getstatementrange(1))\nprint('getstatementrange(2):', source.getstatementrange(2))\nprint('getstatementrange(3):', source.getstatementrange(3))\nprint('getstatementrange(4):', source.getstatementrange(4))\nprint('getstatementrange(5):', source.getstatementrange(5))\nprint('getstatementrange(6):', source.getstatementrange(6))\nprint('getstatementrange(7):', source.getstatementrange(7))\nprint('getstatementrange(8):', source.getstatementrange(8))\nprint('getstatementrange(9):', source.getstatementrange(9))\nprint('getstatementrange(10):', source.getstatementrange(10))\n\"\n"
+      },
+      "result": "Lines:\n0: 'def test_right_statement(foo):'\n1: '    assert foo == (3 + 2) * (6 + 9)'\n2: ''\n3: '    @t'\n4: '    def inner():'\n5: '        return 2'\n6: ''\n7: '    assert 2 == inner'\n8: ''\n9: ''\n10: '@t'\n11: 'def outer():'\n12: '    return 2'\n\ngetstatementrange(0): (0, 1)\ngetstatementrange(1): (1, 4)\ngetstatementrange(2): (1, 4)\ngetstatementrange(3): (1, 4)\ngetstatementrange(4): (4, 5)\ngetstatementrange(5): (5, 6)\ngetstatementrange(6): (5, 6)\ngetstatementrange(7): (7, 8)\ngetstatementrange(8): (7, 8)\ngetstatementrange(9): (7, 8)\ngetstatementrange(10): (7, 8)\n"
+    },
+    {
+      "iter": 22,
+      "tool": "run_shell",
+      "args": {
+        "command": "python -m pytest /tmp/test_issue9359.py -v 2>&1; echo \"EXIT: $?\""
+      },
+      "result": "============================= test session starts ==============================\nplatform linux -- Python 3.11.16, pytest-7.0.0.dev332+ge2ee3144e, pluggy-1.6.0 -- /opt/hostedtoolcache/Python/3.11.16/x64/bin/python\ncachedir: .pytest_cache\nrootdir: /tmp\nplugins: anyio-4.15.1\ncollecting ... collected 1 item\n\n../../../../../../../../../tmp/test_issue9359.py::test_right_statement FAILED [100%]\n\n=================================== FAILURES ===================================\n_____________________________ test_right_statement _____________________________\n\nfoo = 1\n\n    def test_right_statement(foo):\n"
+    },
+    {
+      "iter": 23,
+      "tool": "run_shell",
+      "args": {
+        "command": "python -c \"\nimport sys\nsys.path.insert(0, 'src')\nfrom _pytest._code.source import Source, getstatementrange_ast, get_statement_startend2\nimport ast, inspect, tokenize\n\nsource = Source('''\\\ndef test_right_statement(foo):\n    assert foo == (3 + 2) * (6 + 9)\n\n    @t\n    def inner():\n        return 2\n\n    assert 2 == inner\n\n\n@t\ndef outer():\n    return 2\n''')\n\ncontent = str(source)\nastnode = ast.parse(content, 'source', 'exec')\n\n# Check what get_statement_startend2 returns for each line\nfor lineno in range(len(source.lines)):\n    start, end = get_statement_startend2(lineno, astnode)\n    print(f'lineno={lineno}: start={start}, end={end}')\n    print(f'  source[{start}:{end}] = {source[start:end].lines}')\n\"\n"
+      },
+      "result": "lineno=0: start=0, end=1\n  source[0:1] = ['def test_right_statement(foo):']\nlineno=1: start=1, end=4\n  source[1:4] = ['    assert foo == (3 + 2) * (6 + 9)', '', '    @t']\nlineno=2: start=1, end=4\n  source[1:4] = ['    assert foo == (3 + 2) * (6 + 9)', '', '    @t']\nlineno=3: start=1, end=4\n  source[1:4] = ['    assert foo == (3 + 2) * (6 + 9)', '', '    @t']\nlineno=4: start=4, end=5\n  source[4:5] = ['    def inner():']\nlineno=5: start=5, end=7\n  source[5:7] = ['        return 2', '']\nlineno=6: start=5, end=7\n  source[5:7] = ['        return 2', '']\nlineno=7: start=7, end=11\n  source[7:11] = ['"
+    },
+    {
+      "iter": 23,
+      "tool": "run_shell",
+      "args": {
+        "command": "python -c \"\nimport sys\nsys.path.insert(0, 'src')\nfrom _pytest._code.source import Source\nimport ast, inspect, tokenize\n\nsource = Source('''\\\ndef test_right_statement(foo):\n    assert foo == (3 + 2) * (6 + 9)\n\n    @t\n    def inner():\n        return 2\n\n    assert 2 == inner\n\n\n@t\ndef outer():\n    return 2\n''')\n\ncontent = str(source)\nastnode = ast.parse(content, 'source', 'exec')\n\n# Now trace the block finder for lineno=1\nlineno = 1\nstart, end = 1, 4  # from get_statement_startend2\n\nprint('Lines from start to end:', source.lines[start:end])\nprint()\n\n# Check if start line is indented\nprint('First char of source.lines[1]:', repr(source.lines[1][0]))\nprint('Is space?', source.lines[1][0].isspace())\n\nblock_finder = inspect.BlockFinder()\nblock_finder.started = source.lines[start][0].isspace()\nprint('block_finder.started:', block_finder.started)\n\nit = ((x + '\\n') for x in source.lines[start:end])\nfor tok in tokenize.generate_tokens(lambda: next(it)):\n    print('token:', tok)\n    block_finder.tokeneater(*tok)\n    print('  -> last:', block_finder.last)\n\"\n"
+      },
+      "result": "工具执行错误: Traceback (most recent call last):\n  File \"<string>\", line 43, in <module>\n  File \"/opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/inspect.py\", line 1210, in tokeneater\n    raise EndOfBlock\ninspect.EndOfBlock\n"
+    },
+    {
+      "iter": 24,
+      "tool": "run_shell",
+      "args": {
+        "command": "python -c \"\nimport sys\nsys.path.insert(0, 'src')\nfrom _pytest._code.source import Source\nimport ast, inspect, tokenize\n\nsource = Source('''\\\ndef test_right_statement(foo):\n    assert foo == (3 + 2) * (6 + 9)\n\n    @t\n    def inner():\n        return 2\n\n    assert 2 == inner\n\n\n@t\ndef outer():\n    return 2\n''')\n\ncontent = str(source)\nastnode = ast.parse(content, 'source', 'exec')\n\n# Now trace the block finder for lineno=1\nlineno = 1\nstart, end = 1, 4  # from get_statement_startend2\n\nprint('Lines from start to end:', source.lines[start:end])\nprint()\n\n# Check if start line is indented\nprint('First char of source.lines[1]:', repr(source.lines[1][0]))\nprint('Is space?', source.lines[1][0].isspace())\n\nblock_finder = inspect.BlockFinder()\nblock_finder.started = source.lines[start][0].isspace()\nprint('block_finder.started:', block_finder.started)\n\nit = ((x + '\\n') for x in source.lines[start:end])\ntry:\n    for tok in tokenize.generate_tokens(lambda: next(it)):\n        print('token:', tok)\n        block_finder.tokeneater(*tok)\n        print('  -> last:', block_finder.last)\nexcept inspect.EndOfBlock as e:\n    print('EndOfBlock raised, last:', block_finder.last)\nexcept IndentationError as e:\n    print('IndentationError:', e)\n\"\n"
+      },
+      "result": "Lines from start to end: ['    assert foo == (3 + 2) * (6 + 9)', '', '    @t']\n\nFirst char of source.lines[1]: ' '\nIs space? True\nblock_finder.started: True\ntoken: TokenInfo(type=5 (INDENT), string='    ', start=(1, 0), end=(1, 4), line='    assert foo == (3 + 2) * (6 + 9)\\n')\n  -> last: 1\ntoken: TokenInfo(type=1 (NAME), string='assert', start=(1, 4), end=(1, 10), line='    assert foo == (3 + 2) * (6 + 9)\\n')\n  -> last: 1\ntoken: TokenInfo(type=1 (NAME), string='foo', start=(1, 11), end=(1, 14), line='    assert foo == (3 + 2) * (6 + 9)\\n')\n  -> last: 1\ntoken: TokenInfo(type=54 (OP), string='=="
+    },
+    {
+      "iter": 24,
+      "tool": "run_shell",
+      "args": {
+        "command": "python -c \"\nimport ast, inspect\n\nsource_lines = [\n    'def test_right_statement(foo):',\n    '    assert foo == (3 + 2) * (6 + 9)',\n    '',\n    '    @t',\n    '    def inner():',\n    '        return 2',\n    '',\n    '    assert 2 == inner',\n    '',\n    '',\n    '@t',\n    'def outer():',\n    '    return 2',\n]\n\nastnode = ast.parse('\\n'.join(source_lines), 'source', 'exec')\n\n# Let's look at the AST for the function\nfor node in ast.walk(astnode):\n    if isinstance(node, ast.FunctionDef) and node.name == 'test_right_statement':\n        print('FunctionDef test_right_statement:')\n        print(f'  lineno={node.lineno}, end_lineno={node.end_lineno}')\n        for child in ast.walk(node):\n            if hasattr(child, 'lineno'):\n                print(f'  {type(child).__name__} lineno={child.lineno}' + (f' end_lineno={child.end_lineno}' if hasattr(child, 'end_lineno') else ''))\n\"\n"
+      },
+      "result": "FunctionDef test_right_statement:\n  lineno=1, end_lineno=8\n  FunctionDef lineno=1 end_lineno=8\n  Assert lineno=2 end_lineno=2\n  FunctionDef lineno=5 end_lineno=6\n  Assert lineno=8 end_lineno=8\n  arg lineno=1 end_lineno=1\n  Compare lineno=2 end_lineno=2\n  Return lineno=6 end_lineno=6\n  Name lineno=4 end_lineno=4\n  Compare lineno=8 end_lineno=8\n  Name lineno=2 end_lineno=2\n  BinOp lineno=2 end_lineno=2\n  Constant lineno=6 end_lineno=6\n  Constant lineno=8 end_lineno=8\n  Name lineno=8 end_lineno=8\n  BinOp lineno=2 end_lineno=2\n  BinOp lineno=2 end_lineno=2\n  Constant lineno=2 end_lineno=2\n  Consta"
+    },
+    {
+      "iter": 25,
+      "assistant": "Now I understand the bug. The `get_statement_startend2` function is returning `end=4` for line 1, which means it thinks the next statement starts at line 4 (the `def inner():` line). But actually, lin"
+    },
+    {
+      "iter": 26,
+      "tool": "read_file",
+      "args": {
+        "limit": 50,
+        "offset": 168,
+        "path": "src/_pytest/_code/source.py"
+      },
+      "result": "168\tdef getstatementrange_ast(\n169\t    lineno: int,\n170\t    source: Source,\n171\t    assertion: bool = False,\n172\t    astnode: Optional[ast.AST] = None,\n173\t) -> Tuple[ast.AST, int, int]:\n174\t    if astnode is None:\n175\t        content = str(source)\n176\t        # See #4260:\n177\t        # Don't produce duplicate warnings when compiling source to find AST.\n178\t        with warnings.catch_warnings():\n179\t            warnings.simplefilter(\"ignore\")\n180\t            astnode = ast.parse(content, \"source\", \"exec\")\n181\t\n182\t    start, end = get_statement_startend2(lineno, astnode)\n183\t    # We need to c"
+    },
+    {
+      "iter": 26,
+      "tool": "run_shell",
+      "args": {
+        "command": "python -c \"\nimport sys, ast, inspect, tokenize\nsys.path.insert(0, 'src')\nfrom _pytest._code.source import Source\n\nsource = Source('''\\\ndef test_right_statement(foo):\n    assert foo == (3 + 2) * (6 + 9)\n\n    @t\n    def inner():\n        return 2\n\n    assert 2 == inner\n\n\n@t\ndef outer():\n    return 2\n''')\n\ncontent = str(source)\nastnode = ast.parse(content, 'source', 'exec')\n\n# Check all statement nodes with their line numbers\nprint('All stmt nodes:')\nfor node in ast.walk(astnode):\n    if isinstance(node, ast.stmt):\n        print(f'  {type(node).__name__} lineno={node.lineno}' + (f' end_lineno={node.end_lineno}' if hasattr(node, 'end_lineno') else ''))\n\"\n"
+      },
+      "result": "All stmt nodes:\n  FunctionDef lineno=1 end_lineno=8\n  FunctionDef lineno=12 end_lineno=13\n  Assert lineno=2 end_lineno=2\n  FunctionDef lineno=5 end_lineno=6\n  Assert lineno=8 end_lineno=8\n  Return lineno=13 end_lineno=13\n  Return lineno=6 end_lineno=6\n"
+    },
+    {
+      "iter": 27,
+      "tool": "run_shell",
+      "args": {
+        "command": "python -c \"\nimport sys, ast, inspect, tokenize\nsys.path.insert(0, 'src')\nfrom _pytest._code.source import Source\n\n# Reproduce the bug scenario step by step\nsource = Source('''\\\ndef test_right_statement(foo):\n    assert foo == (3 + 2) * (6 + 9)\n\n    @t\n    def inner():\n        return 2\n\n    assert 2 == inner\n\n\n@t\ndef outer():\n    return 2\n''')\n\ncontent = str(source)\nastnode = ast.parse(content, 'source', 'exec')\n\n# For lineno=1 (0-indexed), the assert is on line 2 (1-indexed)\n# get_statement_startend2 should find the statement containing lineno=1\n# Next stmt after Assert at lineno=2 is FunctionDef at lineno=5 (inner)\n# So start=1, end=4\n\n# But the issue is: when we use BlockFinder with source.lines[1:4],\n# the iterator produces lines 1,2,3 and then stops.\n# tokenize emits DEDENT, BlockFinder raises EndOfBlock with last=3\n# So end becomes 3+1=4, which is the same as before!\n# \n# Wait, but the issue says it shows extra code. Let me trace the full function.\n\nfrom _pytest._code.source import get_statement_startend2\n\nstart, end = get_statement_startend2(1, astnode)\nprint(f'get_statement_startend2(1): start={start}, end={end}')\n\n# Now trace getstatementrange manually\nif end is None:\n    end = len(source.lines)\nprint(f'After None check: end={end}')\n\nif end > start + 1:\n    print('Running BlockFinder...')\n    block_finder = inspect.BlockFinder()\n    block_finder.started = source.lines[start][0].isspace()\n    print(f'block_finder.started = {block_finder.started}')\n    \n    it = ((x + chr(10)) for x in source.lines[start:end])\n    try:\n        for tok in tokenize.generate_tokens(lambda: next(it)):\n            block_finder.tokeneater(*tok)\n    except (inspect.EndOfBlock, IndentationError) as e:\n        print(f'Exception: {type(e).__name__}, block_finder.last={block_finder.last}')\n        end = block_finder.last + start\n    except Exception as e:\n        print(f'Other exception: {type(e).__name__}: {e}')\n\nprint(f'After block finder: end={end}')\n\n# Correct for comments/empty lines\nwhile end:\n    line = source.lines[end - 1].lstrip()\n    if line.startswith('#') or not line:\n        end -= 1\n    else:\n        break\nprint(f'Final end={end}')\nprint(f'Result range: [{start}:{end}]')\nprint(f'Lines: {source[start:end].lines}')\n\"\n"
+      },
+      "result": "get_statement_startend2(1): start=1, end=4\nAfter None check: end=4\nRunning BlockFinder...\nblock_finder.started = True\nException: EndOfBlock, block_finder.last=3\nAfter block finder: end=4\nFinal end=4\nResult range: [1:4]\nLines: ['    assert foo == (3 + 2) * (6 + 9)', '', '    @t']\n"
+    },
+    {
+      "iter": 28,
+      "tool": "run_shell",
+      "args": {
+        "command": "python -c \"\nimport sys, ast, inspect, tokenize\nsys.path.insert(0, 'src')\nfrom _pytest._code.source import Source\n\n# The problem: BlockFinder sees the iterator end and emits DEDENT,\n# causing EndOfBlock with last=3 (the @t line).\n# But the actual assert statement ends at line 1.\n# \n# The fix should be: when the BlockFinder raises EndOfBlock because\n# of DEDENT from exhausted iterator (not because of actual dedent in source),\n# we should not use block_finder.last to extend the range.\n#\n# Alternatively, we can check if the next line after 'end' would cause a dedent.\n# If the next line has the same indentation, we shouldn't extend past the current statement.\n\n# Let's think about this differently.\n# The AST says the Assert is at lineno=2 (1-indexed) = index 1.\n# The next statement starts at lineno=5 (1-indexed) = index 4 (the inner FunctionDef).\n# But there's a decorator @t at index 3.\n#\n# The block finder is meant to handle cases where the AST end is wrong due to\n# comments, empty lines, or differently-indented blocks.\n# In this case, the 'end=4' from AST is correct for the next statement start,\n# but the block finder incorrectly includes the @t decorator line.\n#\n# The key insight: the block finder should NOT extend the range to include\n# lines that belong to a DIFFERENT statement at the same or greater indentation.\n# When the iterator is exhausted and DEDENT is emitted, it means the original\n# 'end' from AST was correct - we shouldn't change it based on block_finder.last.\n\n# Actually, let me re-read the code more carefully.\n# The issue is that block_finder.last=3, and then end = 3 + 1 = 4.\n# But end was ALREADY 4! So the block finder didn't change anything in this case.\n# The real issue is that get_statement_startend2 returned end=4, which includes\n# the @t line.\n\n# Wait, let me re-check. The getstatement method returns source[start:end] = source[1:4]\n# which is lines 1, 2, 3 = ['assert...', '', '@t']\n# The block finder didn't change end (it was already 4), but the problem is\n# that the range [1:4] is wrong because it includes the @t decorator.\n\n# The real fix should be in get_statement_startend2: when there's a decorator\n# before the next statement, the end should not include the decorator.\n# OR: the fix should be in getstatementrange_ast to handle this case.\n\n# Let me check what the expected behavior should be:\n# For the assert on line 1, the statement range should be just [1:2] (just the assert line).\n# The empty line 2 and @t line 3 should NOT be part of the assert statement.\n\n# The problem is that get_statement_startend2 finds the NEXT statement start,\n# but it doesn't account for decorators being attached to the next statement.\n\n# Actually wait - let me look at what Python 3.7 vs 3.9 does differently.\n# In Python 3.9+, AST line numbers might be different for decorated functions.\n\nprint('AST nodes for inner function:')\nsource = Source('''\\\ndef test_right_statement(foo):\n    assert foo == (3 + 2) * (6 + 9)\n\n    @t\n    def inner():\n        return 2\n\n    assert 2 == inner\n\n\n@t\ndef outer():\n    return 2\n''')\nastnode = ast.parse(str(source), 'source', 'exec')\n\nfor node in ast.walk(astnode):\n    if isinstance(node, ast.FunctionDef) and node.name == 'inner':\n        print(f'inner FunctionDef: lineno={node.lineno}, decorators={[d.lineno for d in node.decorator_list]}')\n    if isinstance(node, ast.Assert) and node.lineno == 2:\n        print(f'Assert: lineno={node.lineno}')\n\"\n"
+      },
+      "result": "AST nodes for inner function:\nAssert: lineno=2\ninner FunctionDef: lineno=5, decorators=[4]\n"
+    },
+    {
+      "iter": 28,
+      "tool": "run_shell",
+      "args": {
+        "command": "python -c \"\nimport sys, ast\nsys.path.insert(0, 'src')\nfrom _pytest._code.source import Source\n\n# Let me understand the get_statement_startend2 logic better.\n# It collects all stmt lineno values and sorts them.\n# For lineno=1, it finds the largest value <= 1 as start,\n# and the smallest value > 1 as end.\n\nsource = Source('''\\\ndef test_right_statement(foo):\n    assert foo == (3 + 2) * (6 + 9)\n\n    @t\n    def inner():\n        return 2\n\n    assert 2 == inner\n\n\n@t\ndef outer():\n    return 2\n''')\n\nastnode = ast.parse(str(source), 'source', 'exec')\n\n# Collect all stmt linenos (0-indexed)\nvalues = []\nfor x in ast.walk(astnode):\n    if isinstance(x, (ast.stmt, ast.ExceptHandler)):\n        values.append(x.lineno - 1)\n        for name in ('finalbody', 'orelse'):\n            val = getattr(x, name, None)\n            if val:\n                values.append(val[0].lineno - 1 - 1)\n\nvalues.sort()\nprint('All statement start lines (0-indexed):', values)\n\n# For lineno=1:\nfrom bisect import bisect_right\nlineno = 1\ninsert_index = bisect_right(values, lineno)\nstart = values[insert_index - 1]\nif insert_index >= len(values):\n    end = None\nelse:\n    end = values[insert_index]\nprint(f'For lineno={lineno}: start={start}, end={end}')\n\"\n"
+      },
+      "result": "All statement start lines (0-indexed): [0, 1, 4, 5, 7, 11, 12]\nFor lineno=1: start=1, end=4\n"
+    }
+  ]
+}

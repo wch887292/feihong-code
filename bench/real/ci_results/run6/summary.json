@@ -1,0 +1,75 @@
+{
+  "model": "agnes-2.5-flash",
+  "instances": [
+    {
+      "instance_id": "sympy__sympy-12236",
+      "status": "PATCH_OK",
+      "iterations": 28,
+      "toolCalls": 57,
+      "hasPatch": true
+    },
+    {
+      "instance_id": "pytest-dev__pytest-9359",
+      "status": "NO_PATCH",
+      "iterations": 28,
+      "toolCalls": 51,
+      "hasPatch": false
+    },
+    {
+      "instance_id": "django__django-14787",
+      "status": "PATCH_OK",
+      "iterations": 23,
+      "toolCalls": 42,
+      "hasPatch": true
+    },
+    {
+      "instance_id": "pallets__flask-4992",
+      "status": "PATCH_OK",
+      "iterations": 14,
+      "toolCalls": 26,
+      "hasPatch": true
+    },
+    {
+      "instance_id": "astropy__astropy-7746",
+      "status": "PATCH_OK",
+      "iterations": 21,
+      "toolCalls": 62,
+      "hasPatch": true
+    },
+    {
+      "instance_id": "sphinx-doc__sphinx-8595",
+      "status": "PATCH_OK",
+      "iterations": 17,
+      "toolCalls": 31,
+      "hasPatch": true
+    },
+    {
+      "instance_id": "matplotlib__matplotlib-25079",
+      "status": "NO_PATCH",
+      "iterations": 3,
+      "toolCalls": 6,
+      "hasPatch": false
+    },
+    {
+      "instance_id": "scikit-learn__scikit-learn-13439",
+      "status": "NO_PATCH",
+      "iterations": 4,
+      "toolCalls": 6,
+      "hasPatch": false
+    },
+    {
+      "instance_id": "mwaskom__seaborn-2848",
+      "status": "NO_PATCH",
+      "iterations": 10,
+      "toolCalls": 19,
+      "hasPatch": false
+    },
+    {
+      "instance_id": "pydata__xarray-4493",
+      "status": "NO_PATCH",
+      "iterations": 1,
+      "toolCalls": 0,
+      "hasPatch": false
+    }
+  ]
+}
