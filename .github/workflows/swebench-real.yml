@@ -22,6 +22,10 @@ on:
         description: 'API 通道地址（AMD 填 https://developer.amd.com.cn/radeon/api/v1）'
         required: false
         default: 'https://api.agnes-ai.cn/v1'
+      official:
+        description: '是否启用官方 Docker harness 验证（1=启用，0=仅自研快速验证；官方验证耗时 1-6h）'
+        required: false
+        default: '0'
   # 可选：定时跑（UTC 18:00）
   # schedule:
   #   - cron: '0 18 * * *'
@@ -96,6 +100,10 @@ jobs:
       - name: 真实测试验证（env-reconstructed）
         run: python bench/real/verify.py --instances "${{ steps.inst.outputs.instances }}" --limit "${{ inputs.limit }}"
 
+      - name: 真实测试验证（官方 Docker harness）
+        if: inputs.official == '1'
+        run: python bench/real/verify_official.py --instances "${{ steps.inst.outputs.instances }}" --limit "${{ inputs.limit }}" --max-workers 2 --run-id feihong_official
+
       - name: 上传结果
         if: always()
         uses: actions/upload-artifact@v7
@@ -106,16 +114,24 @@ jobs:
             bench/real/runs/
             bench/real/summary.json
             bench/real/verify_summary.json
+            bench/real/verify_summary_official.json
+            bench/real/run_logs/
 
       - name: 输出汇总
         if: always()
         run: |
           echo "## SWE-bench 真实跑分汇总" >> "$GITHUB_STEP_SUMMARY"
           python - <<'PY'
-          import json
+          import json, os
+          # 优先官方口径（Docker harness），否则自研近似验证
+          official = "bench/real/verify_summary_official.json"
+          path = official if os.path.exists(official) else "bench/real/verify_summary.json"
           try:
-              s = json.load(open("bench/real/verify_summary.json"))
-              print("resolved: %d / %d" % (s.get("resolved",0), s.get("total",0)), file=open("$GITHUB_STEP_SUMMARY","a"))
+              s = json.load(open(path))
+              tag = "官方 Docker harness" if path == official else "env-reconstructed"
+              print("resolved: %d / %d（%s 口径）" % (s.get("resolved",0), s.get("total",0), tag), file=open("$GITHUB_STEP_SUMMARY","a"))
+              if path == official:
+                  print("patch 应用: %d / %d" % (s.get("patch_applied",0), s.get("total",0)), file=open("$GITHUB_STEP_SUMMARY","a"))
           except Exception as e:
               print("无验证结果: %s" % e, file=open("$GITHUB_STEP_SUMMARY","a"))
           PY
