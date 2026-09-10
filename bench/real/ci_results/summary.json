@@ -1,0 +1,12 @@
+{
+  "model": "agnes-2.5-flash",
+  "instances": [
+    {
+      "instance_id": "astropy__astropy-12907",
+      "status": "NO_PATCH",
+      "iterations": 28,
+      "toolCalls": 56,
+      "hasPatch": false
+    }
+  ]
+}

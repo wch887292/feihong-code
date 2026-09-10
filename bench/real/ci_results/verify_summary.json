@@ -1,0 +1,12 @@
+{
+  "total": 1,
+  "resolved": 0,
+  "verified": 0,
+  "details": [
+    {
+      "instance_id": "astropy__astropy-12907",
+      "verified": false,
+      "reason": "模型 patch 为空"
+    }
+  ]
+}
