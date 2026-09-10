@@ -209,24 +209,51 @@ function toolCall(name, args, cwd) {
   }
 }
 
-async function chat(messages) {
-  const res = await fetch(MODEL.baseURL + '/chat/completions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + MODEL.apiKey },
-    body: JSON.stringify({
-      model: MODEL.name,
-      messages,
-      tools: TOOLS,
-      tool_choice: 'auto',
-      temperature: 0.2,
-      max_tokens: 2000,
-    }),
+// 清洗消息：剥离 reasoning_content 等厂商私有字段（AMD/DeepSeek 推理模型回传会 400），
+// 只保留 OpenAI 标准字段
+function sanitizeMessages(messages) {
+  return messages.map((m) => {
+    const o = { role: m.role };
+    if (m.content !== undefined && m.content !== null) o.content = m.content;
+    if (m.tool_calls) o.tool_calls = m.tool_calls;
+    if (m.tool_call_id) o.tool_call_id = m.tool_call_id;
+    return o;
   });
-  if (!res.ok) {
+}
+
+async function chat(messages) {
+  // 限流/网关错误退避重试：429/5xx 最多 4 次（10/20/40/60s），缓解 AMD IP 限流
+  const delays = [10000, 20000, 40000, 60000];
+  let last = null;
+  for (let i = 0; i <= delays.length; i++) {
+    let res;
+    try {
+      res = await fetch(MODEL.baseURL + '/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + MODEL.apiKey },
+        body: JSON.stringify({
+          model: MODEL.name,
+          messages: sanitizeMessages(messages),
+          tools: TOOLS,
+          tool_choice: 'auto',
+          temperature: 0.2,
+          max_tokens: 2000,
+        }),
+      });
+    } catch (e) {
+      last = new Error('模型请求异常: ' + e.message);
+      if (i === delays.length) break;
+      await new Promise((r) => setTimeout(r, delays[i]));
+      continue;
+    }
+    if (res.ok) return res.json();
     const t = await res.text();
-    throw new Error(`模型 HTTP ${res.status}: ${t.slice(0, 300)}`);
+    last = new Error(`模型 HTTP ${res.status}: ${t.slice(0, 300)}`);
+    const retryable = res.status === 429 || res.status === 500 || res.status === 502 || res.status === 503 || res.status === 504;
+    if (!retryable || i === delays.length) break;
+    await new Promise((r) => setTimeout(r, delays[i]));
   }
-  return res.json();
+  throw last || new Error('模型调用失败');
 }
 
 function gitDiff(cwd) {
