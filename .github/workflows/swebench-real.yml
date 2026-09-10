@@ -44,11 +44,20 @@ jobs:
       - name: 安装 swebench（验证用）
         run: pip install --quiet swebench
 
+      # 清洗用户输入路径（移动端复制常混入不可见空格 \xa0 / 尾随空格），避免 FileNotFoundError
+      - name: 解析实例路径
+        id: inst
+        run: |
+          RAW="${{ inputs.instances }}"
+          CLEAN=$(python -c "import sys; print(sys.argv[1].replace('\xa0','').strip())" "$RAW")
+          echo "instances=$CLEAN" >> "$GITHUB_OUTPUT"
+          echo "清洗后路径: $CLEAN"
+
       - name: 克隆实例仓库到 base_commit
         run: |
           python - <<'PY'
           import json, subprocess, os
-          insts = json.load(open("${{ inputs.instances }}"))
+          insts = json.load(open("${{ steps.inst.outputs.instances }}"))
           os.makedirs("bench/real/work", exist_ok=True)
           for i in insts[:int("${{ inputs.limit }}")]:
               owner, name = i["repo"].split("/")
@@ -65,10 +74,10 @@ jobs:
           AMD_API_KEY: ${{ secrets.AMD_API_KEY }}
           SWEEBENCH_MODEL: ${{ inputs.model }}
           SWEEBENCH_BASE_URL: ${{ inputs.base_url }}
-        run: node scripts/swebench-real.mjs --instances "${{ inputs.instances }}" --limit "${{ inputs.limit }}"
+        run: node scripts/swebench-real.mjs --instances "${{ steps.inst.outputs.instances }}" --limit "${{ inputs.limit }}"
 
       - name: 真实测试验证（env-reconstructed）
-        run: python bench/real/verify.py --instances "${{ inputs.instances }}" --limit "${{ inputs.limit }}"
+        run: python bench/real/verify.py --instances "${{ steps.inst.outputs.instances }}" --limit "${{ inputs.limit }}"
 
       - name: 上传结果
         if: always()
