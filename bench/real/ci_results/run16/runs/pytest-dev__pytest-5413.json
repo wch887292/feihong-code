@@ -1,0 +1,25 @@
+{
+  "instance_id": "pytest-dev__pytest-5413",
+  "repo": "pytest-dev/pytest",
+  "model": "DeepSeek-V4-Flash-Vision-Exp",
+  "iterations": 2,
+  "toolCalls": 1,
+  "finished": false,
+  "patchLength": 0,
+  "hasPatch": false,
+  "error": null,
+  "trace": [
+    {
+      "iter": 1,
+      "tool": "list_dir",
+      "args": {
+        "path": ""
+      },
+      "result": "total 400\ndrwxr-xr-x 11 runner runner   4096 Sep 10 11:44 .\ndrwxr-xr-x 14 runner runner   4096 Sep 10 11:45 ..\n-rw-r--r--  1 runner runner    374 Sep 10 11:44 .coveragerc\ndrwxr-xr-x  7 runner runner   4096 Sep 10 13:55 .git\n-rw-r--r--  1 runner runner     21 Sep 10 11:44 .gitattributes\ndrwxr-xr-x  2 runner runner   4096 Sep 10 11:44 .github\n-rw-r--r--  1 runner runner    590 Sep 10 11:44 .gitignore\n-rw-r--r--  1 runner runner   2248 Sep 10 11:44 .pre-commit-config.yaml\n-rw-r--r--  1 runner runner   4028 Sep 10 11:44 .travis.yml\n-rw-r--r--  1 runner runner   3975 Sep 10 11:44 AUTHORS\n-rw-r--r--"
+    },
+    {
+      "iter": 2,
+      "error": "模型 HTTP 429: {\"detail\":{\"error\":{\"message\":\"Model API rate limit exceeded; please retry later\",\"type\":\"rate_limit_error\",\"code\":\"ip_rate_limit_exceeded\"}}}"
+    }
+  ]
+}

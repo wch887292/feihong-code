@@ -1,0 +1,257 @@
+{
+  "model": "DeepSeek-V4-Flash-Vision-Exp",
+  "instances": [
+    {
+      "instance_id": "astropy__astropy-14182",
+      "status": "NO_PATCH",
+      "iterations": 3,
+      "toolCalls": 3,
+      "hasPatch": false
+    },
+    {
+      "instance_id": "astropy__astropy-14365",
+      "status": "NO_PATCH",
+      "iterations": 4,
+      "toolCalls": 4,
+      "hasPatch": false
+    },
+    {
+      "instance_id": "astropy__astropy-14995",
+      "status": "NO_PATCH",
+      "iterations": 5,
+      "toolCalls": 5,
+      "hasPatch": false
+    },
+    {
+      "instance_id": "django__django-10914",
+      "status": "NO_PATCH",
+      "iterations": 4,
+      "toolCalls": 7,
+      "hasPatch": false
+    },
+    {
+      "instance_id": "django__django-10924",
+      "status": "NO_PATCH",
+      "iterations": 15,
+      "toolCalls": 18,
+      "hasPatch": false
+    },
+    {
+      "instance_id": "django__django-11039",
+      "status": "PATCH_OK",
+      "iterations": 4,
+      "toolCalls": 4,
+      "hasPatch": true
+    },
+    {
+      "instance_id": "matplotlib__matplotlib-22835",
+      "status": "NO_PATCH",
+      "iterations": 2,
+      "toolCalls": 2,
+      "hasPatch": false
+    },
+    {
+      "instance_id": "matplotlib__matplotlib-23299",
+      "status": "NO_PATCH",
+      "iterations": 5,
+      "toolCalls": 7,
+      "hasPatch": false
+    },
+    {
+      "instance_id": "matplotlib__matplotlib-23314",
+      "status": "NO_PATCH",
+      "iterations": 5,
+      "toolCalls": 7,
+      "hasPatch": false
+    },
+    {
+      "instance_id": "mwaskom__seaborn-2848",
+      "status": "NO_PATCH",
+      "iterations": 7,
+      "toolCalls": 12,
+      "hasPatch": false
+    },
+    {
+      "instance_id": "mwaskom__seaborn-3010",
+      "status": "NO_PATCH",
+      "iterations": 5,
+      "toolCalls": 4,
+      "hasPatch": false
+    },
+    {
+      "instance_id": "mwaskom__seaborn-3190",
+      "status": "NO_PATCH",
+      "iterations": 11,
+      "toolCalls": 12,
+      "hasPatch": false
+    },
+    {
+      "instance_id": "pallets__flask-4992",
+      "status": "NO_PATCH",
+      "iterations": 4,
+      "toolCalls": 5,
+      "hasPatch": false
+    },
+    {
+      "instance_id": "pallets__flask-4045",
+      "status": "NO_PATCH",
+      "iterations": 4,
+      "toolCalls": 5,
+      "hasPatch": false
+    },
+    {
+      "instance_id": "pallets__flask-5063",
+      "status": "NO_PATCH",
+      "iterations": 15,
+      "toolCalls": 16,
+      "hasPatch": false
+    },
+    {
+      "instance_id": "psf__requests-3362",
+      "status": "NO_PATCH",
+      "iterations": 3,
+      "toolCalls": 3,
+      "hasPatch": false
+    },
+    {
+      "instance_id": "psf__requests-863",
+      "status": "NO_PATCH",
+      "iterations": 2,
+      "toolCalls": 2,
+      "hasPatch": false
+    },
+    {
+      "instance_id": "psf__requests-1963",
+      "status": "NO_PATCH",
+      "iterations": 3,
+      "toolCalls": 2,
+      "hasPatch": false
+    },
+    {
+      "instance_id": "pydata__xarray-4094",
+      "status": "NO_PATCH",
+      "iterations": 3,
+      "toolCalls": 3,
+      "hasPatch": false
+    },
+    {
+      "instance_id": "pydata__xarray-4248",
+      "status": "NO_PATCH",
+      "iterations": 3,
+      "toolCalls": 4,
+      "hasPatch": false
+    },
+    {
+      "instance_id": "pydata__xarray-4493",
+      "status": "NO_PATCH",
+      "iterations": 3,
+      "toolCalls": 3,
+      "hasPatch": false
+    },
+    {
+      "instance_id": "pylint-dev__pylint-5859",
+      "status": "NO_PATCH",
+      "iterations": 3,
+      "toolCalls": 4,
+      "hasPatch": false
+    },
+    {
+      "instance_id": "pylint-dev__pylint-7080",
+      "status": "NO_PATCH",
+      "iterations": 2,
+      "toolCalls": 2,
+      "hasPatch": false
+    },
+    {
+      "instance_id": "pylint-dev__pylint-7114",
+      "status": "NO_PATCH",
+      "iterations": 11,
+      "toolCalls": 12,
+      "hasPatch": false
+    },
+    {
+      "instance_id": "pytest-dev__pytest-11143",
+      "status": "NO_PATCH",
+      "iterations": 3,
+      "toolCalls": 3,
+      "hasPatch": false
+    },
+    {
+      "instance_id": "pytest-dev__pytest-5103",
+      "status": "NO_PATCH",
+      "iterations": 1,
+      "toolCalls": 0,
+      "hasPatch": false
+    },
+    {
+      "instance_id": "pytest-dev__pytest-5413",
+      "status": "NO_PATCH",
+      "iterations": 2,
+      "toolCalls": 1,
+      "hasPatch": false
+    },
+    {
+      "instance_id": "scikit-learn__scikit-learn-10297",
+      "status": "NO_PATCH",
+      "iterations": 6,
+      "toolCalls": 8,
+      "hasPatch": false
+    },
+    {
+      "instance_id": "scikit-learn__scikit-learn-10949",
+      "status": "NO_PATCH",
+      "iterations": 5,
+      "toolCalls": 5,
+      "hasPatch": false
+    },
+    {
+      "instance_id": "scikit-learn__scikit-learn-11040",
+      "status": "NO_PATCH",
+      "iterations": 4,
+      "toolCalls": 5,
+      "hasPatch": false
+    },
+    {
+      "instance_id": "sphinx-doc__sphinx-10325",
+      "status": "NO_PATCH",
+      "iterations": 1,
+      "toolCalls": 0,
+      "hasPatch": false
+    },
+    {
+      "instance_id": "sphinx-doc__sphinx-7738",
+      "status": "NO_PATCH",
+      "iterations": 2,
+      "toolCalls": 2,
+      "hasPatch": false
+    },
+    {
+      "instance_id": "sphinx-doc__sphinx-7975",
+      "status": "NO_PATCH",
+      "iterations": 5,
+      "toolCalls": 5,
+      "hasPatch": false
+    },
+    {
+      "instance_id": "sympy__sympy-11870",
+      "status": "NO_PATCH",
+      "iterations": 4,
+      "toolCalls": 4,
+      "hasPatch": false
+    },
+    {
+      "instance_id": "sympy__sympy-11897",
+      "status": "NO_PATCH",
+      "iterations": 1,
+      "toolCalls": 0,
+      "hasPatch": false
+    },
+    {
+      "instance_id": "sympy__sympy-12171",
+      "status": "NO_PATCH",
+      "iterations": 7,
+      "toolCalls": 7,
+      "hasPatch": false
+    }
+  ]
+}
