@@ -26,11 +26,13 @@ mkdirSync(PATCHES_DIR, { recursive: true });
 mkdirSync(RUNS_DIR, { recursive: true });
 
 // ---- 真实模型配置（密钥只从环境变量读取，严禁硬编码）----
-// 模型名可通过环境变量 SWEEBENCH_MODEL 覆盖（如 agnes-3.0-flash），默认 agnes-2.5-flash
+// 支持多通道：SWEEBENCH_MODEL 选模型，SWEEBENCH_BASE_URL/SWEEBENCH_API_KEY 优先，
+// 回退 AGNES（api.agnes-ai.cn）或 AMD（developer.amd.com.cn/radeon）通道。
+// CI 中 AMD_API_KEY / AGNES_API_KEY 由 workflow 从 GitHub Secrets 注入。
 const MODEL = {
   name: process.env.SWEEBENCH_MODEL || 'agnes-2.5-flash',
-  baseURL: process.env.AGNES_BASE_URL || 'https://api.agnes-ai.cn/v1',
-  apiKey: process.env.AGNES_API_KEY || '',
+  baseURL: process.env.SWEEBENCH_BASE_URL || process.env.AGNES_BASE_URL || 'https://api.agnes-ai.cn/v1',
+  apiKey: process.env.SWEEBENCH_API_KEY || process.env.AGNES_API_KEY || process.env.AMD_API_KEY || '',
 };
 if (!MODEL.apiKey) {
   console.error('缺少环境变量 AGNES_API_KEY（评测专用，勿提交任何真实密钥到仓库）');
