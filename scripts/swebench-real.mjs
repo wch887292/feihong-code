@@ -310,25 +310,35 @@ async function runInstance(inst) {
 }
 
 async function smokeCheck() {
-  // 启动鉴权冒烟：最小请求，401/403/无效 key 立即失败，避免白跑全部实例
+  // 启动鉴权冒烟：最小请求。401/403/无效 key 立即失败；
+  // 429/5xx（并发限流）指数退避重试最多 5 次，避免瞬时限流白跑。
   console.log('>> API 鉴权冒烟检查…');
   const body = JSON.stringify({
     model: MODEL.name,
     messages: [{ role: 'user', content: 'hi' }],
     max_tokens: 4,
   });
-  const res = await fetch(MODEL.baseURL + '/chat/completions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + MODEL.apiKey },
-    body,
-  });
-  if (!res.ok) {
-    const txt = (await res.text()).slice(0, 300);
-    console.error(`API 鉴权失败 HTTP ${res.status}: ${txt}`);
-    console.error(`通道: ${MODEL.baseURL} | 模型: ${MODEL.name} | 请检查 GitHub Secrets（AMD_API_KEY / AGNES_API_KEY）`);
-    process.exit(2);
+  const delays = [10000, 20000, 40000, 60000, 60000];
+  let last = '';
+  for (let i = 0; i <= delays.length; i++) {
+    const res = await fetch(MODEL.baseURL + '/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + MODEL.apiKey },
+      body,
+    });
+    if (res.ok) {
+      console.log('>> 鉴权通过（HTTP 200）\n');
+      return;
+    }
+    last = `HTTP ${res.status}: ${(await res.text()).slice(0, 300)}`;
+    const retryable = res.status === 429 || res.status >= 500;
+    if (!retryable || i === delays.length) break;
+    console.log(`>> 限流/服务暂不可用（${last}），${delays[i] / 1000}s 后重试…`);
+    await new Promise((r) => setTimeout(r, delays[i]));
   }
-  console.log('>> 鉴权通过（HTTP 200）\n');
+  console.error(`API 鉴权失败 ${last}`);
+  console.error(`通道: ${MODEL.baseURL} | 模型: ${MODEL.name} | 请检查 GitHub Secrets（AMD_API_KEY / AGNES_API_KEY）`);
+  process.exit(2);
 }
 
 async function main() {
