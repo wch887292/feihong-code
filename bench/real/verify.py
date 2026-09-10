@@ -58,13 +58,20 @@ def setup_venv(cwd, instance_id, repo):
     elif repo == "astropy/astropy":
         pkgs = ["-e", ".", "pytest", "pytest-astropy", "numpy", "pyerfa"]
     else:
-        pkgs = ["-e", "."]
+        pkgs = ["-e", ".", "pytest"]
     rc, out = run([pip, "install"] + pkgs, cwd, timeout=900)
     if rc != 0:
         return py, "依赖安装失败(部分): " + out[-2000:]
     return py, None
 
 def run_tests(py, cwd, repo, ftp, ptp):
+    # 数据集导出时 FAIL_TO_PASS 可能是 JSON 字符串（如 '["a", "b"]'），需解析成数组
+    if isinstance(ftp, str):
+        import json as _j
+        try:
+            ftp = _j.loads(ftp)
+        except Exception:
+            ftp = []
     results = {}
     if repo == "django/django":
         # django 用 tests/runtests.py，测试 ID 形如 tests/expressions/tests.py::ExistsTests::test_...
@@ -112,6 +119,11 @@ def verify_instance(inst):
         return {"instance_id": inst["instance_id"], "verified": False, "reason": "环境重建失败: " + (err or "")}
     # 跑 FAIL_TO_PASS
     ftp = inst.get("FAIL_TO_PASS", [])
+    if isinstance(ftp, str):
+        try:
+            ftp = json.loads(ftp)
+        except Exception:
+            ftp = []
     res = run_tests(py, cwd, inst["repo"], ftp, inst.get("PASS_TO_PASS", []))
     all_pass = all(v[0] for v in res.values())
     return {
