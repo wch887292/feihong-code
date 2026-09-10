@@ -612,8 +612,8 @@ function sendMessage() {
   state.sendingLock = true;
   setTimeout(function () { state.sendingLock = false; }, 500);
 
-  // 图片附件：走视觉模型识别流程
-  if (state_attach && state_attach.type === 'image') {
+  // 图片附件：走视觉模型识别流程（最多20张）
+  if (state_attach_images.length) {
     sendImageMessage(text);
     return;
   }
@@ -685,9 +685,9 @@ function sendMessage() {
   updateSendBtn(true);
 }
 
-/* 发送图片消息：自动调用视觉模型识别 */
+/* 发送图片消息：自动调用视觉模型识别（支持多图） */
 function sendImageMessage(userText) {
-  var attach = state_attach;
+  var images = state_attach_images.slice();
   removeAttach();
   var input = $('goalInput');
   input.value = '';
@@ -695,13 +695,17 @@ function sendImageMessage(userText) {
 
   var task;
   if (!state.currentTaskId || !getTask(state.currentTaskId)) {
-    task = createTask('图片识别：' + (userText ? userText.slice(0, 15) : attach.name), 'chat');
+    task = createTask('图片识别：' + (userText ? userText.slice(0, 15) : images.length + '张图'), 'chat');
     state.currentTaskId = task.id;
   } else {
     task = getTask(state.currentTaskId);
   }
-  // 保存图片消息（含 base64，方便后续查看）
-  task.messages.push({ role: 'user', content: (userText ? userText + '\n\n' : '') + '[图片：' + attach.name + ']', image: attach.data });
+  var names = images.map(function (i) { return i.name; }).join('、');
+  task.messages.push({
+    role: 'user',
+    content: (userText ? userText + '\n\n' : '') + '[图片：' + names + ']',
+    images: images.map(function (i) { return i.data; })
+  });
   task.status = 'running';
   saveTasks();
   renderThread(task);
@@ -709,12 +713,12 @@ function sendImageMessage(userText) {
   var box = $('convMessages');
   var msgEl = document.createElement('div');
   msgEl.className = 'msg assistant';
-  msgEl.innerHTML = '<span style="color:var(--ink-2);">🖼️ 正在识别图片…</span> <span class="typing-cursor">▋</span>';
+  msgEl.innerHTML = '<span style="color:var(--ink-2);">🖼️ 正在识别 ' + images.length + ' 张图片…</span> <span class="typing-cursor">▋</span>';
   box.appendChild(msgEl);
   box.scrollTop = box.scrollHeight;
 
   var assistantContent = '';
-  recognizeImage(attach.data, userText,
+  recognizeImages(images, userText,
     function (delta) {
       assistantContent += delta;
       msgEl.innerHTML = renderMarkdown(assistantContent) + '<span class="typing-cursor">▋</span>';
@@ -992,19 +996,21 @@ function testVLConnection() {
 }
 
 /* 图片识别理解：调用视觉模型 */
-function recognizeImage(imageDataUrl, userPrompt, onDelta, onDone, onError) {
+/* 多图识别：支持 1-20 张图片（视觉模型），OCR 自动优化 prompt，表格转 Markdown */
+function recognizeImages(images, userPrompt, onDelta, onDone, onError) {
   var cfg = loadVLConfig();
   if (!cfg.apiBase || !cfg.modelId) {
     if (onError) onError(new Error('未配置视觉模型，请在设置中配置'));
     return;
   }
-  // OCR 模型专用 prompt 优化
   var isOCR = /ocr/i.test(cfg.modelId || '');
   var prompt;
   if (userPrompt) {
     prompt = userPrompt;
   } else if (isOCR) {
-    prompt = '请精确识别并提取图片中的所有文字内容，保持原始排版和格式。如果图片中有表格、代码或特殊格式，请尽量还原。';
+    prompt = '请精确识别并提取图片中的所有文字内容，保持原始排版和格式。如果图片中有表格、代码或特殊格式，请用 Markdown 表格还原。';
+  } else if (images.length > 1) {
+    prompt = '请依次详细描述这几张图片的内容，说明每张图的编号、主体、场景、文字等信息，并对比它们之间的异同。';
   } else {
     prompt = '请详细描述这张图片的内容，包括主体、场景、文字、颜色等信息。';
   }
@@ -1012,12 +1018,16 @@ function recognizeImage(imageDataUrl, userPrompt, onDelta, onDone, onError) {
   xhr.open('POST', cfg.apiBase.replace(/\/$/, '') + '/chat/completions', true);
   xhr.setRequestHeader('Content-Type', 'application/json');
   if (cfg.apiKey) xhr.setRequestHeader('Authorization', 'Bearer ' + cfg.apiKey);
-  xhr.timeout = 60000;
+  xhr.timeout = 120000;
+
+  var contentArr = [{ type: 'text', text: prompt }];
+  images.forEach(function (img) {
+    contentArr.push({ type: 'image_url', image_url: { url: img.data } });
+  });
 
   var fullText = '';
   xhr.onprogress = function () {
     if (!xhr.responseText) return;
-    // 非流式：直接解析完整响应
     try {
       var data = JSON.parse(xhr.responseText);
       var content = data.choices && data.choices[0] && data.choices[0].message ? data.choices[0].message.content : '';
@@ -1046,18 +1056,12 @@ function recognizeImage(imageDataUrl, userPrompt, onDelta, onDone, onError) {
     }
   };
   xhr.onerror = function () { if (onError) onError(new Error('网络错误')); };
-  xhr.ontimeout = function () { if (onError) onError(new Error('请求超时（60秒）')); };
+  xhr.ontimeout = function () { if (onError) onError(new Error('请求超时（120秒）')); };
 
   xhr.send(JSON.stringify({
     model: cfg.modelId,
-    messages: [{
-      role: 'user',
-      content: [
-        { type: 'text', text: prompt },
-        { type: 'image_url', image_url: { url: imageDataUrl } }
-      ]
-    }],
-    max_tokens: 2000
+    messages: [{ role: 'user', content: contentArr }],
+    max_tokens: 4000
   }));
   return xhr;
 }
@@ -1483,17 +1487,17 @@ function playFlashApp(app) {
   };
 }
 
-/* ========== AI 创作中心（文生图/文生视频/图生视频） ========== */
+/* ========== AI 创作中心（文生图/文生视频） ========== */
+var APP_VER = 'v8.3.0';
 var LS_CREATIVE = 'fh.app.creative';
-var creativeConfig = { t2i: {}, t2v: {}, i2v: {} };
+var creativeConfig = { t2i: {}, t2v: {} };
 function loadCreativeConfig() {
   try {
     var raw = localStorage.getItem(LS_CREATIVE);
     if (raw) creativeConfig = JSON.parse(raw);
-  } catch (e) { creativeConfig = { t2i: {}, t2v: {}, i2v: {} }; }
+  } catch (e) { creativeConfig = { t2i: {}, t2v: {} }; }
   if (!creativeConfig.t2i) creativeConfig.t2i = {};
   if (!creativeConfig.t2v) creativeConfig.t2v = {};
-  if (!creativeConfig.i2v) creativeConfig.i2v = {};
 }
 function saveCreativeConfig() {
   try { localStorage.setItem(LS_CREATIVE, JSON.stringify(creativeConfig)); } catch (e) {}
@@ -1509,22 +1513,42 @@ function openCreateCenter() {
       $('ctab-' + tab.dataset.ctab).classList.remove('hidden');
     };
   });
-  // 图生视频上传
-  var upload = $('i2vUpload');
-  if (upload && !upload.__bound) {
-    upload.__bound = true;
-    upload.onclick = function () { $('i2vFile').click(); };
-    $('i2vFile').onchange = function (e) {
-      var file = e.target.files[0];
-      if (!file) return;
-      var reader = new FileReader();
-      reader.onload = function (ev) {
-        $('i2vPreview').innerHTML = '<img src="' + ev.target.result + '" style="max-height:160px;">';
-        upload.__data = ev.target.result;
+  // 文生视频参考图上传绑定
+  bindRefUpload();
+}
+var t2vRefData = null;
+function bindRefUpload() {
+  var upload = $('t2vRefUpload');
+  if (!upload || upload.__bound) return;
+  upload.__bound = true;
+  upload.onclick = function () { $('t2vRefFile').click(); };
+  $('t2vRefFile').onchange = function (e) {
+    var file = e.target.files[0];
+    if (!file) return;
+    if (file.type.indexOf('image/') !== 0) { toast('请选择图片文件'); return; }
+    var reader = new FileReader();
+    reader.onload = function (ev) {
+      var img = new Image();
+      img.onload = function () {
+        var scale = 1;
+        if (img.width > 1024 || img.height > 1024) scale = 1024 / Math.max(img.width, img.height);
+        var canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        t2vRefData = canvas.toDataURL('image/jpeg', 0.9);
+        $('t2vRefPreview').innerHTML = '<img src="' + t2vRefData + '" style="max-height:140px;width:100%;object-fit:cover;border-radius:8px;">' +
+          '<div style="text-align:right;margin-top:2px;"><span style="font-size:10px;color:var(--ink-2);" onclick="clearRefImage()">✕ 移除</span></div>';
       };
-      reader.readAsDataURL(file);
+      img.src = ev.target.result;
     };
-  }
+    reader.readAsDataURL(file);
+  };
+}
+function clearRefImage() {
+  t2vRefData = null;
+  var p = $('t2vRefPreview');
+  if (p) p.innerHTML = '🖼️ 参考图（可选，让画面更贴近参考）<br><span style="font-size:10px;opacity:.7">点击上传，最多 1 张</span>';
 }
 
 /* 文生图：OpenAI 兼容 /images/generations */
@@ -1567,114 +1591,154 @@ function genText2Image() {
   xhr.send(JSON.stringify({ model: cfg.modelId, prompt: prompt, n: 1, size: size, response_format: 'url' }));
 }
 
-/* 文生视频：通用 POST，支持直接返回 URL 或异步任务轮询 */
+/* 文生视频：agnes-video-2.5-flash 正确契约 = seconds(字符串) + size:720P + aspect_ratio + mode + 参考图 */
 function genText2Video() {
   var prompt = $('t2vPrompt').value.trim();
   if (!prompt) { toast('请输入视频描述'); return; }
   var cfg = creativeConfig.t2v;
-  if (!cfg.apiBase || !cfg.apiKey || !cfg.modelId) { toast('请先在设置中配置文生视频模型'); return; }
+  if (!cfg.apiBase || !cfg.apiKey || !cfg.modelId) { toast('请先在设置中配置文生视频模型，或点「一键填充 Agnes」'); return; }
   var duration = $('t2vDuration').value;
   var ratio = $('t2vRatio').value;
   var result = $('t2vResult');
   var msg = $('t2vMsg');
   msg.textContent = '';
-  result.innerHTML = '<div class="gen-loading"><div class="spinner"></div><div>正在生成视频，可能需要 1-3 分钟…</div></div>';
+  result.innerHTML = '<div class="gen-loading"><div class="spinner"></div><div>正在生成视频（' + duration + ' 秒），可能需要 1-3 分钟…</div></div>';
   $('t2vBtn').disabled = true;
-  var body = JSON.stringify({ model: cfg.modelId, prompt: prompt, duration: parseInt(duration), ratio: ratio });
-  creativePost(cfg, '/videos/generations', body, result, msg, 't2vBtn', 'video');
-}
 
-/* 图生视频：带图片 base64 */
-function genImage2Video() {
-  var prompt = $('i2vPrompt').value.trim();
-  var upload = $('i2vUpload');
-  var imgData = upload ? upload.__data : null;
-  if (!imgData) { toast('请先上传起始图片'); return; }
-  if (!prompt) { toast('请输入运动描述'); return; }
-  var cfg = creativeConfig.i2v;
-  if (!cfg.apiBase || !cfg.apiKey || !cfg.modelId) { toast('请先在设置中配置图生视频模型'); return; }
-  var duration = $('i2vDuration').value;
-  var result = $('i2vResult');
-  var msg = $('i2vMsg');
-  msg.textContent = '';
-  result.innerHTML = '<div class="gen-loading"><div class="spinner"></div><div>正在生成视频，可能需要 1-3 分钟…</div></div>';
-  $('i2vBtn').disabled = true;
-  var body = JSON.stringify({ model: cfg.modelId, prompt: prompt, image: imgData, duration: parseInt(duration) });
-  creativePost(cfg, '/image-to-video', body, result, msg, 'i2vBtn', 'video');
-}
+  var body = {
+    model: cfg.modelId,
+    prompt: prompt,
+    seconds: String(parseInt(duration) || 5),
+    size: '720P',
+    aspect_ratio: ratio || '16:9'
+  };
+  if (t2vRefData) {
+    body.mode = 'reference';
+    body.image = t2vRefData;
+  } else {
+    body.mode = 'text';
+  }
 
-/* 通用创作 POST：处理直接返回 / 异步轮询 */
-function creativePost(cfg, endpoint, body, resultEl, msgEl, btnId, mediaType) {
   var xhr = new XMLHttpRequest();
-  xhr.open('POST', cfg.apiBase.replace(/\/+$/, '') + endpoint, true);
+  xhr.open('POST', cfg.apiBase.replace(/\/+$/, '') + '/videos', true);
   xhr.setRequestHeader('Content-Type', 'application/json');
   xhr.setRequestHeader('Authorization', 'Bearer ' + cfg.apiKey);
   xhr.timeout = 180000;
   xhr.onload = function () {
-    $(btnId).disabled = false;
-    try {
-      var data = JSON.parse(xhr.responseText);
-      // 尝试提取媒体 URL
-      var url = data.video_url || data.url || (data.data && data.data.video_url) || (data.output && data.output.url) || (data.results && data.results[0] && data.results[0].url);
-      if (url) {
-        renderCreativeResult(resultEl, url, mediaType);
-        return;
+    if (xhr.status >= 200 && xhr.status < 300) {
+      try {
+        var data = JSON.parse(xhr.responseText);
+        var taskId = data.id || (data.data && data.data.id);
+        if (taskId) {
+          result.innerHTML = '<div class="gen-loading"><div class="spinner"></div><div>视频生成中，任务已提交<br>正在查询进度…</div></div>';
+          pollVideoTask(cfg, taskId, result, msg, 't2vBtn', 0);
+        } else {
+          $('t2vBtn').disabled = false;
+          result.innerHTML = '';
+          msg.textContent = '❌ ' + (data.error && data.error.message ? data.error.message : '响应中未找到任务ID：' + xhr.responseText.slice(0, 200));
+        }
+      } catch (e) {
+        $('t2vBtn').disabled = false;
+        result.innerHTML = '';
+        msg.textContent = '❌ 解析响应失败：' + e.message;
       }
-      // 异步任务：有 id 则开始轮询
-      var taskId = data.id || (data.data && data.data.id) || (data.task && data.task.id);
-      if (taskId) {
-        resultEl.innerHTML = '<div class="gen-loading"><div class="spinner"></div><div>视频生成中，任务 ID: ' + taskId + '<br>正在查询进度…</div></div>';
-        pollCreativeTask(cfg, taskId, resultEl, msgEl, btnId, mediaType, 0);
-        return;
-      }
-      resultEl.innerHTML = '';
-      msgEl.textContent = '❌ ' + (data.error && data.error.message ? data.error.message : '生成失败，响应：' + xhr.responseText.slice(0, 200));
-    } catch (e) {
-      resultEl.innerHTML = '';
-      msgEl.textContent = '❌ 解析响应失败：' + e.message;
+    } else {
+      $('t2vBtn').disabled = false;
+      result.innerHTML = '';
+      msg.textContent = '❌ HTTP ' + xhr.status + '：' + (xhr.responseText || '').slice(0, 300);
     }
   };
-  xhr.onerror = function () { $(btnId).disabled = false; resultEl.innerHTML = ''; msgEl.textContent = '❌ 网络错误，请检查 API 地址'; };
-  xhr.ontimeout = function () { $(btnId).disabled = false; resultEl.innerHTML = ''; msgEl.textContent = '⏱️ 请求超时（3分钟），视频生成可能需要更长时间'; };
-  xhr.send(body);
+  xhr.onerror = function () { $('t2vBtn').disabled = false; result.innerHTML = ''; msg.textContent = '❌ 网络错误，请检查 API 地址'; };
+  xhr.ontimeout = function () { $('t2vBtn').disabled = false; result.innerHTML = ''; msg.textContent = '⏱️ 请求超时（3分钟），请重试'; };
+  xhr.send(JSON.stringify(body));
 }
 
-/* 轮询异步任务 */
-function pollCreativeTask(cfg, taskId, resultEl, msgEl, btnId, mediaType, attempts) {
-  if (attempts > 60) { resultEl.innerHTML = ''; msgEl.textContent = '⏱️ 任务超时，请稍后在平台查看结果'; return; }
+/* 轮询视频任务：GET {base}/agnesapi?video_id= 或 /videos/{task_id}（2.5-flash 契约） */
+function pollVideoTask(cfg, videoId, resultEl, msgEl, btnId, attempts) {
+  if (attempts > 120) {
+    $(btnId).disabled = false;
+    resultEl.innerHTML = '';
+    msgEl.textContent = '⏱️ 任务超时，请稍后在 Agnes 平台查看结果';
+    return;
+  }
   setTimeout(function () {
     var xhr = new XMLHttpRequest();
-    var pollEndpoint = cfg.apiBase.replace(/\/+$/, '') + '/videos/generations/' + taskId;
-    xhr.open('GET', pollEndpoint, true);
+    var base = cfg.apiBase.replace(/\/+$/, '');
+    // 兼容：/v1/agnesapi?video_id= 与旧版 /videos/{id}
+    var url = base + '/agnesapi?video_id=' + encodeURIComponent(videoId);
+    xhr.open('GET', url, true);
     xhr.setRequestHeader('Authorization', 'Bearer ' + cfg.apiKey);
+    xhr.timeout = 30000;
     xhr.onload = function () {
       try {
         var data = JSON.parse(xhr.responseText);
-        var status = data.status || (data.data && data.data.status);
-        var url = data.video_url || data.url || (data.data && (data.data.video_url || data.data.url)) || (data.output && data.output.url);
-        if (url) { renderCreativeResult(resultEl, url, mediaType); return; }
-        if (status === 'failed' || status === 'error') { resultEl.innerHTML = ''; msgEl.textContent = '❌ 任务失败'; return; }
-        if (status === 'succeeded' || status === 'completed') {
-          if (!url) { resultEl.innerHTML = ''; msgEl.textContent = '⚠️ 任务完成但未获取到视频地址'; return; }
+        var status = data.status || (data.data && data.data.status) || '';
+        // 视频地址兼容多种返回结构
+        var url2 = data.video_url || data.url ||
+          (data.data && (data.data.video_url || data.data.url)) ||
+          (data.metadata && (data.metadata.url || data.metadata.video_url)) ||
+          (data.output && data.output.url) ||
+          (data.result && data.result.url);
+        if (url2) {
+          resultEl.innerHTML = '<video src="' + url2 + '" controls playsinline style="width:100%;border-radius:12px;"></video>' +
+            '<div style="text-align:center;margin-top:8px;"><a href="' + url2 + '" download="feihong-ai.mp4" style="font-size:12px;color:var(--accent);">⬇️ 保存视频</a></div>';
+          msgEl.textContent = '✅ 视频生成完成';
+          GameKit.beep(800, 80, 0.04);
+          $(btnId).disabled = false;
+          return;
         }
-        resultEl.innerHTML = '<div class="gen-loading"><div class="spinner"></div><div>生成中… ' + (attempts + 1) + '/60</div></div>';
-        pollCreativeTask(cfg, taskId, resultEl, msgEl, btnId, mediaType, attempts + 1);
+        if (status === 'failed' || status === 'error' || data.error) {
+          $(btnId).disabled = false;
+          resultEl.innerHTML = '';
+          msgEl.textContent = '❌ 任务失败：' + ((data.error && data.error.message) || status || '未知错误');
+          return;
+        }
+        if (status === 'succeeded' || status === 'completed' || status === 'success') {
+          $(btnId).disabled = false;
+          resultEl.innerHTML = '';
+          msgEl.textContent = '⚠️ 任务完成但未获取到视频地址';
+          return;
+        }
+        resultEl.innerHTML = '<div class="gen-loading"><div class="spinner"></div><div>生成中… ' + Math.min(attempts + 1, 120) + '/120</div></div>';
+        pollVideoTask(cfg, videoId, resultEl, msgEl, btnId, attempts + 1);
       } catch (e) {
-        resultEl.innerHTML = ''; msgEl.textContent = '❌ 轮询失败：' + e.message;
+        resultEl.innerHTML = '<div class="gen-loading"><div class="spinner"></div><div>生成中… ' + Math.min(attempts + 1, 120) + '/120</div></div>';
+        pollVideoTask(cfg, videoId, resultEl, msgEl, btnId, attempts + 1);
       }
     };
-    xhr.onerror = function () { pollCreativeTask(cfg, taskId, resultEl, msgEl, btnId, mediaType, attempts + 1); };
+    xhr.onerror = function () {
+      // 网络抖动：继续轮询
+      resultEl.innerHTML = '<div class="gen-loading"><div class="spinner"></div><div>连接中断，重试中… ' + Math.min(attempts + 1, 120) + '/120</div></div>';
+      pollVideoTask(cfg, videoId, resultEl, msgEl, btnId, attempts + 1);
+    };
+    xhr.ontimeout = function () { pollVideoTask(cfg, videoId, resultEl, msgEl, btnId, attempts + 1); };
     xhr.send();
-  }, 5000);
+  }, 8000);
 }
 
-function renderCreativeResult(resultEl, url, mediaType) {
-  if (mediaType === 'video') {
-    resultEl.innerHTML = '<video src="' + url + '" controls playsinline style="width:100%;border-radius:12px;"></video><div style="text-align:center;margin-top:8px;"><a href="' + url + '" download="feihong-ai.mp4" style="font-size:12px;color:var(--accent);">⬇️ 保存视频</a></div>';
-  } else {
-    resultEl.innerHTML = '<img src="' + url + '" alt="生成结果">';
-  }
-  GameKit.beep(800, 80, 0.04);
+/* 一键填充 Agnes 创作模型（文生图 agnes-image-2.5-flash + 文生视频 agnes-video-2.5-flash） */
+function fillAgnesVideo() {
+  var base = 'https://api.agnes-ai.cn/v1';
+  var key = 'sk-H63gXwmB6pjqy3s3XL6WvlpcdSJTeQNtraMg43xPabL2CG4I';
+  $('cgT2IBase').value = base;
+  $('cgT2IKey').value = key;
+  $('cgT2IModel').value = 'agnes-image-2.5-flash';
+  $('cgT2VBase').value = base;
+  $('cgT2VKey').value = key;
+  $('cgT2VModel').value = 'agnes-video-2.5-flash';
+  // 同时加入自定义模型列表，方便对话使用
+  var ms = [
+    { id: 'agnes_image_2_5', modelId: 'agnes-image-2.5-flash', name: 'Agnes-Image-2.5（文生图）', apiBase: base, apiKey: key, reasoning: '' },
+    { id: 'agnes_video_2_5', modelId: 'agnes-video-2.5-flash', name: 'Agnes-Video-2.5（文生视频）', apiBase: base, apiKey: key, reasoning: '' }
+  ];
+  var added = 0;
+  ms.forEach(function (m) {
+    var exists = state.models.find(function (x) { return x.id === m.id; });
+    if (!exists) { state.models.push(m); added++; }
+  });
+  if (added > 0) { saveModels(); if (typeof renderModelList === 'function') renderModelList(); }
+  $('cgMsg').textContent = '已填充 Agnes 文生图+文生视频并加入模型列表，点保存配置后即可使用';
+  $('cgMsg').className = 'form-msg ok';
 }
 
 /* 保存创作模型配置 */
@@ -1688,11 +1752,6 @@ function saveCreativeFromForm() {
     apiBase: $('cgT2VBase').value.trim(),
     apiKey: $('cgT2VKey').value.trim(),
     modelId: $('cgT2VModel').value.trim()
-  };
-  creativeConfig.i2v = {
-    apiBase: $('cgI2VBase').value.trim(),
-    apiKey: $('cgI2VKey').value.trim(),
-    modelId: $('cgI2VModel').value.trim()
   };
   saveCreativeConfig();
   $('cgMsg').textContent = '✅ 创作配置已保存';
@@ -1714,9 +1773,6 @@ function fillCreativeForm() {
   $('cgT2VBase').value = creativeConfig.t2v.apiBase || '';
   $('cgT2VKey').value = creativeConfig.t2v.apiKey || '';
   $('cgT2VModel').value = creativeConfig.t2v.modelId || '';
-  $('cgI2VBase').value = creativeConfig.i2v.apiBase || '';
-  $('cgI2VKey').value = creativeConfig.i2v.apiKey || '';
-  $('cgI2VModel').value = creativeConfig.i2v.modelId || '';
 }
 
 /* ========== 免密网络层状态与测试 ========== */
@@ -1924,27 +1980,89 @@ function addHermesSchedule() {
   }
 }
 
-/* ========== 附件处理（图片/文件/截图/拍照） ========== */
-var state_attach = null; // { type: 'image'|'file', name, data, mime }
-function handleImageSelect(file) {
-  if (!file) return;
-  var reader = new FileReader();
-  reader.onload = function (e) {
-    state_attach = { type: 'image', name: file.name, data: e.target.result, mime: file.type || 'image/png' };
-    showAttachPreview('🖼️ ' + file.name);
-  };
-  reader.readAsDataURL(file);
+/* ========== 附件处理（图片最多20张 + 文件） ========== */
+var state_attach = null; // 文件附件 { type:'file', name, data, mime, isText }
+var state_attach_images = []; // 图片附件数组 [{name, data, mime}]
+
+/* 图片压缩：最长边 1280px，JPEG 质量 0.8，防内存溢出 */
+function compressImage(dataUrl, maxSide, quality, cb) {
+  try {
+    var img = new Image();
+    img.onload = function () {
+      var w = img.width, hgt = img.height;
+      var scale = 1;
+      if (w > maxSide || hgt > maxSide) scale = maxSide / Math.max(w, hgt);
+      var tw = Math.round(w * scale), th = Math.round(hgt * scale);
+      var canvas = document.createElement('canvas');
+      canvas.width = tw; canvas.height = th;
+      var ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, tw, th);
+      try { cb(canvas.toDataURL('image/jpeg', quality)); }
+      catch (e) { cb(dataUrl); }
+    };
+    img.onerror = function () { cb(dataUrl); };
+    img.src = dataUrl;
+  } catch (e) { cb(dataUrl); }
 }
+
+/* 添加图片（多选）：压缩后存入 state_attach_images，最多 20 张 */
+function addAttachImages(fileList) {
+  if (!fileList || !fileList.length) return;
+  var files = Array.prototype.slice.call(fileList).slice(0, 20);
+  var pending = files.length;
+  files.forEach(function (file) {
+    if (!file.type || file.type.indexOf('image/') !== 0) { pending--; return; }
+    var reader = new FileReader();
+    reader.onload = function (e) {
+      compressImage(e.target.result, 1280, 0.8, function (compressed) {
+        if (state_attach_images.length < 20) {
+          state_attach_images.push({ name: file.name, data: compressed, mime: 'image/jpeg' });
+        }
+        pending--;
+        if (pending <= 0) renderAttachImgs();
+      });
+    };
+    reader.onerror = function () { pending--; if (pending <= 0) renderAttachImgs(); };
+    reader.readAsDataURL(file);
+  });
+}
+
+/* 渲染多图缩略图预览（点击可全屏查看） */
+function renderAttachImgs() {
+  var box = $('attachImgs');
+  if (!box) return;
+  if (!state_attach_images.length) {
+    box.style.display = 'none';
+    box.innerHTML = '';
+    return;
+  }
+  box.style.display = 'flex';
+  var html = '';
+  state_attach_images.forEach(function (img, i) {
+    html += '<div style="position:relative;flex-shrink:0;"><img src="' + img.data + '" style="width:52px;height:52px;object-fit:cover;border-radius:8px;border:1px solid var(--line);" onclick="window.open(this.src)">' +
+      '<span onclick="removeAttachImage(' + i + ')" style="position:absolute;top:-6px;right:-6px;background:#f43f5e;color:#fff;width:18px;height:18px;border-radius:50%;font-size:11px;line-height:18px;text-align:center;">✕</span></div>';
+  });
+  if (state_attach_images.length < 20) {
+    html += '<div onclick="document.getElementById(\'imageInput\').click()" style="width:52px;height:52px;border:1.5px dashed var(--line);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--ink-2);flex-shrink:0;">＋</div>';
+  }
+  html += '<span style="font-size:10px;color:var(--ink-2);align-self:flex-end;margin-left:4px;">' + state_attach_images.length + '/20</span>';
+  box.innerHTML = html;
+}
+function removeAttachImage(idx) {
+  state_attach_images.splice(idx, 1);
+  renderAttachImgs();
+}
+
+/* 文件附件（≤20MB，文本读内容，其他 base64） */
 function handleFileSelect(file) {
   if (!file) return;
+  if (file.size > 20 * 1024 * 1024) { toast('文件过大，请选择 20MB 以内的文件'); return; }
   var reader = new FileReader();
   reader.onload = function (e) {
-    var content = e.target.result;
-    // 文本文件直接读取内容，其他文件用 base64
     var isText = /\.(txt|md|csv|json|js|css|html|py|java|c|cpp|xml|yml|yaml|log)$/i.test(file.name);
     state_attach = {
       type: 'file', name: file.name,
-      data: isText ? content : e.target.result,
+      data: e.target.result,
       mime: file.type || 'application/octet-stream',
       isText: isText
     };
@@ -1964,9 +2082,12 @@ function showAttachPreview(text) {
 }
 function removeAttach() {
   state_attach = null;
+  state_attach_images = [];
   var preview = $('attachPreview');
   if (preview) { preview.style.display = 'none'; preview.innerHTML = ''; }
+  renderAttachImgs();
 }
+
 function buildAttachPrompt(userText) {
   if (!state_attach) return userText;
   var attach = state_attach;
@@ -2075,9 +2196,9 @@ function initSkillCenter() {
   fillCreativeForm();
   $('t2iBtn').addEventListener('click', genText2Image);
   $('t2vBtn').addEventListener('click', genText2Video);
-  $('i2vBtn').addEventListener('click', genImage2Video);
   $('cgSaveBtn').addEventListener('click', saveCreativeFromForm);
   $('cgSfBtn').addEventListener('click', fillSiliconFlowT2I);
+  $('cgAgnesBtn').addEventListener('click', fillAgnesVideo);
 
   // 免密网络层（Keyless Web Tier）
   $('keylessRefreshBtn').addEventListener('click', renderKeylessStatus);
@@ -2099,18 +2220,13 @@ function initSkillCenter() {
   // 闪应用
   $('faRunBtn').addEventListener('click', runFlashApp);
 
-  // 附件按钮
+  // 附件按钮（图片可多选最多20张；截图功能已移除）
   $('attachImageBtn').addEventListener('click', function () { $('imageInput').click(); });
   $('attachFileBtn').addEventListener('click', function () { $('fileInput').click(); });
-  $('attachScreenshotBtn').addEventListener('click', function () {
-    // 截图：在移动端提示用户截图后从相册选择
-    toast('请使用手机截图功能，然后点击「图片」选择截图');
-    $('imageInput').click();
-  });
   $('attachCameraBtn').addEventListener('click', function () { $('cameraInput').click(); });
-  $('imageInput').addEventListener('change', function (e) { handleImageSelect(e.target.files[0]); e.target.value = ''; });
+  $('imageInput').addEventListener('change', function (e) { addAttachImages(e.target.files); e.target.value = ''; });
   $('fileInput').addEventListener('change', function (e) { handleFileSelect(e.target.files[0]); e.target.value = ''; });
-  $('cameraInput').addEventListener('change', function (e) { handleImageSelect(e.target.files[0]); e.target.value = ''; });
+  $('cameraInput').addEventListener('change', function (e) { addAttachImages(e.target.files); e.target.value = ''; });
 
   // 主题
   $('themeBtn').addEventListener('click', toggleTheme);

@@ -14,7 +14,7 @@
     "name": "TypeScript"
   },
   "operatingSystem": "Cross-platform (Windows, Linux, macOS)",
-  "softwareVersion": "8.0.2",
+  "softwareVersion": "8.3.0",
   "dateCreated": "2026-08-12",
   "datePublished": "2026-08-22",
   "author": {
