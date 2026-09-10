@@ -1,0 +1,17 @@
+{
+  "instance_id": "pydata__xarray-4493",
+  "repo": "pydata/xarray",
+  "model": "DeepSeek-V4-Flash-Vision-Exp",
+  "iterations": 1,
+  "toolCalls": 0,
+  "finished": false,
+  "patchLength": 0,
+  "hasPatch": false,
+  "error": null,
+  "trace": [
+    {
+      "iter": 1,
+      "error": "模型 HTTP 504: <html>\r\n<head><title>504 Gateway Time-out</title></head>\r\n<body>\r\n<center><h1>504 Gateway Time-out</h1></center>\r\n<hr><center>Microsoft-Azure-Application-Gateway/v2</center>\r\n</body>\r\n</html>\r\n"
+    }
+  ]
+}

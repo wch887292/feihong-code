@@ -1,0 +1,17 @@
+{
+  "instance_id": "astropy__astropy-14995",
+  "repo": "astropy/astropy",
+  "model": "DeepSeek-V4-Flash-Vision-Exp",
+  "iterations": 1,
+  "toolCalls": 0,
+  "finished": false,
+  "patchLength": 0,
+  "hasPatch": false,
+  "error": null,
+  "trace": [
+    {
+      "iter": 1,
+      "error": "模型 HTTP 429: {\"detail\":{\"error\":{\"message\":\"Model API rate limit exceeded; please retry later\",\"type\":\"rate_limit_error\",\"code\":\"ip_rate_limit_exceeded\"}}}"
+    }
+  ]
+}

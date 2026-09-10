@@ -1,0 +1,36 @@
+{
+  "instance_id": "matplotlib__matplotlib-22835",
+  "repo": "matplotlib/matplotlib",
+  "model": "DeepSeek-V4-Flash-Vision-Exp",
+  "iterations": 2,
+  "toolCalls": 2,
+  "finished": false,
+  "patchLength": 0,
+  "hasPatch": false,
+  "error": null,
+  "trace": [
+    {
+      "iter": 1,
+      "tool": "read_file",
+      "args": {
+        "path": "lib/matplotlib/artist.py",
+        "offset": 1260,
+        "limit": 60
+      },
+      "result": "1260\t\n1261\t        Subclasses can override the method and return arbitrary data. However,\n1262\t        when doing so, they must ensure that `.format_cursor_data` can convert\n1263\t        the data to a string representation.\n1264\t\n1265\t        The only current use case is displaying the z-value of an `.AxesImage`\n1266\t        in the status bar of a plot window, while moving the mouse.\n1267\t\n1268\t        Parameters\n1269\t        ----------\n1270\t        event : `matplotlib.backend_bases.MouseEvent`\n1271\t\n1272\t        See Also\n1273\t        --------\n1274\t        format_cursor_data\n1275\t\n1276\t       "
+    },
+    {
+      "iter": 1,
+      "tool": "grep",
+      "args": {
+        "pattern": "format_cursor_data",
+        "path": "lib/matplotlib/artist.py"
+      },
+      "result": "1262:        when doing so, they must ensure that `.format_cursor_data` can convert\n1274:        format_cursor_data\n1279:    def format_cursor_data(self, data):\n1301:            # Artist.format_cursor_data would always have precedence over\n1302:            # ScalarMappable.format_cursor_data.\n"
+    },
+    {
+      "iter": 2,
+      "error": "模型 HTTP 429: {\"detail\":{\"error\":{\"message\":\"Model API rate limit exceeded; please retry later\",\"type\":\"rate_limit_error\",\"code\":\"ip_rate_limit_exceeded\"}}}"
+    }
+  ]
+}
