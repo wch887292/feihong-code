@@ -68,6 +68,23 @@ jobs:
           print("仓库就绪")
           PY
 
+      # 诊断：确认 AMD_API_KEY secret 是否注入（只打印长度/前缀，不打印值）
+      - name: 检查模型通道 secret
+        env:
+          AMD_KEY: ${{ secrets.AMD_API_KEY }}
+          AGNES_KEY: ${{ secrets.AGNES_API_KEY }}
+        run: |
+          if [ -z "$AMD_KEY" ]; then
+            echo "!! AMD_API_KEY secret 为空（未配置或名字不对）——harness 将回退 AGNES key，打 AMD 端点必然 401"
+          else
+            echo "AMD_API_KEY 长度=${#AMD_KEY} 前缀=${AMD_KEY:0:7}（rc-02fd 开头=正确）"
+          fi
+          if [ -z "$AGNES_KEY" ]; then
+            echo "!! AGNES_API_KEY secret 为空"
+          else
+            echo "AGNES_API_KEY 长度=${#AGNES_KEY}"
+          fi
+
       - name: 真实模型生成 patch
         env:
           AGNES_API_KEY: ${{ secrets.AGNES_API_KEY }}
