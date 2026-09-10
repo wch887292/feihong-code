@@ -309,6 +309,28 @@ async function runInstance(inst) {
   return { iterations, toolCalls, finished, patch, trace };
 }
 
+async function smokeCheck() {
+  // 启动鉴权冒烟：最小请求，401/403/无效 key 立即失败，避免白跑全部实例
+  console.log('>> API 鉴权冒烟检查…');
+  const body = JSON.stringify({
+    model: MODEL.name,
+    messages: [{ role: 'user', content: 'hi' }],
+    max_tokens: 4,
+  });
+  const res = await fetch(MODEL.baseURL + '/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + MODEL.apiKey },
+    body,
+  });
+  if (!res.ok) {
+    const txt = (await res.text()).slice(0, 300);
+    console.error(`API 鉴权失败 HTTP ${res.status}: ${txt}`);
+    console.error(`通道: ${MODEL.baseURL} | 模型: ${MODEL.name} | 请检查 GitHub Secrets（AMD_API_KEY / AGNES_API_KEY）`);
+    process.exit(2);
+  }
+  console.log('>> 鉴权通过（HTTP 200）\n');
+}
+
 async function main() {
   const argIdx = process.argv.indexOf('--instances');
   const instPath = argIdx >= 0 ? process.argv[argIdx + 1] : join(ROOT, 'bench', 'swe-bench-verified-sample.json');
@@ -318,6 +340,7 @@ async function main() {
   const subset = instances.slice(0, limit);
 
   console.log(`\n=== SWE-bench 真实模型跑分（agentic）===\n模型: ${MODEL.name}\n实例数: ${subset.length}\n`);
+  await smokeCheck();
   const summary = [];
   for (const inst of subset) {
     console.log(`\n--- ${inst.instance_id} (${inst.repo}) ---`);
