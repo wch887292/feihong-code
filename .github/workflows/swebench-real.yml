@@ -14,6 +14,10 @@ on:
         description: '实例清单路径'
         required: false
         default: 'bench/swe-bench-verified-sample.json'
+      model:
+        description: '评测模型名（如 agnes-3.0-flash）'
+        required: false
+        default: 'agnes-2.5-flash'
   # 可选：定时跑（UTC 18:00）
   # schedule:
   #   - cron: '0 18 * * *'
@@ -54,6 +58,7 @@ jobs:
       - name: 真实模型生成 patch
         env:
           AGNES_API_KEY: ${{ secrets.AGNES_API_KEY }}
+          SWEEBENCH_MODEL: ${{ inputs.model }}
         run: node scripts/swebench-real.mjs --instances "${{ inputs.instances }}" --limit "${{ inputs.limit }}"
 
       - name: 真实测试验证（env-reconstructed）
