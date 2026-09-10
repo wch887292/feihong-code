@@ -26,8 +26,9 @@ mkdirSync(PATCHES_DIR, { recursive: true });
 mkdirSync(RUNS_DIR, { recursive: true });
 
 // ---- 真实模型配置（密钥只从环境变量读取，严禁硬编码）----
+// 模型名可通过环境变量 SWEEBENCH_MODEL 覆盖（如 agnes-3.0-flash），默认 agnes-2.5-flash
 const MODEL = {
-  name: 'agnes-2.5-flash',
+  name: process.env.SWEEBENCH_MODEL || 'agnes-2.5-flash',
   baseURL: process.env.AGNES_BASE_URL || 'https://api.agnes-ai.cn/v1',
   apiKey: process.env.AGNES_API_KEY || '',
 };
