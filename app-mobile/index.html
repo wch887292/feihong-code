@@ -2,6 +2,8 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#ffffff">
 <title>飞虹 Code · 移动版</title>
@@ -37,9 +39,8 @@
     <div class="input-attach-bar">
       <button class="attach-btn" id="attachImageBtn" title="添加图片"><span class="attach-ico">🖼️</span><span class="attach-label">图片</span></button>
       <button class="attach-btn" id="attachFileBtn" title="上传文件"><span class="attach-ico">📄</span><span class="attach-label">文件</span></button>
-      <button class="attach-btn" id="attachScreenshotBtn" title="截图"><span class="attach-ico">📸</span><span class="attach-label">截图</span></button>
       <button class="attach-btn" id="attachCameraBtn" title="拍照"><span class="attach-ico">📷</span><span class="attach-label">拍照</span></button>
-      <input type="file" id="imageInput" accept="image/*" style="display:none;">
+      <input type="file" id="imageInput" accept="image/*" multiple style="display:none;">
       <input type="file" id="fileInput" style="display:none;">
       <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none;">
     </div>
@@ -50,6 +51,7 @@
     <div class="input-tools">
       <span class="tool-tip muted" id="toolTip">💬 对话模式</span>
       <span class="attach-preview" id="attachPreview" style="display:none;"></span>
+      <span class="attach-imgs" id="attachImgs" style="display:none;"></span>
     </div>
   </div>
 </div>
@@ -163,23 +165,20 @@
       </div>
     </div>
     <div class="drawer-section">
-      <div class="drawer-section-title">🎨 创作模型配置（文生图/文生视频/图生视频）</div>
-      <div style="font-size:12px;color:var(--ink-2);margin-bottom:8px;">分别配置三种创作能力的 API，支持 OpenAI 兼容格式</div>
+      <div class="drawer-section-title">🎨 创作模型配置（文生图/文生视频）</div>
+      <div style="font-size:12px;color:var(--ink-2);margin-bottom:8px;">分别配置两种创作能力的 API，支持 OpenAI 兼容格式</div>
       <div style="font-size:13px;font-weight:600;margin:6px 0 4px;color:var(--ink-1);">🖼️ 文生图</div>
       <input class="input" id="cgT2IBase" placeholder="API 地址，如 https://api.siliconflow.cn/v1">
       <input class="input" id="cgT2IKey" type="password" placeholder="API Key">
       <input class="input" id="cgT2IModel" placeholder="模型 ID，如 stabilityai/stable-diffusion-xl-base-1.0">
       <div style="font-size:13px;font-weight:600;margin:10px 0 4px;color:var(--ink-1);">🎬 文生视频</div>
-      <input class="input" id="cgT2VBase" placeholder="API 地址">
-      <input class="input" id="cgT2VKey" type="password" placeholder="API Key">
-      <input class="input" id="cgT2VModel" placeholder="模型 ID">
-      <div style="font-size:13px;font-weight:600;margin:10px 0 4px;color:var(--ink-1);">🎞️ 图生视频</div>
-      <input class="input" id="cgI2VBase" placeholder="API 地址">
-      <input class="input" id="cgI2VKey" type="password" placeholder="API Key">
-      <input class="input" id="cgI2VModel" placeholder="模型 ID">
+      <input class="input" id="cgT2VBase" placeholder="API 地址，如 https://api.agnes-ai.cn/v1">
+      <input class="input" id="cgT2VKey" type="password" placeholder="API Key（agnes-video-2.5-flash）">
+      <input class="input" id="cgT2VModel" placeholder="模型 ID，如 agnes-video-2.5-flash">
       <div class="form-msg" id="cgMsg"></div>
       <div class="footer" style="margin-top:10px;">
         <button class="btn ghost" id="cgSfBtn" style="color:var(--ok);">⭐ 一键填充硅基流动文生图</button>
+        <button class="btn ghost" id="cgAgnesBtn" style="color:var(--accent);">🎬 一键填充 Agnes 文生图+视频</button>
         <button class="btn" id="cgSaveBtn">保存配置</button>
       </div>
     </div>
@@ -252,7 +251,7 @@
     <div class="drawer-section">
       <div class="drawer-section-title">🎖 关于</div>
       <div style="font-size:13px;color:var(--ink-2);line-height:1.8;">
-        飞虹 Code 移动版 v7.9.0<br>
+        飞虹 Code 移动版 v8.3.0<br>
         纯前端独立 APP · 数据本地存储<br>
         晋江市飞虹智科技企业管理有限公司
       </div>
@@ -366,7 +365,7 @@
   </div>
 </div>
 
-<!-- ===== AI 创作中心 Sheet（文生图/文生视频/图生视频） ===== -->
+<!-- ===== AI 创作中心 Sheet（文生图/文生视频） ===== -->
 <div class="sheet-mask" id="createSheet">
   <div class="sheet">
     <div class="sheet-head"><div class="sheet-title">🎨 AI 创作</div><span class="sheet-close" onclick="hideSheet('createSheet')">✕</span></div>
@@ -374,7 +373,6 @@
       <div class="create-tabs">
         <button class="create-tab active" data-ctab="t2i">🖼️ 文生图</button>
         <button class="create-tab" data-ctab="t2v">🎬 文生视频</button>
-        <button class="create-tab" data-ctab="i2v">🎞️ 图生视频</button>
       </div>
       <!-- 文生图 -->
       <div class="create-panel" id="ctab-t2i">
@@ -392,14 +390,20 @@
         <div class="form-msg" id="t2iMsg"></div>
         <div id="t2iResult" class="create-result"></div>
       </div>
-      <!-- 文生视频 -->
+      <!-- 文生视频（支持参考图） -->
       <div class="create-panel hidden" id="ctab-t2v">
         <label class="label">视频描述 *</label>
         <textarea class="input" id="t2vPrompt" rows="3" placeholder="描述你想生成的视频内容，如：清晨的森林，阳光透过树叶，微风轻拂"></textarea>
+        <div class="create-upload" id="t2vRefUpload" style="margin-bottom:8px;">
+          <input type="file" id="t2vRefFile" accept="image/*" hidden>
+          <div id="t2vRefPreview">🖼️ 参考图（可选，让画面更贴近参考）<br><span style="font-size:10px;opacity:.7">点击上传，最多 1 张</span></div>
+        </div>
         <div class="create-row">
           <select class="input" id="t2vDuration" style="flex:1;">
             <option value="5">5 秒</option>
+            <option value="8">8 秒</option>
             <option value="10">10 秒</option>
+            <option value="12">12 秒（最长）</option>
           </select>
           <select class="input" id="t2vRatio" style="flex:1;">
             <option value="9:16">9:16 竖屏</option>
@@ -412,24 +416,6 @@
         <div id="t2vResult" class="create-result"></div>
       </div>
       <!-- 图生视频 -->
-      <div class="create-panel hidden" id="ctab-i2v">
-        <label class="label">起始图片 *</label>
-        <div class="create-upload" id="i2vUpload">
-          <input type="file" id="i2vFile" accept="image/*" hidden>
-          <div id="i2vPreview">📷 点击上传图片</div>
-        </div>
-        <label class="label" style="margin-top:8px;">运动描述 *</label>
-        <textarea class="input" id="i2vPrompt" rows="2" placeholder="描述视频运动效果，如：镜头缓慢推进，人物微笑，头发随风飘动"></textarea>
-        <div class="create-row">
-          <select class="input" id="i2vDuration" style="flex:1;">
-            <option value="5">5 秒</option>
-            <option value="10">10 秒</option>
-          </select>
-          <button class="btn" id="i2vBtn" style="flex-shrink:0;">🎞️ 生成</button>
-        </div>
-        <div class="form-msg" id="i2vMsg"></div>
-        <div id="i2vResult" class="create-result"></div>
-      </div>
       <div style="margin-top:12px;font-size:11px;color:var(--ink-2);text-align:center;">⚙️ 未配置模型？点右上角 ⚙️ 设置 → 创作模型配置</div>
     </div>
   </div>
