@@ -1,0 +1,34 @@
+diff --git a/galleries/plot_types/basic/stackplot.py b/galleries/plot_types/basic/stackplot.py
+index 0000000..0000000
+--- a/galleries/plot_types/basic/stackplot.py
+
++++ b/galleries/plot_types/basic/stackplot.py
+
+@@ -24,4 +24,13 @@
+
+ ax.set(xlim=(0, 8), xticks=np.arange(1, 8),
+
+        ylim=(0, 8), yticks=np.arange(1, 8))
+
+ 
+
++# Test that twinx with stackplot doesn't corrupt data limits
+
++fig2, ax1 = plt.subplots()
+
++ax1.stackplot([1, 2], [1, 2])
+
++ax2 = ax1.twinx()
+
++ax2.plot([1, 2], [3, 4])
+
++# After the fix, ax1 data limits should remain unchanged
+
++assert not np.isinf(ax1.dataLim.intervaly[0]), "ax1 dataLims should not contain inf"
+
++assert not np.isinf(ax1.dataLim.intervaly[1]), "ax1 dataLims should not contain inf"
+
++
+
+ plt.show()
+
