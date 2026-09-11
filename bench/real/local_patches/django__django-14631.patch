@@ -1,0 +1,44 @@
+diff --git a/django/forms/boundfield.py b/django/forms/boundfield.py
+index 0000000..0000000
+--- a/django/forms/boundfield.py
+
++++ b/django/forms/boundfield.py
+
+@@ -119,6 +119,18 @@
+
+         Return the data for this BoundField, or None if it wasn't given.
+
+         """
+
+         return self.form._field_data_value(self.field, self.html_name)
+
++
+
++    def _did_change(self):
+
++        if self.field.disabled:
+
++            return False
+
++        if self.field.initial is not None and not callable(self.field.initial):
+
++            return self.field.bound_data(self.data, self.value()) != self.field.prepare_value(self.field.clean(self.field.to_python(self.field.validate(self.field.input_value(self.data)))))
+
++        # Use the form's data if it's bound, otherwise use initial.
+
++        if self.form.is_bound:
+
++            cleaned_data = self.form.cleaned_data.get(self.name)
+
++            if cleaned_data is not None:
+
++                return True
+
++        return False
+
+ 
+
+     def value(self):
+
+         """
+

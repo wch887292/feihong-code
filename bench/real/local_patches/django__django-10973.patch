@@ -1,0 +1,50 @@
+diff --git a/django/core/management/commands/dbshell.py b/django/core/management/commands/dbshell.py
+index 0000000..0000000
+--- a/django/core/management/commands/dbshell.py
+
++++ b/django/core/management/commands/dbshell.py
+
+@@ -1,3 +1,6 @@
+
++import os
+
++import subprocess
+
++
+
+ from django.core.management.base import BaseCommand, CommandError
+
+ from django.db import DEFAULT_DB_ALIAS, connections
+
+ 
+
+@@ -19,7 +22,13 @@
+
+     def handle(self, **options):
+
+         connection = connections[options['database']]
+
+         try:
+
+-            connection.client.runshell()
+
++            env = os.environ.copy()
+
++            env['PGPASSWORD'] = connection.settings_dict.get('PASSWORD', '')
+
++            subprocess.run(
+
++                connection.client.runshell(),
+
++                env=env,
+
++                check=True,
+
++            )
+
+         except OSError:
+
+             # Note that we're assuming OSError means that the client program
+
+             # isn't installed. There's a possibility OSError would be raised
+

@@ -1,0 +1,46 @@
+diff --git a/django/core/management/commands/flush.py b/django/core/management/commands/flush.py
+index 0000000..0000000
+--- a/django/core/management/commands/flush.py
+
++++ b/django/core/management/commands/flush.py
+
+@@ -49,12 +49,13 @@
+
+                              allow_cascade=allow_cascade)
+
+ 
+
+         if interactive:
+
+-            confirm = input("""You have requested a flush of the database.
+
+-This will IRREVERSIBLY DESTROY all data currently in the "%s" database,
+
+-and return each table to an empty state.
+
+-Are you sure you want to do this?
+
+-
+
+-    Type 'yes' to continue, or 'no' to cancel: """ % connection.settings_dict['NAME'])
+
++            self.stdout.write("You have requested a flush of the database.\n")
+
++            self.stdout.write(
+
++                "This will IRREVERSIBLY DESTROY all data currently in the \"%s\" database,\n"
+
++                "and return each table to an empty state.\n" % connection.settings_dict['NAME']
+
++            )
+
++            confirm = input("Are you sure you want to do this? Type 'yes' to continue, or 'no' to cancel: ")
+
++=======
+
+         else:
+
+             confirm = 'yes'
+
+ 
+

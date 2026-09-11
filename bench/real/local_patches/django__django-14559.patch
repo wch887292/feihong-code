@@ -1,0 +1,24 @@
+diff --git a/tests/queries/test_bulk_update.py b/tests/queries/test_bulk_update.py
+index 0000000..0000000
+--- a/tests/queries/test_bulk_update.py
+
++++ b/tests/queries/test_bulk_update.py
+
+@@ -125,7 +125,7 @@
+
+ 
+
+     def test_empty_objects(self):
+
+         with self.assertNumQueries(0):
+
+-            Note.objects.bulk_update([], ['note'])
+
++            self.assertEqual(Note.objects.bulk_update([], ['note']), 0)
+
+ 
+
+     def test_large_batch(self):
+
+         Note.objects.bulk_create([
+

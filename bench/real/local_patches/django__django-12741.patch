@@ -1,0 +1,24 @@
+diff --git a/tests/backends/base/test_operations.py b/tests/backends/base/test_operations.py
+index 0000000..0000000
+--- a/tests/backends/base/test_operations.py
+
++++ b/tests/backends/base/test_operations.py
+
+@@ -172,7 +172,7 @@
+
+             reset_sequences=True,
+
+             allow_cascade=True,
+
+         )
+
+-        connection.ops.execute_sql_flush(connection.alias, sql_list)
+
++        connection.ops.execute_sql_flush(sql_list)
+
+ 
+
+         with transaction.atomic():
+
+             self.assertIs(Author.objects.exists(), False)
+

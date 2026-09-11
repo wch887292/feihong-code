@@ -1,0 +1,34 @@
+diff --git a/plot_types/basic/plot.py b/plot_types/basic/plot.py
+index 0000000..0000000
+--- a/plot_types/basic/plot.py
+
++++ b/plot_types/basic/plot.py
+
+@@ -20,6 +20,13 @@
+
+ 
+
+ ax.plot(x, y, linewidth=2.0)
+
+ 
+
++# Test that cla() unsets .axes and .figure attributes of deparented artists.
+
++# Regression test for https://github.com/matplotlib/matplotlib/issues/9376
+
++line, = ax.plot([1, 2])
+
++ax.cla()
+
++assert line.axes is None
+
++assert line.figure is None
+
++
+
+ ax.set(xlim=(0, 8), xticks=np.arange(1, 8),
+
+        ylim=(0, 8), yticks=np.arange(1, 8))
+
+ 
+

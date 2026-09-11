@@ -1,0 +1,76 @@
+diff --git a/tests/admin_changelist/tests.py b/tests/admin_changelist/tests.py
+index 0000000..0000000
+--- a/tests/admin_changelist/tests.py
+
++++ b/tests/admin_changelist/tests.py
+
+@@ -48,6 +48,34 @@
+
+         '<th class="field-name"><a href="{}">name</a></th>'
+
+         '{}</tr></tbody>'
+
+     ).format(pk, href, extra_fields)
+
++
+
++
+
++class TestRegexInPrefix(TestCase):
+
++    def test_prefix_with_regex_special_characters(self):
+
++        """
+
++        Regression test for #25696: re.compile using string formatting can
+
++        cause problems when the arguments contain special regex characters.
+
++        """
+
++        from django.contrib.admin.options import BaseModelAdmin
+
++        from django.contrib.auth.models import User
+
++
+
++        class CustomAdmin(BaseModelAdmin):
+
++            def get_changelist(self, request, **kwargs):
+
++                from django.contrib.admin.views.main import ChangeList
+
++                return ChangeList
+
++
+
++        admin_site = AdminSite()
+
++        admin_site.register(User, CustomAdmin)
+
++
+
++        prefix = "a-b+c*d?e"
+
++        pk_pattern = re.compile(
+
++            r'{}-\d+-{}$'.format(prefix, User._meta.pk.name)
+
++        )
+
++        self.assertIsNone(pk_pattern.match(prefix + "-1-id"))
+
++        self.assertIsNotNone(
+
++            re.compile(r'\A{}-\d+-{}$'.format(re.escape(prefix), re.escape(User._meta.pk.name)))
+
++            .match(prefix + "-1-id")
+
++        )
+
+ 
+
+ 
+
+ @override_settings(ROOT_URLCONF="admin_changelist.urls")
+

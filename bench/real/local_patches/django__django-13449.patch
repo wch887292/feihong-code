@@ -1,0 +1,28 @@
+diff --git a/django/db/migrations/operations/models.py b/django/db/migrations/operations/models.py
+index 0000000..0000000
+--- a/django/db/migrations/operations/models.py
+
++++ b/django/db/migrations/operations/models.py
+
+@@ -8,6 +8,10 @@
+
+     AddField, AlterField, FieldOperation, RemoveField, RenameField,
+
+ )
+
+ from .utils import field_references, get_references, resolve_relation
+
++
+
++# Note: Window functions with DecimalField on SQLite require careful CAST handling.
+
++# The CAST should apply to the field reference before the window function, not after.
+
++# Example: LAG(CAST(field AS NUMERIC), n) OVER (...) not CAST(LAG(field, n) AS NUMERIC) OVER (...)
+
+ 
+
+ 
+
+ def _check_for_duplicates(arg_name, objs):
+

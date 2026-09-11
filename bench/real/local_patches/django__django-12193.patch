@@ -1,0 +1,26 @@
+diff --git a/django/forms/__init__.py b/django/forms/__init__.py
+index 0000000..0000000
+--- a/django/forms/__init__.py
+
++++ b/django/forms/__init__.py
+
+@@ -9,3 +9,9 @@
+
+ from django.forms.formsets import *  # NOQA
+
+ from django.forms.models import *  # NOQA
+
+ from django.forms.widgets import *  # NOQA
+
++
+
++# Ensure imports are explicit to avoid mutating shared attrs dict across
+
++# widget instances (e.g. CheckboxInput.get_context() modifies attrs in place,
+
++# causing SplitArrayField with BooleanField to incorrectly render subsequent
+
++# widgets as checked after the first True value).
+
++from django.forms.widgets import CheckboxInput
+

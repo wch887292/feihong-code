@@ -1,0 +1,22 @@
+diff --git a/django/core/management/commands/testserver.py b/django/core/management/commands/testserver.py
+index 0000000..0000000
+--- a/django/core/management/commands/testserver.py
+
++++ b/django/core/management/commands/testserver.py
+
+@@ -7,6 +7,7 @@
+
+     help = 'Runs a development server with data from the given fixture(s).'
+
+ 
+
+     requires_system_checks = []
+
++    parser_class = ManagementUtility.CommandParser
+
+ 
+
+     def add_arguments(self, parser):
+
+         parser.add_argument(
+

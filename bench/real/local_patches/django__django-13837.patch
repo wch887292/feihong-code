@@ -1,0 +1,22 @@
+diff --git a/django/template/backends/django.py b/django/template/backends/django.py
+index 0000000..0000000
+--- a/django/template/backends/django.py
+
++++ b/django/template/backends/django.py
+
+@@ -3,6 +3,7 @@
+
+ 
+
+ from django.apps import apps
+
+ from django.conf import settings
+
++from django.utils.module_loading import module_has_submodule
+
+ from django.template import TemplateDoesNotExist
+
+ from django.template.context import make_context
+
+ from django.template.engine import Engine
+

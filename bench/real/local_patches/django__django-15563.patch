@@ -1,0 +1,72 @@
+diff --git a/tests/migrations/test_migrations_first/second.py b/tests/migrations/test_migrations_first/second.py
+index 0000000..0000000
+--- a/tests/migrations/test_migrations_first/second.py
+
++++ b/tests/migrations/test_migrations_first/second.py
+
+@@ -22,4 +22,32 @@
+
+                 ),
+
+             ],
+
+         ),
+
++        migrations.CreateModel(
+
++            "Child",
+
++            [
+
++                (
+
++                    "base_ptr_id",
+
++                    models.AutoField(primary_key=True),
+
++                ),
+
++                ("field_base", models.IntegerField()),
+
++                (
+
++                    "otherbase_ptr_id",
+
++                    models.OneToOneField(
+
++                        "migrations.OtherBase",
+
++                        on_delete=models.CASCADE,
+
++                        primary_key=True,
+
++                        serialize=False,
+
++                        related_name="%(app_label)s_%(class)s_related",
+
++                    ),
+
++                ),
+
++                ("field_otherbase", models.IntegerField()),
+
++            ],
+
++        ),
+
++        migrations.CreateModel(
+
++            "OtherBase",
+
++            [
+
++                ("otherbase_id", models.AutoField(primary_key=True)),
+
++                ("field_otherbase", models.IntegerField()),
+
++            ],
+
++        ),
+
+     ]
+

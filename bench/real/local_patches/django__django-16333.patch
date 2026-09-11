@@ -1,0 +1,28 @@
+diff --git a/django/contrib/contenttypes/fields.py b/django/contrib/contenttypes/fields.py
+index 0000000..0000000
+--- a/django/contrib/contenttypes/fields.py
+
++++ b/django/contrib/contenttypes/fields.py
+
+@@ -60,6 +60,10 @@
+
+         self.model = cls
+
+         cls._meta.add_field(self, private=True)
+
+         setattr(cls, name, self)
+
++
+
++    def save_form_data(self, instance, data):
+
++        # GenericForeignKey fields are not valid for form data.
+
++        pass
+
+ 
+
+     def get_filter_kwargs_for_object(self, obj):
+
+         """See corresponding method on Field"""
+

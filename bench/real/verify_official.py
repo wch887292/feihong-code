@@ -24,12 +24,13 @@ PATCHES = os.path.join(ROOT, "bench", "real", "patches")
 REAL = os.path.join(ROOT, "bench", "real")
 
 
-def collect_predictions(insts):
+def collect_predictions(insts, patches_dir=None):
     """从 patches 目录收集模型 patch，构造官方 predictions 格式
     {instance_id: {"model_patch": "..."}}，只保留非空 patch 的实例。"""
+    patches_dir = patches_dir or PATCHES
     predictions = {}
     for inst in insts:
-        pf = os.path.join(PATCHES, inst["instance_id"] + ".patch")
+        pf = os.path.join(patches_dir, inst["instance_id"] + ".patch")
         if os.path.exists(pf):
             content = open(pf, encoding="utf-8").read().strip()
             if content:
@@ -86,13 +87,14 @@ def main():
     ap.add_argument("--instances", required=True, help="实例清单 JSON（含官方字段）")
     ap.add_argument("--limit", type=int, default=999)
     ap.add_argument("--max-workers", type=int, default=2, help="并行 Docker 容器数（runner 4 核建议 2）")
+    ap.add_argument("--patches-dir", default="", help="patch 目录（默认 bench/real/patches；本地转换产物可用 bench/real/local_patches）")
     ap.add_argument("--run-id", default="feihong_official")
     ap.add_argument("--timeout", type=int, default=1800, help="每实例容器内超时（秒）")
     ap.add_argument("--skip-run", action="store_true", help="只汇总已有日志，不重跑")
     args = ap.parse_args()
 
     insts = json.load(open(args.instances, encoding="utf-8"))[:args.limit]
-    predictions = collect_predictions(insts)
+    predictions = collect_predictions(insts, args.patches_dir or None)
     print("有 patch 的实例: %d / %d" % (len(predictions), len(insts)))
     if not predictions:
         print("无 patch 可验证（模型未生成任何补丁），退出")

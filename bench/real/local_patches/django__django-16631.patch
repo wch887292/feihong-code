@@ -1,0 +1,52 @@
+diff --git a/tests/auth_tests/test_basic.py b/tests/auth_tests/test_basic.py
+index 0000000..0000000
+--- a/tests/auth_tests/test_basic.py
+
++++ b/tests/auth_tests/test_basic.py
+
+@@ -122,6 +122,22 @@
+
+ 
+
+ 
+
+ class TestGetUser(TestCase):
+
++    def test_get_user_secret_key_fallbacks(self):
+
++        """
+
++        Test that sessions work with SECRET_KEY_FALLBACKS.
+
++        """
+
++        created_user = User.objects.create_user(
+
++            "testuser", "test@example.com", "testpw"
+
++        )
+
++        self.client.login(username="testuser", password="testpw")
+
++        client2 = Client()
+
++        client2.cookies = self.client.cookies
+
++        request = HttpRequest()
+
++        request.session = client2.session
+
++        user = get_user(request)
+
++        self.assertIsInstance(user, User)
+
++        self.assertEqual(user.username, created_user.username)
+
++
+
+     def test_get_user_anonymous(self):
+
+         request = HttpRequest()
+
+         request.session = self.client.session
+

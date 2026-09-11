@@ -1,0 +1,40 @@
+diff --git a/tests/pagination/tests.py b/tests/pagination/tests.py
+index 0000000..0000000
+--- a/tests/pagination/tests.py
+
++++ b/tests/pagination/tests.py
+
+@@ -391,6 +391,16 @@
+
+             Paginator(Article.objects.none(), 5)
+
+         self.assertEqual(len(recorded), 0)
+
+ 
+
++    def test_paginator_iterable(self):
+
++        """
+
++        Paginator is iterable and yields all pages.
+
++        """
+
++        paginator = Paginator([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 3)
+
++        pages = list(paginator)
+
++        self.assertEqual(len(pages), paginator.num_pages)
+
++        for page_num, page in enumerate(pages, start=1):
+
++            self.assertEqual(page.number, page_num)
+
++
+
+     def test_paginating_unordered_object_list_raises_warning(self):
+
+         """
+
+         Unordered object list warning with an object that has an ordered
+

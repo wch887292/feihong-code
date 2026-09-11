@@ -1,0 +1,22 @@
+diff --git a/astropy/table/table.py b/astropy/table/table.py
+index 0000000..0000000
+--- a/astropy/table/table.py
+
++++ b/astropy/table/table.py
+
+@@ -32,6 +32,7 @@
+
+     _convert_sequence_data_to_array,
+
+     col_copy,
+
+ )
+
++from astropy.io.ascii.qdp import Qdp
+
+ from .connect import TableRead, TableWrite
+
+ from .index import (
+
+     Index,
+

@@ -1,0 +1,22 @@
+diff --git a/astropy/constants/utils.py b/astropy/constants/utils.py
+index 0000000..0000000
+--- a/astropy/constants/utils.py
+
++++ b/astropy/constants/utils.py
+
+@@ -1,6 +1,7 @@
+
+ # Licensed under a 3-clause BSD style license - see LICENSE.rst
+
+ """Utility functions for ``constants`` sub-package."""
+
+ import itertools
+
++from distutils.version import LooseVersion
+
+ 
+
+ __all__ = []
+
+ 
+

@@ -1,0 +1,24 @@
+diff --git a/django/views/generic/list.py b/django/views/generic/list.py
+index 0000000..0000000
+--- a/django/views/generic/list.py
+
++++ b/django/views/generic/list.py
+
+@@ -54,7 +54,7 @@
+
+     def paginate_queryset(self, queryset, page_size):
+
+         """Paginate the queryset, if needed."""
+
+         paginator = self.get_paginator(
+
+-            queryset, page_size, orphans=self.get_paginate_orphans(),
+
++            queryset.query, page_size, orphans=self.get_paginate_orphans(),
+
+             allow_empty_first_page=self.get_allow_empty())
+
+         page_kwarg = self.page_kwarg
+
+         page = self.kwargs.get(page_kwarg) or self.request.GET.get(page_kwarg) or 1
+

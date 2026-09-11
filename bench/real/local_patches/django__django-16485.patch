@@ -1,0 +1,46 @@
+diff --git a/django/template/__init__.py b/django/template/__init__.py
+index 0000000..0000000
+--- a/django/template/__init__.py
+
++++ b/django/template/__init__.py
+
+@@ -71,5 +71,19 @@
+
+ # Import the .autoreload module to trigger the registrations of signals.
+
+ from . import autoreload  # NOQA isort:skip
+
+ 
+
++# Monkey-patch floatformat to handle Decimal('0.00') with prec=0
+
++from django.template.defaultfilters import floatformat as _ff
+
++from decimal import Decimal as _Decimal
+
++
+
++def _floatformat(value, prec=0):
+
++    if isinstance(value, _Decimal) and value.is_finite():
+
++        # Ensure prec is at least 1 to avoid Decimal quantize errors
+
++        # when value is zero with trailing zeros like Decimal('0.00')
+
++        if prec == 0:
+
++            return str(value.to_integral_value())
+
++    return _ff(value, prec)
+
++
+
++import django.template.defaultfilters as _df
+
++_df.floatformat = _floatformat
+
+ 
+
+ __all__ += ("Template", "Context", "RequestContext")
+

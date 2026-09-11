@@ -1,0 +1,74 @@
+diff --git a/astropy/io/ascii/cds.py b/astropy/io/ascii/cds.py
+index 0000000..0000000
+--- a/astropy/io/ascii/cds.py
+
++++ b/astropy/io/ascii/cds.py
+
+@@ -130,7 +130,32 @@
+
+                 if unit == "---":
+
+                     col.unit = None  # "---" is the marker for no unit in CDS/MRT table
+
+                 else:
+
+-                    col.unit = Unit(unit, format="cds", parse_strict="warn")
+
++                    # Strip leading '10+...' or '10-...' scaling factor that is
+
++                    # allowed by the CDS standard, then parse the remaining unit.
+
++                    # The "cds" format parser does not handle the standalone
+
++                    # factor prefix (it expects the factor to be part of the
+
++                    # exponent notation like "10+3J/m/s/kpc2" with the factor
+
++                    # applied as a multiplier).  However, because the CDS
+
++                    # grammar expects the scale factor to multiply the unit
+
++                    # string directly (e.g., "10+3m" meaning 1e3*m), we rely
+
++                    # on the cds formatter to handle it correctly.  In
+
++                    # practice, the parser mis-handles composite units with
+
++                    # a leading scale factor followed by division/multiplication.
+
++                    # Work around by parsing the unit part after the factor.
+
++                    unit_match = re.match(r"^1[+-]\d+(.*)$", unit)
+
++                    if unit_match:
+
++                        unit_str = unit_match.group(1) or "1"
+
++                        col.unit = Unit(unit_str, format="cds", parse_strict="warn")
+
++                        # Apply the leading scale factor manually.
+
++                        scale_str = unit[: len(unit) - len(unit_str)]
+
++                        try:
+
++                            scale = float(scale_str.replace("+", "e").replace("-", "e-"))
+
++                        except ValueError:
+
++                            scale = 1.0
+
++                        if scale != 1.0:
+
++                            col.unit = col.unit * scale
+
++                    else:
+
++                        col.unit = Unit(unit, format="cds", parse_strict="warn")
+
+                 col.description = (match.group("descr") or "").strip()
+
+                 col.raw_type = match.group("format")
+
+                 col.type = self.get_col_type(col)
+

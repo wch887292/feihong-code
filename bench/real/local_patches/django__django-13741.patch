@@ -1,0 +1,22 @@
+diff --git a/django/contrib/auth/forms.py b/django/contrib/auth/forms.py
+index 0000000..0000000
+--- a/django/contrib/auth/forms.py
+
++++ b/django/contrib/auth/forms.py
+
+@@ -55,6 +55,7 @@
+
+     widget = ReadOnlyPasswordHashWidget
+
+ 
+
+     def __init__(self, *args, **kwargs):
+
++        kwargs.setdefault("disabled", True)
+
+         kwargs.setdefault("required", False)
+
+         super().__init__(*args, **kwargs)
+
+ 
+

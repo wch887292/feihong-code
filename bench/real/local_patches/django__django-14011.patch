@@ -1,0 +1,42 @@
+diff --git a/tests/servers/tests.py b/tests/servers/tests.py
+index 0000000..0000000
+--- a/tests/servers/tests.py
+
++++ b/tests/servers/tests.py
+
+@@ -93,6 +93,17 @@
+
+     def _create_server(self):
+
+         return WSGIServer((self.host, self.port), QuietWSGIRequestHandler, allow_reuse_address=False)
+
+ 
+
++    def _shutdown_wsgi_server(self):
+
++        # ThreadingMixIn defines self.server.server_close() to close the
+
++        # listening socket, but not to close active connections. For the
+
++        # non-threaded server, we can just shut it down as usual. For the
+
++        # threaded server, we need to ensure the thread is joined before
+
++        # closing the database connections to avoid the race condition where
+
++        # the database is still accessed by the server thread during tearDown.
+
++        if hasattr(self, 'thread') and self.thread is not None:
+
++            self.thread.join()
+
++        super()._shutdown_wsgi_server()
+
++
+
+ 
+
+ class SingleThreadLiveServerTestCase(LiveServerTestCase):
+
+     server_thread_class = LiveServerSingleThread
+

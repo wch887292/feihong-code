@@ -1,0 +1,22 @@
+diff --git a/django/__init__.py b/django/__init__.py
+index 0000000..0000000
+--- a/django/__init__.py
+
++++ b/django/__init__.py
+
+@@ -11,6 +11,7 @@
+
+     first setting), configure logging and populate the app registry.
+
+     Set the thread-local urlresolvers script prefix if `set_prefix` is True.
+
+     """
+
++    import functools
+
+     from django.apps import apps
+
+     from django.conf import settings
+
+     from django.urls import set_script_prefix
+

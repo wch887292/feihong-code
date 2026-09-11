@@ -1,0 +1,28 @@
+diff --git a/django/db/models/functions/datetime.py b/django/db/models/functions/datetime.py
+index 0000000..0000000
+--- a/django/db/models/functions/datetime.py
+
++++ b/django/db/models/functions/datetime.py
+
+@@ -165,10 +165,6 @@
+
+ ExtractYear.register_lookup(YearLte)
+
+ 
+
+ ExtractIsoYear.register_lookup(YearExact)
+
+-ExtractIsoYear.register_lookup(YearGt)
+
+-ExtractIsoYear.register_lookup(YearGte)
+
+-ExtractIsoYear.register_lookup(YearLt)
+
+-ExtractIsoYear.register_lookup(YearLte)
+
+ 
+
+ 
+
+ class Now(Func):
+

@@ -1,0 +1,24 @@
+diff --git a/examples/mplot3d/offset.py b/examples/mplot3d/offset.py
+index 0000000..0000000
+--- a/examples/mplot3d/offset.py
+
++++ b/examples/mplot3d/offset.py
+
+@@ -22,7 +22,7 @@
+
+ X, Y = np.mgrid[0:6*np.pi:0.25, 0:4*np.pi:0.25]
+
+ Z = np.sqrt(np.abs(np.cos(X) + np.cos(Y)))
+
+ 
+
+-ax.plot_surface(X + 1e5, Y + 1e5, Z, cmap='autumn', cstride=2, rstride=2)
+
++ax.plot_surface(X + 1e5, Y + 1e5, Z, cmap='autumn', cstride=2, rstride=2, offset=1e-6)
+
+ 
+
+ ax.set_xlabel("X label")
+
+ ax.set_ylabel("Y label")
+

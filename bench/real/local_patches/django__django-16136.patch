@@ -1,0 +1,42 @@
+diff --git a/django/contrib/admindocs/views.py b/django/contrib/admindocs/views.py
+index 0000000..0000000
+--- a/django/contrib/admindocs/views.py
+
++++ b/django/contrib/admindocs/views.py
+
+@@ -478,6 +478,17 @@
+
+                 views.append((p.callback, base + str(p.pattern), namespace, p.name))
+
+             except ViewDoesNotExist:
+
+                 continue
+
++        elif hasattr(p, "resolve"):
+
++            try:
+
++                views.extend(
+
++                    extract_views_from_urlpatterns(
+
++                        p.resolve("").urlconf,
+
++                        base + str(p.pattern),
+
++                        (namespace or []) + (p.namespace and [p.namespace] or []),
+
++                    )
+
++                )
+
++            except Exception:
+
++                continue
+
+         else:
+
+             raise TypeError(_("%s does not appear to be a urlpattern object") % p)
+
+     return views
+

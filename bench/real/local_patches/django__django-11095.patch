@@ -1,0 +1,86 @@
+diff --git a/tests/generic_inline_admin/tests.py b/tests/generic_inline_admin/tests.py
+index 0000000..0000000
+--- a/tests/generic_inline_admin/tests.py
+
++++ b/tests/generic_inline_admin/tests.py
+
+@@ -429,3 +429,39 @@
+
+         inlines = ma.get_inline_instances(request)
+
+         for (formset, inline), other_inline in zip(ma.get_formsets_with_inlines(request), inlines):
+
+             self.assertIsInstance(formset, other_inline.get_formset(request).__class__)
+
++
+
++    def test_get_inlines(self):
+
++        """
+
++        ModelAdmin.get_inlines() returns the correct inlines.
+
++        """
+
++        class MediaInline(GenericTabularInline):
+
++            model = Media
+
++
+
++        class EpisodeAdmin(admin.ModelAdmin):
+
++            inlines = [MediaInline]
+
++
+
++        ma = EpisodeAdmin(Episode, self.site)
+
++        self.assertEqual(ma.get_inlines(request), [MediaInline])
+
++
+
++    def test_get_inlines_with_request_and_obj(self):
+
++        """
+
++        ModelAdmin.get_inlines() receives request and obj arguments.
+
++        """
+
++        class MediaInline(GenericTabularInline):
+
++            model = Media
+
++
+
++        class ExtraInline(GenericTabularInline):
+
++            model = Media
+
++
+
++        class EpisodeAdmin(admin.ModelAdmin):
+
++            inlines = [MediaInline]
+
++
+
++            def get_inlines(self, request, obj=None):
+
++                if obj:
+
++                    return [ExtraInline]
+
++                return [MediaInline]
+
++
+
++        e = self._create_object(Episode)
+
++        ma = EpisodeAdmin(Episode, self.site)
+
++        self.assertEqual(ma.get_inlines(request), [MediaInline])
+
++        self.assertEqual(ma.get_inlines(request, e), [ExtraInline])
+

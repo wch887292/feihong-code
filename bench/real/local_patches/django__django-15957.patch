@@ -1,0 +1,48 @@
+diff --git a/tests/prefetch_related/tests.py b/tests/prefetch_related/tests.py
+index 0000000..0000000
+--- a/tests/prefetch_related/tests.py
+
++++ b/tests/prefetch_related/tests.py
+
+@@ -64,6 +64,20 @@
+
+ 
+
+ 
+
+ class PrefetchRelatedTests(TestDataMixin, TestCase):
+
++    def test_prefetch_queryset_with_slice(self):
+
++        """Prefetching with a sliced queryset works."""
+
++        qs = Author.objects.prefetch_related(
+
++            Prefetch(
+
++                "books",
+
++                queryset=Book.objects.order_by("title")[:2],
+
++            )
+
++        )
+
++        with self.assertNumQueries(2):
+
++            for author in qs:
+
++                list(author.books.all())
+
++            # Verify only 2 books per author are prefetched
+
++            self.assertEqual(len(list(self.book1.books.all())), 3)
+
++
+
+     def assertWhereContains(self, sql, needle):
+
+         where_idx = sql.index("WHERE")
+
+         self.assertEqual(
+

@@ -1,0 +1,22 @@
+diff --git a/django/views/generic/list.py b/django/views/generic/list.py
+index 0000000..0000000
+--- a/django/views/generic/list.py
+
++++ b/django/views/generic/list.py
+
+@@ -44,6 +44,7 @@
+
+             if isinstance(ordering, str):
+
+                 ordering = (ordering,)
+
+             queryset = queryset.order_by(*ordering)
+
++            queryset._prefetch_related_lookups = set()
+
+ 
+
+         return queryset
+
+ 
+

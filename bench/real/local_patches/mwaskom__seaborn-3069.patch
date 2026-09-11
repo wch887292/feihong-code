@@ -1,0 +1,26 @@
+diff --git a/seaborn/_core/scales.py b/seaborn/_core/scales.py
+index 0000000..0000000
+--- a/seaborn/_core/scales.py
+
++++ b/seaborn/_core/scales.py
+
+@@ -183,6 +183,9 @@
+
+                 #     axis.set_minor_locator(minor_locator)
+
+                 # axis.set_major_formatter(major_formatter)
+
+ 
+
++            def get_transform(self):
+
++                return mpl.transforms.IdentityTransform()
+
++
+
+         mpl_scale = CatScale(data.name)
+
+         if axis is None:
+
+             axis = PseudoAxis(mpl_scale)
+
