@@ -26,6 +26,18 @@ on:
         description: '是否启用官方 Docker harness 验证（1=启用，0=仅自研快速验证；官方验证耗时 1-6h）'
         required: false
         default: '0'
+      mode:
+        description: '运行模式：gen-verify=模型生成+验证（默认）；verify-only=只用已提交 patch 验证（本地 patch_applied 送官方验证用）'
+        required: false
+        default: 'gen-verify'
+      patches_dir:
+        description: 'verify-only 模式下 patch 目录（默认 bench/real/local_patches，即本地 194 个重建 patch）'
+        required: false
+        default: 'bench/real/local_patches'
+      offset:
+        description: 'verify-only 模式起始实例偏移（分片用，如 0/50/100/150）'
+        required: false
+        default: '0'
   # 可选：定时跑（UTC 18:00）
   # schedule:
   #   - cron: '0 18 * * *'
@@ -90,6 +102,7 @@ jobs:
           fi
 
       - name: 真实模型生成 patch
+        if: inputs.mode != 'verify-only'
         env:
           AGNES_API_KEY: ${{ secrets.AGNES_API_KEY }}
           AMD_API_KEY: ${{ secrets.AMD_API_KEY }}
@@ -98,11 +111,12 @@ jobs:
         run: node scripts/swebench-real.mjs --instances "${{ steps.inst.outputs.instances }}" --limit "${{ inputs.limit }}"
 
       - name: 真实测试验证（env-reconstructed）
+        if: inputs.mode != 'verify-only'
         run: python bench/real/verify.py --no-venv --instances "${{ steps.inst.outputs.instances }}" --limit "${{ inputs.limit }}"
 
       - name: 真实测试验证（官方 Docker harness）
         if: inputs.official == '1'
-        run: python bench/real/verify_official.py --instances "${{ steps.inst.outputs.instances }}" --limit "${{ inputs.limit }}" --max-workers 2 --run-id feihong_official
+        run: python bench/real/verify_official.py --instances "${{ steps.inst.outputs.instances }}" --limit "${{ inputs.limit }}" --offset "${{ inputs.offset }}" --patches-dir "${{ inputs.patches_dir }}" --max-workers 2 --run-id feihong_official
 
       - name: 上传结果
         if: always()
