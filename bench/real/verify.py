@@ -46,7 +46,16 @@ def apply_patch(path_diff, cwd):
     rc3, out3 = run(["git", "apply", "-p1", "--3way", path_diff], cwd, timeout=60)
     return rc3 == 0, out3
 
-def setup_venv(cwd, instance_id, repo):
+def setup_venv(cwd, instance_id, repo, no_venv=False):
+    # CI runner 每次全新（job 隔离），无需 venv 隔离；直接系统 python 装依赖更快更稳
+    # （setup-python 的 venv 在部分 Linux 上缺 pip 且 ensurepip 不可用）
+    if no_venv:
+        pkgs = {"django/django": ["-e", ".", "pytz", "tblib", "docutils", "jinja2", "pytest"],
+                "astropy/astropy": ["-e", ".", "pytest", "pytest-astropy", "numpy", "pyerfa"]}.get(repo, ["-e", ".", "pytest"])
+        rc, out = run([sys.executable, "-m", "pip", "install"] + pkgs, cwd, timeout=900)
+        if rc != 0:
+            return sys.executable, "依赖安装失败(部分): " + out[-2000:]
+        return sys.executable, None
     venv = os.path.join(cwd, ".verify_venv")
     if not os.path.exists(venv):
         rc, out = run([sys.executable, "-m", "venv", venv], cwd, timeout=120)
@@ -108,7 +117,7 @@ def run_tests(py, cwd, repo, ftp, ptp):
             results[t] = (rc == 0, out[-800:])
     return results
 
-def verify_instance(inst):
+def verify_instance(inst, no_venv=False):
     repo_dir = inst["repo"].split("/")[1]
     cwd = os.path.join(WORK, repo_dir)
     patch_file = os.path.join(PATCHES, inst["instance_id"] + ".patch")
@@ -133,7 +142,7 @@ def verify_instance(inst):
     if not ok_t:
         return {"instance_id": inst["instance_id"], "verified": False, "reason": "test_patch 应用失败: " + msg_t[:500]}
     # 重建环境
-    py, err = setup_venv(cwd, inst["instance_id"], inst["repo"])
+    py, err = setup_venv(cwd, inst["instance_id"], inst["repo"], no_venv=no_venv)
     if py is None:
         return {"instance_id": inst["instance_id"], "verified": False, "reason": "环境重建失败: " + (err or "")}
     # 跑 FAIL_TO_PASS
@@ -159,12 +168,13 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--instances", default=os.path.join(ROOT, "bench", "swe-bench-verified-sample.json"))
     ap.add_argument("--limit", type=int, default=999)
+    ap.add_argument("--no-venv", action="store_true", help="CI 用：直接系统 python 装依赖（runner 每 job 全新，无需 venv 隔离）")
     args = ap.parse_args()
     insts = json.load(open(args.instances, encoding="utf-8"))[:args.limit]
     out = []
     for inst in insts:
         print("\n=== 验证", inst["instance_id"], "===")
-        r = verify_instance(inst)
+        r = verify_instance(inst, no_venv=args.no_venv)
         print(json.dumps(r, ensure_ascii=False, indent=2)[:2500])
         out.append(r)
     summary = {
