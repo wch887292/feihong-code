@@ -1,0 +1,22 @@
+diff --git a/examples/subplots_axes_and_figures/subplots_adjust.py b/examples/subplots_axes_and_figures/subplots_adjust.py
+index 0000000..0000000
+--- a/examples/subplots_axes_and_figures/subplots_adjust.py
+
++++ b/examples/subplots_axes_and_figures/subplots_adjust.py
+
+@@ -26,6 +26,6 @@
+
+ 
+
+ plt.subplots_adjust(bottom=0.1, right=0.8, top=0.9)
+
+ cax = plt.axes([0.85, 0.1, 0.075, 0.8])
+
+-plt.colorbar(cax=cax)
+
++plt.colorbar(cax=cax, drawedges=True)
+
+ 
+
+ plt.show()
+

@@ -1,0 +1,28 @@
+diff --git a/django/db/models/fields/related.py b/django/db/models/fields/related.py
+index 0000000..0000000
+--- a/django/db/models/fields/related.py
+
++++ b/django/db/models/fields/related.py
+
+@@ -1642,3 +1642,10 @@
+
+ 
+
+     def db_parameters(self, connection):
+
+         return {"type": None, "check": None}
+
++
+
++    def _get_extra_index_name(self, table_name, fields):
+
++        # Override to generate deterministic index names for m2m tables based
+
++        # on the underlying field columns.
+
++        from django.db.backends.ddl_references import Columns
+
++        column_names = [self.m2m_column_name(), self.m2m_reverse_column_name()]
+
++        return self._meta.db_table
+

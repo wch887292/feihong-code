@@ -1,0 +1,42 @@
+diff --git a/django/db/migrations/operations/models.py b/django/db/migrations/operations/models.py
+index 0000000..0000000
+--- a/django/db/migrations/operations/models.py
+
++++ b/django/db/migrations/operations/models.py
+
+@@ -95,10 +95,13 @@
+
+         if self.allow_migrate_model(schema_editor.connection.alias, model):
+
+             schema_editor.create_model(model)
+
+ 
+
+-    def database_backwards(self, app_label, schema_editor, from_state, to_state):
+
+-        model = from_state.apps.get_model(app_label, self.name)
+
+-        if self.allow_migrate_model(schema_editor.connection.alias, model):
+
+-            schema_editor.delete_model(model)
+
++    def prepare_m2m_reference(self, app_label, model_name, field_name, state):
+
++        for name, field in self.fields:
+
++            if name == field_name and field.many_to_many:
+
++                if isinstance(field.remote_field.through, str):
+
++                    field.remote_field.through = state.apps.get_model(
+
++                        field.remote_field.through
+
++                    )
+
+ 
+
+     def describe(self):
+
+         return "Create %smodel %s" % (
+

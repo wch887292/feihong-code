@@ -1,0 +1,40 @@
+diff --git a/tests/admin_docs/test_utils.py b/tests/admin_docs/test_utils.py
+index 0000000..0000000
+--- a/tests/admin_docs/test_utils.py
+
++++ b/tests/admin_docs/test_utils.py
+
+@@ -43,6 +43,16 @@
+
+             '(DESCRIPTION)\n\nsome_metadata: some data'
+
+         )
+
+         self.assertEqual(trim_docstring_output, trimmed_docstring)
+
++
+
++    def test_trim_docstring_first_line_not_empty(self):
+
++        """trim_docstring should work when the first line is not empty."""
+
++        docstring = """\
+
++First line not empty.
+
++
+
++Second line indented.
+
++"""
+
++        trimmed = trim_docstring(docstring)
+
++        self.assertEqual(trimmed, 'First line not empty.\n\nSecond line indented.')
+
+ 
+
+     def test_parse_docstring(self):
+
+         title, description, metadata = parse_docstring(self.docstring)
+

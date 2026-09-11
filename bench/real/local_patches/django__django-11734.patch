@@ -1,0 +1,22 @@
+diff --git a/django/db/models/sql/constants.py b/django/db/models/sql/constants.py
+index 0000000..0000000
+--- a/django/db/models/sql/constants.py
+
++++ b/django/db/models/sql/constants.py
+
+@@ -21,6 +21,7 @@
+
+     'ASC': ('ASC', 'DESC'),
+
+     'DESC': ('DESC', 'ASC'),
+
+ }
+
++JOIN_TYPE_PATTERN = re.compile(r'\b.*JOIN.*', re.IGNORECASE)
+
+ 
+
+ # SQL join types.
+
+ INNER = 'INNER JOIN'
+

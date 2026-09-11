@@ -1,0 +1,30 @@
+diff --git a/django/contrib/postgres/expressions.py b/django/contrib/postgres/expressions.py
+index 0000000..0000000
+--- a/django/contrib/postgres/expressions.py
+
++++ b/django/contrib/postgres/expressions.py
+
+@@ -9,6 +9,11 @@
+
+     def __init__(self, queryset, **kwargs):
+
+         super().__init__(queryset, **kwargs)
+
+ 
+
++    def get_compiler(self, using=None, connection=None):
+
++        if self.queryset.query.is_empty():
+
++            return None
+
++        return super().get_compiler(using=using, connection=connection)
+
++
+
+     @cached_property
+
+     def output_field(self):
+
+         return ArrayField(self.query.output_field)
+

@@ -1,0 +1,40 @@
+diff --git a/tests/admin_ordering/tests.py b/tests/admin_ordering/tests.py
+index 0000000..0000000
+--- a/tests/admin_ordering/tests.py
+
++++ b/tests/admin_ordering/tests.py
+
+@@ -69,6 +69,16 @@
+
+             ordering = (F('rank').desc(nulls_last=True),)
+
+         band_admin = BandAdmin(Band, site)
+
+         names = [b.name for b in band_admin.get_queryset(request)]
+
++        self.assertEqual(['Aerosmith', 'Van Halen', 'Radiohead'], names)
+
++
+
++    def test_meta_ordering_by_f_expression(self):
+
++        """Model ordering by F expressions works with multi-table inheritance."""
+
++        class SubBand(Band):
+
++            class Meta:
+
++                proxy = True
+
++                ordering = (F('rank').desc(nulls_last=True),)
+
++        ma = ModelAdmin(SubBand, site)
+
++        names = [b.name for b in ma.get_queryset(request)]
+
+         self.assertEqual(['Aerosmith', 'Van Halen', 'Radiohead'], names)
+
+ 
+
+     def test_dynamic_ordering(self):
+

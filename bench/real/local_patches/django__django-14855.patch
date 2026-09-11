@@ -1,0 +1,28 @@
+diff --git a/django/contrib/admin/tests.py b/django/contrib/admin/tests.py
+index 0000000..0000000
+--- a/django/contrib/admin/tests.py
+
++++ b/django/contrib/admin/tests.py
+
+@@ -1,8 +1,10 @@
+
+ from contextlib import contextmanager
+
+ 
+
++from django.contrib.admin import AdminSite
+
+ from django.contrib.staticfiles.testing import StaticLiveServerTestCase
+
+ from django.test import modify_settings
+
+ from django.test.selenium import SeleniumTestCase
+
++from django.urls import reverse
+
+ from django.utils.deprecation import MiddlewareMixin
+
+ from django.utils.translation import gettext as _
+
+ 
+

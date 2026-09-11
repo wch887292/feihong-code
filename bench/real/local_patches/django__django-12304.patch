@@ -1,0 +1,40 @@
+diff --git a/django/utils/translation/__init__.py b/django/utils/translation/__init__.py
+index 0000000..0000000
+--- a/django/utils/translation/__init__.py
+
++++ b/django/utils/translation/__init__.py
+
+@@ -29,6 +29,16 @@
+
+ 
+
+ class TranslatorCommentWarning(SyntaxWarning):
+
+     pass
+
++
+
++
+
++class TranslationString:
+
++    """
+
++    A wrapper around lazy translation strings that marks them as not callable
+
++    in templates. This is used by models.Choices to prevent Django's template
+
++    engine from trying to call the enum class.
+
++    """
+
++
+
++    do_not_call_in_templates = True
+
+ 
+
+ 
+
+ # Here be dragons, so a short explanation of the logic won't hurt:
+

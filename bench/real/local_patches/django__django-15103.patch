@@ -1,0 +1,22 @@
+diff --git a/django/test/__init__.py b/django/test/__init__.py
+index 0000000..0000000
+--- a/django/test/__init__.py
+
++++ b/django/test/__init__.py
+
+@@ -3,6 +3,7 @@
+
+ from django.test.client import (
+
+     AsyncClient, AsyncRequestFactory, Client, RequestFactory,
+
+ )
+
++from django.template.defaultfilters import json_script  # noqa: F401 – exposed for convenience
+
+ from django.test.testcases import (
+
+     LiveServerTestCase, SimpleTestCase, TestCase, TransactionTestCase,
+
+     skipIfDBFeature, skipUnlessAnyDBFeature, skipUnlessDBFeature,
+

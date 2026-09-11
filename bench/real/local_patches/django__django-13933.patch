@@ -1,0 +1,34 @@
+diff --git a/tests/forms_tests/tests/test_error_messages.py b/tests/forms_tests/tests/test_error_messages.py
+index 0000000..0000000
+--- a/tests/forms_tests/tests/test_error_messages.py
+
++++ b/tests/forms_tests/tests/test_error_messages.py
+
+@@ -292,11 +292,11 @@
+
+         # ModelChoiceField
+
+         e = {
+
+             'required': 'REQUIRED',
+
+-            'invalid_choice': 'INVALID CHOICE',
+
++            'invalid_choice': 'INVALID CHOICE %(value)s',
+
+         }
+
+         f = ModelChoiceField(queryset=ChoiceModel.objects.all(), error_messages=e)
+
+         self.assertFormErrors(['REQUIRED'], f.clean, '')
+
+-        self.assertFormErrors(['INVALID CHOICE'], f.clean, '4')
+
++        self.assertFormErrors(['INVALID CHOICE 4'], f.clean, '4')
+
+ 
+
+         # ModelMultipleChoiceField
+
+         e = {
+

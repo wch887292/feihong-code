@@ -1,0 +1,26 @@
+diff --git a/django/conf/global_settings.py b/django/conf/global_settings.py
+index 0000000..0000000
+--- a/django/conf/global_settings.py
+
++++ b/django/conf/global_settings.py
+
+@@ -606,6 +606,9 @@
+
+ # The default file storage backend used during the build process
+
+ STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
+
+ 
+
++# Maximum number of post-processing passes
+
++STATICFILES_POST_PROCESS = 3
+
++
+
+ # List of finder classes that know how to find static files in
+
+ # various locations.
+
+ STATICFILES_FINDERS = [
+

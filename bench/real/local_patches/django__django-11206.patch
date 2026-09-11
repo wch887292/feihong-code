@@ -1,0 +1,28 @@
+diff --git a/django/utils/numberformat.py b/django/utils/numberformat.py
+index 0000000..0000000
+--- a/django/utils/numberformat.py
+
++++ b/django/utils/numberformat.py
+
+@@ -39,6 +39,10 @@
+
+                 thousand_sep, force_grouping, use_l10n,
+
+             )
+
+             return '{}e{}'.format(coefficient, exponent)
+
++        elif decimal_pos is not None and number != 0 and number.to_eng_string().lower().startswith('1e'):
+
++            # Format extremely small numbers that would otherwise be rendered as
+
++            # '0.00' when decimal_pos is specified.
+
++            str_number = format(number, '.{}f'.format(decimal_pos))
+
+         else:
+
+             str_number = '{:f}'.format(number)
+
+     else:
+

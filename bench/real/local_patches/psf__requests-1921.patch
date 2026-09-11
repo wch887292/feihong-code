@@ -1,0 +1,26 @@
+diff --git a/requests/cookies.py b/requests/cookies.py
+index 0000000..0000000
+--- a/requests/cookies.py
+
++++ b/requests/cookies.py
+
+@@ -132,7 +132,8 @@
+
+     """Produce an appropriate Cookie header string to be sent with `request`, or None."""
+
+     r = MockRequest(request)
+
+     jar.add_cookie_header(r)
+
+-    return r.get_new_headers().get('Cookie')
+
++    headers = r.get_new_headers()
+
++    return headers.pop('Cookie', None)
+
+ 
+
+ 
+
+ def remove_cookie_by_name(cookiejar, name, domain=None, path=None):
+

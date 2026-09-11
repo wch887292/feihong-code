@@ -1,0 +1,26 @@
+diff --git a/lib/matplotlib/pyplot.py b/lib/matplotlib/pyplot.py
+index 0000000..0000000
+--- a/lib/matplotlib/pyplot.py
+
++++ b/lib/matplotlib/pyplot.py
+
+@@ -80,7 +80,8 @@
+
+     TickHelper, Formatter, FixedFormatter, NullFormatter, FuncFormatter,
+
+     FormatStrFormatter, ScalarFormatter, LogFormatter, LogFormatterExponent,
+
+     LogFormatterMathtext, Locator, IndexLocator, FixedLocator, NullLocator,
+
+-    LinearLocator, LogLocator, AutoLocator, MultipleLocator, MaxNLocator)
+
++    LinearLocator, LogLocator, AutoLocator, MultipleLocator, MaxNLocator,
+
++    AutoMinorLocator)
+
+ 
+
+ _log = logging.getLogger(__name__)
+
+ 
+

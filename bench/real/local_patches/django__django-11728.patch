@@ -1,0 +1,24 @@
+diff --git a/django/contrib/admindocs/views.py b/django/contrib/admindocs/views.py
+index 0000000..0000000
+--- a/django/contrib/admindocs/views.py
+
++++ b/django/contrib/admindocs/views.py
+
+@@ -409,6 +409,8 @@
+
+     pattern = replace_unnamed_groups(pattern)
+
+     # clean up any outstanding regex-y characters.
+
+     pattern = pattern.replace('^', '').replace('$', '').replace('?', '')
+
++    if not pattern.endswith('/'):
+
++        pattern = pattern + '/'
+
+     if not pattern.startswith('/'):
+
+         pattern = '/' + pattern
+
+     return pattern
+

@@ -1,0 +1,30 @@
+diff --git a/django/db/models/sql/constants.py b/django/db/models/sql/constants.py
+index 0000000..0000000
+--- a/django/db/models/sql/constants.py
+
++++ b/django/db/models/sql/constants.py
+
+@@ -7,6 +7,11 @@
+
+ # Size of each "chunk" for get_iterator calls.
+
+ # Larger values are slightly faster at the expense of more storage space.
+
+ GET_ITERATOR_CHUNK_SIZE = 100
+
++
+
++# Size of each "chunk" for collecting querysets during deletion.
+
++# Deletion uses only the primary key fields to avoid reading unnecessary
+
++# data (e.g., large text fields) which can cause UnicodeDecodeError in Python 3.
+
++FAST_DELETE_CHUNK_SIZE = 1000
+
+ 
+
+ # Namedtuples for sql.* internal use.
+
+ 
+

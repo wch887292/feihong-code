@@ -1,0 +1,26 @@
+diff --git a/django/db/models/sql/constants.py b/django/db/models/sql/constants.py
+index 0000000..0000000
+--- a/django/db/models/sql/constants.py
+
++++ b/django/db/models/sql/constants.py
+
+@@ -5,6 +5,9 @@
+
+ # Size of each "chunk" for get_iterator calls.
+
+ # Larger values are slightly faster at the expense of more storage space.
+
+ GET_ITERATOR_CHUNK_SIZE = 100
+
++
+
++# Prefix for query aliases to avoid collisions with user-defined table names
+
++ALIAS_PREFIX = 'T'
+
+ 
+
+ # Namedtuples for sql.* internal use.
+
+ 
+

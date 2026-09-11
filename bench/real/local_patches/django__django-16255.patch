@@ -1,0 +1,24 @@
+diff --git a/django/contrib/sites/models.py b/django/contrib/sites/models.py
+index 0000000..0000000
+--- a/django/contrib/sites/models.py
+
++++ b/django/contrib/sites/models.py
+
+@@ -54,7 +54,7 @@
+
+         """
+
+         from django.conf import settings
+
+ 
+
+-        if getattr(settings, "SITE_ID", ""):
+
++        if getattr(settings, "SITE_ID", None):
+
+             site_id = settings.SITE_ID
+
+             return self._get_site_by_id(site_id)
+
+         elif request:
+

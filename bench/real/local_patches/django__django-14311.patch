@@ -1,0 +1,32 @@
+diff --git a/django/__main__.py b/django/__main__.py
+index 0000000..0000000
+--- a/django/__main__.py
+
++++ b/django/__main__.py
+
+@@ -3,7 +3,12 @@
+
+ 
+
+ Example: python -m django check
+
+ """
+
++import sys
+
+ from django.core import management
+
+ 
+
+ if __name__ == "__main__":
+
+     management.execute_from_command_line()
+
++    # Since Python 3.12, if __main__ was triggered with -m and no
+
++    # __main__.py is present, the process exits after running the module.
+
++    # Explicitly call sys.exit(0) to ensure autoreloader behavior is consistent.
+
++    sys.exit(0)
+

@@ -1,0 +1,164 @@
+diff --git a/django/contrib/admin/tests.py b/django/contrib/admin/tests.py
+index 0000000..0000000
+--- a/django/contrib/admin/tests.py
+
++++ b/django/contrib/admin/tests.py
+
+@@ -157,16 +157,6 @@
+
+         from selenium.webdriver.support.ui import Select
+
+         select = Select(self.selenium.find_element(By.CSS_SELECTOR, selector))
+
+         select.deselect_by_value(value)
+
+-
+
+-    def assertCountSeleniumElements(self, selector, count, root_element=None):
+
+-        """
+
+-        Assert number of matches for a CSS selector.
+
+-
+
+-        `root_element` allow restriction to a pre-selected node.
+
+-        """
+
+-        from selenium.webdriver.common.by import By
+
+-        root_element = root_element or self.selenium
+
+-        self.assertEqual(len(root_element.find_elements(By.CSS_SELECTOR, selector)), count)
+
+ 
+
+     def _assertOptionsValues(self, options_selector, values):
+
+         from selenium.webdriver.common.by import By
+
+@@ -208,4 +198,61 @@
+
+         return self.selenium.find_element(
+
+             By.CSS_SELECTOR,
+
+             selector,
+
++        ).get_attribute('class').find(klass) != -1tor`.
+
++        """
+
++        from selenium.webdriver.common.by import By
+
++        from selenium.webdriver.support.ui import Select
+
++        select = Select(self.selenium.find_element(By.CSS_SELECTOR, selector))
+
++        select.deselect_by_value(value)
+
++
+
++    def assertCountSeleniumElements(self, selector, count, root_element=None):
+
++        """
+
++        Assert number of matches for a CSS selector.
+
++
+
++        `root_element` allow restriction to a pre-selected node.
+
++        """
+
++        from selenium.webdriver.common.by import By
+
++        root_element = root_element or self.selenium
+
++        self.assertEqual(len(root_element.find_elements(By.CSS_SELECTOR, selector)), count)
+
++
+
++    def _assertOptionsValues(self, options_selector, values):
+
++        from selenium.webdriver.common.by import By
+
++        if values:
+
++            options = self.selenium.find_elements(By.CSS_SELECTOR, options_selector)
+
++            actual_values = []
+
++            for option in options:
+
++                actual_values.append(option.get_attribute('value'))
+
++            self.assertEqual(values, actual_values)
+
++        else:
+
++            # Prevent the `find_elements(By.CSS_SELECTOR, …)` call from blocking
+
++            # if the selector doesn't match any options as we expect it
+
++            # to be the case.
+
++            with self.disable_implicit_wait():
+
++                self.wait_until(
+
++                    lambda driver: not driver.find_elements(By.CSS_SELECTOR, options_selector)
+
++                )
+
++
+
++    def assertSelectOptions(self, selector, values):
+
++        """
+
++        Assert that the <SELECT> widget identified by `selector` has the
+
++        options with the given `values`.
+
++        """
+
++        self._assertOptionsValues("%s > option" % selector, values)
+
++
+
++    def assertSelectedOptions(self, selector, values):
+
++        """
+
++        Assert that the <SELECT> widget identified by `selector` has the
+
++        selected options with the given `values`.
+
++        """
+
++        self._assertOptionsValues("%s > option:checked" % selector, values)
+
++
+
++    def has_css_class(self, selector, klass):
+
++        """
+
++        Return True if the element identified by `selector` has the CSS class
+
++        `klass`.
+
++        """
+
++        from selenium.webdriver.common.by import By
+
++        return self.selenium.find_element(
+
++            By.CSS_SELECTOR,
+
++            selector,
+
+         ).get_attribute('class').find(klass) != -1
+

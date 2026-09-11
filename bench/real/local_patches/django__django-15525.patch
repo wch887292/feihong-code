@@ -1,0 +1,28 @@
+diff --git a/django/db/migrations/operations/models.py b/django/db/migrations/operations/models.py
+index 0000000..0000000
+--- a/django/db/migrations/operations/models.py
+
++++ b/django/db/migrations/operations/models.py
+
+@@ -19,8 +19,9 @@
+
+ 
+
+ 
+
+ class ModelOperation(Operation):
+
+-    def __init__(self, name):
+
++    def __init__(self, name, state_forwards=None):
+
+         self.name = name
+
++        self.state_forwards = state_forwards
+
+ 
+
+     @cached_property
+
+     def name_lower(self):
+

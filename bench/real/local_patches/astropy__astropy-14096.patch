@@ -1,0 +1,32 @@
+diff --git a/astropy/coordinates/attributes.py b/astropy/coordinates/attributes.py
+index 0000000..0000000
+--- a/astropy/coordinates/attributes.py
+
++++ b/astropy/coordinates/attributes.py
+
+@@ -23,6 +23,12 @@
+
+ 
+
+     This class must be used to define frame attributes (e.g. ``equinox`` or
+
+     ``obstime``) that are included in a frame class definition.
+
++
+
++    See Also
+
++    --------
+
++    astropy.coordinates.baseframe.BaseCoordinateFrame.__getattr__ :
+
++        The __getattr__ implementation for frame objects, which delegates to
+
++        this descriptor.
+
+ 
+
+     Examples
+
+     --------
+

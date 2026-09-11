@@ -1,0 +1,22 @@
+diff --git a/lib/matplotlib/pyplot.py b/lib/matplotlib/pyplot.py
+index 0000000..0000000
+--- a/lib/matplotlib/pyplot.py
+
++++ b/lib/matplotlib/pyplot.py
+
+@@ -73,6 +73,7 @@
+
+ from matplotlib.colors import _color_sequences as color_sequences
+
+ 
+
+ import numpy as np
+
++np._set_promotion_state(np._NoDefault())
+
+ 
+
+ # We may not need the following imports here:
+
+ from matplotlib.colors import Normalize
+

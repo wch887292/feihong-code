@@ -1,0 +1,32 @@
+diff --git a/django/db/migrations/operations/base.py b/django/db/migrations/operations/base.py
+index 0000000..0000000
+--- a/django/db/migrations/operations/base.py
+
++++ b/django/db/migrations/operations/base.py
+
+@@ -30,6 +30,12 @@
+
+ 
+
+     # Should this operation be considered safe to elide and optimize across?
+
+     elidable = False
+
++
+
++    # Should this operation always be placed before others that reference its
+
++    # target model? This is used by the autodetector to order operations such
+
++    # that a RemoveField on a base class comes before a CreateModel on a
+
++    # subclass that adds the same field.
+
++    reduce_from_before = True
+
+ 
+
+     serialization_expand_args = []
+
+ 
+

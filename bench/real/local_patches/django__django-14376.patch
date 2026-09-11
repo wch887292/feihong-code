@@ -1,0 +1,24 @@
+diff --git a/django/core/management/commands/dbshell.py b/django/core/management/commands/dbshell.py
+index 0000000..0000000
+--- a/django/core/management/commands/dbshell.py
+
++++ b/django/core/management/commands/dbshell.py
+
+@@ -10,6 +10,8 @@
+
+         "default database if none is provided."
+
+     )
+
+ 
+
++    # MySQL backend uses deprecated "db" and "passwd" kwargs in favor of
+
++    # "database" and "password". The mysqlclient library supports both forms.
+
+     requires_system_checks = []
+
+ 
+
+     def add_arguments(self, parser):
+

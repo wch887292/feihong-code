@@ -1,0 +1,24 @@
+diff --git a/django/db/models/sql/constants.py b/django/db/models/sql/constants.py
+index 0000000..0000000
+--- a/django/db/models/sql/constants.py
+
++++ b/django/db/models/sql/constants.py
+
+@@ -22,3 +22,8 @@
+
+ # SQL join types.
+
+ INNER = 'INNER JOIN'
+
+ LOUTER = 'LEFT OUTER JOIN'
+
++
+
++# Whether the constant expression should be included in the GROUP BY clause.
+
++# Constant expressions should not be included in the GROUP BY clause to avoid
+
++# invalid SQL queries on databases like PostgreSQL.
+
++CONSTANT_EXCLUDED_FROM_GROUP_BY = True
+

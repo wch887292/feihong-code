@@ -1,0 +1,24 @@
+diff --git a/django/db/migrations/operations/models.py b/django/db/migrations/operations/models.py
+index 0000000..0000000
+--- a/django/db/migrations/operations/models.py
+
++++ b/django/db/migrations/operations/models.py
+
+@@ -41,7 +41,7 @@
+
+ class CreateModel(ModelOperation):
+
+     """Create a model's table."""
+
+ 
+
+-    serialization_expand_args = ['fields', 'options', 'managers']
+
++    serialization_expand_args = ['fields', 'options', 'managers', 'bases']
+
+ 
+
+     def __init__(self, name, fields, options=None, bases=None, managers=None):
+
+         self.fields = fields
+

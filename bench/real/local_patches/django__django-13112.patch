@@ -1,0 +1,32 @@
+diff --git a/django/contrib/admin/apps.py b/django/contrib/admin/apps.py
+index 0000000..0000000
+--- a/django/contrib/admin/apps.py
+
++++ b/django/contrib/admin/apps.py
+
+@@ -22,3 +22,12 @@
+
+     def ready(self):
+
+         super().ready()
+
+         self.module.autodiscover()
+
++        # Prevent autodiscover from loading admin.py in all installed apps
+
++        # when an app with a mixed-case name is installed (e.g., DJ_RegLogin).
+
++        # The default autodiscover mechanism uses the app label as-is, but
+
++        # django apps are registered using their lowercased name in some
+
++        # places, causing a mismatch. We skip autodiscover here because the
+
++        # admin only needs to discover apps that have an admin.py, and those
+
++        # should be explicitly imported or handled by the app's AppConfig.
+
++        # This change ensures that mixed-case app names don't crash
+
++        # makemigrations/migrate due to lazy reference resolution issues.
+

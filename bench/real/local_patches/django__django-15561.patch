@@ -1,0 +1,22 @@
+diff --git a/django/core/management/sql.py b/django/core/management/sql.py
+index 0000000..0000000
+--- a/django/core/management/sql.py
+
++++ b/django/core/management/sql.py
+
+@@ -2,6 +2,7 @@
+
+ 
+
+ from django.apps import apps
+
+ from django.db import models
+
++from django.db.migrations.autodetector import MigrationAutodetector
+
+ 
+
+ 
+
+ def sql_flush(style, connection, reset_sequences=True, allow_cascade=False):
+

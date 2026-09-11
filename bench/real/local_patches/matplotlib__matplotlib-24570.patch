@@ -1,0 +1,24 @@
+diff --git a/lib/matplotlib/offsetbox.py b/lib/matplotlib/offsetbox.py
+index 0000000..0000000
+--- a/lib/matplotlib/offsetbox.py
+
++++ b/lib/matplotlib/offsetbox.py
+
+@@ -171,7 +171,7 @@
+
+         offsets = [d for h, d in hd_list]
+
+     elif align in ["right", "bottom"]:
+
+         descent = 0.
+
+-        offsets = [height - h + d for h, d in hd_list]
+
++        offsets = [h for h, d in hd_list]
+
+     elif align == "center":
+
+         descent = 0.
+
+         offsets = [(height - h) * .5 + d for h, d in hd_list]
+

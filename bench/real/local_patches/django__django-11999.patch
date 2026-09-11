@@ -1,0 +1,26 @@
+diff --git a/django/core/exceptions.py b/django/core/exceptions.py
+index 0000000..0000000
+--- a/django/core/exceptions.py
+
++++ b/django/core/exceptions.py
+
+@@ -90,7 +90,8 @@
+
+ 
+
+ class FieldError(Exception):
+
+     """Some kind of problem with a model field."""
+
+-    pass
+
++    def __str__(self):
+
++        return self.args[0]
+
+ 
+
+ 
+
+ NON_FIELD_ERRORS = '__all__'
+

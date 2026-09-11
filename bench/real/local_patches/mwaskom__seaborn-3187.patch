@@ -1,0 +1,24 @@
+diff --git a/seaborn/objects.py b/seaborn/objects.py
+index 0000000..0000000
+--- a/seaborn/objects.py
+
++++ b/seaborn/objects.py
+
+@@ -28,6 +28,8 @@
+
+ """
+
+ from seaborn._core.plot import Plot  # noqa: F401
+
+ 
+
++from seaborn._core.scales import ScalarFormatter  # noqa: F401
+
++
+
+ from seaborn._marks.base import Mark  # noqa: F401
+
+ from seaborn._marks.area import Area, Band  # noqa: F401
+
+ from seaborn._marks.bar import Bar, Bars  # noqa: F401
+

@@ -1,0 +1,30 @@
+diff --git a/tests/model_fields/test_jsonfield.py b/tests/model_fields/test_jsonfield.py
+index 0000000..0000000
+--- a/tests/model_fields/test_jsonfield.py
+
++++ b/tests/model_fields/test_jsonfield.py
+
+@@ -714,6 +714,11 @@
+
+                 )),
+
+             ),
+
+         ]
+
++        if connection.features.supports_json_field_over_array_cast:
+
++            tests.extend([
+
++                ('value__key__in', [0]),
+
++                ('value__key__in', [0, 1, 2]),
+
++            ])
+
+         # For databases where {'f': 'g'} (without surrounding []) matches
+
+         # [{'f': 'g'}].
+
+         if not connection.features.json_key_contains_list_matching_requires_list:
+

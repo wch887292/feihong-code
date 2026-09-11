@@ -1,0 +1,24 @@
+diff --git a/django/db/models/functions/__init__.py b/django/db/models/functions/__init__.py
+index 0000000..0000000
+--- a/django/db/models/functions/__init__.py
+
++++ b/django/db/models/functions/__init__.py
+
+@@ -17,7 +17,7 @@
+
+ )
+
+ from .window import (
+
+     CumeDist, DenseRank, FirstValue, Lag, LastValue, Lead, NthValue, Ntile,
+
+-    PercentRank, Rank, RowNumber,
+
++    PercentRank, Rank, RowNumber, Sum,
+
+ )
+
+ 
+
+ __all__ = [
+

@@ -1,0 +1,46 @@
+diff --git a/tests/admin_scripts/tests.py b/tests/admin_scripts/tests.py
+index 0000000..0000000
+--- a/tests/admin_scripts/tests.py
+
++++ b/tests/admin_scripts/tests.py
+
+@@ -2322,3 +2322,19 @@
+
+         out, err = self.run_django_admin(args)
+
+         self.assertNoOutput(out)
+
+         self.assertNotInOutput(err, 'Did you mean')
+
++
+
++
+
++class RunserverSkipChecks(AdminScriptTestCase):
+
++    """Tests for runserver --skip-checks option."""
+
++
+
++    def setUp(self):
+
++        super().setUp()
+
++        self.write_settings('settings.py')
+
++
+
++    def test_skip_checks_option(self):
+
++        """Test that --skip-checks prevents system checks from running."""
+
++        args = ['runserver', '--skip-checks']
+
++        out, err = self.run_manage(args)
+
++        # The command should start without performing system checks
+
++        # When runserver starts without checks, it won't show the system check message
+
++        self.assertNotIn(SYSTEM_CHECK_MSG, err)
+

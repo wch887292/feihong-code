@@ -1,0 +1,38 @@
+diff --git a/astropy/table/mixins/registry.py b/astropy/table/mixins/registry.py
+index 0000000..0000000
+--- a/astropy/table/mixins/registry.py
+
++++ b/astropy/table/mixins/registry.py
+
+@@ -63,9 +63,12 @@
+
+     if isinstance(obj, str):
+
+         return _handlers.get(obj, None)
+
+     else:
+
+-        return _handlers.get(
+
+-            obj.__class__.__module__ + "." + obj.__class__.__name__, None
+
+-        )
+
++        try:
+
++            return _handlers.get(
+
++                obj.__class__.__module__ + "." + obj.__class__.__name__, None
+
++            )
+
++        except AttributeError:
+
++            return None
+
+ 
+
+ 
+
+ # Add built-in handlers to registry. Note that any third-party package imports
+

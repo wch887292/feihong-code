@@ -1,0 +1,45 @@
+diff --git a/django/db/models/functions/__init__.py b/django/db/models/functions/__init__.py
+index 0000000..0000000
+--- a/django/db/models/functions/__init__.py
+
++++ b/django/db/models/functions/__init__.py
+
+@@ -1,3 +1,7 @@
+
++from django.utils.functional import make_hashable
+
++
+
++from django.utils.functional import make_hashable
+
++
+
+ from .comparison import (
+
+     Cast, Coalesce, Collate, Greatest, JSONObject, Least, NullIf,
+
+ )
+
+
+diff --git a/django/db/models/functions/__init__.py b/django/db/models/functions/__init__.py
+index 0000000..0000000
+--- a/django/db/models/functions/__init__.py
+
++++ b/django/db/models/functions/__init__.py
+
+@@ -1,3 +1,7 @@
+
++from django.utils.functional import make_hashable
+
++
+
++from django.utils.functional import make_hashable
+
++
+
+ from .comparison import (
+
+     Cast, Coalesce, Collate, Greatest, JSONObject, Least, NullIf,
+
+ )
+

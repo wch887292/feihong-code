@@ -1,0 +1,26 @@
+diff --git a/django/test/testcases.py b/django/test/testcases.py
+index 0000000..0000000
+--- a/django/test/testcases.py
+
++++ b/django/test/testcases.py
+
+@@ -97,6 +97,9 @@
+
+         self.context = ContextList()
+
+ 
+
+     def on_template_render(self, sender, signal, template, context, **kwargs):
+
++        from django.template import Context as TemplateContext
+
++        if isinstance(context, TemplateContext):
+
++            context = context.dicts
+
+         self.rendered_templates.append(template)
+
+         self.rendered_template_names.append(template.name)
+
+         self.context.append(copy(context))
+

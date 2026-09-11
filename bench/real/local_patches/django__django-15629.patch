@@ -1,0 +1,22 @@
+diff --git a/django/contrib/gis/db/models/aggregates.py b/django/contrib/gis/db/models/aggregates.py
+index 0000000..0000000
+--- a/django/contrib/gis/db/models/aggregates.py
+
++++ b/django/contrib/gis/db/models/aggregates.py
+
+@@ -22,6 +22,7 @@
+
+         # this will be called again in parent, but it's needed now - before
+
+         # we get the spatial_aggregate_name
+
+         connection.ops.check_expression_support(self)
+
++        extra_context["collation"] = self.source_expressions[0].output_field.db_collation
+
+         return super().as_sql(
+
+             compiler,
+
+             connection,
+

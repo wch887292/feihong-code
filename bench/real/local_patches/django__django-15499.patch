@@ -1,0 +1,126 @@
+diff --git a/tests/migrations/test_optimizer.py b/tests/migrations/test_optimizer.py
+index 0000000..0000000
+--- a/tests/migrations/test_optimizer.py
+
++++ b/tests/migrations/test_optimizer.py
+
+@@ -165,6 +165,59 @@
+
+             ],
+
+         )
+
+ 
+
++    def test_create_alter_model_managers(self):
+
++        self.assertOptimizesTo(
+
++            [
+
++                migrations.CreateModel(
+
++                    "Foo",
+
++                    fields=[],
+
++                    managers=[("objects", EmptyManager())],
+
++                ),
+
++                migrations.AlterModelManagers(
+
++                    name="Foo", managers=[("custom", EmptyManager())]
+
++                ),
+
++            ],
+
++            [
+
++                migrations.CreateModel(
+
++                    "Foo",
+
++                    fields=[],
+
++                    managers=[("custom", EmptyManager())],
+
++                ),
+
++            ],
+
++        )
+
++
+
++    def test_create_model_and_remove_model_managers(self):
+
++        self.assertOptimizesTo(
+
++            [
+
++                migrations.CreateModel(
+
++                    "MyModel",
+
++                    fields=[],
+
++                    managers=[("objects", EmptyManager())],
+
++                ),
+
++                migrations.AlterModelManagers("MyModel", managers=[]),
+
++            ],
+
++            [migrations.CreateModel("MyModel", fields=[])],
+
++        )
+
++        self.assertOptimizesTo(
+
++            [
+
++                migrations.CreateModel(
+
++                    "MyModel",
+
++                    fields=[],
+
++                    managers=[("objects", EmptyManager()), ("author", EmptyManager())],
+
++                ),
+
++                migrations.AlterModelManagers(
+
++                    "MyModel", managers=[("objects", EmptyManager())]
+
++                ),
+
++            ],
+
++            [
+
++                migrations.CreateModel(
+
++                    "MyModel",
+
++                    fields=[],
+
++                    managers=[("objects", EmptyManager())],
+
++                ),
+
++            ],
+
++        )
+
++
+
+     def _test_create_alter_foo_delete_model(self, alter_foo):
+
+         """
+
+         CreateModel, AlterModelTable, AlterUniqueTogether/AlterIndexTogether/
+

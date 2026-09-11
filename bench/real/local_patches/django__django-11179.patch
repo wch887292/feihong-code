@@ -1,0 +1,22 @@
+diff --git a/tests/delete/tests.py b/tests/delete/tests.py
+index 0000000..0000000
+--- a/tests/delete/tests.py
+
++++ b/tests/delete/tests.py
+
+@@ -17,6 +17,7 @@
+
+     def test_auto(self):
+
+         a = create_a('auto')
+
+         a.auto.delete()
+
++        self.assertIsNone(a.pk)
+
+         self.assertFalse(A.objects.filter(name='auto').exists())
+
+ 
+
+     def test_auto_nullable(self):
+

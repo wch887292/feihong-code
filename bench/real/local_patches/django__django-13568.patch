@@ -1,0 +1,52 @@
+diff --git a/tests/auth_tests/test_checks.py b/tests/auth_tests/test_checks.py
+index 0000000..0000000
+--- a/tests/auth_tests/test_checks.py
+
++++ b/tests/auth_tests/test_checks.py
+
+@@ -9,12 +9,21 @@
+
+ )
+
+ from django.test.utils import isolate_apps
+
+ 
+
+-from .models import CustomUserNonUniqueUsername
+
++from .models import CustomUserNonUniqueUsername, CustomUserWithUniqueConstraint
+
+ 
+
+ 
+
+ @isolate_apps('auth_tests', attr_name='apps')
+
+ @override_system_checks([check_user_model])
+
+ class UserModelChecksTests(SimpleTestCase):
+
++    @override_settings(AUTH_USER_MODEL='auth_tests.CustomUserWithUniqueConstraint')
+
++    def test_username_unique_via_constraint(self):
+
++        """
+
++        A USERNAME_FIELD that is covered by a UniqueConstraint does not
+
++        raise auth.E003.
+
++        """
+
++        errors = checks.run_checks()
+
++        self.assertEqual(errors, [])
+
++
+
+     @override_settings(AUTH_USER_MODEL='auth_tests.CustomUserNonListRequiredFields')
+
+     def test_required_fields_is_list(self):
+
+         """REQUIRED_FIELDS should be a list."""
+

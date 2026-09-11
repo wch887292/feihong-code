@@ -1,0 +1,24 @@
+diff --git a/tests/serializers/models/data.py b/tests/serializers/models/data.py
+index 0000000..0000000
+--- a/tests/serializers/models/data.py
+
++++ b/tests/serializers/models/data.py
+
+@@ -42,7 +42,7 @@
+
+ 
+
+ 
+
+ class FileData(models.Model):
+
+-    data = models.FileField(null=True)
+
++    data = models.FileField(upload_to='test_serializers/', null=True)
+
+ 
+
+ 
+
+ class FilePathData(models.Model):
+

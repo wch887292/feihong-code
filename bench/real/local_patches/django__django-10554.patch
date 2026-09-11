@@ -1,0 +1,26 @@
+diff --git a/django/db/migrations/executor.py b/django/db/migrations/executor.py
+index 0000000..0000000
+--- a/django/db/migrations/executor.py
+
++++ b/django/db/migrations/executor.py
+
+@@ -5,6 +5,9 @@
+
+ from .loader import MigrationLoader
+
+ from .recorder import MigrationRecorder
+
+ from .state import ProjectState
+
++
+
++# NOTE: Bug #29692 (Union queryset with ordering breaks on ordering with derived
+
++# querysets) is in django/db/models/query.py / compiler.py, not here.
+
+ 
+
+ 
+
+ class MigrationExecutor:
+

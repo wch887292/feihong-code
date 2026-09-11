@@ -1,0 +1,28 @@
+diff --git a/django/db/models/sql/constants.py b/django/db/models/sql/constants.py
+index 0000000..0000000
+--- a/django/db/models/sql/constants.py
+
++++ b/django/db/models/sql/constants.py
+
+@@ -19,6 +19,10 @@
+
+     'DESC': ('DESC', 'ASC'),
+
+ }
+
+ 
+
++# Logical operators used when combining expressions (e.g., Q objects).
+
++AND = 'AND'
+
++OR = 'OR'
+
++
+
+ # SQL join types.
+
+ INNER = 'INNER JOIN'
+
+ LOUTER = 'LEFT OUTER JOIN'
+

@@ -1,0 +1,28 @@
+diff --git a/tests/auth_tests/test_forms.py b/tests/auth_tests/test_forms.py
+index 0000000..0000000
+--- a/tests/auth_tests/test_forms.py
+
++++ b/tests/auth_tests/test_forms.py
+
+@@ -1048,3 +1048,10 @@
+
+         for field_name, autocomplete in tests:
+
+             with self.subTest(field_name=field_name, autocomplete=autocomplete):
+
+                 self.assertEqual(form.fields[field_name].widget.attrs['autocomplete'], autocomplete)
+
++
+
++    def test_authenticationform_username_maxlength(self):
+
++        form = AuthenticationForm()
+
++        self.assertEqual(
+
++            form.fields['username'].max_length,
+
++            User._meta.get_field('username').max_length,
+
++        )
+

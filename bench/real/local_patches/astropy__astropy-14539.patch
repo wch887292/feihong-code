@@ -1,0 +1,24 @@
+diff --git a/astropy/io/misc/asdf/tags/fits/fits.py b/astropy/io/misc/asdf/tags/fits/fits.py
+index 0000000..0000000
+--- a/astropy/io/misc/asdf/tags/fits/fits.py
+
++++ b/astropy/io/misc/asdf/tags/fits/fits.py
+
+@@ -74,6 +74,8 @@
+
+     @classmethod
+
+     def assert_equal(cls, old, new):
+
+         for hdua, hdub in zip(old, new):
+
++            if hdua.data is None and hdub.data is None:
+
++                continue
+
+             assert_array_equal(hdua.data, hdub.data)
+
+             for carda, cardb in zip(hdua.header.cards, hdub.header.cards):
+
+                 assert tuple(carda) == tuple(cardb)
+

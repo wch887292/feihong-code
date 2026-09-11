@@ -1,0 +1,130 @@
+diff --git a/tests/migrations/test_optimizer.py b/tests/migrations/test_optimizer.py
+index 0000000..0000000
+--- a/tests/migrations/test_optimizer.py
+
++++ b/tests/migrations/test_optimizer.py
+
+@@ -1121,6 +1121,61 @@
+
+             ],
+
+         )
+
+ 
+
++    def test_add_remove_index(self):
+
++        self.assertOptimizesTo(
+
++            [
+
++                migrations.AddIndex(
+
++                    "Pony",
+
++                    index=migrations.Index(fields=["weight"], name="pony_weight"),
+
++                ),
+
++                migrations.RemoveIndex(
+
++                    "Pony",
+
++                    name="pony_weight",
+
++                ),
+
++            ],
+
++            [],
+
++        )
+
++        self.assertOptimizesTo(
+
++            [
+
++                migrations.CreateModel("Pony", [("weight", models.IntegerField())]),
+
++                migrations.AddIndex(
+
++                    "Pony",
+
++                    index=migrations.Index(fields=["weight"], name="pony_weight"),
+
++                ),
+
++                migrations.RemoveIndex(
+
++                    "Pony",
+
++                    name="pony_weight",
+
++                ),
+
++            ],
+
++            [
+
++                migrations.CreateModel("Pony", [("weight", models.IntegerField())]),
+
++            ],
+
++        )
+
++        self.assertOptimizesTo(
+
++            [
+
++                migrations.AddIndex(
+
++                    "Pony",
+
++                    index=migrations.Index(fields=["weight"], name="pony_weight"),
+
++                ),
+
++                migrations.CreateModel("Foo", [("name", models.CharField(max_length=255))]),
+
++                migrations.RemoveIndex(
+
++                    "Pony",
+
++                    name="pony_weight",
+
++                ),
+
++            ],
+
++            [
+
++                migrations.AddIndex(
+
++                    "Pony",
+
++                    index=migrations.Index(fields=["weight"], name="pony_weight"),
+
++                ),
+
++                migrations.CreateModel("Foo", [("name", models.CharField(max_length=255))]),
+
++                migrations.RemoveIndex(
+
++                    "Pony",
+
++                    name="pony_weight",
+
++                ),
+
++            ],
+
++        )
+
++
+
+     def test_rename_index(self):
+
+         self.assertOptimizesTo(
+
+             [
+

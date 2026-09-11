@@ -1,0 +1,24 @@
+diff --git a/requests/packages/urllib3/request.py b/requests/packages/urllib3/request.py
+index 0000000..0000000
+--- a/requests/packages/urllib3/request.py
+
++++ b/requests/packages/urllib3/request.py
+
+@@ -67,7 +67,7 @@
+
+         :meth:`request_encode_url`, :meth:`request_encode_body`,
+
+         or even the lowest level :meth:`urlopen`.
+
+         """
+
+-        method = method.upper()
+
++        method = method.upper().decode('utf-8') if isinstance(method, unicode) else method.upper()
+
+ 
+
+         if method in self._encode_url_methods:
+
+             return self.request_encode_url(method, url, fields=fields,
+

@@ -1,0 +1,24 @@
+diff --git a/examples/statistics/hist.py b/examples/statistics/hist.py
+index 0000000..0000000
+--- a/examples/statistics/hist.py
+
++++ b/examples/statistics/hist.py
+
+@@ -63,7 +63,7 @@
+
+     thispatch.set_facecolor(color)
+
+ 
+
+ # We can also normalize our inputs by the total number of counts
+
+-axs[1].hist(x, bins=n_bins, density=True)
+
++axs[1].hist(x, bins=n_bins, density=True, range=(-3, 3))
+
+ 
+
+ # Now we format the y-axis to display percentage
+
+ axs[1].yaxis.set_major_formatter(PercentFormatter(xmax=1))
+

@@ -1,0 +1,69 @@
+diff --git a/src/flask/blueprints.py b/src/flask/blueprints.py
+index 0000000..0000000
+--- a/src/flask/blueprints.py
+
++++ b/src/flask/blueprints.py
+
+@@ -75,6 +75,13 @@
+
+         self.url_prefix = url_prefix
+
+ 
+
+         self.name = self.options.get("name", blueprint.name)
+
++
+
++        if not self.name:
+
++            raise ValueError(
+
++                "The blueprint name must not be empty. "
+
++                f"Got {blueprint.name!r}."
+
++            )
+
++
+
+         self.name_prefix = self.options.get("name_prefix", "")
+
+ 
+
+         #: A dictionary with URL defaults that is added to each and every
+
+
+diff --git a/src/flask/blueprints.py b/src/flask/blueprints.py
+index 0000000..0000000
+--- a/src/flask/blueprints.py
+
++++ b/src/flask/blueprints.py
+
+@@ -75,6 +75,13 @@
+
+         self.url_prefix = url_prefix
+
+ 
+
+         self.name = self.options.get("name", blueprint.name)
+
++
+
++        if not self.name:
+
++            raise ValueError(
+
++                "The blueprint name must not be empty. "
+
++                f"Got {blueprint.name!r}."
+
++            )
+
++
+
+         self.name_prefix = self.options.get("name_prefix", "")
+
+ 
+
+         #: A dictionary with URL defaults that is added to each and every
+

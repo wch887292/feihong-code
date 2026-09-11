@@ -1,0 +1,36 @@
+diff --git a/django/utils/http.py b/django/utils/http.py
+index 0000000..0000000
+--- a/django/utils/http.py
+
++++ b/django/utils/http.py
+
+@@ -176,10 +176,11 @@
+
+     try:
+
+         year = int(m.group('year'))
+
+         if year < 100:
+
+-            if year < 70:
+
+-                year += 2000
+
++            this_year = datetime.date.today().year
+
++            if year < (this_year % 100) + 50:
+
++                year += this_year - (this_year % 100)
+
+             else:
+
+-                year += 1900
+
++                year += this_year - (this_year % 100) - 100
+
+         month = MONTHS.index(m.group('mon').lower()) + 1
+
+         day = int(m.group('day'))
+
+         hour = int(m.group('hour'))
+

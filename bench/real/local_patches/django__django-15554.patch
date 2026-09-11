@@ -1,0 +1,44 @@
+diff --git a/tests/filtered_relation/models.py b/tests/filtered_relation/models.py
+index 0000000..0000000
+--- a/tests/filtered_relation/models.py
+
++++ b/tests/filtered_relation/models.py
+
+@@ -117,3 +117,18 @@
+
+     currency = models.ForeignKey(Currency, models.CASCADE)
+
+     seller = models.ForeignKey(Seller, models.CASCADE)
+
+     sales = models.DecimalField(max_digits=10, decimal_places=2)
+
++
+
++
+
++class AuthorZone(models.Model):
+
++    author = models.ForeignKey(Author, models.CASCADE, related_name="zones")
+
++    zone = models.CharField(max_length=50)
+
++    is_all = models.BooleanField(default=False)
+
++
+
++
+
++class AuthorZonePrice(models.Model):
+
++    zone = models.ForeignKey(
+
++        AuthorZone,
+
++        models.CASCADE,
+
++        related_name="prices",
+
++    )
+
++    price = models.DecimalField(max_digits=10, decimal_places=2)
+

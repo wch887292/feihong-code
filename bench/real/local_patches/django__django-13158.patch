@@ -1,0 +1,24 @@
+diff --git a/tests/sitemaps_tests/urls/empty.py b/tests/sitemaps_tests/urls/empty.py
+index 0000000..0000000
+--- a/tests/sitemaps_tests/urls/empty.py
+
++++ b/tests/sitemaps_tests/urls/empty.py
+
+@@ -1 +1,7 @@
+
+-urlpatterns = []
+
++from django.urls import path
+
++
+
++from . import views
+
++
+
++urlpatterns = [
+
++    path('sitemap.xml', views.sitemap, name='django.contrib.sitemaps.views.sitemap'),
+
++]
+

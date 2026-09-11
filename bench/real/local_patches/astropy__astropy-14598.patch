@@ -1,0 +1,24 @@
+diff --git a/astropy/io/misc/asdf/tags/fits/fits.py b/astropy/io/misc/asdf/tags/fits/fits.py
+index 0000000..0000000
+--- a/astropy/io/misc/asdf/tags/fits/fits.py
+
++++ b/astropy/io/misc/asdf/tags/fits/fits.py
+
+@@ -43,7 +43,7 @@
+
+                 if card.comment:
+
+                     new_card = [card.keyword, card.value, card.comment]
+
+                 else:
+
+-                    if card.value:
+
++                    if card.value is not None:
+
+                         new_card = [card.keyword, card.value]
+
+                     else:
+
+                         if card.keyword:
+

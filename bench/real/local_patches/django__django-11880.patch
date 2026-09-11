@@ -1,0 +1,36 @@
+diff --git a/tests/forms_tests/tests/test_forms.py b/tests/forms_tests/tests/test_forms.py
+index 0000000..0000000
+--- a/tests/forms_tests/tests/test_forms.py
+
++++ b/tests/forms_tests/tests/test_forms.py
+
+@@ -3685,6 +3685,14 @@
+
+         self.assertIsInstance(p.data, MultiValueDict)
+
+         self.assertIsInstance(p.files, MultiValueDict)
+
+ 
+
++    def test_field_deepcopy_error_messages(self):
+
++        field = CharField(error_messages={'invalid': 'custom'})
+
++        field_copy = copy.deepcopy(field)
+
++        self.assertEqual(field_copy.error_messages, {'invalid': 'custom'})
+
++        # Verify that modifying the copy's error messages does not affect the original.
+
++        field_copy.error_messages['invalid'] = 'modified'
+
++        self.assertEqual(field.error_messages, {'invalid': 'custom'})
+
++
+
+ 
+
+ class CustomRenderer(DjangoTemplates):
+
+     pass
+

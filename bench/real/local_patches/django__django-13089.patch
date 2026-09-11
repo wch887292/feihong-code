@@ -1,0 +1,36 @@
+diff --git a/django/contrib/sessions/backends/cache.py b/django/contrib/sessions/backends/cache.py
+index 0000000..0000000
+--- a/django/contrib/sessions/backends/cache.py
+
++++ b/django/contrib/sessions/backends/cache.py
+
+@@ -56,7 +56,13 @@
+
+             return self.create()
+
+         if must_create:
+
+             func = self._cache.add
+
+-        elif self._cache.get(self.cache_key) is not None:
+
++        elif self._cache.get(self.cache_key) is not None or self._cache.add(self.cache_key, None) is False:
+
++            # The cache backend uses get_first_or_create() to try to add the
+
++            # cache key but then immediately deletes it to simulate the
+
++            # absence of the key. If that returns False, the key already
+
++            # exists (or the add fails for some reason, e.g. the database
+
++            # cache backend's _cull() method returning None from fetchone()),
+
++            # so we fall back to a normal set().
+
+             func = self._cache.set
+
+         else:
+
+             raise UpdateError
+

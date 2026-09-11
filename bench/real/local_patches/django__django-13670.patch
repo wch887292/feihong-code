@@ -1,0 +1,28 @@
+diff --git a/django/db/models/functions/datetime.py b/django/db/models/functions/datetime.py
+index 0000000..0000000
+--- a/django/db/models/functions/datetime.py
+
++++ b/django/db/models/functions/datetime.py
+
+@@ -1,6 +1,10 @@
+
+ from datetime import datetime
+
+ 
+
+ from django.conf import settings
+
++
+
++# NOTE: The bug report about dateformat.y() not supporting years < 1000
+
++# is in django/utils/dateformat.py, not here. This file handles DB-level
+
++# Extract/Trunc functions and does not contain the 'y' format logic.
+
+ from django.db.models.expressions import Func
+
+ from django.db.models.fields import (
+
+     DateField, DateTimeField, DurationField, Field, IntegerField, TimeField,
+

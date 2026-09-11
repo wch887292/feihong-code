@@ -1,0 +1,44 @@
+diff --git a/tests/aggregation/tests.py b/tests/aggregation/tests.py
+index 0000000..0000000
+--- a/tests/aggregation/tests.py
+
++++ b/tests/aggregation/tests.py
+
+@@ -2207,3 +2207,18 @@
+
+         sql = ctx.captured_queries[0]["sql"].lower()
+
+         self.assertEqual(sql.count("select"), 3, "Subquery wrapping required")
+
+         self.assertEqual(aggregate, {"sum_total_books": 3})
+
++
+
++    def test_aggregate_over_window_function(self):
+
++        """Aggregating over a window function annotation requires subquery wrapping."""
+
++        with CaptureQueriesContext(connection) as ctx:
+
++            aggregate = (
+
++                Book.objects.annotate(
+
++                    cumulative_pages=Window(Sum("pages"), order_by=F("id")),
+
++                )
+
++                .aggregate(
+
++                    total_pages=Sum("cumulative_pages"),
+
++                )
+
++            )
+
++        sql = ctx.captured_queries[0]["sql"].lower()
+
++        self.assertEqual(sql.count("select"), 2, "Subquery wrapping required")
+
++        self.assertEqual(aggregate, {"total_pages": None})
+

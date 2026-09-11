@@ -1,0 +1,30 @@
+diff --git a/tests/auth_tests/test_management.py b/tests/auth_tests/test_management.py
+index 0000000..0000000
+--- a/tests/auth_tests/test_management.py
+
++++ b/tests/auth_tests/test_management.py
+
+@@ -91,9 +91,9 @@
+
+ 
+
+ 
+
+ class MockInputTests(TestCase):
+
+-    @mock_inputs({'username': 'alice'})
+
++    @mock_inputs({'username': 'alice', 'email': 'alice@example.com'})
+
+     def test_input_not_found(self):
+
+-        with self.assertRaisesMessage(ValueError, "Mock input for 'Email address: ' not found."):
+
++        with self.assertRaisesMessage(ValueError, "Mock input for 'Password: ' not found."):
+
+             call_command('createsuperuser', stdin=MockTTY())
+
+ 
+
+ 
+

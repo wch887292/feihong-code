@@ -1,0 +1,22 @@
+diff --git a/tests/forms_tests/field_tests/test_jsonfield.py b/tests/forms_tests/field_tests/test_jsonfield.py
+index 0000000..0000000
+--- a/tests/forms_tests/field_tests/test_jsonfield.py
+
++++ b/tests/forms_tests/field_tests/test_jsonfield.py
+
+@@ -29,6 +29,7 @@
+
+         self.assertEqual(field.prepare_value({'a': 'b'}), '{"a": "b"}')
+
+         self.assertEqual(field.prepare_value(None), 'null')
+
+         self.assertEqual(field.prepare_value('foo'), '"foo"')
+
++        self.assertEqual(field.prepare_value('中国'), '"中国"')
+
+ 
+
+     def test_widget(self):
+
+         field = JSONField()
+

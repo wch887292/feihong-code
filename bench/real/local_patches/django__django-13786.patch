@@ -1,0 +1,32 @@
+diff --git a/django/db/migrations/optimizer.py b/django/db/migrations/optimizer.py
+index 0000000..0000000
+--- a/django/db/migrations/optimizer.py
+
++++ b/django/db/migrations/optimizer.py
+
+@@ -64,6 +64,12 @@
+
+                 elif not result:
+
+                     # Can't perform a right reduction.
+
+                     right = False
+
++                else:
+
++                    # We need to handle the case where the result is a single
+
++                    # operation rather than a list, as this can occur when the
+
++                    # first operation is reduced by the second.
+
++                    new_operations.append(result)
+
++                    break
+
+             else:
+
+                 new_operations.append(operation)
+
+         return new_operations
+

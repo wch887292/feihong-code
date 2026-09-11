@@ -1,0 +1,22 @@
+diff --git a/lib/matplotlib/text.py b/lib/matplotlib/text.py
+index 0000000..0000000
+--- a/lib/matplotlib/text.py
+
++++ b/lib/matplotlib/text.py
+
+@@ -175,6 +175,7 @@
+
+         self.set_usetex(usetex)
+
+         self.set_parse_math(parse_math if parse_math is not None else
+
+                             mpl.rcParams['text.parse_math'])
+
++        self.set_antialiased(None)
+
+         self.set_wrap(wrap)
+
+         self.set_verticalalignment(verticalalignment)
+
+         self.set_horizontalalignment(horizontalalignment)
+

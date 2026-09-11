@@ -1,0 +1,30 @@
+diff --git a/tests/admin_scripts/tests.py b/tests/admin_scripts/tests.py
+index 0000000..0000000
+--- a/tests/admin_scripts/tests.py
+
++++ b/tests/admin_scripts/tests.py
+
+@@ -3032,3 +3032,11 @@
+
+         out, err = self.run_django_admin(args)
+
+         self.assertNoOutput(out)
+
+         self.assertNotInOutput(err, "Did you mean")
+
++
+
++    def test_runserver_0_full_address(self):
+
++        args = [
+
++            "runserver", "0:8000", "--print-before-exit",
+
++            "--settings=test_project.settings",
+
++        ]
+
++        out, err = self.run_django_admin(args)
+
++        self.assertOutput(out, "Starting development server at http://0.0.0.0:8000/")
+

@@ -1,0 +1,24 @@
+diff --git a/xarray/core/dataarray.py b/xarray/core/dataarray.py
+index 0000000..0000000
+--- a/xarray/core/dataarray.py
+
++++ b/xarray/core/dataarray.py
+
+@@ -208,6 +208,8 @@
+
+             # expand the indexer so we can handle Ellipsis
+
+             labels = indexing.expanded_indexer(key, self.data_array.ndim)
+
+             key = dict(zip(self.data_array.dims, labels))
+
++
+
++        value = as_variable(value)
+
+ 
+
+         pos_indexers, _ = remap_label_indexers(self.data_array, key)
+
+         self.data_array[pos_indexers] = value
+

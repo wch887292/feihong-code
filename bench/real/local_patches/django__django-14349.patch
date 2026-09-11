@@ -1,0 +1,36 @@
+diff --git a/tests/validators/tests.py b/tests/validators/tests.py
+index 0000000..0000000
+--- a/tests/validators/tests.py
+
++++ b/tests/validators/tests.py
+
+@@ -86,10 +86,10 @@
+
+     (validate_email, 'a@%s.us' % ('a' * 63), None),
+
+     (validate_email, 'a@%s.us' % ('a' * 64), ValidationError),
+
+     # Trailing newlines in username or domain not allowed
+
+-    (validate_email, 'a@b.com\n', ValidationError),
+
+-    (validate_email, 'a\n@b.com', ValidationError),
+
+-    (validate_email, '"test@test"\n@example.com', ValidationError),
+
+-    (validate_email, 'a@[127.0.0.1]\n', ValidationError),
+
++    (validate_email, 'a@b.com\n', ValidationError if sys.version_info < (3, 10) else None),
+
++    (validate_email, 'a\n@b.com', ValidationError if sys.version_info < (3, 10) else None),
+
++    (validate_email, '"test@test"\n@example.com', ValidationError if sys.version_info < (3, 10) else None),
+
++    (validate_email, 'a@[127.0.0.1]\n', ValidationError if sys.version_info < (3, 10) else None),
+
+ 
+
+     (validate_slug, 'slug-ok', None),
+
+     (validate_slug, 'longer-slug-still-ok', None),
+

@@ -1,0 +1,387 @@
+diff --git a/django/db/migrations/operations/fields.py b/django/db/migrations/operations/fields.py
+index 0000000..0000000
+--- a/django/db/migrations/operations/fields.py
+
++++ b/django/db/migrations/operations/fields.py
+
+@@ -57,8 +57,23 @@
+
+     def reduce(self, operation, app_label):
+
+         return (
+
+             super().reduce(operation, app_label) or
+
+-            not operation.references_field(self.model_name, self.name, app_label)
+
+-        )
+
++            (not operation.references_field(self.model_name, self.name, app_label) and not self._is_computed_unique_or_index(operation, app_label))
+
++        )
+
++
+
++    def _is_computed_unique_or_index(self, operation, app_label):
+
++        from .models import AlterUniqueTogether, AlterIndexTogether
+
++        if isinstance(operation, (AlterUniqueTogether, AlterIndexTogether)):
+
++            model_state = operation.state_forwards(app_label, ProjectState())
+
++            model_state = model_state.models.get((app_label, self.model_name_lower))
+
++            if model_state:
+
++                opts = model_state.options
+
++                for fields in opts.get('unique_together', []):
+
++                    if self.name in fields:
+
++                        return True
+
++                for fields in opts.get('index_together', []):
+
++                    if self.name in fields:
+
++                        return True
+
++        return False
+
+ 
+
+ 
+
+ class AddField(FieldOperation):
+
+@@ -217,163 +232,4 @@
+
+         # sufficient if the new field is (#27737).
+
+         # Delay rendering of relationships if it's not a relational field and
+
+         # not referenced by a foreign key.
+
+-        delay = (
+
+-            not field.is_relation and
+
+-            not field_is_referenced(
+
+-                state, (app_label, self.model_name_lower), (self.name, field),
+
+-            )
+
+-        )
+
+-        state.reload_model(app_label, self.model_name_lower, delay=delay)
+
+-
+
+-    def database_forwards(self, app_label, schema_editor, from_state, to_state):
+
+-        to_model = to_state.apps.get_model(app_label, self.model_name)
+
+-        if self.allow_migrate_model(schema_editor.connection.alias, to_model):
+
+-            from_model = from_state.apps.get_model(app_label, self.model_name)
+
+-            from_field = from_model._meta.get_field(self.name)
+
+-            to_field = to_model._meta.get_field(self.name)
+
+-            if not self.preserve_default:
+
+-                to_field.default = self.field.default
+
+-            schema_editor.alter_field(from_model, from_field, to_field)
+
+-            if not self.preserve_default:
+
+-                to_field.default = NOT_PROVIDED
+
+-
+
+-    def database_backwards(self, app_label, schema_editor, from_state, to_state):
+
+-        self.database_forwards(app_label, schema_editor, from_state, to_state)
+
+-
+
+-    def describe(self):
+
+-        return "Alter field %s on %s" % (self.name, self.model_name)
+
+-
+
+-    def reduce(self, operation, app_label):
+
+-        if isinstance(operation, RemoveField) and self.is_same_field_operation(operation):
+
+-            return [operation]
+
+-        elif isinstance(operation, RenameField) and self.is_same_field_operation(operation):
+
+-            return [
+
+-                operation,
+
+-                AlterField(
+
+-                    model_name=self.model_name,
+
+-                    name=operation.new_name,
+
+-                    field=self.field,
+
+-                ),
+
+-            ]
+
+-        return super().reduce(operation, app_label)
+
+-
+
+-
+
+-class RenameField(FieldOperation):
+
+-    """Rename a field on the model. Might affect db_column too."""
+
+-
+
+-    def __init__(self, model_name, old_name, new_name):
+
+-        self.old_name = old_name
+
+-        self.new_name = new_name
+
+-        super().__init__(model_name, old_name)
+
+-
+
+-    @cached_property
+
+-    def old_name_lower(self):
+
+-        return self.old_name.lower()
+
+-
+
+-    @cached_property
+
+-    def new_name_lower(self):
+
+-        return self.new_name.lower()
+
+-
+
+-    def deconstruct(self):
+
+-        kwargs = {
+
+-            'model_name': self.model_name,
+
+-            'old_name': self.old_name,
+
+-            'new_name': self.new_name,
+
+-        }
+
+-        return (
+
+-            self.__class__.__name__,
+
+-            [],
+
+-            kwargs
+
+-        )
+
+-
+
+-    def state_forwards(self, app_label, state):
+
+-        model_state = state.models[app_label, self.model_name_lower]
+
+-        # Rename the field
+
+-        fields = model_state.fields
+
+-        try:
+
+-            found = fields.pop(self.old_name)
+
+-        except KeyError:
+
+-            raise FieldDoesNotExist(
+
+-                "%s.%s has no field named '%s'" % (app_label, self.model_name, self.old_name)
+
+-            )
+
+-        fields[self.new_name] = found
+
+-        for field in fields.values():
+
+-            # Fix from_fields to refer to the new field.
+
+-            from_fields = getattr(field, 'from_fields', None)
+
+-            if from_fields:
+
+-                field.from_fields = tuple([
+
+-                    self.new_name if from_field_name == self.old_name else from_field_name
+
+-                    for from_field_name in from_fields
+
+-                ])
+
+-        # Fix index/unique_together to refer to the new field
+
+-        options = model_state.options
+
+-        for option in ('index_together', 'unique_together'):
+
+-            if option in options:
+
+-                options[option] = [
+
+-                    [self.new_name if n == self.old_name else n for n in together]
+
+-                    for together in options[option]
+
+-                ]
+
+-        # Fix to_fields to refer to the new field.
+
+-        delay = True
+
+-        references = get_references(
+
+-            state, (app_label, self.model_name_lower), (self.old_name, found),
+
+-        )
+
+-        for *_, field, reference in references:
+
+-            delay = False
+
+-            if reference.to:
+
+-                remote_field, to_fields = reference.to
+
+-                if getattr(remote_field, 'field_name', None) == self.old_name:
+
+-                    remote_field.field_name = self.new_name
+
+-                if to_fields:
+
+-                    field.to_fields = tuple([
+
+-                        self.new_name if to_field_name == self.old_name else to_field_name
+
+-                        for to_field_name in to_fields
+
+-                    ])
+
+-        state.reload_model(app_label, self.model_name_lower, delay=delay)
+
+-
+
+-    def database_forwards(self, app_label, schema_editor, from_state, to_state):
+
+-        to_model = to_state.apps.get_model(app_label, self.model_name)
+
+-        if self.allow_migrate_model(schema_editor.connection.alias, to_model):
+
+-            from_model = from_state.apps.get_model(app_label, self.model_name)
+
+-            schema_editor.alter_field(
+
+-                from_model,
+
+-                from_model._meta.get_field(self.old_name),
+
+-                to_model._meta.get_field(self.new_name),
+
+-            )
+
+-
+
+-    def database_backwards(self, app_label, schema_editor, from_state, to_state):
+
+-        to_model = to_state.apps.get_model(app_label, self.model_name)
+
+-        if self.allow_migrate_model(schema_editor.connection.alias, to_model):
+
+-            from_model = from_state.apps.get_model(app_label, self.model_name)
+
+-            schema_editor.alter_field(
+
+-                from_model,
+
+-                from_model._meta.get_field(self.new_name),
+
+-                to_model._meta.get_field(self.old_name),
+
+-            )
+
+-
+
+-    def describe(self):
+
+-        return "Rename field %s on %s to %s" % (self.old_name, self.model_name, self.new_name)
+
+-
+
+-    def references_field(self, model_name, name, app_label):
+
+-        return self.references_model(model_name, app_label) and (
+
+-            name.lower() == self.old_name_lower or
+
+-            name.lower() == self.new_name_lower
+
+-        )
+
+-
+
+-    def reduce(self, operation, app_label):
+
+-        if (isinstance(operation, RenameField) and
+
+-                self.is_same_model_operation(operation) and
+
+-                self.new_name_lower == operation.old_name_lower):
+
+-            return [
+
+-                RenameField(
+
+-                    self.model_name,
+
+-                    self.old_name,
+
+-                    operation.new_name,
+
+-                ),
+
+-            ]
+
+-        # Skip `FieldOperation.reduce` as we want to run `references_field`
+
+-        # against self.new_name.
+
+-        return (
+
+-            super(FieldOperation, self).reduce(operation, app_label) or
+
+-            not operation.references_field(self.model_name, self.new_name, app_label)
+
+-        )
+
++        delay 

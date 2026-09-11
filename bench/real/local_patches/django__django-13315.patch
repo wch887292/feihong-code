@@ -1,0 +1,80 @@
+diff --git a/tests/model_forms/tests.py b/tests/model_forms/tests.py
+index 0000000..0000000
+--- a/tests/model_forms/tests.py
+
++++ b/tests/model_forms/tests.py
+
+@@ -3029,3 +3029,36 @@
+
+         # If data were a QuerySet, it would be reevaluated here and give "red"
+
+         # instead of the original value.
+
+         self.assertEqual(data, [blue])
+
++
+
++    def test_limit_choices_to_with_fk_join_no_duplicates(self):
+
++        """
+
++        limit_choices_to on a ForeignKey with a join shouldn't produce
+
++        duplicate form choices.
+
++        """
+
++        from django.db.models import Q
+
++        from django.forms.models import modelform_factory
+
++
+
++        class Publisher(models.Model):
+
++            name = models.CharField(max_length=100)
+
++
+
++            class Meta:
+
++                app_label = 'test_app'
+
++
+
++        class Book(models.Model):
+
++            publisher = models.ForeignKey(Publisher, models.CASCADE, limit_choices_to=Q(name__startswith='A'))
+
++            title = models.CharField(max_length=100)
+
++
+
++            class Meta:
+
++                app_label = 'test_app'
+
++
+
++        p1 = Publisher.objects.create(name='Alice')
+
++        p2 = Publisher.objects.create(name='Bob')
+
++        Book.objects.create(publisher=p1, title='Book 1')
+
++        Book.objects.create(publisher=p1, title='Book 2')
+
++        Book.objects.create(publisher=p2, title='Book 3')
+
++
+
++        BookForm = modelform_factory(Book, fields=['publisher'])
+
++        form = BookForm()
+
++        choices = list(form.fields['publisher'].queryset)
+
++        # With a join in limit_choices_to, duplicates could appear without distinct().
+
++        self.assertEqual(choices, [p1, p2])
+

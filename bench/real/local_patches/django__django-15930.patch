@@ -1,0 +1,44 @@
+diff --git a/tests/expressions_case/tests.py b/tests/expressions_case/tests.py
+index 0000000..0000000
+--- a/tests/expressions_case/tests.py
+
++++ b/tests/expressions_case/tests.py
+
+@@ -1662,3 +1662,18 @@
+
+         msg = "An empty Q() can't be used as a When() condition."
+
+         with self.assertRaisesMessage(ValueError, msg):
+
+             When(Q(), then=Value(True))
+
++
+
++    def test_case_with_empty_in_lookup(self):
+
++        # Test that Case() works with ~Q(pk__in=[]) which should match all rows
+
++        # This is a sentinel value sometimes returned by application code
+
++        self.assertQuerysetEqual(
+
++            CaseTestModel.objects.annotate(
+
++                test=Case(
+
++                    When(~Q(pk__in=[]), then=Value(True)),
+
++                    default=Value(False),
+
++                    output_field=BooleanField(),
+
++                )
+
++            ).order_by("pk"),
+
++            [(1, True), (2, True), (3, True), (2, True), (3, True), (3, True), (4, True)],
+
++            transform=attrgetter("integer", "test"),
+
++        )
+

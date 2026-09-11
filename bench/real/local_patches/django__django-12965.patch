@@ -1,0 +1,28 @@
+diff --git a/django/db/models/sql/constants.py b/django/db/models/sql/constants.py
+index 0000000..0000000
+--- a/django/db/models/sql/constants.py
+
++++ b/django/db/models/sql/constants.py
+
+@@ -14,6 +14,10 @@
+
+ CURSOR = 'cursor'
+
+ NO_RESULTS = 'no results'
+
+ 
+
++# Fast delete uses subqueries for databases that don't support
+
++# DELETE ... FROM <table> WHERE <field> IN (...)
+
++NO_DELETE_SUBQUERY = 'no_delete_subquery'
+
++
+
+ ORDER_DIR = {
+
+     'ASC': ('ASC', 'DESC'),
+
+     'DESC': ('DESC', 'ASC'),
+

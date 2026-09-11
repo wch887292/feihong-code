@@ -1,0 +1,24 @@
+diff --git a/django/contrib/postgres/expressions.py b/django/contrib/postgres/expressions.py
+index 0000000..0000000
+--- a/django/contrib/postgres/expressions.py
+
++++ b/django/contrib/postgres/expressions.py
+
+@@ -11,4 +11,7 @@
+
+ 
+
+     @cached_property
+
+     def output_field(self):
+
+-        return ArrayField(self.query.output_field)
+
++        field = self.query.output_field
+
++        if hasattr(field, "sub_field"):
+
++            return ArrayField(field.sub_field, field_size=field.size)
+
++        return ArrayField(field)
+

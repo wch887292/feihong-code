@@ -1,0 +1,24 @@
+diff --git a/tests/admin_inlines/tests.py b/tests/admin_inlines/tests.py
+index 0000000..0000000
+--- a/tests/admin_inlines/tests.py
+
++++ b/tests/admin_inlines/tests.py
+
+@@ -23,6 +23,8 @@
+
+     @classmethod
+
+     def setUpTestData(cls):
+
+         cls.superuser = User.objects.create_superuser(username='super', email='super@example.com', password='secret')
+
++        cls.holder_ct = ContentType.objects.get_for_model(Holder)
+
++        cls.inner_ct = ContentType.objects.get_for_model(Inner)
+
+ 
+
+ 
+
+ @override_settings(ROOT_URLCONF='admin_inlines.urls')
+

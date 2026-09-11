@@ -1,0 +1,30 @@
+diff --git a/astropy/units/quantity_helper/erfa.py b/astropy/units/quantity_helper/erfa.py
+index 0000000..0000000
+--- a/astropy/units/quantity_helper/erfa.py
+
++++ b/astropy/units/quantity_helper/erfa.py
+
+@@ -112,7 +112,10 @@
+
+ def helper_pv2s(f, unit_pv):
+
+     from astropy.units.si import radian
+
+     check_structured_unit(unit_pv, dt_pv)
+
+-    ang_unit = radian * unit_pv[1] / unit_pv[0]
+
++    if unit_pv[0] == unit_pv[1]:
+
++        ang_unit = radian
+
++    else:
+
++        ang_unit = radian * unit_pv[1] / unit_pv[0]
+
+     return [None], (radian, radian, unit_pv[0], ang_unit, ang_unit, unit_pv[1])
+
+ 
+
+ 
+

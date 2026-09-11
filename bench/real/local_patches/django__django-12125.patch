@@ -1,0 +1,26 @@
+diff --git a/django/template/backends/django.py b/django/template/backends/django.py
+index 0000000..0000000
+--- a/django/template/backends/django.py
+
++++ b/django/template/backends/django.py
+
+@@ -125,5 +125,9 @@
+
+                 "trying to load '%s': %s" % (entry[1], e)
+
+             )
+
+ 
+
++        # Ignore __init__.py files since they don't define template tags.
+
++        if entry[1].endswith('.__init__'):
+
++            continue
+
++
+
+         if hasattr(module, 'register'):
+
+             yield entry[1]
+

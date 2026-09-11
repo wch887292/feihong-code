@@ -1,0 +1,70 @@
+diff --git a/tests/auth_tests/test_auth_backends.py b/tests/auth_tests/test_auth_backends.py
+index 0000000..0000000
+--- a/tests/auth_tests/test_auth_backends.py
+
++++ b/tests/auth_tests/test_auth_backends.py
+
+@@ -57,6 +57,31 @@
+
+     def encode(self, *args, **kwargs):
+
+         type(self).calls += 1
+
+         return super().encode(*args, **kwargs)
+
++
+
++
+
++class DummyBackend(BaseBackend):
+
++    def authenticate(self, request, username=None, password=None, **kwargs):
+
++        pass
+
++
+
++    def get_user(self, user_id):
+
++        pass
+
++=======
+
++class CountingMD5PasswordHasher(MD5PasswordHasher):
+
++    """Hasher that counts how many times it computes a hash."""
+
++
+
++    calls = 0
+
++
+
++    def encode(self, *args, **kwargs):
+
++        type(self).calls += 1
+
++        return super().encode(*args, **kwargs)
+
++
+
++
+
++class DummyBackend(BaseBackend):
+
++    def authenticate(self, request, username=None, password=None, **kwargs):
+
++        pass
+
++
+
++    def get_user(self, user_id):
+
++        pass
+
+ 
+
+ 
+
+ class BaseModelBackendTest:
+

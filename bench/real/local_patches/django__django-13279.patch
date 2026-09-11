@@ -1,0 +1,34 @@
+diff --git a/tests/sessions_tests/tests.py b/tests/sessions_tests/tests.py
+index 0000000..0000000
+--- a/tests/sessions_tests/tests.py
+
++++ b/tests/sessions_tests/tests.py
+
+@@ -152,6 +152,13 @@
+
+         self.session.save()
+
+         self.assertIs(self.session.exists(self.session.session_key), True)
+
+ 
+
++    @override_settings(DEFAULT_HASHING_ALGORITHM='sha1')
+
++    def test_hashing_algorithm(self):
+
++        # Session data created with Django < 3.1 should be decodable.
+
++        session = self.backend('dXNlcmlkOjE=')
+
++        self.assertEqual(session.get('_auth_user_id'), 1)
+
++        session.delete()
+
++
+
+     def test_delete(self):
+
+         self.session.save()
+
+         self.session.delete(self.session.session_key)
+
