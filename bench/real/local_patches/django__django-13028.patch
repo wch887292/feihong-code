@@ -1,0 +1,20 @@
+diff --git a/django/db/models/sql/constants.py b/django/db/models/sql/constants.py
+index 0000000..0000000
+--- a/django/db/models/sql/constants.py
+
++++ b/django/db/models/sql/constants.py
+
+@@ -22,3 +22,6 @@
+
+ # SQL join types.
+
+ INNER = 'INNER JOIN'
+
+ LOUTER = 'LEFT OUTER JOIN'
+
++
+
++# Attributes to check on filter values to determine if they're filterable.
+
++FILTERABLE_ATTRIBUTES = ('lookup_name', 'target', 'field', 'output_field')
+

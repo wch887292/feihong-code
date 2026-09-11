@@ -1,0 +1,22 @@
+diff --git a/django/utils/translation/reloader.py b/django/utils/translation/reloader.py
+index 0000000..0000000
+--- a/django/utils/translation/reloader.py
+
++++ b/django/utils/translation/reloader.py
+
+@@ -1,6 +1,7 @@
+
+ from pathlib import Path
+
+ 
+
+ from asgiref.local import Local
+
++from django.utils.translation import to_locale
+
+ 
+
+ from django.apps import apps
+
+ from django.utils.autoreload import is_django_module
+

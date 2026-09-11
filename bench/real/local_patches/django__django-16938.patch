@@ -1,0 +1,81 @@
+diff --git a/django/contrib/postgres/serializers.py b/django/contrib/postgres/serializers.py
+index 0000000..0000000
+--- a/django/contrib/postgres/serializers.py
+
++++ b/django/contrib/postgres/serializers.py
+
+@@ -1,4 +1,5 @@
+
+ from django.db.migrations.serializer import BaseSerializer
+
++from django.core.exceptions import FieldError
+
+ 
+
+ 
+
+ class RangeSerializer(BaseSerializer):
+
+@@ -7,4 +8,9 @@
+
+         # Ranges are implemented in psycopg2._range but the public import
+
+         # location is psycopg2.extras.
+
+         module = "psycopg2.extras" if module == "psycopg2._range" else module
+
+-        return "%s.%r" % (module, self.value), {"import %s" % module}
+
++        try:
+
++            return "%s.%r" % (module, self.value), {"import %s" % module}
+
++        except FieldError as e:
+
++            # Handle cases where select_related and only() conflict,
+
++            # though this shouldn't occur in postgres range serialization
+
++            raise FieldError(f"Error serializing range {self.value}: {e}")
+
+
+diff --git a/django/contrib/postgres/serializers.py b/django/contrib/postgres/serializers.py
+index 0000000..0000000
+--- a/django/contrib/postgres/serializers.py
+
++++ b/django/contrib/postgres/serializers.py
+
+@@ -1,4 +1,5 @@
+
+ from django.db.migrations.serializer import BaseSerializer
+
++from django.core.exceptions import FieldError
+
+ 
+
+ 
+
+ class RangeSerializer(BaseSerializer):
+
+@@ -7,4 +8,9 @@
+
+         # Ranges are implemented in psycopg2._range but the public import
+
+         # location is psycopg2.extras.
+
+         module = "psycopg2.extras" if module == "psycopg2._range" else module
+
+-        return "%s.%r" % (module, self.value), {"import %s" % module}
+
++        try:
+
++            return "%s.%r" % (module, self.value), {"import %s" % module}
+
++        except FieldError as e:
+
++            # Handle cases where select_related and only() conflict,
+
++            # though this shouldn't occur in postgres range serialization
+
++            raise FieldError(f"Error serializing range {self.value}: {e}")
+

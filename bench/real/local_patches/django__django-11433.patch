@@ -1,0 +1,62 @@
+diff --git a/tests/model_forms/tests.py b/tests/model_forms/tests.py
+index 0000000..0000000
+--- a/tests/model_forms/tests.py
+
++++ b/tests/model_forms/tests.py
+
+@@ -2902,6 +2902,27 @@
+
+             'title': ['This field cannot be blank.']
+
+         })
+
+ 
+
++    def test_cleaned_data_overwrites_default(self):
+
++        """
+
++        cleaned_data should be able to overwrite model field defaults even
+
++        when the field is not present in the submitted data.
+
++        """
+
++        class TestModelForm(forms.ModelForm):
+
++            class Meta:
+
++                model = Product
+
++                fields = ('name',)
+
++
+
++            def clean(self):
+
++                cleaned_data = super().clean()
+
++                cleaned_data['name'] = 'overwritten'
+
++                return cleaned_data
+
++
+
++        form = TestModelForm(data={})
+
++        self.assertTrue(form.is_valid())
+
++        self.assertEqual(form.cleaned_data['name'], 'overwritten')
+
++        instance = construct_instance(form, Product())
+
++        self.assertEqual(instance.name, 'overwritten')
+
++
+
+ 
+
+ class ModelToDictTests(TestCase):
+
+     def test_many_to_many(self):
+

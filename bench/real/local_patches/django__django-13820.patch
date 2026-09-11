@@ -1,0 +1,66 @@
+diff --git a/tests/migrations/test_loader.py b/tests/migrations/test_loader.py
+index 0000000..0000000
+--- a/tests/migrations/test_loader.py
+
++++ b/tests/migrations/test_loader.py
+
+@@ -512,6 +512,29 @@
+
+         migrations = [name for app, name in loader.disk_migrations if app == 'migrations']
+
+         self.assertEqual(migrations, [])
+
+ 
+
++    @override_settings(
+
++        MIGRATION_MODULES={'migrations': 'migrations.test_migrations_namespace_package'},
+
++    )
+
++    def test_loading_non_namespace_package_without_file(self):
+
++        """
+
++        Migrations in a regular package without __file__ (e.g. frozen environments)
+
++        are loaded.
+
++        """
+
++        # Temporarily unset __file__ on the module to simulate a frozen environment.
+
++        import migrations.test_migrations_namespace_package as mpkg
+
++        old_file = getattr(mpkg, '__file__', None)
+
++        try:
+
++            delattr(mpkg, '__file__')
+
++            loader = MigrationLoader(connection)
+
++            loader.load_disk()
+
++            migrations = [name for app, name in loader.disk_migrations if app == 'migrations']
+
++            self.assertEqual(migrations, ['0001_initial'])
+
++        finally:
+
++            if old_file is not None:
+
++                mpkg.__file__ = old_file
+
++            elif hasattr(mpkg, '__file__'):
+
++                delattr(mpkg, '__file__')
+
++
+
+ 
+
+ class PycLoaderTests(MigrationTestBase):
+
+ 
+

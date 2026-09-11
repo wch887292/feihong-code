@@ -1,0 +1,30 @@
+diff --git a/django/core/exceptions.py b/django/core/exceptions.py
+index 0000000..0000000
+--- a/django/core/exceptions.py
+
++++ b/django/core/exceptions.py
+
+@@ -188,6 +188,11 @@
+
+     pass
+
+ 
+
+ 
+
++class URLNoReverseMatch(Exception):
+
++    """The requested URL could not be reverse matched."""
+
++    pass
+
++
+
++
+
+ class SynchronousOnlyOperation(Exception):
+
+     """The user tried to call a sync-only function from an async context."""
+
+     pass
+

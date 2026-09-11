@@ -1,0 +1,52 @@
+diff --git a/tests/model_fields/test_imagefield.py b/tests/model_fields/test_imagefield.py
+index 0000000..0000000
+--- a/tests/model_fields/test_imagefield.py
+
++++ b/tests/model_fields/test_imagefield.py
+
+@@ -461,3 +461,22 @@
+
+         # Dimensions were recalculated, and hence file should have opened.
+
+         self.assertIs(p.mugshot.was_opened, True)
+
+         self.assertIs(p.headshot.was_opened, True)
+
++
+
++    def test_post_init_signal_not_attached_when_no_width_or_height_field(self):
+
++        """
+
++        When width_field and height_field are not specified, ImageField
+
++        should not attach a post_init signal handler, as it would be a
+
++        no-op and only add unnecessary overhead during model instantiation.
+
++        """
+
++        from django.db.models.signals import post_init
+
++
+
++        # Ensure no post_init receiver is attached for models without
+
++        # width_field or height_field.
+
++        receivers = [r for r in post_init.receivers if "django" in str(r)]
+
++        for receiver in receivers:
+
++            # Verify the receiver is not the ImageField.post_init handler
+
++            # when no width_field/height_field is set.
+
++            self.assertNotIn(
+
++                "update_dimensions",
+
++                str(receiver),
+
++            )
+

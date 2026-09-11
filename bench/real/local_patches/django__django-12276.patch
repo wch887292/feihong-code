@@ -1,0 +1,22 @@
+diff --git a/tests/forms_tests/widget_tests/test_fileinput.py b/tests/forms_tests/widget_tests/test_fileinput.py
+index 0000000..0000000
+--- a/tests/forms_tests/widget_tests/test_fileinput.py
+
++++ b/tests/forms_tests/widget_tests/test_fileinput.py
+
+@@ -18,3 +18,7 @@
+
+     def test_value_omitted_from_data(self):
+
+         self.assertIs(self.widget.value_omitted_from_data({}, {}, 'field'), True)
+
+         self.assertIs(self.widget.value_omitted_from_data({}, {'field': 'value'}, 'field'), False)
+
++
+
++    def test_use_required_attribute_with_initial_data(self):
+
++        self.assertFalse(self.widget.use_required_attribute({'file': 'initial'}))
+
++        self.assertTrue(self.widget.use_required_attribute())
+

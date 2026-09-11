@@ -1,0 +1,60 @@
+diff --git a/tests/admin_changelist/tests.py b/tests/admin_changelist/tests.py
+index 0000000..0000000
+--- a/tests/admin_changelist/tests.py
+
++++ b/tests/admin_changelist/tests.py
+
+@@ -103,6 +103,26 @@
+
+         request = self.factory.get(url)
+
+         request.user = user
+
+         return request
+
++
+
++    def test_list_editable_changes_are_wrapped_in_transaction(self):
+
++        m = ParentAdmin(Parent, custom_site)
+
++        request = self.factory.post(
+
++            "/parent/",
+
++            data={
+
++                "selection_var": "0d03cb4604655a4121dabf029d69aabd",
+
++                "_save": "Save",
+
++                "parent_set-0-id": "1",
+
++                "parent_set-0-name": "updated",
+
++            },
+
++        )
+
++        request.user = self.superuser
+
++        response = m.changelist_view(request)
+
++        self.assertEqual(response.status_code, 302)
+
++        self.assertRedirects(
+
++            response,
+
++            "/parent/",
+
++            fetch_redirect_response=False,
+
++        )
+
+ 
+
+     def test_repr(self):
+
+         m = ChildAdmin(Child, custom_site)
+

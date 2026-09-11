@@ -1,0 +1,22 @@
+diff --git a/plot_types/basic/bar.py b/plot_types/basic/bar.py
+index 0000000..0000000
+--- a/plot_types/basic/bar.py
+
++++ b/plot_types/basic/bar.py
+
+@@ -23,3 +23,7 @@
+
+        ylim=(0, 8), yticks=np.arange(1, 8))
+
+ 
+
+ plt.show()
+
++
+
++# Handle all-nan x data without raising StopIteration
+
++fig2, ax2 = plt.subplots()
+
++ax2.bar([np.nan], [np.nan])
+

@@ -1,0 +1,46 @@
+diff --git a/lib/matplotlib/figure.py b/lib/matplotlib/figure.py
+index 0000000..0000000
+--- a/lib/matplotlib/figure.py
+
++++ b/lib/matplotlib/figure.py
+
+@@ -40,6 +40,19 @@
+
+ import matplotlib.legend as mlegend
+
+ from matplotlib.patches import Rectangle
+
+ from matplotlib.text import Text
+
++
+
++
+
++def _validate_patch_linewidth(linewidth):
+
++    """Validate and normalize linewidth for patches, supporting tuple offsets."""
+
++    if linewidth is None:
+
++        return None
+
++    if isinstance(linewidth, (list, tuple)):
+
++        # If it's a tuple like (offset, (on, off)), keep it as-is
+
++        if len(linewidth) == 2 and isinstance(linewidth[1], (list, tuple)):
+
++            return linewidth
+
++        # Otherwise treat it as a scalar or sequence of scalars
+
++        return float(linewidth[0]) if isinstance(linewidth, (list, tuple)) and linewidth else linewidth
+
++    return float(linewidth)
+
+ from matplotlib.transforms import (Affine2D, Bbox, BboxTransformTo,
+
+                                    TransformedBbox)
+
+ 
+

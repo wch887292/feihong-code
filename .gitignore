@@ -141,3 +141,9 @@ agent-team/.env
 
 # Android 构建产物（勿入库）
 android/**/build/
+
+# SWE-bench 本地缓存与产物
+bench/real/repos/
+bench/real/base_files/
+bench/real/work/
+bench/real/rep_*.jsonl

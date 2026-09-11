@@ -1,0 +1,58 @@
+diff --git a/tests/many_to_one/tests.py b/tests/many_to_one/tests.py
+index 0000000..0000000
+--- a/tests/many_to_one/tests.py
+
++++ b/tests/many_to_one/tests.py
+
+@@ -726,3 +726,25 @@
+
+             usa.cities.remove(chicago.pk)
+
+         with self.assertRaisesMessage(TypeError, msg):
+
+             usa.cities.set([chicago.pk])
+
++
+
++    def test_save_parent_after_setting_unsaved_child_with_pk(self):
+
++        """
+
++        Saving a parent object after setting an unsaved child instance with a
+
++        manually assigned primary key (to a field that is NOT the auto PK)
+
++        correctly populates the parent's FK column.
+
++        """
+
++        from .models import Product, Order
+
++
+
++        with transaction.atomic():
+
++            order = Order()
+
++            order.product = Product()
+
++            order.product.sku = "foo"
+
++            order.product.save()
+
++            order.save()
+
++            self.assertEqual(order.product_id, "foo")
+
++            self.assertTrue(
+
++                Order.objects.filter(product_id="foo").exists()
+
++            )
+
++            self.assertTrue(
+
++                Order.objects.filter(product=order.product).exists()
+
++            )
+

@@ -1,0 +1,22 @@
+diff --git a/django/contrib/messages/storage/base.py b/django/contrib/messages/storage/base.py
+index 0000000..0000000
+--- a/django/contrib/messages/storage/base.py
+
++++ b/django/contrib/messages/storage/base.py
+
+@@ -1,7 +1,5 @@
+
+ from django.conf import settings
+
+ from django.contrib.messages import constants, utils
+
+-
+
+-LEVEL_TAGS = utils.get_level_tags()
+
+ 
+
+ 
+
+ class Message:
+

@@ -1,0 +1,48 @@
+diff --git a/astropy/io/misc/asdf/types.py b/astropy/io/misc/asdf/types.py
+index 0000000..0000000
+--- a/astropy/io/misc/asdf/types.py
+
++++ b/astropy/io/misc/asdf/types.py
+
+@@ -42,6 +42,11 @@
+
+     organization = 'astropy.org'
+
+     standard = 'astropy'
+
+ 
+
++    def __eq__(self, other):
+
++        if other is None:
+
++            return False
+
++        return super(AstropyType, self).__eq__(other)
+
++
+
+ 
+
+ @six.add_metaclass(AstropyTypeMeta)
+
+ class AstropyAsdfType(CustomType):
+
+@@ -54,3 +59,8 @@
+
+     """
+
+     organization = 'stsci.edu'
+
+     standard = 'asdf'
+
++
+
++    def __eq__(self, other):
+
++        if other is None:
+
++            return False
+
++        return super(AstropyAsdfType, self).__eq__(other)
+

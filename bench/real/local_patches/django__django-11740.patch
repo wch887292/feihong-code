@@ -1,0 +1,46 @@
+diff --git a/django/db/migrations/operations/models.py b/django/db/migrations/operations/models.py
+index 0000000..0000000
+--- a/django/db/migrations/operations/models.py
+
++++ b/django/db/migrations/operations/models.py
+
+@@ -113,6 +113,19 @@
+
+ 
+
+         # Check we have no FKs/M2Ms with it
+
+         for _name, field in self.fields:
+
++            if field_references_model(field, model_tuple):
+
++                return True
+
++        return False
+
++
+
++    def references_relation(self, app_label, name):
+
++        # If this CreateModel operation creates a model that references another
+
++        # model via a ForeignKey or ManyToManyField, include a dependency on
+
++        # that related model's state.
+
++        if name.lower() != app_label.lower():
+
++            return False
+
++        # Check if any field references the given model.
+
++        model_tuple = ModelTuple(app_label, name)
+
++        for _field_name, field in self.fields:
+
+             if field_references_model(field, model_tuple):
+
+                 return True
+
+         return False
+

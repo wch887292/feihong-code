@@ -1,0 +1,22 @@
+diff --git a/django/db/models/functions/__init__.py b/django/db/models/functions/__init__.py
+index 0000000..0000000
+--- a/django/db/models/functions/__init__.py
+
++++ b/django/db/models/functions/__init__.py
+
+@@ -25,6 +25,7 @@
+
+     TruncWeek,
+
+     TruncYear,
+
+ )
+
++from ..fields import CharField, IntegerField
+
+ from .math import (
+
+     Abs,
+
+     ACos,
+

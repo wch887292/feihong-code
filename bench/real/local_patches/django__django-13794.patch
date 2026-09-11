@@ -1,0 +1,24 @@
+diff --git a/django/core/handlers/exception.py b/django/core/handlers/exception.py
+index 0000000..0000000
+--- a/django/core/handlers/exception.py
+
++++ b/django/core/handlers/exception.py
+
+@@ -45,6 +45,8 @@
+
+         def inner(request):
+
+             try:
+
+                 response = get_response(request)
+
++            except TypeError as exc:
+
++                raise
+
+             except Exception as exc:
+
+                 response = response_for_exception(request, exc)
+
+             return response
+

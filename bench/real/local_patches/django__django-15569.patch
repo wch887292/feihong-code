@@ -1,0 +1,22 @@
+diff --git a/tests/model_fields/test_jsonfield.py b/tests/model_fields/test_jsonfield.py
+index 0000000..0000000
+--- a/tests/model_fields/test_jsonfield.py
+
++++ b/tests/model_fields/test_jsonfield.py
+
+@@ -88,7 +88,6 @@
+
+         transform = field.get_transform("my_transform")
+
+         self.assertIs(transform, MyTransform)
+
+         models.JSONField._unregister_lookup(MyTransform)
+
+-        models.JSONField._clear_cached_lookups()
+
+         transform = field.get_transform("my_transform")
+
+         self.assertIsInstance(transform, KeyTransformFactory)
+
+ 
+

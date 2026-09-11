@@ -1,0 +1,38 @@
+diff --git a/lib/matplotlib/stackplot.py b/lib/matplotlib/stackplot.py
+index 0000000..0000000
+--- a/lib/matplotlib/stackplot.py
+
++++ b/lib/matplotlib/stackplot.py
+
+@@ -69,8 +69,14 @@
+
+     y = np.row_stack(args)
+
+ 
+
+     labels = iter(labels)
+
++    # Resolving `colors` (which may contain shorthand like 'C0') is done
+
++    # here in order to avoid changing the Axes prop_cycler, which would
+
++    # reject cycle references.
+
+     if colors is not None:
+
+-        axes.set_prop_cycle(color=colors)
+
++        colors = [mcolors.to_color(c) for c in colors]
+
++    else:
+
++        colors = [axes._get_lines.get_next_color()
+
++                  for _ in range(len(y))]
+
+ 
+
+     # Assume data passed has not been 'stacked', so stack it here.
+
+     # We'll need a float buffer for the upcoming calculations.
+

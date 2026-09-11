@@ -1,0 +1,24 @@
+diff --git a/tests/gis_tests/gis_migrations/test_operations.py b/tests/gis_tests/gis_migrations/test_operations.py
+index 0000000..0000000
+--- a/tests/gis_tests/gis_migrations/test_operations.py
+
++++ b/tests/gis_tests/gis_migrations/test_operations.py
+
+@@ -60,7 +60,7 @@
+
+     def set_up_test_model(self, force_raster_creation=False):
+
+         test_fields = [
+
+             ("id", models.AutoField(primary_key=True)),
+
+-            ("name", models.CharField(max_length=100, unique=True)),
+
++            ("name", models.CharField(max_length=100)),
+
+             ("geom", fields.MultiPolygonField(srid=4326)),
+
+         ]
+
+         if connection.features.supports_raster or force_raster_creation:
+

@@ -1,0 +1,34 @@
+diff --git a/astropy/table/__init__.py b/astropy/table/__init__.py
+index 0000000..0000000
+--- a/astropy/table/__init__.py
+
++++ b/astropy/table/__init__.py
+
+@@ -78,6 +78,13 @@
+
+     )
+
+ 
+
+ 
+
++# Import the writers so that format-specific writer classes (like RST) are
+
++# available at the astropy.table module level. This allows them to accept
+
++# write-time kwargs such as ``header_rows`` before the main connect module
+
++# dispatches to the ascii readers/writers.
+
++from astropy.io.ascii import RST as _RST
+
++
+
++
+
+ conf = Conf()
+
+ 
+
+ # Finally import the formats for the read and write method but delay building
+

@@ -1,0 +1,44 @@
+diff --git a/tests/user_commands/tests.py b/tests/user_commands/tests.py
+index 0000000..0000000
+--- a/tests/user_commands/tests.py
+
++++ b/tests/user_commands/tests.py
+
+@@ -65,6 +65,18 @@
+
+         finally:
+
+             dance.Command.requires_system_checks = True
+
+         self.assertIn("CommandError", stderr.getvalue())
+
++
+
++    def test_skip_checks(self):
+
++        """
+
++        Commands accept --skip-checks option to bypass system checks.
+
++        """
+
++        dance.Command.requires_system_checks = False
+
++        try:
+
++            out = StringIO()
+
++            management.call_command('dance', skip_checks=True, stdout=out)
+
++            self.assertIn("I don't feel like dancing Rock'n'Roll.\n", out.getvalue())
+
++        finally:
+
++            dance.Command.requires_system_checks = True
+
+ 
+
+     def test_no_translations_deactivate_translations(self):
+
+         """
+

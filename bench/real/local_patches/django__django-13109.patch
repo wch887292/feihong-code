@@ -1,0 +1,42 @@
+diff --git a/django/core/exceptions.py b/django/core/exceptions.py
+index 0000000..0000000
+--- a/django/core/exceptions.py
+
++++ b/django/core/exceptions.py
+
+@@ -5,6 +5,17 @@
+
+ 
+
+ class FieldDoesNotExist(Exception):
+
+     """The requested model field does not exist"""
+
++    pass
+
++
+
++
+
++def _get_base_manager_for_related_validation():
+
++    """
+
++    Return the base manager for related model validation.
+
++
+
++    This is a placeholder to indicate where ForeignKey validation should
+
++    use the base manager instead of the default manager when validating
+
++    related object existence.
+
++    """
+
+     pass
+
+ 
+
+ 
+

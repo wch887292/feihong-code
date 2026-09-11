@@ -1,0 +1,38 @@
+diff --git a/tests/user_commands/tests.py b/tests/user_commands/tests.py
+index 0000000..0000000
+--- a/tests/user_commands/tests.py
+
++++ b/tests/user_commands/tests.py
+
+@@ -112,6 +112,15 @@
+
+         self.assertIn("option3", out.getvalue())
+
+         self.assertNotIn("opt_3", out.getvalue())
+
+         self.assertNotIn("opt-3", out.getvalue())
+
++
+
++    def test_call_command_with_mutually_exclusive_group_argument(self):
+
++        """
+
++        Arguments from a required mutually exclusive group can be passed via
+
++        call_command kwargs.
+
++        """
+
++        out = StringIO()
+
++        management.call_command('dance', stdout=out, opt_1=1)
+
++        self.assertIn("option1", out.getvalue())
+
+ 
+
+     def test_call_command_option_parsing_non_string_arg(self):
+
+         """
+

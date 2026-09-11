@@ -1,0 +1,24 @@
+diff --git a/django/core/management/commands/dbshell.py b/django/core/management/commands/dbshell.py
+index 0000000..0000000
+--- a/django/core/management/commands/dbshell.py
+
++++ b/django/core/management/commands/dbshell.py
+
+@@ -27,7 +27,7 @@
+
+     def handle(self, **options):
+
+         connection = connections[options["database"]]
+
+         try:
+
+-            connection.client.runshell(options["parameters"])
+
++            connection.client.runshell(options["parameters"], connection.creation.get_db_path())
+
+         except FileNotFoundError:
+
+             # Note that we're assuming the FileNotFoundError relates to the
+
+             # command missing. It could be raised for some other reason, in
+
