@@ -1,0 +1,34 @@
+diff --git a/django/contrib/auth/backends.py b/django/contrib/auth/backends.py
+index 0000000..0000000
+--- a/django/contrib/auth/backends.py
+
++++ b/django/contrib/auth/backends.py
+
+@@ -142,6 +142,13 @@
+
+         if isinstance(perm, Permission):
+
+             permission_q &= Q(pk=perm.pk)
+
+         else:
+
++            try:
+
++                app_label, codename = perm.split('.')
+
++            except ValueError:
+
++                raise ValueError(
+
++                    'Permission name should be in the form '
+
++                    'app_label.permission_codename.'
+
++                )
+
+             permission_q &= Q(codename=codename, content_type__app_label=app_label)
+
+ 
+
+         user_q = Exists(Permission.objects.filter(permission_q))
+

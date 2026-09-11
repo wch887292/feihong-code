@@ -1,0 +1,44 @@
+diff --git a/django/core/checks/database.py b/django/core/checks/database.py
+index 0000000..0000000
+--- a/django/core/checks/database.py
+
++++ b/django/core/checks/database.py
+
+@@ -9,3 +9,18 @@
+
+     for conn in connections.all():
+
+         issues.extend(conn.validation.check(**kwargs))
+
+     return issues
+
++
+
++
+
++@register(Tags.database)
+
++def check_database_default_backend(*args, **kwargs):
+
++    from django.conf import settings
+
++    issues = []
+
++    if not hasattr(settings, 'DATABASES') or not settings.DATABASES:
+
++        issues.append(
+
++            checks.Error(
+
++                "DATABASES is unset.",
+
++                hint="Set the DATABASES setting (or enable the default SQLite backend).",
+
++                id='database.E001',
+
++            )
+
++        )
+
++    return issues
+

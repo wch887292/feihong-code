@@ -25,7 +25,7 @@ except Exception:
     pass
 
 ROOT = Path(os.getcwd())
-DATA = ROOT / "bench" / "real" / "swebench_300.json"
+DATA = ROOT / os.environ.get("SWEEBENCH_DATA", "bench/real/swebench_300.json")
 PYTEST = ROOT / "bench" / "real" / "venv38" / "Scripts" / "python.exe"
 
 
