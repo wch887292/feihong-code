@@ -317,7 +317,11 @@ while [ "$i" -lt "$end" ]; do
   echo "    pytest_rc=$rc"
 
   # 判定（指标=补丁可应用率：模型生成的 SEARCH/REPLACE 至少有一个块被成功应用）
-  if [ "$patch_applied" -gt 0 ]; then resolved=1; stage="patch_applied"; else resolved=0; stage="no_patch"; fi
+  # L0: 假应用（REPLACE==SEARCH 零变化）判定为 stage=noop —— 不在判重白名单内，重跑自动重试
+  noop_flag=$("$PY" -c "import json;print(json.load(open('$wt/.apply.json')).get('noop',False))" 2>/dev/null)
+  if [ "$noop_flag" = "True" ]; then resolved=0; stage="noop"
+  elif [ "$patch_applied" -gt 0 ]; then resolved=1; stage="patch_applied"
+  else resolved=0; stage="no_patch"; fi
   "$PY" -c "import json; json.dump({'resolved':$resolved,'stage':'$stage','blocks':$blocks,'applied':$patch_applied,'pytest_rc':$rc}, open('$wt/.status.json','w'), ensure_ascii=False)"
   "$PY" "$HELP" reportf "$REPORT" "$iid" "$wt/.status.json"
   ST_OUT=$(stats); set -- $ST_OUT
