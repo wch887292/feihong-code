@@ -1,0 +1,49 @@
+diff --git a/xarray/core/formatting.py b/xarray/core/formatting.py
+index 0c1be1cc..187f9614 100644
+--- a/xarray/core/formatting.py
++++ b/xarray/core/formatting.py
+@@ -281,11 +281,15 @@ def summarize_variable(
+             raise TypeError(f"`max_width` value of `{max_width}` is not a valid int")
+         else:
+             max_width = max_width_options
+-    first_col = pretty_print(f"  {marker} {name} ", col_width)
+     if var.dims:
+         dims_str = "({}) ".format(", ".join(map(str, var.dims)))
+     else:
+         dims_str = ""
++    if OPTIONS["display_units"] and "units" in var.attrs:
++        units_str = f"({var.attrs['units']}) "
++    else:
++        units_str = ""
++    first_col = pretty_print(f"  {marker} {name} {units_str}", col_width)
+     front_str = f"{first_col}{dims_str}{var.dtype} "
+ 
+     values_width = max_width - len(front_str)
+diff --git a/xarray/core/options.py b/xarray/core/options.py
+index d421b4c4..949a40c8 100644
+--- a/xarray/core/options.py
++++ b/xarray/core/options.py
+@@ -5,6 +5,7 @@ CMAP_DIVERGENT = "cmap_divergent"
+ CMAP_SEQUENTIAL = "cmap_sequential"
+ DISPLAY_MAX_ROWS = "display_max_rows"
+ DISPLAY_STYLE = "display_style"
++DISPLAY_UNITS = "display_units"
+ DISPLAY_WIDTH = "display_width"
+ ENABLE_CFTIMEINDEX = "enable_cftimeindex"
+ FILE_CACHE_MAXSIZE = "file_cache_maxsize"
+@@ -18,6 +19,7 @@ OPTIONS = {
+     CMAP_SEQUENTIAL: "viridis",
+     DISPLAY_MAX_ROWS: 12,
+     DISPLAY_STYLE: "html",
++    DISPLAY_UNITS: False,
+     DISPLAY_WIDTH: 80,
+     ENABLE_CFTIMEINDEX: True,
+     FILE_CACHE_MAXSIZE: 128,
+@@ -37,6 +39,7 @@ _VALIDATORS = {
+     ARITHMETIC_JOIN: _JOIN_OPTIONS.__contains__,
+     DISPLAY_MAX_ROWS: _positive_integer,
+     DISPLAY_STYLE: _DISPLAY_OPTIONS.__contains__,
++    DISPLAY_UNITS: lambda value: isinstance(value, bool),
+     DISPLAY_WIDTH: _positive_integer,
+     ENABLE_CFTIMEINDEX: lambda value: isinstance(value, bool),
+     FILE_CACHE_MAXSIZE: _positive_integer,

@@ -1,0 +1,66 @@
+diff --git a/django/db/models/fields/__init__.py b/django/db/models/fields/__init__.py
+index 71005490f3..52933dd0f4 100644
+--- a/django/db/models/fields/__init__.py
++++ b/django/db/models/fields/__init__.py
+@@ -1664,7 +1664,7 @@ class EmailField(CharField):
+ class FilePathField(Field):
+     description = _("File path")
+ 
+-    def __init__(self, verbose_name=None, name=None, path='', match=None,
++    def __init__(self, verbose_name=None, name=None, path=None, match=None,
+                  recursive=False, allow_files=True, allow_folders=False, **kwargs):
+         self.path, self.match, self.recursive = path, match, recursive
+         self.allow_files, self.allow_folders = allow_files, allow_folders
+@@ -1690,7 +1690,7 @@ class FilePathField(Field):
+ 
+     def deconstruct(self):
+         name, path, args, kwargs = super().deconstruct()
+-        if self.path != '':
++        if self.path is not None:
+             kwargs['path'] = self.path
+         if self.match is not None:
+             kwargs['match'] = self.match
+@@ -1711,8 +1711,11 @@ class FilePathField(Field):
+         return str(value)
+ 
+     def formfield(self, **kwargs):
++        path = self.path
++        if callable(path):
++            path = path()
+         return super().formfield(**{
+-            'path': self.path,
++            'path': path,
+             'match': self.match,
+             'recursive': self.recursive,
+             'form_class': forms.FilePathField,
+diff --git a/django/forms/fields.py b/django/forms/fields.py
+index a977256525..574547fb66 100644
+--- a/django/forms/fields.py
++++ b/django/forms/fields.py
+@@ -1087,6 +1087,9 @@ class FilePathField(ChoiceField):
+         else:
+             self.choices = [("", "---------")]
+ 
++        if callable(self.path):
++            self.path = self.path()
++
+         if self.match is not None:
+             self.match_re = re.compile(self.match)
+ 
+@@ -1096,14 +1099,14 @@ class FilePathField(ChoiceField):
+                     for f in sorted(files):
+                         if self.match is None or self.match_re.search(f):
+                             f = os.path.join(root, f)
+-                            self.choices.append((f, f.replace(path, "", 1)))
++                            self.choices.append((f, f.replace(self.path, "", 1)))
+                 if self.allow_folders:
+                     for f in sorted(dirs):
+                         if f == '__pycache__':
+                             continue
+                         if self.match is None or self.match_re.search(f):
+                             f = os.path.join(root, f)
+-                            self.choices.append((f, f.replace(path, "", 1)))
++                            self.choices.append((f, f.replace(self.path, "", 1)))
+         else:
+             choices = []
+             for f in os.scandir(self.path):
