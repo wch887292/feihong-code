@@ -436,7 +436,10 @@ def cmd_prompt(args):
         f"4. **INCLUDE SUFFICIENT CONTEXT** — each SEARCH block must contain at least 3-5 lines of\n"
         f"   surrounding context so the match is UNIQUE in the file. Never use a single-line SEARCH.\n"
         f"5. **MINIMAL CHANGES** — change only the lines necessary to fix the bug. Keep surrounding\n"
-        f"   context lines identical in both SEARCH and REPLACE sections.\n\n"
+        f"   context lines identical in both SEARCH and REPLACE sections.\n"
+        f"6. **REPLACE MUST DIFFER FROM SEARCH** — REPLACE MUST contain an actual code change.\n"
+        f"   It is FORBIDDEN to copy SEARCH verbatim into REPLACE. If your fix changes nothing,\n"
+        f"   the output is INVALID and will be REJECTED and retried. Every block: REPLACE != SEARCH.\n\n"
         f"## Output Format\n\n"
         f"Output ONE OR MORE SEARCH/REPLACE blocks in EXACTLY this format:\n\n"
         f"{src_rel}\n"
@@ -793,6 +796,10 @@ def cmd_apply(args):
     details = []
     for path, old, new in blocks:
         path = path.strip().lstrip("/")
+        if old == new:
+            # L0: 假应用校验 —— REPLACE 与 SEARCH 完全相同，视为无效块（不计 applied）
+            details.append({"path": path, "ok": False, "reason": "noop"})
+            continue
         fpath = os.path.join(wt, path)
         if not os.path.isfile(fpath):
             details.append({"path": path, "ok": False, "reason": "no file"})
@@ -831,7 +838,9 @@ def cmd_apply(args):
             else:
                 details.append({"path": path, "ok": False, "reason": "old not found"})
     ok = applied > 0
-    json.dump({"blocks": len(blocks), "applied": applied, "ok": ok, "details": details},
+    # L0: 全块均无效（noop/no file/old not found）时标记 all_noop，供上层判定 stage=noop
+    all_noop = len(blocks) > 0 and applied == 0 and all(d.get("reason") == "noop" for d in details)
+    json.dump({"blocks": len(blocks), "applied": applied, "ok": ok, "noop": all_noop, "details": details},
               open(out, "w"), ensure_ascii=False)
     return 0
 
