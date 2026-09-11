@@ -1,0 +1,24 @@
+diff --git a/astropy/timeseries/periodograms/lombscargle/implementations/scipy_impl.py b/astropy/timeseries/periodograms/lombscargle/implementations/scipy_impl.py
+index 0000000..0000000
+--- a/astropy/timeseries/periodograms/lombscargle/implementations/scipy_impl.py
+
++++ b/astropy/timeseries/periodograms/lombscargle/implementations/scipy_impl.py
+
+@@ -3,7 +3,7 @@
+
+ 
+
+ 
+
+ def lombscargle_scipy(t, y, frequency, normalization='standard',
+
+-                      center_data=True):
+
++                      center_data=True, dy=None):
+
+     """Lomb-Scargle Periodogram
+
+ 
+
+     This is a wrapper of ``scipy.signal.lombscargle`` for computation of the
+

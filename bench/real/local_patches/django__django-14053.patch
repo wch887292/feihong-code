@@ -1,0 +1,26 @@
+diff --git a/django/contrib/auth/backends.py b/django/contrib/auth/backends.py
+index 0000000..0000000
+--- a/django/contrib/auth/backends.py
+
++++ b/django/contrib/auth/backends.py
+
+@@ -158,6 +158,9 @@
+
+         except UserModel.DoesNotExist:
+
+             return None
+
+         return user if self.user_can_authenticate(user) else None
+
++
+
++    def has_usable_password(self, user):
+
++        return user.has_usable_password()
+
+ 
+
+ 
+
+ class AllowAllUsersModelBackend(ModelBackend):
+

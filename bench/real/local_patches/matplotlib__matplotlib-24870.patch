@@ -1,0 +1,26 @@
+diff --git a/plot_types/arrays/contour.py b/plot_types/arrays/contour.py
+index 0000000..0000000
+--- a/plot_types/arrays/contour.py
+
++++ b/plot_types/arrays/contour.py
+
+@@ -20,4 +20,9 @@
+
+ 
+
+ ax.contour(X, Y, Z, levels=levels)
+
+ 
+
++# boolean arrays auto-detect [0.5] level for contour
+
++I, J = np.ogrid[:100, :100]
+
++Z_bool = (I + J) % 20 < 10
+
++ax.contour(Z_bool)
+
++
+
+ plt.show()
+
