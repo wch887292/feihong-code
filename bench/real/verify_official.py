@@ -86,6 +86,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--instances", required=True, help="实例清单 JSON（含官方字段）")
     ap.add_argument("--limit", type=int, default=999)
+    ap.add_argument("--offset", type=int, default=0, help="实例起始偏移（分片验证用）")
     ap.add_argument("--max-workers", type=int, default=2, help="并行 Docker 容器数（runner 4 核建议 2）")
     ap.add_argument("--patches-dir", default="", help="patch 目录（默认 bench/real/patches；本地转换产物可用 bench/real/local_patches）")
     ap.add_argument("--run-id", default="feihong_official")
@@ -93,7 +94,8 @@ def main():
     ap.add_argument("--skip-run", action="store_true", help="只汇总已有日志，不重跑")
     args = ap.parse_args()
 
-    insts = json.load(open(args.instances, encoding="utf-8"))[:args.limit]
+    insts = json.load(open(args.instances, encoding="utf-8"))
+    insts = insts[args.offset:][:args.limit]
     predictions = collect_predictions(insts, args.patches_dir or None)
     print("有 patch 的实例: %d / %d" % (len(predictions), len(insts)))
     if not predictions:
