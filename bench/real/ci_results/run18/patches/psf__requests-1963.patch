@@ -1,0 +1,21 @@
+diff --git a/requests/sessions.py b/requests/sessions.py
+index 425db22c..a2c761fd 100644
+--- a/requests/sessions.py
++++ b/requests/sessions.py
+@@ -85,6 +85,8 @@ class SessionRedirectMixin(object):
+                           verify=True, cert=None, proxies=None):
+         """Receives a Response. Returns a generator of Responses."""
+ 
++        method = req.method
++
+         i = 0
+ 
+         while resp.is_redirect:
+@@ -99,7 +101,6 @@ class SessionRedirectMixin(object):
+             resp.close()
+ 
+             url = resp.headers['location']
+-            method = req.method
+ 
+             # Handle redirection without scheme (see: RFC 1808 Section 4)
+             if url.startswith('//'):
