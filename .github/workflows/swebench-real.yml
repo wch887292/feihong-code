@@ -98,7 +98,7 @@ jobs:
         run: node scripts/swebench-real.mjs --instances "${{ steps.inst.outputs.instances }}" --limit "${{ inputs.limit }}"
 
       - name: 真实测试验证（env-reconstructed）
-        run: python bench/real/verify.py --instances "${{ steps.inst.outputs.instances }}" --limit "${{ inputs.limit }}"
+        run: python bench/real/verify.py --no-venv --instances "${{ steps.inst.outputs.instances }}" --limit "${{ inputs.limit }}"
 
       - name: 真实测试验证（官方 Docker harness）
         if: inputs.official == '1'
