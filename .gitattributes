@@ -1,0 +1,3 @@
+﻿
+bench/real/local_patches/*.patch -text
+*.patch -text
