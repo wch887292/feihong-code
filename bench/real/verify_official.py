@@ -82,6 +82,55 @@ def read_official_results(run_id):
     return results
 
 
+REQUIRED_SPEC_KEYS = ["version", "image", "test_patch", "FAIL_TO_PASS", "PASS_TO_PASS",
+                     "environment_setup_commit", "eval_script", "log_parser"]
+
+
+def ensure_specs(insts, instances_path, dataset):
+    """校验实例清单是否含官方 spec 字段；缺失时从官方数据集补齐（runner 需能访问 HuggingFace）。
+
+    修复过的问题: 自研元数据缺 version/image/test_patch 等字段时，
+    swebench run_instances 内部对 None 调 .strip() 直接崩溃（exit 3）。
+    """
+    def missing_fields(i):
+        miss = []
+        for k in REQUIRED_SPEC_KEYS:
+            v = i.get(k)
+            # 空 list（如 PASS_TO_PASS=[]）合法——官方数据集个别实例本就无回归测试；
+            # 只有 None 或空字符串才视为缺失
+            if v is None or (isinstance(v, str) and not v.strip()):
+                miss.append(k)
+        return miss
+
+    bad = [i["instance_id"] for i in insts if missing_fields(i)]
+    if not bad:
+        return insts
+    print("检测到 %d 个实例缺官方 spec 字段（示例: %s），尝试从官方数据集补齐..." % (len(bad), bad[:3]))
+    try:
+        from swebench.harness.utils import load_swebench_dataset
+        specs = load_swebench_dataset(name=dataset, split="test")
+    except Exception as e:
+        print("补齐失败（无法加载官方数据集 %s）: %s" % (dataset, e))
+        print("请确保实例清单包含官方字段，或确认 runner 可访问 HuggingFace")
+        sys.exit(3)
+    sp = {s["instance_id"]: s for s in specs}
+    fixed, still = [], []
+    for i in insts:
+        s = sp.get(i["instance_id"])
+        if s is None or missing_fields(s):
+            still.append(i["instance_id"])
+            continue
+        i.update({k: s.get(k) for k in REQUIRED_SPEC_KEYS})
+        fixed.append(i["instance_id"])
+    if still:
+        print("警告: %d 个实例在官方数据集中仍无完整 spec（将被跳过）: %s" % (len(still), still[:10]))
+    if fixed:
+        json.dump(insts, open(instances_path, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+        print("已补齐 %d 个实例并写回 %s" % (len(fixed), instances_path))
+    insts = [i for i in insts if i["instance_id"] not in still]
+    return insts
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--instances", required=True, help="实例清单 JSON（含官方字段）")
@@ -92,9 +141,12 @@ def main():
     ap.add_argument("--run-id", default="feihong_official")
     ap.add_argument("--timeout", type=int, default=1800, help="每实例容器内超时（秒）")
     ap.add_argument("--skip-run", action="store_true", help="只汇总已有日志，不重跑")
+    ap.add_argument("--dataset", default="SWE-bench/SWE-bench_Verified",
+                    help="缺官方 spec 字段时用于补齐的官方数据集名")
     args = ap.parse_args()
 
     insts = json.load(open(args.instances, encoding="utf-8"))
+    insts = ensure_specs(insts, args.instances, args.dataset)
     insts = insts[args.offset:][:args.limit]
     predictions = collect_predictions(insts, args.patches_dir or None)
     print("有 patch 的实例: %d / %d" % (len(predictions), len(insts)))
