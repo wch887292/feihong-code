@@ -86,7 +86,6 @@
   ],
   "author": "吴赐虹 (晋江市飞虹智科技企业管理有限公司) <wch887292@gmail.com>",
   "license": "UNLICENSED",
-  "private": true,
   "repository": {
     "type": "git",
     "url": "https://github.com/wch887292/feihong-code.git"
