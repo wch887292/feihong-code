@@ -1922,6 +1922,60 @@ export async function runBridge(action: string, _args: string[]): Promise<void> 
         return { ok: false, error: '抓取失败: ' + (e instanceof Error ? e.message : String(e)) };
       }
     }
+    // 5.5) 屏幕截图（回传 base64 图片，手机端直接渲染）
+    if (/^(截图|截屏|屏幕截图|screen\s*shot)/i.test(t)) {
+      try {
+        const script = `
+          Add-Type -AssemblyName System.Windows.Forms
+          Add-Type -AssemblyName System.Drawing
+          $screen = [System.Windows.Forms.Screen]::PrimaryScreen
+          $bounds = $screen.Bounds
+          $bitmap = New-Object System.Drawing.Bitmap $bounds.Width, $bounds.Height
+          $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+          $graphics.CopyFromScreen($bounds.Location, [System.Drawing.Point]::Empty, $bounds.Size)
+          $ms = New-Object System.IO.MemoryStream
+          $bitmap.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png)
+          $bytes = $ms.ToArray()
+          [Convert]::ToBase64String($bytes)
+        `;
+        const base64 = (await computerPowerShell(script)).trim();
+        if (!base64) return { ok: false, error: '截图失败：未获取到图像数据' };
+        return { ok: true, result: { action: 'screenshot', image: 'data:image/png;base64,' + base64, text: '屏幕截图已生成（' + Math.round(base64.length / 1024) + ' KB）' } };
+      } catch (e) {
+        return { ok: false, error: '截图失败: ' + (e instanceof Error ? e.message : String(e)) };
+      }
+    }
+    // 5.6) 保存文件（手机端上传 base64 → 电脑保存）：保存文件 <路径> base64=<data>
+    m = /^(?:保存|上传|接收)(文件)\s*[:：]?\s*(.+?)\s+(?:base64|data)\s*=\s*([A-Za-z0-9+/=]+)$/i.exec(t);
+    if (m) {
+      const file = safeLocalResolve(m[2].trim().replace(/^['"\`]|['"\`]$/g, ''));
+      try {
+        const buf = Buffer.from(m[3], 'base64');
+        if (!buf.length) return { ok: false, error: 'base64 数据为空或无效' };
+        if (buf.length > 8 * 1024 * 1024) return { ok: false, error: '文件过大（>8MB），请压缩后重试' };
+        mkdirSync(dirname(file), { recursive: true });
+        writeFileSync(file, buf);
+        return { ok: true, result: { action: 'save-file', path: file, bytes: buf.length, text: '已保存 ' + file + '（' + buf.length + ' 字节）' } };
+      } catch (e) {
+        return { ok: false, error: '保存失败: ' + (e instanceof Error ? e.message : String(e)) };
+      }
+    }
+    // 5.7) 查看图片 / 读取图片（回传 base64，手机端直接渲染）
+    m = /^(?:查看|读取|打开)(图片|照片|image|img)\s*[:：]?\s*(.+)$/i.exec(t);
+    if (m) {
+      const file = safeLocalResolve(m[2].trim().replace(/^['"\`]|['"\`]$/g, ''));
+      if (!existsSync(file)) return { ok: false, error: '文件不存在: ' + file };
+      try {
+        const buf = readFileSync(file);
+        const dot = file.lastIndexOf('.');
+        const ext = (dot >= 0 ? file.slice(dot + 1) : '').toLowerCase();
+        const mime = ({ png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', bmp: 'image/bmp' } as Record<string, string>)[ext] || 'application/octet-stream';
+        if (buf.length > 6 * 1024 * 1024) return { ok: false, error: '文件过大（>6MB），无法回传' };
+        return { ok: true, result: { action: 'read-image', path: file, image: 'data:' + mime + ';base64,' + buf.toString('base64'), text: '文件已读取（' + Math.round(buf.length / 1024) + ' KB）' } };
+      } catch (e) {
+        return { ok: false, error: '读取失败: ' + (e instanceof Error ? e.message : String(e)) };
+      }
+    }
     // 6) 系统状态
     if (/(系统状态|服务器状态|运行状态|内存|磁盘|磁盘空间|uptime|主机)/.test(t) && !/文件/.test(t)) {
       const gb = (n: number) => (n / 1024 / 1024 / 1024).toFixed(2) + ' GB';
