@@ -24,7 +24,7 @@
 
 ## 🌐 Brand & Official Site
 
-This project is developed and maintained by **Jinjiang Feihongzhi Technology Enterprise Management Co., Ltd. · Feiyang Qiyuan R&D Center**, and is a core component of the Feihongzhi klAI open-source ecosystem.
+This project is developed and maintained by **Jinjiang Feihongzhi Technology Enterprise Management Co., Ltd. · Feiyang Qiyuan R&D Center**, and is a core component of the Feihongzhi klAI product ecosystem.
 
 - 🏠 **Official site**: [https://www.klai.top](https://www.klai.top) — Feihongzhi klAI · Quanzhou manufacturing-AI service provider
 - 📦 **Open-source matrix**: [https://www.klai.top/opensource.html](https://www.klai.top/opensource.html)
@@ -520,7 +520,7 @@ node dist/cli/index.js --version
 
 ## 🤝 Community Support
 
-Follow Feihongzhi klAI for the latest open-source updates and technical tutorials:
+Follow Feihongzhi klAI for the latest product updates and technical tutorials:
 
 ![Community QR](https://github.com/wch887292/feihong-code/releases/download/v1.0.0-community/qrcode-community.png)
 

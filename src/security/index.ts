@@ -152,11 +152,20 @@ export class BruteForceGuard {
 
 /* ==================== 第三层：敏感数据 AES-256-GCM 落盘加密 ==================== */
 
+let warnedWeakDataKey = false;
+
 function dataKey(): Buffer {
-  // 优先 FH_DATA_KEY（32 字节 hex）；否则用 FH_LICENSE_SECRET 派生；再否则从本地密钥文件派生
+  // 优先 FH_DATA_KEY（32 字节 hex）；否则用 FH_LICENSE_SECRET 派生；再否则从内置种子派生（生产必须配置 FH_DATA_KEY）
   const env = process.env.FH_DATA_KEY?.trim();
   if (env) return Buffer.from(env, 'hex');
-  const secret = process.env.FH_LICENSE_SECRET?.trim() || 'fhcode-local-derive-seed';
+  const secret = process.env.FH_LICENSE_SECRET?.trim();
+  if (!secret) {
+    if (!warnedWeakDataKey) {
+      warnedWeakDataKey = true;
+      console.warn('[fhcode-security] 警告：未配置 FH_DATA_KEY / FH_LICENSE_SECRET，落盘加密使用内置派生种子，安全性受限。生产环境请配置 FH_DATA_KEY（32 字节 hex）。');
+    }
+    return createHmac('sha256', 'fhcode-data-key-v1').update('fhcode-local-derive-seed').digest();
+  }
   return createHmac('sha256', 'fhcode-data-key-v1').update(secret).digest();
 }
 

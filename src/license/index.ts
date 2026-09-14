@@ -192,7 +192,7 @@ export function licenseState(): LicenseState {
   }
 }
 
-/** 试用状态：以 .trial-started 文件首次时间起算 7 天 */
+/** 试用状态：以 .trial-started 文件首次时间起算 60 天 */
 function trialState(): LicenseState {
   const marker = join(homeDir(), '.trial-started');
   let start = 0;
