@@ -8,13 +8,13 @@
   "name": "飞虹 Code (fhcode)",
   "description": "终端 AI 编程智能体，对标 Meta Muse Code / Claude Code / Cursor CLI 等国际同类产品，以自研内核实现差异化。多模型路由、企业级 RBAC/审计/多租户、全自动 SWE Agent、离线私有化。支持 DeepSeek/通义/Ollama/OpenAI 兼容网关。",
   "url": "https://github.com/wch887292/feihong-code",
-  "license": "https://opensource.org/licenses/MIT",
+  "license": "https://www.klai.top/commercial-license.html",
   "programmingLanguage": {
     "@type": "ProgrammingLanguage",
     "name": "TypeScript"
   },
   "operatingSystem": "Cross-platform (Windows, Linux, macOS)",
-  "softwareVersion": "8.3.0",
+  "softwareVersion": "8.4.1",
   "dateCreated": "2026-08-12",
   "datePublished": "2026-08-22",
   "author": {
@@ -30,11 +30,10 @@
   "keywords": [
     "AI Agent", "SWE Agent", "CLI", "多模型路由", "DeepSeek", "Ollama",
     "企业级权限", "RBAC", "审计链", "多租户", "自我进化", "自愈循环",
-    "代码生成", "typescript", "nodejs", "open source"
+    "代码生成", "typescript", "nodejs", "commercial software"
   ],
   "sameAs": [
-    "https://www.npmjs.com/package/feihong-code",
-    "https://www.klai.top/opensource.html"
+    "https://www.npmjs.com/package/feihong-code"
   ],
   "featureList": [
     "核心能力里程碑 M0-M9.1 全部交付",
@@ -78,7 +77,7 @@
 > **终端 AI 编程智能体** · 对标 Meta Muse Code / Claude Code / Cursor CLI · 自研内核实现差异化 · 全功能 M0→M9.1 完成 · 企业级 RBAC/审计/SWE Agent
 > 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+[![License: Commercial](https://img.shields.io/badge/License-Commercial-blue.svg)](./LICENSE)
 [![Node.js >= 18](https://img.shields.io/badge/node-%3E%3D18-brightgreen.svg)](https://nodejs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue.svg)](https://typescriptlang.org)
 [![GitHub stars](https://img.shields.io/github/stars/wch887292/feihong-code?style=social)](https://github.com/wch887292/feihong-code/stargazers)
@@ -100,10 +99,10 @@
 
 ## 🌐 品牌与官网
 
-本项目由 **晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心** 开发维护，是飞虹智 klAI 开源生态的核心组件。
+本项目由 **晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心** 开发维护，是飞虹智 klAI 商业智能体生态的核心组件，采用商业授权模式（激活码激活）。
 
 - 🏠 **官方网站**：[https://www.klai.top](https://www.klai.top) — 飞虹智 klAI · 泉州制造业 AI 服务商
-- 📦 **开源矩阵**：[https://www.klai.top/opensource.html](https://www.klai.top/opensource.html)
+- 📦 **产品中心**：[https://www.klai.top](https://www.klai.top)
 - 🤖 **AI Agent 入口**：[https://www.klai.top/openclaw.html](https://www.klai.top/openclaw.html)
 
 

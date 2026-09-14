@@ -637,6 +637,17 @@
       flex-wrap: wrap;
     }
     .input-toolbar .spacer { flex: 1; }
+.conn-pill {
+  display: inline-block; padding: 3px 12px; border-radius: 999px;
+  font-size: 12px; font-weight: 600; cursor: pointer;
+  background: #eef2f7; color: var(--muted); border: 1px solid transparent;
+  transition: all .2s; white-space: nowrap;
+}
+.conn-pill:hover { border-color: var(--brand); }
+.conn-pill.off { background: #eef2f7; color: #98a2b3; }
+.conn-pill.local { background: rgba(16,185,129,.12); color: #10b981; }
+.conn-pill.cloud { background: rgba(59,130,246,.12); color: #3b82f6; }
+
     .pill {
       border: 1px solid var(--border);
       border-radius: 8px;

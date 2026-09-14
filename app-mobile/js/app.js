@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
  * 飞虹 Code 移动版 v7.6.4
  * 主聊天页 + 左侧导航 + 右侧设置抽屉 + 技能中心 + 小游戏创作 + 附件栏 + 流式对话
  * ============================================================ */
@@ -602,6 +602,398 @@ function appendAssistantMessage(taskId, content) {
 }
 
 /* ========== 发送消息（对话） ========== */
+/* ========== 电脑遥控：对话发自然语言指令 → 电脑端执行（豆包式） ========== */
+/* 两种连接模式：
+ * 1) 云端桥接（默认）：手机 → 腾讯云 fhcode serve → 电脑端 fhcode bridge 拉取执行 → 结果回传手机。
+ *    云端地址: api.klai.top（或局域网内 http://电脑IP:18080），鉴权头 Authorization: Bearer <token>
+ * 2) 直连模式：同局域网手机直接调电脑端 /api/computer/nl（地址 http://电脑IP:8081，无鉴权）
+ * 配置（localStorage）：fh.pc.mode = 'cloud'|'direct'；fh.pc.cloudUrl / fh.pc.pcUrl / fh.pc.deviceId / fh.pc.token
+ */
+function getPcMode() {
+  try { return localStorage.getItem('fh.pc.mode') || 'cloud'; } catch (e) { return 'cloud'; }
+}
+function setPcMode(m) { try { localStorage.setItem('fh.pc.mode', m); } catch (e) {} }
+function getPcUrl() {
+  try { return localStorage.getItem('fh.pc.pcUrl') || 'http://127.0.0.1:8081'; } catch (e) { return 'http://127.0.0.1:8081'; }
+}
+function setPcUrl(u) { try { localStorage.setItem('fh.pc.pcUrl', u); } catch (e) {} }
+function getCloudUrl() {
+  try { return localStorage.getItem('fh.pc.cloudUrl') || 'https://api.klai.top/fhcode'; } catch (e) { return 'https://api.klai.top/fhcode'; }
+}
+function setCloudUrl(u) { try { localStorage.setItem('fh.pc.cloudUrl', u); } catch (e) {} }
+function getPcDeviceId() {
+  try { return localStorage.getItem('fh.pc.deviceId') || 'pc-cloud-agent-01'; } catch (e) { return 'pc-cloud-agent-01'; }
+}
+function setPcDeviceId(id) { try { localStorage.setItem('fh.pc.deviceId', id); } catch (e) {} }
+function getCloudToken() {
+  // 预置云端令牌（产品内置默认执行端），用户可在设置中覆盖
+  try { return localStorage.getItem('fh.pc.token') || '25dacff5349f22fe4354f8ab34d6beaf9390e119b55fe1ad'; } catch (e) { return '25dacff5349f22fe4354f8ab34d6beaf9390e119b55fe1ad'; }
+}
+function setCloudToken(t) { try { localStorage.setItem('fh.pc.token', t); } catch (e) {} }
+
+/* ========== 电脑连接状态（顶栏胶囊：未连接灰 / 本地电脑绿 / 云电脑蓝） ========== */
+var connState = { local: false, cloud: false, checking: false };
+
+/* 检测本地电脑（局域网直连）：GET {pcUrl}/api/health，4s 超时 */
+function testLocalConn(cb) {
+  var url = getPcUrl().replace(/\/+$/, '');
+  getJson(url + '/api/health', {},
+    function (d) { connState.local = !!(d && d.ok !== false); cb && cb(connState.local); },
+    function () { connState.local = false; cb && cb(false); }, 4000);
+}
+
+/* 检测云电脑（云端桥接）：GET {cloudUrl}/api/bridge/devices，带 token，6s 超时 */
+function testCloudConn(cb) {
+  var url = getCloudUrl().replace(/\/+$/, '');
+  var token = getCloudToken();
+  getJson(url + '/api/bridge/devices', token ? { Authorization: 'Bearer ' + token } : {},
+    function (d) { connState.cloud = !!(d && d.devices && d.devices.length >= 0); cb && cb(connState.cloud); },
+    function () { connState.cloud = false; cb && cb(false); }, 6000);
+}
+
+/* 同时检测两个通道，完成后刷新 UI */
+function checkAllConns(cb) {
+  if (connState.checking) return;
+  connState.checking = true;
+  var done = 0;
+  function fin() { done++; if (done >= 2) { connState.checking = false; renderConnStatus(); cb && cb(); } }
+  testLocalConn(fin); testCloudConn(fin);
+}
+
+/* 刷新顶栏胶囊 + 设置面板状态 */
+function renderConnStatus() {
+  var mode = getPcMode();
+  var pill = $('connPill');
+  var label = '● 未连接'; var cls = 'off';
+  if (mode === 'direct' && connState.local) { label = '● 本地电脑'; cls = 'local'; }
+  else if (mode === 'cloud' && connState.cloud) { label = '● 云电脑'; cls = 'cloud'; }
+  else if (mode === 'direct') { label = '● 本地未连'; cls = 'off'; }
+  else { label = '● 云未连接'; cls = 'off'; }
+  if (pill) { pill.className = 'conn-pill ' + cls; pill.innerHTML = label; }
+  var lDot = $('pcStatusDot'), cDot = $('cloudStatusDot');
+  if (lDot) lDot.style.background = connState.local ? 'var(--ok)' : 'var(--ink-3)';
+  if (cDot) cDot.style.background = connState.cloud ? 'var(--brand)' : 'var(--ink-3)';
+}
+
+/* 连接设置面板初始化与绑定 */
+function initPcConnPanel() {
+  var mode = getPcMode();
+  var localInput = $('pcUrlInput'), cloudUrlInput = $('cloudUrlInput'),
+    cloudTokenInput = $('cloudTokenInput'), cloudDeviceInput = $('cloudDeviceInput');
+  if (localInput) localInput.value = getPcUrl();
+  if (cloudUrlInput) cloudUrlInput.value = getCloudUrl();
+  if (cloudTokenInput) cloudTokenInput.value = getCloudToken();
+  if (cloudDeviceInput) cloudDeviceInput.value = getPcDeviceId();
+
+  // 模式 tab 切换
+  document.querySelectorAll('[data-ctab2]').forEach(function (t) {
+    t.classList.toggle('active', t.dataset.ctab2 === mode);
+    t.onclick = function () {
+      document.querySelectorAll('[data-ctab2]').forEach(function (x) { x.classList.remove('active'); });
+      t.classList.add('active');
+      document.querySelectorAll('[id^="ctab2-"]').forEach(function (p) { p.classList.add('hidden'); });
+      var panel = $('ctab2-' + t.dataset.ctab2);
+      if (panel) panel.classList.remove('hidden');
+    };
+  });
+
+  // 本地电脑：测试
+  var pcTest = $('pcTestBtn');
+  if (pcTest) pcTest.onclick = function () {
+    var m = $('pcMsg'); if (!m) return;
+    m.textContent = '📡 检测中…'; m.className = 'form-msg';
+    testLocalConn(function (ok) {
+      m.textContent = ok ? '✅ 本地电脑已连接' : '❌ 无法连接本地电脑（请确认同一 WiFi 且 fhcode 服务已启动）';
+      m.className = 'form-msg ' + (ok ? 'ok' : 'err');
+      renderConnStatus();
+    });
+  };
+  // 本地电脑：保存并连接
+  var pcSave = $('pcSaveBtn');
+  if (pcSave) pcSave.onclick = function () {
+    var u = (localInput ? localInput.value : '').trim();
+    var m = $('pcMsg'); if (!m) return;
+    if (!u) { m.textContent = '请填写本地电脑地址（如 http://192.168.1.8:8081）'; m.className = 'form-msg err'; return; }
+    setPcUrl(u); setPcMode('direct');
+    m.textContent = '已切换本地电脑，正在检测…'; m.className = 'form-msg';
+    testLocalConn(function (ok) {
+      m.textContent = ok ? '✅ 已连接本地电脑（顶栏变绿色）' : '❌ 已保存，但本地电脑未响应，请稍后重试';
+      m.className = 'form-msg ' + (ok ? 'ok' : 'err');
+      renderConnStatus();
+    });
+  };
+  // 云电脑：测试
+  var cloudTest = $('cloudTestBtn');
+  if (cloudTest) cloudTest.onclick = function () {
+    var m = $('cloudMsg'); if (!m) return;
+    m.textContent = '📡 检测中…'; m.className = 'form-msg';
+    testCloudConn(function (ok, reason) {
+      var msg = ok ? '✅ 云电脑通道可用（顶栏变蓝色）'
+        : reason === '401' ? '❌ Token 错误或已过期（云服务在线，但鉴权失败，请检查 Token）'
+        : reason === 'empty' ? '❌ 请填写云电脑地址'
+        : reason === 'timeout' ? '❌ 云服务响应超时（检查网络或地址）'
+        : reason === 'network' ? '❌ 无法连接云服务（网络不通或地址错误）'
+        : '❌ 云服务返回错误（HTTP ' + reason + '）';
+      m.textContent = msg; m.className = 'form-msg ' + (ok ? 'ok' : 'err');
+      renderConnStatus();
+    });
+  };
+  // 云电脑：保存并连接
+  var cloudSave = $('cloudSaveBtn');
+  if (cloudSave) cloudSave.onclick = function () {
+    var u = (cloudUrlInput ? cloudUrlInput.value : '').trim();
+    var m = $('cloudMsg'); if (!m) return;
+    if (!u) { m.textContent = '请填写云电脑地址'; m.className = 'form-msg err'; return; }
+    setCloudUrl(u);
+    setCloudToken(cloudTokenInput ? cloudTokenInput.value.trim() : '');
+    setPcDeviceId(cloudDeviceInput ? cloudDeviceInput.value.trim() : '');
+    setPcMode('cloud');
+    m.textContent = '已切换云电脑，正在检测…'; m.className = 'form-msg';
+    testCloudConn(function (ok, reason) {
+      var msg = ok ? '✅ 已连接云电脑（顶栏变蓝色）'
+        : reason === '401' ? '❌ 已保存，但 Token 鉴权失败（401），请确认 Token 正确'
+        : '❌ 已保存，但云电脑未连通（检查地址/Token/网络）';
+      m.textContent = msg; m.className = 'form-msg ' + (ok ? 'ok' : 'err');
+      renderConnStatus();
+    });
+  };
+  renderConnStatus();
+}
+
+/* 电脑指令意图识别：动词开头（打开/启动/运行/截图/输入/按/点击等）+ 目标对象 */
+function isComputerCommand(text) {
+  var t = String(text || '').trim();
+  if (!t) return false;
+  var patterns = [
+    /^(打开|启动|运行|开启|帮我打开|帮我启动|帮我运行|帮我打开一下|打开一下)\s*(微信|qq|chrome|浏览器|记事本|计算器|画图|文件管理器|资源管理器|任务管理器|cmd|命令行|powershell|vscode|word|excel|ppt|outlook|钉钉|飞书|企业微信|百度网盘|网易云音乐|steam|wps|word文档)/i,
+    /^(截图|截屏|屏幕截图|screen\s*shot)/i,
+    /^(输入|键入|打字)\s*[:：]?.+/,
+    /^(按下|按|按键)\s*[:：]?.+/,
+    /^(点击|单击|点一下)\s*[:：]?/,
+    /^(最小化|最大化|关闭窗口|打开文件夹|打开目录|清空回收站|锁屏|关机|重启)\s*$/,
+    // 云端执行体指令（无头服务器：文件/脚本/命令/网页/系统状态）
+    /^(创建|新建|写|写入|生成)(文件|脚本|目录)\s*[:：]?\s*.+/i,
+    /^(读取|查看|打开|显示|cat)(文件|脚本)\s*[:：]?\s*.+/i,
+    /^(列出|查看|浏览)(目录|文件夹)\s*[:：]?\s*.+/i,
+    /^(执行|运行)(命令|脚本|shell|bash|sh|python|python3|node|npm|pip|git)\s*[:：]?\s*.+/i,
+    /^(抓取|下载|访问|fetch)(网页|页面|url)\s*[:：]?\s*.+/i,
+    /^(系统状态|服务器状态|运行状态|内存|磁盘|磁盘空间|主机信息|uptime)/i,
+    /^(搜索|查找|找)(文件|关键词|内容)\s*[:：]?\s*.+/i,
+  ];
+  for (var i = 0; i < patterns.length; i++) { if (patterns[i].test(t)) return true; }
+  return false;
+}
+/* 当前执行端标签：云端桥接模式 + 云端设备 → 「云端执行体」，否则「电脑」 */
+function getExecEndLabel() {
+  var mode = getPcMode();
+  var deviceId = getPcDeviceId();
+  if (mode === 'cloud' && (deviceId.indexOf('cloud') === 0 || deviceId.indexOf('pc-cloud') === 0 || deviceId === 'pc-cloud-agent-01')) return '云端执行体';
+  return '电脑';
+}
+/* 基础 XHR POST（带可选鉴权头 + 请求签名防重放） */
+function postJson(url, body, headers, onDone, onError, timeoutMs) {
+  var xhr = new XMLHttpRequest();
+  xhr.open('POST', url, true);
+  xhr.setRequestHeader('Content-Type', 'application/json');
+  if (headers) {
+    Object.keys(headers).forEach(function (k) { xhr.setRequestHeader(k, headers[k]); });
+  }
+  addSignHeaders(xhr, headers, JSON.stringify(body || {}));
+  xhr.timeout = timeoutMs || 15000;
+  xhr.onload = function () {
+    try {
+      var data = JSON.parse(xhr.responseText);
+      onDone(data);
+    } catch (e) { onError(new Error('响应解析失败')); }
+  };
+  xhr.onerror = function () { onError(new Error('网络错误，无法连接 ' + url)); };
+  xhr.ontimeout = function () { onError(new Error('连接超时（' + url + '）')); };
+  xhr.send(JSON.stringify(body || {}));
+}
+function getJson(url, headers, onDone, onError, timeoutMs) {
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', url, true);
+  if (headers) {
+    Object.keys(headers).forEach(function (k) { xhr.setRequestHeader(k, headers[k]); });
+  }
+  addSignHeaders(xhr, headers, '');
+  xhr.timeout = timeoutMs || 15000;
+  xhr.onload = function () {
+    try {
+      var data = JSON.parse(xhr.responseText);
+      onDone(data);
+    } catch (e) { onError(new Error('响应解析失败')); }
+  };
+  xhr.onerror = function () { onError(new Error('网络错误，无法连接 ' + url)); };
+  xhr.ontimeout = function () { onError(new Error('连接超时（' + url + '）')); };
+  xhr.send();
+}
+/* 请求签名（第二层安全·防重放）：HMAC-SHA256(timestamp|nonce|body)，密钥 = 云端 token */
+/* 纯 JS 实现（无外部依赖）：先用 TextEncoder 统一转 UTF-8 字节，保证中文 body 签名与 Node crypto 一致 */
+function addSignHeaders(xhr, headers, bodyRaw) {
+  var signSecret = getCloudToken(); // 签名密钥与 FH_WEB_TOKEN 一致
+  if (!signSecret) return;
+  try {
+    var ts = String(Date.now());
+    var nonce = Math.random().toString(36).slice(2) + Date.now().toString(36);
+    var sig = hmacSha256(signSecret, ts + '|' + nonce + '|' + (bodyRaw || ''));
+    xhr.setRequestHeader('x-fh-ts', ts);
+    xhr.setRequestHeader('x-fh-nonce', nonce);
+    xhr.setRequestHeader('x-fh-sig', sig);
+  } catch (e) { /* 签名失败不阻塞请求 */ }
+}
+function hmacSha256(secret, message) {
+  var encoder = new TextEncoder();
+  var keyBytes = Array.from(encoder.encode(secret));
+  var msgBytes = Array.from(encoder.encode(message));
+  var blockSize = 64;
+  if (keyBytes.length > blockSize) keyBytes = Array.from(sha256Bytes(keyBytes));
+  while (keyBytes.length < blockSize) keyBytes.push(0);
+  var innerPad = keyBytes.map(function (x) { return x ^ 0x36; });
+  var outerPad = keyBytes.map(function (x) { return x ^ 0x5c; });
+  var innerMsg = innerPad.concat(msgBytes);
+  var innerHash = sha256Bytes(innerMsg);
+  var outerMsg = outerPad.concat(Array.from(innerHash));
+  return toHex(sha256Bytes(outerMsg));
+}
+function sha256Bytes(bytes) {
+  var h = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19];
+  var k = [
+    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+    0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+    0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+    0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+  ];
+  function rotr(x, n) { return (x >>> n) | (x << (32 - n)); }
+  var bitLen = bytes.length * 8;
+  var padded = bytes.slice();
+  padded.push(0x80);
+  while (padded.length % 64 !== 56) padded.push(0);
+  // 64 位大端长度
+  var hi = Math.floor(bitLen / 4294967296);
+  var lo = bitLen >>> 0;
+  padded.push((hi >>> 24) & 0xff, (hi >>> 16) & 0xff, (hi >>> 8) & 0xff, hi & 0xff);
+  padded.push((lo >>> 24) & 0xff, (lo >>> 16) & 0xff, (lo >>> 8) & 0xff, lo & 0xff);
+  for (var off = 0; off < padded.length; off += 64) {
+    var w = new Array(64);
+    for (var i = 0; i < 16; i++) {
+      w[i] = ((padded[off + i * 4] << 24) | (padded[off + i * 4 + 1] << 16) | (padded[off + i * 4 + 2] << 8) | padded[off + i * 4 + 3]) >>> 0;
+    }
+    for (var i = 16; i < 64; i++) {
+      var s0 = rotr(w[i - 15], 7) ^ rotr(w[i - 15], 18) ^ (w[i - 15] >>> 3);
+      var s1 = rotr(w[i - 2], 17) ^ rotr(w[i - 2], 19) ^ (w[i - 2] >>> 10);
+      w[i] = (w[i - 16] + s0 + w[i - 7] + s1) >>> 0;
+    }
+    var a = h[0], b = h[1], c = h[2], d = h[3], e = h[4], f = h[5], g = h[6], hh = h[7];
+    for (var i = 0; i < 64; i++) {
+      var S1 = rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25);
+      var ch = (e & f) ^ (~e & g);
+      var temp1 = (hh + S1 + ch + k[i] + w[i]) >>> 0;
+      var S0 = rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22);
+      var maj = (a & b) ^ (a & c) ^ (b & c);
+      var temp2 = (S0 + maj) >>> 0;
+      hh = g; g = f; f = e; e = (d + temp1) >>> 0;
+      d = c; c = b; b = a; a = (temp1 + temp2) >>> 0;
+    }
+    h[0] = (h[0] + a) >>> 0; h[1] = (h[1] + b) >>> 0; h[2] = (h[2] + c) >>> 0; h[3] = (h[3] + d) >>> 0;
+    h[4] = (h[4] + e) >>> 0; h[5] = (h[5] + f) >>> 0; h[6] = (h[6] + g) >>> 0; h[7] = (h[7] + hh) >>> 0;
+  }
+  var out = new Uint8Array(32);
+  for (var i = 0; i < 8; i++) {
+    out[i * 4] = (h[i] >>> 24) & 0xff;
+    out[i * 4 + 1] = (h[i] >>> 16) & 0xff;
+    out[i * 4 + 2] = (h[i] >>> 8) & 0xff;
+    out[i * 4 + 3] = h[i] & 0xff;
+  }
+  return out;
+}
+function toHex(bytes) {
+  var s = '';
+  for (var i = 0; i < bytes.length; i++) s += ((bytes[i] < 16) ? '0' : '') + bytes[i].toString(16);
+  return s;
+}
+/* 获取已注册的电脑设备列表（云端） */
+function fetchCloudDevices(onDone) {
+  var token = getCloudToken();
+  var headers = token ? { Authorization: 'Bearer ' + token } : {};
+  getJson(getCloudUrl().replace(/\/+$/, '') + '/api/bridge/devices', headers,
+    function (data) { onDone(data && data.devices ? data.devices : []); },
+    function () { onDone([]); });
+}
+/* 调用电脑：云端桥接（入队→轮询结果）或直连（POST /api/computer/nl） */
+function callComputer(text, onDone, onError) {
+  var mode = getPcMode();
+  if (mode === 'direct') {
+    // 直连模式：同局域网，直接调电脑端
+    postJson(getPcUrl().replace(/\/+$/, '') + '/api/computer/nl', { text: text }, null, onDone, onError);
+    return;
+  }
+  // 云端桥接模式
+  var deviceId = getPcDeviceId();
+  if (!deviceId) { onError(new Error('未配置目标电脑（deviceId）。请在设置中填写电脑端设备 ID，或用「fhcode bridge id」查看')); return; }
+  var cloudBase = getCloudUrl().replace(/\/+$/, '');
+  var token = getCloudToken();
+  var headers = token ? { Authorization: 'Bearer ' + token } : {};
+  postJson(cloudBase + '/api/bridge/command', { deviceId: deviceId, text: text }, headers,
+    function (data) {
+      if (!data || !data.ok) { onError(new Error((data && data.error) || '云端下发失败')); return; }
+      // 轮询结果
+      var cmdId = data.cmdId;
+      var tries = 0;
+      (function poll() {
+        tries++;
+        getJson(cloudBase + '/api/bridge/command/' + cmdId, headers,
+          function (d) {
+            if (!d || !d.ok || !d.command) { onError(new Error('查询指令状态失败')); return; }
+            var c = d.command;
+            if (c.status === 'done') { onDone({ ok: true, action: 'bridge', app: c.text, message: '已在' + getExecEndLabel() + '执行完成', bridge: c }); }
+            else if (c.status === 'failed') { onError(new Error(c.error || getExecEndLabel() + '执行失败')); }
+            else if (tries > 60) { onError(new Error('等待电脑执行超时（60 次轮询）')); }
+            else { setTimeout(poll, 1500); }
+          },
+          function (e) { onError(e); });
+      })();
+    },
+    onError);
+}
+/* 渲染电脑执行结果到对话流 */
+function renderComputerResult(task, data, rawText) {
+  var lines = [];
+  lines.push((getExecEndLabel() === '云端执行体' ? '☁️ 云端执行体已执行指令：' : '🖥️ 电脑已执行指令：') + esc(rawText));
+  lines.push('');
+  if (data && data.action) {
+    var actionName = {
+      'app/open': '📂 打开应用',
+      'screenshot': '📷 截屏',
+      'keyboard/type': '⌨️ 输入文字',
+      'keyboard/press': '🔘 按键',
+      'mouse/click': '🖱️ 点击鼠标',
+      'write': '📝 写入文件',
+      'read': '📄 读取文件',
+      'ls': '📁 列出目录',
+      'mkdir': '🗂️ 创建目录',
+      'exec': '⚙️ 执行命令',
+      'fetch': '🌐 抓取网页',
+      'sysinfo': '🖥️ 系统状态',
+      'grep': '🔍 搜索文件'
+    }[data.action] || data.action;
+    lines.push('执行动作：' + actionName);
+  }
+  if (data && data.app) lines.push('目标：' + esc(data.app));
+  if (data && data.message) lines.push('结果：' + esc(data.message));
+  if (data && data.bridge && data.bridge.result && data.bridge.result.text) {
+    lines.push('<div style="white-space:pre-wrap;font-family:ui-monospace,monospace;font-size:12px;background:rgba(127,127,127,.08);border-radius:6px;padding:6px;margin-top:4px;color:var(--ink-1);">' + esc(data.bridge.result.text) + '</div>');
+  }
+  if (data && data.image) {
+    return { html: lines.join('<br>') + '<br><img src="' + data.image + '" style="max-width:100%;border-radius:8px;margin-top:6px;"/>', ok: true };
+  }
+  return { html: lines.join('<br>'), ok: true };
+}
+
 function sendMessage() {
   var input = $('goalInput');
   var text = input.value.trim();
@@ -634,6 +1026,45 @@ function sendMessage() {
       }
     }
   } catch (e) { /* 技能匹配失败不影响正常对话 */ }
+
+  // 电脑遥控分流：识别为电脑操作指令时，直接转发电脑端执行，不走大模型
+  if (isComputerCommand(finalText)) {
+    var pcTask;
+    if (!state.currentTaskId || !getTask(state.currentTaskId)) {
+      pcTask = createTask(finalText.slice(0, 30), 'chat');
+      state.currentTaskId = pcTask.id;
+    } else {
+      pcTask = getTask(state.currentTaskId);
+    }
+    pcTask.messages.push({ role: 'user', content: finalText });
+    pcTask.status = 'running';
+    saveTasks();
+    input.value = '';
+    input.style.height = 'auto';
+    renderThread(pcTask);
+    var pcBox = $('convMessages');
+    var pcMsgEl = document.createElement('div');
+    pcMsgEl.className = 'msg assistant';
+    pcMsgEl.innerHTML = '<span style="color:var(--ink-2);">' + (getExecEndLabel() === '云端执行体' ? '☁️ 正在指挥云端执行体…' : '🖥️ 正在指挥电脑执行…') + '</span> <span class="typing-cursor">▋</span>';
+    pcBox.appendChild(pcMsgEl);
+    pcBox.scrollTop = pcBox.scrollHeight;
+    callComputer(finalText,
+      function (data) {
+        var r = renderComputerResult(pcTask, data, finalText);
+        pcMsgEl.innerHTML = r.html;
+        appendAssistantMessage(pcTask.id, finalText + '\n\n' + JSON.stringify(data));
+        renderThread(getTask(pcTask.id));
+        updateSendBtn(false);
+      },
+      function (err) {
+        pcMsgEl.innerHTML = '<div style="color:var(--err);white-space:pre-wrap;">❌ 电脑执行失败：' + esc(friendlyError(err)) + '</div>';
+        pcTask.status = 'failed'; pcTask.error = err.message; saveTasks();
+        updateSendBtn(false);
+      }
+    );
+    updateSendBtn(true);
+    return;
+  }
 
   var task;
   if (!state.currentTaskId || !getTask(state.currentTaskId)) {
@@ -1339,6 +1770,39 @@ function loadFlashApps() {
 function saveFlashApps(apps) {
   try { localStorage.setItem(LS_FLASH_APPS, JSON.stringify(apps)); } catch (e) {}
 }
+/* 从模型输出中稳健提取 HTML：优先 ```html 代码块，其次任意代码块，最后按 <!DOCTYPE/<html 起始截取 */
+function extractHtmlFromMarkdown(text) {
+  if (!text) return '';
+  var s = String(text);
+  var m = s.match(/```(?:html|HTML)?\s*([\s\S]*?)```/);
+  if (m && /<!DOCTYPE|<html|<body/i.test(m[1])) return m[1].trim();
+  if (m) return m[1].trim();
+  var i = s.search(/<!DOCTYPE|<html/i);
+  if (i >= 0) {
+    var tail = s.slice(i);
+    var j = tail.lastIndexOf('</html>');
+    return j >= 0 ? tail.slice(0, j + 7) : tail;
+  }
+  return '';
+}
+
+/* 在对话流末尾追加「打开应用」卡片（不依赖 renderThread 时序） */
+function appendFlashAppCard(app) {
+  var box = $('convMessages');
+  if (!box) return;
+  var div = document.createElement('div');
+  div.className = 'msg assistant';
+  div.innerHTML = '<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center;">' +
+    '<div style="font-size:32px;margin-bottom:8px;">✨</div>' +
+    '<div style="font-size:16px;font-weight:600;margin-bottom:4px;">' + esc(app.name) + '</div>' +
+    '<div style="font-size:12px;color:var(--ink-2);margin-bottom:12px;">应用已生成，随时可重新打开</div>' +
+    '<button class="btn" style="width:100%;">▶ 打开应用</button></div>';
+  var btn = div.querySelector('button');
+  btn.onclick = function () { playFlashApp(app); };
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+
 function openFlashApp() {
   $('faDesc').value = ''; $('faMsg').textContent = ''; $('faMsg').className = 'form-msg';
   renderFlashAppList();
@@ -1427,22 +1891,28 @@ function runFlashApp() {
         var app = { name: appName, desc: desc, html: html, createdAt: new Date().toLocaleString() };
         apps.unshift(app);
         saveFlashApps(apps);
-        msgEl.innerHTML = '<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center;">' +
-          '<div style="font-size:32px;margin-bottom:8px;">✨</div>' +
-          '<div style="font-size:16px;font-weight:600;margin-bottom:4px;">' + esc(appName) + '</div>' +
-          '<div style="font-size:12px;color:var(--ink-2);margin-bottom:12px;">应用已生成，点击下方按钮立即使用</div>' +
-          '<button class="btn" id="faPlayBtn" style="width:100%;">▶ 打开应用</button>' +
-          '</div>';
-        appendAssistantMessage(task.id, '【闪应用已创建】' + appName);
-        var btn = $('faPlayBtn');
-        if (btn) btn.onclick = function () { playFlashApp(app); };
-        // 自动打开
-        setTimeout(function () { playFlashApp(app); }, 600);
+        appendAssistantMessage(task.id, '【闪应用已创建】' + appName + '，已直接打开应用界面');
+        // 先持久化渲染对话流，再追加可重开卡片，最后立即全屏打开渲染好的应用界面（全程不展示任何 HTML）
+        renderThread(getTask(task.id));
+        appendFlashAppCard(app);
+        setTimeout(function () { playFlashApp(app); }, 350);
       } else {
-        msgEl.innerHTML = '<div style="color:var(--err);">❌ 未能提取应用代码，请重试</div>';
-        appendAssistantMessage(task.id, '闪应用创建失败：未能提取代码');
+        msgEl.innerHTML = '<div style="color:var(--err);">❌ 未能生成应用界面，请重试</div>';
+        appendAssistantMessage(task.id, '闪应用创建失败：未能生成应用界面');
+        renderThread(getTask(task.id));
+        var rb = $('faRetryBtn');
+        if (!rb) {
+          var box2 = $('convMessages');
+          if (box2) {
+            var rdiv = document.createElement('div');
+            rdiv.className = 'msg assistant';
+            rdiv.innerHTML = '<button class="btn" id="faRetryBtn" style="width:100%;">🔄 重新生成</button>';
+            box2.appendChild(rdiv);
+            rb = $('faRetryBtn');
+          }
+        }
+        if (rb) rb.onclick = function () { $('faDesc').value = desc; runFlashApp(); };
       }
-      renderThread(getTask(task.id));
       updateSendBtn(false);
     },
     function (err) {
@@ -1479,7 +1949,23 @@ function playFlashApp(app) {
   var stage = runner.querySelector('.game-runner-stage');
   var iframe = document.createElement('iframe');
   iframe.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;border:none;background:#fff;';
-  iframe.sandbox = 'allow-scripts allow-same-origin allow-pointer-lock allow-modals allow-popups allow-forms';
+  iframe.sandbox = 'allow-scripts allow-same-origin allow-pointer-lock allow-modals allow-popups allow-forms allow-downloads';
+  var fallbackShown = false;
+  // 白屏兜底：srcdoc 在个别 WebView 渲染失败时自动切换为 blob URL 重新加载
+  iframe.onload = function () {
+    if (fallbackShown) return;
+    setTimeout(function () {
+      try {
+        var doc = iframe.contentDocument;
+        var h = doc && doc.body ? doc.body.scrollHeight : 0;
+        if (h <= 0) {
+          fallbackShown = true;
+          var blob = new Blob([html], { type: 'text/html' });
+          iframe.src = URL.createObjectURL(blob);
+        }
+      } catch (e) {}
+    }, 1500);
+  };
   iframe.srcdoc = html;
   stage.appendChild(iframe);
   runner.querySelector('.game-runner-close').onclick = function () {
@@ -1488,7 +1974,7 @@ function playFlashApp(app) {
 }
 
 /* ========== AI 创作中心（文生图/文生视频） ========== */
-var APP_VER = 'v8.3.0';
+var APP_VER = 'v8.4.1';
 var LS_CREATIVE = 'fh.app.creative';
 var creativeConfig = { t2i: {}, t2v: {} };
 function loadCreativeConfig() {
@@ -2142,6 +2628,13 @@ function initSkillCenter() {
   $('snSettingsBtn').addEventListener('click', openDrawer);
   $('drawerClose').addEventListener('click', closeDrawer);
   $('drawerMask').addEventListener('click', closeDrawer);
+
+  // 电脑连接：顶栏胶囊点击打开设置；初始化面板；启动检测 + 30s 心跳
+  var connPill = $('connPill');
+  if (connPill) connPill.addEventListener('click', openDrawer);
+  initPcConnPanel();
+  checkAllConns();
+  setInterval(checkAllConns, 30000);
 
   // 功能按钮
   document.querySelectorAll('.q-btn').forEach(function (b) {

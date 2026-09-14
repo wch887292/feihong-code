@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -15,7 +15,10 @@
 <div class="headbar">
   <button class="hb-btn" id="menuBtn" title="菜单"><span class="hb-ico">☰</span></button>
   <div class="hb-title">飞虹 Code</div>
-  <button class="hb-btn" id="newChatBtn" title="新对话"><span class="hb-ico">✎</span></button>
+  <div style="display:flex;align-items:center;gap:2px;">
+    <button class="conn-pill off" id="connPill" title="电脑连接状态 · 点击设置">● 未连接</button>
+    <button class="hb-btn" id="newChatBtn" title="新对话"><span class="hb-ico">✎</span></button>
+  </div>
 </div>
 <div class="notice-bar">AI 生成可能有误 · 注意核实</div>
 
@@ -108,6 +111,38 @@
     <button class="hb-btn" id="drawerClose"><span class="hb-ico">✕</span></button>
   </div>
   <div class="drawer-body">
+    <div class="drawer-section">
+      <div class="drawer-section-title">🖥️ 电脑连接</div>
+      <div style="font-size:12px;color:var(--ink-2);margin-bottom:8px;">连接电脑执行指令：<b>未连接</b>(灰) / <b>本地电脑</b>(绿) / <b>云电脑</b>(蓝)，顶栏状态胶囊实时显示当前使用通道</div>
+      <div class="create-tabs" style="margin-bottom:8px;">
+        <button class="create-tab" data-ctab2="direct">🖥️ 本地电脑</button>
+        <button class="create-tab" data-ctab2="cloud">☁️ 云电脑</button>
+      </div>
+      <div class="create-panel" id="ctab2-direct">
+        <label class="label">本地电脑地址（局域网直连）</label>
+        <input class="input" id="pcUrlInput" placeholder="http://192.168.0.116:8081">
+        <div style="font-size:11px;color:var(--ink-2);margin:4px 0 8px;">⚠️ 不能填 127.0.0.1（手机上指向手机自身）。手机与电脑同一 WiFi，填电脑局域网 IP，电脑端需已启动 fhcode 桌面端且防火墙放行 8081</div>
+        <div class="footer" style="margin-top:4px;">
+          <button class="btn ghost" id="pcTestBtn" style="color:var(--ok);">📡 测试连接</button>
+          <button class="btn" id="pcSaveBtn">保存并连接</button>
+        </div>
+        <div class="form-msg" id="pcMsg"></div>
+      </div>
+      <div class="create-panel hidden" id="ctab2-cloud">
+        <label class="label">云电脑地址（云端桥接）</label>
+        <input class="input" id="cloudUrlInput" placeholder="https://api.klai.top/fhcode">
+        <label class="label">Token（云端令牌，可选）</label>
+        <input class="input" id="cloudTokenInput" type="password" placeholder="fh-web token">
+        <label class="label">设备 ID（本地电脑或云端执行体）</label>
+        <input class="input" id="cloudDeviceInput" placeholder="已预置: pc-cloud-agent-01（云端执行体）">
+        <div style="font-size:11px;color:var(--ink-2);margin:4px 0 8px;">✅ 云端执行体已预置（地址/Token/设备ID 默认填好，无需手动配置）。手机 → 云服务 → 执行端拉取执行，支持跨网络。支持指令：创建文件/读取文件/执行命令/抓取网页/系统状态；设备 ID 填本地电脑的 `fhcode bridge id` 可切回本地执行。</div>
+        <div class="footer" style="margin-top:4px;">
+          <button class="btn ghost" id="cloudTestBtn" style="color:var(--brand);">📡 测试连接</button>
+          <button class="btn" id="cloudSaveBtn">保存并连接</button>
+        </div>
+        <div class="form-msg" id="cloudMsg"></div>
+      </div>
+    </div>
     <div class="drawer-section">
       <div class="drawer-section-title">🧠 大模型</div>
       <div id="modelList"></div>
@@ -251,7 +286,7 @@
     <div class="drawer-section">
       <div class="drawer-section-title">🎖 关于</div>
       <div style="font-size:13px;color:var(--ink-2);line-height:1.8;">
-        飞虹 Code 移动版 v8.3.0<br>
+        飞虹 Code 移动版 v8.4.1<br>
         纯前端独立 APP · 数据本地存储<br>
         晋江市飞虹智科技企业管理有限公司
       </div>
