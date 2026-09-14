@@ -2,10 +2,13 @@
 // 覆盖：健康检查 / 认证 / 核心引擎回归 / 修复API(8模块) / 前端资源 / SWE harness
 import { createRequire } from 'module';
 import fs from 'fs';
+import crypto from 'crypto';
 const require = createRequire(import.meta.url);
 
 const BASE = 'http://127.0.0.1:8099';
 const PKG_VERSION = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf-8')).version;
+// 请求签名密钥：与 serve 端 FH_SIGN_SECRET || FH_WEB_TOKEN 一致（CI 中由 release.yml 注入 ci-token）
+const SIGN_SECRET = process.env.FH_SIGN_SECRET || process.env.FH_WEB_TOKEN || '';
 let pass = 0, fail = 0, fails = [];
 
 function report(name, ok, extra = '') {
@@ -13,9 +16,22 @@ function report(name, ok, extra = '') {
   else { fail++; fails.push(name); console.log(`  ❌ ${name}${extra ? '  ' + extra : ''}`); }
 }
 
+function signRequest(secret, ts, nonce, bodyRaw) {
+  return crypto.createHmac('sha256', secret).update(ts + '|' + nonce + '|' + bodyRaw).digest('hex');
+}
+
 async function req(name, path, { method = 'GET', body, token, expect = 200, okCheck } = {}) {
   const headers = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = 'Bearer ' + token;
+  // 写请求需带 HMAC 签名头（服务端 verifyRequestSignature 强制）
+  if (SIGN_SECRET && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+    const bodyRaw = body !== undefined ? JSON.stringify(body) : '';
+    const ts = String(Date.now());
+    const nonce = Math.random().toString(36).slice(2) + Date.now().toString(36);
+    headers['x-fh-ts'] = ts;
+    headers['x-fh-nonce'] = nonce;
+    headers['x-fh-sig'] = signRequest(SIGN_SECRET, ts, nonce, bodyRaw);
+  }
   const opts = { method, headers };
   if (body !== undefined) opts.body = JSON.stringify(body);
   try {
