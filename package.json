@@ -1,6 +1,6 @@
 {
   "name": "feihong-code",
-  "version": "8.4.2",
+  "version": "8.4.3",
   "description": "fhcode（飞虹 Code）— 终端 AI 编程智能体：多模型路由（DeepSeek/通义/Ollama/OpenAI）、企业级 RBAC 审计、全自动 SWE Agent、支持离线私有化。商业授权产品，源码闭源。",
   "bin": {
     "fhcode": "dist/cli/index.js"
@@ -105,8 +105,8 @@
     "@capacitor/android": "^8.5.0",
     "@capacitor/cli": "^8.5.0",
     "@types/express": "^5.0.6",
-    "@types/node": "^26.2.0",
-    "electron": "^44.0.0",
+    "@types/node": "^26.5.0",
+    "electron": "^44.3.0",
     "electron-builder": "^26.15.3",
     "tsx": "^4.23.12",
     "typescript": "^5.6.3",
