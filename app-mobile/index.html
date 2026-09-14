@@ -141,6 +141,13 @@
           <button class="btn" id="cloudSaveBtn">保存并连接</button>
         </div>
         <div class="form-msg" id="cloudMsg"></div>
+        <div class="footer" style="margin-top:8px;">
+          <button class="btn ghost" id="cloudHistoryBtn">📜 指令历史</button>
+          <button class="btn ghost" id="cloudSendFileBtn" style="color:var(--brand);">📁 发送文件到电脑</button>
+          <input type="file" id="cloudFileInput" style="display:none;">
+        </div>
+        <div id="cloudHistoryBox" class="hidden" style="margin-top:8px;max-height:220px;overflow:auto;font-size:12px;background:rgba(127,127,127,.06);border-radius:8px;padding:4px 8px;"></div>
+        <div style="font-size:11px;color:var(--ink-2);margin-top:8px;">📷 支持指令：「截图」回传屏幕图像、「查看图片 文件名」回传图片、「保存文件 文件名 base64=…」接收手机上传（≤6MB）</div>
       </div>
     </div>
     <div class="drawer-section">
