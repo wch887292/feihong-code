@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="use-iframe" content="true">
+<meta name="html-box-height-mode" content="auto">
+<meta name="description" content="飞虹 Code 云电脑三条落地路线的月成本对比与能力矩阵">
+<title>三条落地路线对比</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;background:#fff;color:#1A2B4A;padding:8px 4px}
+  .chart-title{font-size:15px;font-weight:700;color:#1A2B4A;margin-bottom:2px}
+  .chart-sub{font-size:11px;color:#758092;margin-bottom:14px}
+  .row{display:grid;grid-template-columns:118px 1fr 92px;align-items:center;gap:10px;margin-bottom:14px}
+  .lbl{font-size:12.5px;font-weight:600;color:#1A2B4A;line-height:1.4}
+  .lbl small{display:block;font-weight:400;color:#758092;font-size:10.5px}
+  .barwrap{position:relative;height:26px;background:#F2F4F7;border-radius:6px}
+  .bar{position:absolute;left:0;top:0;bottom:0;border-radius:6px;min-width:10px}
+  .bar.a{background:#1A2B4A}
+  .bar.b{background:#4C7BD9}
+  .bar.c{background:#94A9D9}
+  .val{font-size:12.5px;font-weight:700;color:#1A2B4A;text-align:right;font-variant-numeric:tabular-nums}
+  .val small{display:block;font-weight:400;color:#758092;font-size:10px}
+  .cap{margin-top:12px;padding-top:10px;border-top:1px dashed #DDE0E4;font-size:10.5px;color:#758092;line-height:1.7}
+  .cap b{color:#1A2B4A}
+  .matrix{margin-top:14px;width:100%;border-collapse:collapse;font-size:11.5px}
+  .matrix th{background:#F2F4F7;color:#1A2B4A;padding:7px 8px;text-align:left;font-weight:600;border:1px solid #E4E8EE}
+  .matrix td{padding:7px 8px;border:1px solid #E4E8EE;color:#3A4A63;vertical-align:middle}
+  .matrix td:first-child{font-weight:600;color:#1A2B4A}
+  .yes{color:#1C7C4A;font-weight:600}
+  .no{color:#B03A3A;font-weight:600}
+  .part{color:#B98A1C;font-weight:600}
+  @media (max-width:600px){
+    .row{grid-template-columns:92px 1fr 78px;gap:8px}
+    .matrix{font-size:10.5px}
+  }
+</style>
+</head>
+<body>
+  <div class="chart-title">云电脑落地：三条路线对比</div>
+  <div class="chart-sub">按每月成本与能力分级（腾讯云公开价格，2026-09）</div>
+
+  <div class="row">
+    <div class="lbl">路线 A<small>云端 Agent 复用</small></div>
+    <div class="barwrap"><div class="bar a" style="width:4%"></div></div>
+    <div class="val">≈0 元<small>1-2 天打通</small></div>
+  </div>
+  <div class="row">
+    <div class="lbl">路线 B<small>轻量云电脑+网页桌面</small></div>
+    <div class="barwrap"><div class="bar b" style="width:34%"></div></div>
+    <div class="val">≈60-130 元<small>2-4 周</small></div>
+  </div>
+  <div class="row">
+    <div class="lbl">路线 C<small>腾讯云桌面 CVD</small></div>
+    <div class="barwrap"><div class="bar c" style="width:52%"></div></div>
+    <div class="val">≈79 元起<small>按量 1.5 元/时</small></div>
+  </div>
+
+  <table class="matrix">
+    <thead><tr><th>能力</th><th>路线 A</th><th>路线 B（推荐）</th><th>路线 C</th></tr></thead>
+    <tbody>
+      <tr><td>云端独立执行</td><td class="yes">✓ 有（无头）</td><td class="yes">✓ 有（图形桌面）</td><td class="yes">✓ 有（完整桌面）</td></tr>
+      <tr><td>浏览器看桌面画面</td><td class="no">✗ 无</td><td class="yes">✓ KasmVNC/noVNC</td><td class="yes">✓ 官方浏览器访问</td></tr>
+      <tr><td>手机任务驱动执行</td><td class="yes">✓ 复用 bridge</td><td class="yes">✓ 复用 bridge</td><td class="part">◐ 需 API 集成</td></tr>
+      <tr><td>外网访问</td><td class="yes">✓ 公网 HTTPS</td><td class="yes">✓ 公网+HTTPS WSS</td><td class="yes">✓ 无需公网 IP</td></tr>
+      <tr><td>维护成本</td><td class="yes">低（复用现有）</td><td class="part">中（自维护云主机）</td><td class="yes">低（官方托管）</td></tr>
+      <tr><td>商业化可控度</td><td class="part">受限（无界面）</td><td class="yes">高（完全可控）</td><td class="part">中（依赖平台）</td></tr>
+    </tbody>
+  </table>
+
+  <div class="cap"><b>口径说明</b>：路线 A 复用现有腾讯云服务器（111.229.190.132），仅新增无头 Agent 进程，近乎零增量；路线 B 参考腾讯云轻量 2核2G 入门型约 60 元/月起（活动价更低）；路线 C 参考云桌面 4核8G 特惠 79 元/首月、按量约 1.5 元/小时，关机仅收存储费。来源：腾讯云官网计费页。</div>
+</body>
+</html>

@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>飞虹 Code 项目复盘分析报告 · 2026-09-14</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style>
+  :root{
+    --bg:#f5f7fa; --card:#ffffff; --ink:#1f2937; --muted:#6b7280;
+    --line:#e5e7eb; --brand:#1d4ed8; --brand-soft:#eff6ff;
+    --ok:#059669; --warn:#d97706; --bad:#dc2626;
+    --ok-soft:#ecfdf5; --warn-soft:#fffbeb; --bad-soft:#fef2f2;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);font-family:"Noto Sans SC","Microsoft YaHei","PingFang SC",system-ui,sans-serif;line-height:1.65;font-size:15px}
+  .wrap{max-width:1080px;margin:0 auto;padding:32px 20px 60px}
+  header.hero{background:linear-gradient(135deg,#1e3a8a 0%,#1d4ed8 60%,#2563eb 100%);color:#fff;border-radius:16px;padding:36px 40px;margin-bottom:28px}
+  header.hero .kicker{font-size:13px;letter-spacing:.18em;opacity:.85;text-transform:uppercase}
+  header.hero h1{font-size:28px;font-weight:700;margin:8px 0 6px}
+  header.hero p{font-size:14px;opacity:.92;max-width:760px}
+  .meta{display:flex;flex-wrap:wrap;gap:18px;margin-top:16px;font-size:13px}
+  .meta span{background:rgba(255,255,255,.14);padding:4px 12px;border-radius:999px}
+  h2{font-size:20px;font-weight:700;margin:40px 0 16px;padding-left:12px;border-left:4px solid var(--brand);line-height:1.4}
+  h3{font-size:16px;font-weight:700;margin:20px 0 10px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px 24px;margin-bottom:16px}
+  .grid{display:grid;gap:16px}
+  .grid.c2{grid-template-columns:repeat(auto-fit,minmax(320px,1fr))}
+  .grid.c3{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+  .grid.c4{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+  .stat{border:1px solid var(--line);border-radius:12px;padding:16px 18px;background:#fff}
+  .stat .num{font-size:26px;font-weight:800;margin-top:4px}
+  .stat .lbl{font-size:13px;color:var(--muted)}
+  .num.ok{color:var(--ok)} .num.warn{color:var(--warn)} .num.bad{color:var(--bad)} .num.brand{color:var(--brand)}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:#f9fafb;font-weight:600;white-space:nowrap}
+  .pill{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+  .pill.p0{background:var(--bad-soft);color:var(--bad)}
+  .pill.p1{background:var(--warn-soft);color:var(--warn)}
+  .pill.p2{background:#f3f4f6;color:#4b5563}
+  .pill.ok{background:var(--ok-soft);color:var(--ok)}
+  .pill.bad{background:var(--bad-soft);color:var(--bad)}
+  .pill.warn{background:var(--warn-soft);color:var(--warn)}
+  .issue{border-left:4px solid;border-radius:0 10px 10px 0;padding:14px 18px;margin-bottom:14px;background:#fff;border-top:1px solid var(--line);border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .issue.p0{border-left-color:var(--bad)}
+  .issue.p1{border-left-color:var(--warn)}
+  .issue.p2{border-left-color:#9ca3af}
+  .issue h4{font-size:15px;font-weight:700;margin-bottom:4px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .issue .meta-line{font-size:12.5px;color:var(--muted);margin-bottom:8px}
+  .issue ul{margin:6px 0 0 18px}
+  .issue li{margin-bottom:4px}
+  .fix{background:var(--brand-soft);border-radius:8px;padding:10px 14px;margin-top:10px;font-size:13.5px}
+  .fix b{color:var(--brand)}
+  .check-row{display:flex;align-items:flex-start;gap:10px;padding:9px 4px;border-bottom:1px dashed var(--line);font-size:14px}
+  .check-row:last-child{border-bottom:none}
+  .mark{flex:0 0 22px;height:22px;width:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff;margin-top:2px}
+  .mark.ok{background:var(--ok)} .mark.bad{background:var(--bad)} .mark.warn{background:var(--warn)}
+  .chart{width:100%;height:320px}
+  .chart.tall{height:380px}
+  .chart.short{height:260px}
+  .legend-note{font-size:12.5px;color:var(--muted);margin-top:6px}
+  .timeline{position:relative;margin:16px 0 6px;padding-left:22px}
+  .timeline::before{content:"";position:absolute;left:7px;top:4px;bottom:4px;width:2px;background:var(--line)}
+  .tl-item{position:relative;margin-bottom:14px}
+  .tl-item::before{content:"";position:absolute;left:-22px;top:6px;width:10px;height:10px;border-radius:50%;background:var(--brand);border:2px solid #fff;box-shadow:0 0 0 2px var(--brand)}
+  .tl-item .t{font-weight:700;font-size:14px}
+  .tl-item .d{font-size:13px;color:var(--muted)}
+  .action{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+  .action .card{margin-bottom:0}
+  .tag{font-size:12px;color:var(--muted)}
+  .footer{text-align:center;color:var(--muted);font-size:12.5px;margin-top:40px;padding-top:20px;border-top:1px solid var(--line)}
+  .banner-ver{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:8px}
+  .ver-box{border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:#fff;text-align:center}
+  .ver-box .v{font-size:22px;font-weight:800;margin-top:2px}
+  .ver-box .n{font-size:12.5px;color:var(--muted)}
+  .ver-box .s{font-size:12px;margin-top:6px}
+  code{background:#f3f4f6;border-radius:4px;padding:1px 6px;font-family:Consolas,Menlo,monospace;font-size:13px}
+  @media(max-width:640px){
+    header.hero{padding:26px 22px}
+    header.hero h1{font-size:22px}
+    .chart{height:280px}
+    .card{padding:16px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <div class="kicker">Project Review · 项目复盘分析</div>
+  <h1>飞虹 Code（feihong-code）项目复盘分析报告</h1>
+  <p>对 <b>H:\Muse Code复刻</b> 进行源码级核验：类型检查、单元测试、构建产物、版本对齐、安全基线、仓库卫生、文档一致性与工程可维护性。所有结论均基于本轮实测，非转述历史复盘。</p>
+  <div class="meta">
+    <span>版本 v8.4.3</span>
+    <span>分析日期 2026-09-14</span>
+    <span>182 次提交 / 35 天</span>
+    <span>实测 + 源码核验</span>
+  </div>
+</header>
+
+<!-- ===== 1. 结论速览 ===== -->
+<h2>一、结论速览</h2>
+<div class="grid c4">
+  <div class="stat"><div class="lbl">TypeScript 类型检查</div><div class="num ok">零错误</div><div class="tag">tsc --noEmit 通过</div></div>
+  <div class="stat"><div class="lbl">单元测试</div><div class="num ok">269 / 269</div><div class="tag">52 秒，0 失败</div></div>
+  <div class="stat"><div class="lbl">源码版本对齐</div><div class="num ok">8.4.3</div><div class="tag">5 处源码端一致</div></div>
+  <div class="stat"><div class="lbl">构建产物版本</div><div class="num ok">8.4.3</div><div class="tag">本轮已重建修复</div></div>
+</div>
+<div class="grid c4" style="margin-top:14px">
+  <div class="stat"><div class="lbl">安全基线（密钥）</div><div class="num ok">干净</div><div class="tag">源码扫描 0 硬编码</div></div>
+  <div class="stat"><div class="lbl">发现重大问题</div><div class="num warn">2 项 P0</div><div class="tag">产物断裂 + 授权声明矛盾</div></div>
+  <div class="stat"><div class="lbl">工程问题</div><div class="num warn">8 项</div><div class="tag">P1×2 / P2×6</div></div>
+  <div class="stat"><div class="lbl">总体判断</div><div class="num brand">健康偏优</div><div class="tag">代码质量好，发布链需修复</div></div>
+</div>
+
+<!-- ===== 2. 项目全景 ===== -->
+<h2>二、项目全景</h2>
+<div class="card">
+  <table>
+    <tr><th style="width:120px">产品定位</th><td>终端 AI 编程智能体（对标 Meta Muse Code / Claude Code / Cursor CLI，自研内核），企业级 RBAC/审计/SWE Agent，商业授权闭源产品</td></tr>
+    <tr><th>归属主体</th><td>晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心</td></tr>
+    <tr><th>技术栈</th><td>TypeScript 5.6 + Node ≥22.5（原生 SQLite）+ Express + zod + Monaco + playwright-core + Electron 44 + Capacitor 8</td></tr>
+    <tr><th>产品形态</th><td>CLI / Web 控制台 / Electron 桌面端 / Android APK / VS Code 扩展 / agent-team AI 员工军团（Python）</td></tr>
+    <tr><th>开发节奏</th><td>2026-08-10 起步，35 天 182 次提交，16 个版本 tag（v0.3.3 → v8.4.3），版本体系 7.x=产品成熟度 / M0–M9.1=能力里程碑</td></tr>
+    <tr><th>远程仓库</th><td>github.com/wch887292/feihong-code（master 与远端同步，无未推送提交）</td></tr>
+  </table>
+</div>
+<div class="grid c2">
+  <div class="card">
+    <h3>提交类型分布（182 次）</h3>
+    <div id="chartCommitType" class="chart short"></div>
+    <div class="legend-note">数据口径：git log --pretty=%s 前缀归类，2026-08-10 ~ 09-14</div>
+  </div>
+  <div class="card">
+    <h3>每日提交量（35 天）</h3>
+    <div id="chartCommitDaily" class="chart short"></div>
+    <div class="legend-note">高峰 09-10（23 次）、08-22（19 次）、08-27（15 次），节奏型开发</div>
+  </div>
+</div>
+
+<!-- ===== 3. 实测验证结果 ===== -->
+<h2>三、实测验证结果</h2>
+<div class="card">
+  <div class="check-row"><span class="mark ok">✓</span><div><b>TypeScript 类型检查</b> — <code>npm run typecheck</code>（tsc --noEmit）零错误，src 内 0 处 @ts-ignore</div></div>
+  <div class="check-row"><span class="mark ok">✓</span><div><b>单元测试</b> — <code>npm test</code> 269/269 全部通过（0 fail / 0 skip），耗时约 52 秒</div></div>
+  <div class="check-row"><span class="mark ok">✓</span><div><b>CLI 可运行</b> — <code>node dist/cli/index.js --version</code> 正常启动（browser tools、自我迭代初始化均无报错）</div></div>
+  <div class="check-row"><span class="mark ok">✓</span><div><b>密钥安全</b> — .env 未被 git 跟踪；src / scripts / electron 全量扫描 sk-*、AKIA、ghp_*、api key 模式 0 命中</div></div>
+  <div class="check-row"><span class="mark ok">✓</span><div><b>敏感目录忽略</b> — funasr-server/venv（Python 虚拟环境）、agent-team/*.db、.feihong-code 等均被 .gitignore 正确覆盖</div></div>
+  <div class="check-row"><span class="mark ok">✓</span><div><b>授权与安全模块</b> — license（HMAC 签名 + 设备指纹 + 60 天试用）、security（请求签名防重放 + 暴力破解锁定 + AES-256-GCM 落盘）设计合理</div></div>
+  <div class="check-row"><span class="mark ok">✓</span><div><b>Web 鉴权</b> — Bearer Token fail-closed + 请求签名中间件，登录/微信/元宝接口白名单处理正确</div></div>
+  <div class="check-row"><span class="mark ok">✓</span><div><b>版本管理</b> — git tag 体系完整（v8.4.3 已打），CHANGELOG 逐版本记录，源码 5 处版本号（package.json / version.ts / app.js / android gradle）全部 8.4.3 一致</div></div>
+  <div class="check-row"><span class="mark ok">✓</span><div><b>构建产物版本断裂 — 已修复</b> — 本轮重建 dist（8.4.2→8.4.3）并重打 Windows 安装包（8.3.0→8.4.3），<code>fhcode --version</code> 与 latest.yml 均已核对</div></div>
+  <div class="check-row"><span class="mark ok">✓</span><div><b>README 授权声明矛盾 — 已修复</b> — 删除第 168/184 行 MIT 表述、第 638 行 LICENSE 声明；README_EN / GITHUB-LAUNCH-REPORT / README.self-evolve / RELEASE-v0.5.1 / 软著申请材料共 8 处 MIT / open-source 表述已统一为商业授权（提交 df5fe60）</div></div>
+  <div class="check-row"><span class="mark ok">✓</span><div><b>仓库卫生 — 已完成</b> — 临时目录/草稿/日志已清理并补 .gitignore；旧 8.3.0 安装包、评测缓存、构建中间产物、funasr venv、旧 APK 等过时文件已全面清理（项目 6GB → 1GB）；git 历史大 blob 已用 filter-repo 清理（.git 28.7MB → 8.3MB）并 force push 同步远端</div></div>
+  <div class="check-row"><span class="mark warn">△</span><div><b>测试耗时</b> — 269 单测耗时约 52 秒，明显偏慢（疑含网络等待），CI 全量跑会拖慢发布节奏</div></div>
+</div>
+
+<!-- ===== 4. 关键问题 ===== -->
+<h2>四、关键问题与修复建议</h2>
+
+<div class="issue p0">
+  <h4><span class="pill p0">P0</span> 构建产物版本断裂：dist 8.4.2、安装包 8.3.0，源码已是 8.4.3 <span class="pill ok">已修复</span></h4>
+  <div class="meta-line">涉及：dist/cli/version.js · release/飞虹 Code Setup 8.3.0.exe · 提交 24adeca 仅改源码未重建 · <b>2026-09-14 本轮已重建：dist 8.4.3 + Setup/Portable 8.4.3 + latest.yml 同步</b></div>
+  <ul>
+    <li>实测 <code>node dist/cli/index.js --version</code> 输出 <b>v8.4.2</b>，而 <code>npx tsx src/cli/index.ts --version</code> 输出 <b>v8.4.3</b>，用户实际拿到的产物与源码脱节</li>
+    <li>Windows 安装包（Setup / Portable）均为 8.3.0，落后 3 个版本（8.4.x 的移动端/桌面端修复未进入安装包）</li>
+    <li>npm 包发布链路依赖 dist，版本号错误将直接导致线上「版本宣称 8.4.3、实际运行 8.4.2」</li>
+  </ul>
+  <div class="fix"><b>修复：</b>运行 <code>npm run build</code> 重建 dist 并核对 <code>fhcode --version</code>；用 <code>npm run electron:build</code> 重打 8.4.3 安装包；将 dist 纳入 CI 构建产物（build-desktop-installers.yml 已在跑，需确认版本号注入），避免手工重建遗漏</div>
+</div>
+
+<div class="issue p0">
+  <h4><span class="pill p0">P0</span> README 授权声明与 LICENSE 自相矛盾（对外合规风险） <span class="pill ok">已修复</span></h4>
+  <div class="meta-line">涉及：README.md 第 168 / 184 行 · LICENSE（商业 EULA）· package.json（license: UNLICENSED）· <b>2026-09-14 本轮已统一为商业授权表述</b></div>
+  <ul>
+    <li>README 对标矩阵写「开源可自托管（MIT）✅」，差异化表格写「授权与自托管：MIT 许可，源码开放，支持完全私有化部署与二次开发」</li>
+    <li>实际 LICENSE 为商业闭源 EULA（明确禁止复制/分发/反编译/逆向），package.json 为 UNLICENSED，README 顶部徽章为 Commercial</li>
+    <li>对客户、投资方、合规审计均为矛盾表述，且「开源」说法与实际交付不符</li>
+  </ul>
+  <div class="fix"><b>修复：</b>统一 README 授权表述为「商业授权 / 激活码模式」，删除两处 MIT 行；同步检查 README_EN.md、docs 内其他 MIT 表述（本轮已扫全并修正 8 处，第三方依赖的 MIT 事实描述保留）；对外可增加「企业私有化部署」与「开源」的区分说明</div>
+</div>
+
+<div class="issue p1">
+  <h4><span class="pill p1">P1</span> 根目录堆积未跟踪产物与临时目录（约 2GB） <span class="pill ok">已完成</span></h4>
+  <div class="meta-line">涉及：bench/（721MB 评测产物）、release/（1232MB 安装包）、deploy-package/ + tar.gz、.preview/、_ci7/_ci9/_ci11/、draft_×4、doubao_ref.jpg、data-test/、scripts/_tmp_patch_mobile_remote.cjs 等 · <b>2026-09-14 已全面清理：gitignore 加固 + 临时文件删除 + 过时产物清理（funasr venv 1.5GB / linux+win-unpacked 970MB / 旧 8.3.0 安装包 263MB / 评测缓存 880MB / 旧 APK / 旧 Android 工程 / 旧官网），项目体积 6GB → 1GB</b></div>
+  <ul>
+    <li>保留项：bench/real 评测脚本与报告（被跟踪）、release/ 8.4.3 安装包全套、artifacts 8.4.3 APK、新模块目录（agent-team/skills、asset-pipeline、cloud-agent 等，是否入库待定）</li>
+    <li>funasr-server 源码（app.py/README/启动脚本）已从误删中恢复保留，仅清理可重建的 venv 依赖（1474MB）</li>
+    <li>远端已 force push 同步（8dc9179，与远端零差异）；清理前完整备份已删除（同步验证成功后）</li>
+  </ul>
+  <div class="fix"><b>建议：</b>新模块目录（agent-team/skills×2、asset-pipeline、cloud-agent、doc-fetch-resources、exports、fhcode云电脑调研、doubao_ref.jpg、复盘分析）入库前先确认归属；bench 评测如需保留数据请移出仓库</div>
+</div>
+
+<div class="issue p1">
+  <h4><span class="pill p1">P1</span> git 历史体积偏大（大 blob 被误提交且不可见） <span class="pill ok">已修复</span></h4>
+  <div class="meta-line">涉及：android/app/src/main/assets/public/vendor/monaco/*.js（7.0MB / 6.7MB）· 软著 PDF（2.6MB）· bench JSON（3.7MB×2）· <b>2026-09-14 本轮已用 git filter-repo 清理（执行前已 mirror 备份至 H:\feihong-backup-20260914.git；monaco/软著文件仅存于历史 blob、工作区并无该目录，无数据丢失）</b></div>
+  <ul>
+    <li>.git 体积：28.7MB → <b>8.3MB（-71%）</b>，183 次提交完整保留，git fsck 通过</li>
+    <li>Capacitor 同步生成的 monaco vendor 文件违反 .gitignore 第 21 行「android/app/src/main/assets/public/ 不入库」约定，已被提交进历史（已清理）</li>
+    <li>远端 origin 已重新添加；历史已重写，远端同步需 force push（提交 hash 已变化，请与协作者协调后执行）</li>
+  </ul>
+  <div class="fix"><b>建议：</b>今后 cap sync 后不再 git add 该目录；软著 PDF 与评测数据不入库；本轮清理修复已提交为 df5fe60</div>
+</div>
+
+<div class="issue p2">
+  <h4><span class="pill p2">P2</span> 巨型单体文件（可维护性）</h4>
+  <div class="meta-line">src/web/server.ts 3224 行 · src/web/public/js/ui.js 2159 行 / app.js 2110 行 · src/cli/run.ts 1970 行</div>
+  <ul><li>四个文件合计近万行，耦合度高，后续迭代与回归成本递增，建议按功能域拆分</li></ul>
+  <div class="fix"><b>建议：</b>server.ts 按路由域拆分（auth / tasks / bridge / api），前端 js 按模块拆分（对话 / 附件 / 云电脑 / 设置）</div>
+</div>
+
+<div class="issue p2">
+  <h4><span class="pill p2">P2</span> JS / TS 混用（类型安全缺口）</h4>
+  <div class="meta-line">src/self-evolve/manager.js（465 行）· src/cli/self-evolve-cli.js</div>
+  <ul><li>TS 工程内混入 .js 运行时文件，脱离 tsc 类型保障，且与 .d.ts 并存容易漂移</li></ul>
+  <div class="fix"><b>建议：</b>将 manager.js 迁移为 manager.ts（allowJs 过渡后逐步收口），或至少补类型声明并纳入 typecheck 覆盖</div>
+</div>
+
+<div class="issue p2">
+  <h4><span class="pill p2">P2</span> 安全设施为进程内存态（单机边界未声明）</h4>
+  <div class="meta-line">security/index.ts：usedNonces Set · BruteForceGuard attempts Map</div>
+  <ul><li>nonce 防重放与暴力破解计数均为进程内存，多实例部署或进程重启后失效；对单机部署可接受，但应在文档中声明边界</li></ul>
+  <div class="fix"><b>建议：</b>文档注明「签名防重放/防爆破为单进程语义」，如需多实例再引入共享存储（Redis）</div>
+</div>
+
+<div class="issue p2">
+  <h4><span class="pill p2">P2</span> 兜底弱密钥与宽松 CSP <span class="pill ok">部分完成</span></h4>
+  <div class="meta-line">security/index.ts dataKey() 兜底 'fhcode-local-derive-seed' · CSP 允许 unsafe-inline / unsafe-eval · <b>2026-09-14 本轮：未配置 FH_DATA_KEY/FH_LICENSE_SECRET 时输出一次性启动告警，引导生产配置</b></div>
+  <ul>
+    <li>未配置 FH_DATA_KEY / FH_LICENSE_SECRET 时，落盘加密密钥由公开字符串派生，加密形同虚设</li>
+    <li>CSP 的 script-src 含 unsafe-inline + unsafe-eval，connect-src 放开 https/http，防护强度有限</li>
+  </ul>
+  <div class="fix"><b>建议：</b>生产部署强制要求 FH_DATA_KEY（启动时校验并告警）；CSP 逐步收紧（去 unsafe-eval，限制 connect-src 白名单）</div>
+</div>
+
+<div class="issue p2">
+  <h4><span class="pill p2">P2</span> 注释与文档同步滞后 <span class="pill ok">已修复</span></h4>
+  <div class="meta-line">license/index.ts 第 195 行注释「7 天试用」vs 实际 60 天 · AGENT-GUIDE.md v0.5.0（写「GitHub 待上线」已过时）· README「零依赖侵入：仅 express + zod」vs 实际 5 个运行时依赖 · <b>2026-09-14 本轮：三处均已修正（60 天注释 / AGENT-GUIDE v8.4.3 + 已上线 / 依赖表述改为「核心运行时仅 express + zod」）</b></div>
+  <ul><li>过时注释与宣传口径易误导开发者与客户，属于低风险但频繁出现的债</li></ul>
+  <div class="fix"><b>建议：</b>更新 license 注释与 AGENT-GUIDE（版本、GitHub 状态）；修正 README 依赖表述为「核心运行时仅 express + zod（另含 monaco / playwright-core 等增强依赖）」</div>
+</div>
+
+<div class="issue p2">
+  <h4><span class="pill p2">P2</span> 测试体系扩展空间</h4>
+  <div class="meta-line">tests/unit 269 项单测（52s）· tests/integration 与 scripts/_*-smoke.mjs 未纳入 npm test</div>
+  <ul>
+    <li>单测覆盖了 40+ 模块，但 web/server.ts（3224 行）、run.ts（1970 行）等核心大文件缺少直接单测</li>
+    <li>集成冒烟脚本靠人工触发，CI 未统一串联</li>
+  </ul>
+  <div class="fix"><b>建议：</b>为 server.ts / run.ts 的关键路径补单测；将冒烟脚本纳入 CI 的独立 job；排查单测中的网络等待，降低全量耗时</div>
+</div>
+
+<!-- ===== 5. 版本对齐 ===== -->
+<h2>五、多端版本对齐检查（实测）</h2>
+<div class="banner-ver">
+  <div class="ver-box"><div class="n">源码 version.ts</div><div class="v ok">8.4.3</div><div class="s pill ok">一致</div></div>
+  <div class="ver-box"><div class="n">package.json</div><div class="v ok">8.4.3</div><div class="s pill ok">一致</div></div>
+  <div class="ver-box"><div class="n">移动端 app.js</div><div class="v ok">8.4.3</div><div class="s pill ok">一致</div></div>
+  <div class="ver-box"><div class="n">Android gradle</div><div class="v ok">8.4.3</div><div class="s pill ok">versionCode 42</div></div>
+  <div class="ver-box"><div class="n">dist 构建产物</div><div class="v ok">8.4.3</div><div class="s pill ok">已重建</div></div>
+  <div class="ver-box"><div class="n">Windows 安装包</div><div class="v ok">8.4.3</div><div class="s pill ok">已重打</div></div>
+</div>
+<div class="card">
+  <div id="chartVersion" class="chart short"></div>
+  <div class="legend-note">口径：2026-09-14 实测 <code>node dist/cli/index.js --version</code> / <code>tsx src/cli/index.ts</code> / release 目录安装包文件名 / gradle versionName</div>
+</div>
+
+<!-- ===== 6. 仓库体积 ===== -->
+<h2>六、仓库体积分布（磁盘占用）</h2>
+<div class="card">
+  <div id="chartSize" class="chart tall"></div>
+  <div class="legend-note">口径：Get-ChildItem 递归统计，2026-09-14；node_modules 为依赖，bench/release/deploy-package 为未跟踪产物</div>
+</div>
+
+<!-- ===== 7. 亮点 ===== -->
+<h2>七、项目亮点（值得保持）</h2>
+<div class="grid c2">
+  <div class="card"><h3>1 · 代码质量与验证体系</h3><p style="font-size:14px">tsc 零错误 + 269 单测全过 + M4–M9 verify 脚本 + 十余个冒烟脚本，质量门禁意识强；src 内 0 处 @ts-ignore、23 处 TODO（低密度）。</p></div>
+  <div class="card"><h3>2 · 安全基线扎实</h3><p style="font-size:14px">密钥零入库（.env 忽略 + 源码扫描干净 + 历史泄露已 filter-branch 清洗）；三层防护（请求签名 / 防爆破 / AES-GCM）、危险命令黑名单 deny 优先、Web fail-closed 鉴权。</p></div>
+  <div class="card"><h3>3 · 版本与变更管理规范</h3><p style="font-size:14px">16 个版本 tag、CHANGELOG 逐版记录、版本一致性修复有专门提交与 CI 校验（check-version.mjs），多端版本号集中管理。</p></div>
+  <div class="card"><h3>4 · 跑分口径诚实</h3><p style="font-size:14px">SWE-bench 报告明确区分自建任务集（100%）与官方 Verified 集（未出分不宣称），规避了常见的夸大宣传风险。</p></div>
+  <div class="card"><h3>5 · 工程化与商业化完备</h3><p style="font-size:14px">4 条 CI 流水线（ci / release / swebench / desktop-installers）、Docker、Electron/Android 构建链、软著材料、企业合规文档、中英双语文档体系。</p></div>
+  <div class="card"><h3>6 · 多端产品矩阵</h3><p style="font-size:14px">CLI / Web / 桌面 / Android / VS Code 扩展 / agent-team 17 个 AI 员工，产品形态覆盖面广，且均有实质代码量。</p></div>
+</div>
+
+<!-- ===== 8. 行动建议 ===== -->
+<h2>八、行动建议（按优先级）</h2>
+<div class="action">
+  <div class="card"><h3>立即（已完成）</h3>
+    <ol style="margin-left:18px;font-size:14px">
+      <li>重建 dist 至 8.4.3 并实测 <code>fhcode --version</code> — ✅ 已完成</li>
+      <li>重打 Windows 安装包（Setup + Portable）至 8.4.3，latest.yml 同步 — ✅ 已完成</li>
+      <li>统一 README/README_EN 授权表述为商业授权，删除 MIT 行 — ✅ 已完成（README 三处）</li>
+    </ol>
+    <p style="font-size:12.5px;color:var(--muted);margin-top:8px">后续建议：dist 纳入 CI 构建产物；electron 依赖下载需走镜像（ELECTRON_MIRROR）或本地 electronDist，避免 GitHub 不可达时打包挂起</p>
+  </div>
+  <div class="card"><h3>本周</h3>
+    <ol style="margin-left:18px;font-size:14px">
+      <li>清理根目录未跟踪产物与临时目录（bench 工作区、_ci*、draft_*、日志），补 .gitignore 规则</li>
+      <li>评估 git filter-repo 清理历史大 blob（monaco vendor / PDF / bench JSON）</li>
+      <li>强制生产环境 FH_DATA_KEY 配置校验与启动告警</li>
+    </ol>
+  </div>
+  <div class="card"><h3>持续（1–2 个月）</h3>
+    <ol style="margin-left:18px;font-size:14px">
+      <li>拆分 server.ts / run.ts 等巨型文件，JS 模块迁移 TS</li>
+      <li>为大文件关键路径补单测，冒烟脚本纳入 CI，降低测试耗时</li>
+      <li>建立文档版本同步机制（注释、AGENT-GUIDE、依赖表述），CSP 逐步收紧</li>
+    </ol>
+  </div>
+</div>
+
+<div class="footer">
+  飞虹 Code 复盘分析报告 · 生成于 2026-09-14 · 数据来源：本机实测（typecheck / npm test / CLI 运行 / git 统计 / 源码扫描）<br>
+  未覆盖范围：真实模型端到端（需 API Key）、SWE-bench 官方集全量跑分、Android 真机验证、CI 云端执行结果
+</div>
+
+</div>
+
+<script>
+(function(){
+  var CDN_OK = (typeof echarts !== 'undefined');
+  function mk(el, opt){
+    if(!CDN_OK) return;
+    var c = echarts.init(document.getElementById(el));
+    c.setOption(opt);
+  }
+  // 1. 提交类型分布
+  mk('chartCommitType', {
+    tooltip:{trigger:'item',triggerOn:'click',renderMode:'richText',confine:true},
+    legend:{bottom:0,textStyle:{fontSize:12}},
+    series:[{type:'pie',radius:['38%','66%'],center:['50%','44%'],
+      data:[{name:'fix 修复',value:49},{name:'feat 功能',value:44},{name:'docs 文档',value:28},{name:'chore 维护',value:21},{name:'release 发布',value:14},{name:'bench 评测',value:10},{name:'其他',value:16}],
+      label:{fontSize:11,formatter:'{b} {c}'},
+      itemStyle:{borderRadius:4,borderColor:'#fff',borderWidth:2}}]
+  });
+  // 2. 每日提交
+  mk('chartCommitDaily', {
+    tooltip:{trigger:'axis',triggerOn:'click',renderMode:'richText',confine:true},
+    grid:{left:36,right:12,top:16,bottom:28,containLabel:true},
+    xAxis:{type:'category',data:['08-10','08-11','08-12','08-13','08-14','08-15','08-16','08-17','08-20','08-21','08-22','08-23','08-24','08-26','08-27','08-28','08-29','08-30','09-03','09-08','09-09','09-10','09-11','09-12','09-14'],axisLabel:{fontSize:10,interval:0,rotate:45}},
+    yAxis:{type:'value',minInterval:1},
+    series:[{type:'bar',data:[8,8,7,2,5,6,9,1,1,4,19,6,2,11,15,6,1,2,1,9,14,23,8,1,13],
+      itemStyle:{color:'#2563eb',borderRadius:[3,3,0,0]},barMaxWidth:18}]
+  });
+  // 3. 版本对齐
+  mk('chartVersion', {
+    tooltip:{trigger:'axis',triggerOn:'click',renderMode:'richText',confine:true},
+    grid:{left:36,right:12,top:20,bottom:24,containLabel:true},
+    xAxis:{type:'category',data:['源码 version.ts','package.json','移动端 app.js','Android gradle','dist 构建产物','Windows 安装包'],axisLabel:{fontSize:12,interval:0}},
+    yAxis:{type:'value',min:8.0,max:8.6,splitNumber:6},
+    series:[{type:'bar',data:[
+      {value:8.43,itemStyle:{color:'#059669'}},
+      {value:8.43,itemStyle:{color:'#059669'}},
+      {value:8.43,itemStyle:{color:'#059669'}},
+      {value:8.43,itemStyle:{color:'#059669'}},
+      {value:8.43,itemStyle:{color:'#059669'}},
+      {value:8.43,itemStyle:{color:'#059669'}}],
+      label:{show:true,position:'top',fontSize:12,formatter:function(p){return p.value.toFixed(2)}},
+      barMaxWidth:44}],
+    markLine:undefined
+  });
+  // 4. 目录体积
+  mk('chartSize', {
+    tooltip:{trigger:'axis',triggerOn:'click',renderMode:'richText',confine:true,axisPointer:{type:'shadow'}},
+    grid:{left:130,right:40,top:10,bottom:24,containLabel:true},
+    xAxis:{type:'value'},
+    yAxis:{type:'category',data:['funasr-server','release','bench','node_modules','android','fhcode-android','dist','deploy-package','artifacts','软著申请材料','docs','src','scripts','其余目录'],axisLabel:{fontSize:11}},
+    series:[{type:'bar',data:[
+      {value:1474,itemStyle:{color:'#9ca3af'}},
+      {value:1232,itemStyle:{color:'#f59e0b'}},
+      {value:721,itemStyle:{color:'#f59e0b'}},
+      {value:276,itemStyle:{color:'#9ca3af'}},
+      {value:40,itemStyle:{color:'#2563eb'}},
+      {value:27,itemStyle:{color:'#2563eb'}},
+      {value:27,itemStyle:{color:'#2563eb'}},
+      {value:26,itemStyle:{color:'#f59e0b'}},
+      {value:18,itemStyle:{color:'#9ca3af'}},
+      {value:7,itemStyle:{color:'#9ca3af'}},
+      {value:4,itemStyle:{color:'#2563eb'}},
+      {value:1.7,itemStyle:{color:'#059669'}},
+      {value:1,itemStyle:{color:'#9ca3af'}},
+      {value:6,itemStyle:{color:'#9ca3af'}}],
+      label:{show:true,position:'right',fontSize:11,formatter:function(p){return p.value+' MB'}},
+      barMaxWidth:20,
+      itemStyle:{borderRadius:[0,3,3,0]}}]
+  });
+})();
+</script>
+</body>
+</html>

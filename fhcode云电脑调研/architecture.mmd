@@ -1,0 +1,24 @@
+flowchart LR
+    subgraph PHONE["手机端 App（H5）"]
+        CHAT["对话 + 工作任务<br/>选择执行端"]
+    end
+    subgraph CLOUD["腾讯云（公网 https://api.klai.top/fhcode）"]
+        API["FHCode 云服务<br/>HMAC 签名 · 会话令牌 · 三层防护"]
+        BRIDGE["云端桥接<br/>/api/bridge/command"]
+        AGENT["云端 Agent（新增）<br/>无头执行体"]
+    end
+    subgraph LOCAL["本地电脑（Windows）"]
+        BR["fhcode bridge 代理<br/>真实操作本机"]
+    end
+    subgraph CLOUDPC["云电脑（新增）"]
+        VMD["轻量云主机 / CVD<br/>KasmVNC 图形桌面"]
+    end
+    CHAT -->|"自然语言指令"| API
+    API --> BRIDGE
+    BRIDGE -->|"executor: local"| BR
+    BRIDGE -->|"executor: cloud"| AGENT
+    BRIDGE -->|"executor: cloud"| VMD
+    BR -->|"结果/状态回传"| BRIDGE
+    AGENT -->|"结果/截图回传"| BRIDGE
+    VMD -->|"截图/画面流回传"| BRIDGE
+    BRIDGE -->|"实时进度"| CHAT

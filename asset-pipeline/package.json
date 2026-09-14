@@ -1,0 +1,22 @@
+{
+  "name": "feihong-asset-pipeline",
+  "version": "1.0.0",
+  "description": "飞虹Code 素材管理管线：生成 → 下载 → 归档，一条命令打通",
+  "main": "cli.js",
+  "bin": {
+    "fhcode": "cli.js",
+    "fhasset": "cli.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "image": "node cli.js image",
+    "video": "node cli.js video",
+    "batch": "node cli.js batch",
+    "archive": "node cli.js archive",
+    "list": "node cli.js list"
+  },
+  "keywords": ["feihong", "agnes", "asset", "pipeline", "创作中心", "素材管理"],
+  "license": "MIT"
+}
