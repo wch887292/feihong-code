@@ -2341,7 +2341,7 @@ function pollVideoTask(cfg, videoId, resultEl, msgEl, btnId, attempts) {
 /* 一键填充 Agnes 创作模型（文生图 agnes-image-2.5-flash + 文生视频 agnes-video-2.5-flash） */
 function fillAgnesVideo() {
   var base = 'https://api.agnes-ai.cn/v1';
-  var key = 'REDACTED_AGNES_KEY_1361c5b594fe58de';
+  var key = ''; // 安全策略：不内置明文 API Key，请在此填写你自己的 Agnes Key（设置→大模型→创作模型 也可配置）
   $('cgT2IBase').value = base;
   $('cgT2IKey').value = key;
   $('cgT2IModel').value = 'agnes-image-2.5-flash';
