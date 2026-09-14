@@ -87,7 +87,7 @@ jobs:
         run: npm run security || (echo "⚠️ npm audit 网络不可达按跳过处理" && exit 0)
       - name: P7-5 综合冒烟门禁（本地回归）
         run: |
-          node dist/cli/index.js serve --port 8099 > /tmp/fh-serve.log 2>&1 &
+          FH_WEB_TOKEN=ci-token node dist/cli/index.js serve --port 8099 > /tmp/fh-serve.log 2>&1 &
           SERVER_PID=$!
           READY=0
           for i in $(seq 1 40); do
@@ -100,7 +100,7 @@ jobs:
             kill $SERVER_PID 2>/dev/null || true
             exit 1
           fi
-          node scripts/_smoke-full.mjs
+          FH_WEB_TOKEN=ci-token node scripts/_smoke-full.mjs
           EXIT_CODE=$?
           kill $SERVER_PID 2>/dev/null || true
           exit $EXIT_CODE
