@@ -147,3 +147,21 @@ bench/real/repos/
 bench/real/base_files/
 bench/real/work/
 bench/real/rep_*.jsonl
+
+# ── 2026-09-14 复盘加固：临时/产物目录（勿入库）──
+.preview/
+deploy-package/
+deploy-package.tar.gz
+data-test/
+_ci*/
+draft_*/
+scripts/_tmp_*.cjs
+
+# 2026-09-14 复盘加固：bench/real 评测运行产物（勿入库）
+bench/real/runs/
+bench/real/patches/
+bench/real/*.json
+bench/real/_*.ps1
+bench/real/_*.sh
+# 2026-09-14 复盘归档目录
+archive-*/

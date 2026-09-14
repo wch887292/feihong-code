@@ -142,4 +142,4 @@ Web 控制台同样支持一键切换。
 ---
 
 *© 2026 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹*
-*Released under the [MIT License](./LICENSE).*
+*Released under the [Commercial License](./LICENSE).*

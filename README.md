@@ -165,7 +165,7 @@ export FH_ROLE=developer
 | 全自动 SWE Agent（M0→M9.1） | ✅ | ✅ | ⚠️ | ✅ | ⚠️ |
 | 多子代理并行（M2） | ✅ | ✅ | ❌ | ❌ | ❌ |
 | 自我进化（M6） | ✅ | ❌ | ❌ | ❌ | ❌ |
-| 开源可自托管（MIT） | ✅ | ❌ | ❌ | ✅ Apache-2.0 | ✅ MIT |
+| 授权模式 | 商业授权（激活码） | ❌ | ❌ | ✅ Apache-2.0 | ✅ MIT |
 
 > 最适合：**数据不出内网**、需要**企业权限审计**、希望**混合调度多家大模型**的团队与个人开发者。
 
@@ -181,7 +181,7 @@ export FH_ROLE=developer
 | 自我进化（M6） | 经验库沉淀 + 自愈循环，失败模式跨会话复用，越用越准 | 基本无对应机制 |
 | 并行隔离（M2） | `git worktree` 为每个子代理建立物理隔离工作区，并发推进零冲突 | 部分支持，隔离强度与冲突处理参差 |
 | 可恢复性（M3） | append-only 事件日志为单一可信源，会话可断点恢复、可完整回放 | 会话状态多不可恢复，中断即重来 |
-| 授权与自托管 | MIT 许可，源码开放，支持完全私有化部署与二次开发 | 主流产品为闭源商业服务 |
+| 授权与自托管 | 商业授权（激活码），企业版支持完全私有化部署与授权范围内的二次开发 | 主流产品为闭源商业服务 |
 
 > **一句话区分**：对标产品解决"个人开发者如何更快写代码"，fhcode 额外解决"**团队如何在合规边界内、可审计地、用可控成本把 AI 编程落地到生产**"。
 
@@ -215,7 +215,7 @@ export FH_ROLE=developer
 | **M9.1** | 真实模型接入（三级 provider 解析）、exec 纪律强化 | ✅ 完成 |
 
 ### 🌟 技术亮点
-- **零依赖侵入**：仅依赖 `express` + `zod`，无框架包袱
+- **核心依赖轻量**：核心运行时仅依赖 `express` + `zod`，无框架包袱（另含 monaco-editor / playwright-core 等增强依赖）
 - **TypeScript 全量类型安全**：tsc --noEmit 零错误
 - **完整测试覆盖**：42 单元测试 + 145 集成验证断言（M4/M6/M7/M8/M9/M9-real 全离线）
 - **CI/CD 就绪**：GitHub Actions 三流水线（build/enterprise/security），零 Secrets 可跑
@@ -635,7 +635,7 @@ node dist/cli/index.js --version
 - **负责人**：吴赐虹
 
 © 2026 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
-Released under the [MIT License](./LICENSE).
+Licensed under the Commercial License. See [LICENSE](./LICENSE) for details.
 
 ---
 

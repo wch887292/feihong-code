@@ -82,7 +82,7 @@ cecc54a feat(M7): 编程自主编写代码能力升级
 | 文件 | 状态 | 说明 |
 |------|------|------|
 | README.md | ✅ | 含产品定位、安装、使用、里程碑、文档导航 |
-| LICENSE | ✅ | MIT License |
+| LICENSE | ✅ | Commercial License (EULA) |
 | CONTRIBUTING.md | ✅ | 贡献指南 |
 | .gitignore | ✅ | 排除 node_modules/dist/.env/.workbuddy |
 | package.json | ✅ | 含 name/version/description/bin/repository/keywords |

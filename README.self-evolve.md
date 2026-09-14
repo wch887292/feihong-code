@@ -272,7 +272,7 @@ fe review --daily
 
 ## 📄 许可证
 
-MIT License
+商业授权（Commercial License），详见 [LICENSE](LICENSE)
 
 ---
 
