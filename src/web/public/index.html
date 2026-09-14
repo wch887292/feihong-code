@@ -98,17 +98,6 @@
           </div>
         </div>
 
-        <!-- 任务列表 -->
-        <div class="sidebar-section" id="taskListSection" style="display:none;">
-          <div class="sidebar-section-title" style="display:flex;align-items:center;justify-content:space-between;">
-            <span data-i18n="sidebar.task_list">任务列表 <span class="badge" id="taskCountBadge" style="margin-left:4px;">0</span></span>
-            <button class="new-task-btn" id="newTaskBtn" title="新建对话任务" data-i18n="sidebar.chat">＋ 新建任务</button>
-          </div>
-          <div id="taskListContainer" style="max-height:300px;overflow-y:auto;">
-            <div class="empty" style="font-size:11px;padding:8px;" data-i18n="empty.no_tasks">暂无任务</div>
-          </div>
-        </div>
-
         <!-- 文件夹栏目（电脑端：列出工作区项目文件夹，点击切换工作区） -->
         <div class="sidebar-section" id="folderSection">
           <div class="sidebar-section-title" style="display:flex;align-items:center;justify-content:space-between;">
@@ -118,6 +107,17 @@
           <div class="folder-cwd" id="folderCwd" title="当前工作区">加载中…</div>
           <div id="folderList" class="folder-list">
             <div class="empty" style="font-size:11px;padding:6px;">加载中…</div>
+          </div>
+        </div>
+
+        <!-- 任务列表 -->
+        <div class="sidebar-section" id="taskListSection" style="display:none;">
+          <div class="sidebar-section-title" style="display:flex;align-items:center;justify-content:space-between;">
+            <span data-i18n="sidebar.task_list">任务列表 <span class="badge" id="taskCountBadge" style="margin-left:4px;">0</span></span>
+            <button class="new-task-btn" id="newTaskBtn" title="新建对话任务" data-i18n="sidebar.chat">＋ 新建任务</button>
+          </div>
+          <div id="taskListContainer" style="max-height:300px;overflow-y:auto;">
+            <div class="empty" style="font-size:11px;padding:8px;" data-i18n="empty.no_tasks">暂无任务</div>
           </div>
         </div>
 
