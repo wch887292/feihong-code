@@ -51,6 +51,9 @@ runSkillNewCmd,
   runModelStats,
   runExperiences,
   runHarness,
+  runComputer,
+  runBridge,
+  runLicense,
 } from './run';
 import { VERSION } from './version';
 import { setLang, t } from '../shared/i18n';
@@ -157,6 +160,9 @@ async function dispatchManage(m: ManagementCommand): Promise<void> {
     case 'review': runReviewCmd(m.path, m.json); break;
     case 'team': await runTeamCmd(m.goal); break;
     case 'serve': runServe(m.port); break;
+    case 'computer': await runComputer(m.action, m.args); break;
+    case 'bridge': await runBridge(m.action, m.args); break;
+    case 'license': await runLicense(m.action, m.args); break;
     case 'code-write': runCodeWrite(m.goal); break;
     case 'quality-gate': runQualityGate(m.path); break;
     case 'self-improve': await runSelfImprove(); break;

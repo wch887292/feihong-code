@@ -58,6 +58,21 @@ body {
   border-radius: 50%; cursor: pointer;
 }
 .hb-btn:active { background: var(--bg); }
+
+/* ===== 连接状态胶囊（未连接灰 / 本地绿 / 云蓝） ===== */
+.conn-pill {
+  border: none; border-radius: 999px; padding: 4px 10px;
+  font-size: 11px; font-weight: 600; white-space: nowrap;
+  cursor: pointer; background: var(--bg); color: var(--ink-2);
+  transition: all .2s;
+}
+.conn-pill:active { transform: scale(.95); }
+.conn-pill.off { background: #ececee; color: #8a919f; }
+html.dark .conn-pill.off { background: #262a33; color: #8b93a3; }
+.conn-pill.local { background: rgba(22,163,74,.14); color: #16a34a; }
+.conn-pill.cloud { background: rgba(51,112,255,.14); color: #3370ff; }
+html.dark .conn-pill.cloud { background: rgba(79,124,255,.18); color: #6d9bff; }
+.conn-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--ink-3); margin-right: 6px; vertical-align: 1px; }
 .hb-ico { font-size: 20px; font-weight: 600; }
 
 /* ===== 提示条（豆包式：居中灰色小字） ===== */

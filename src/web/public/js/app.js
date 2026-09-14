@@ -442,6 +442,7 @@
 
     const state = {
       token: '',
+      signSecret: '',
       phone: '',
       tasks: [],
       currentTaskId: null,
@@ -493,6 +494,7 @@
       const savedModel = localStorage.getItem('fhcode.model');
       if (savedModel !== null) state.modelId = savedModel;
       state.token = localStorage.getItem('fhcode.token') || '';
+      state.signSecret = localStorage.getItem('fhcode.signSecret') || '';
       state.phone = localStorage.getItem('fhcode.phone') || '';
       try {
         const p = JSON.parse(localStorage.getItem('fhcode.permissions') || '{}');

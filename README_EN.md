@@ -3,7 +3,7 @@
 > **Terminal AI Coding Agent** · Benchmarked against Meta Muse Code / Claude Code / Cursor CLI · Differentiated in-house core · Full M0→M9.1 complete · Enterprise RBAC / Audit / SWE Agent
 > Jinjiang Feihongzhi Technology Enterprise Management Co., Ltd. · Feiyang Qiyuan R&D Center · Lead: Wu Cihong
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+[![License: Commercial](https://img.shields.io/badge/License-Commercial-blue.svg)](./LICENSE)
 [![Node.js >= 18](https://img.shields.io/badge/node-%3E%3D18-brightgreen.svg)](https://nodejs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue.svg)](https://typescriptlang.org)
 [![GitHub stars](https://img.shields.io/github/stars/wch887292/feihong-code?style=social)](https://github.com/wch887292/feihong-code/stargazers)
@@ -90,7 +90,7 @@ export FH_ROLE=developer
 | Fully autonomous SWE Agent (M0→M9.1) | ✅ | ✅ | ⚠️ | ✅ | ⚠️ |
 | Parallel sub-agents (M2) | ✅ | ✅ | ❌ | ❌ | ❌ |
 | Self-evolution (M6) | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Open-source / self-hostable (MIT) | ✅ | ❌ | ❌ | ✅ Apache-2.0 | ✅ MIT |
+| Self-hostable (Commercial License) | ✅ | ❌ | ❌ | ❌ | ❌ |
 
 > Best for: teams and individual developers who need **data to stay in the intranet**, require **enterprise permission auditing**, and want to **mix multiple LLM vendors**.
 
@@ -106,7 +106,7 @@ The table above covers *which* capabilities exist; this one covers *how* fhcode 
 | Self-evolution (M6) | Experience library plus self-healing loop; failure patterns reused across sessions | Little to no equivalent mechanism |
 | Parallel isolation (M2) | `git worktree` gives each sub-agent a physically isolated workspace — concurrency without conflicts | Partial support; isolation strength varies |
 | Recoverability (M3) | Append-only event log as single source of truth; sessions resumable from checkpoints and fully replayable | Session state usually unrecoverable; interruption means restart |
-| Licensing & self-hosting | MIT licensed, source available, fully private deployment and secondary development supported | Mainstream products are closed-source commercial services |
+| Licensing & self-hosting | Commercial license, activation key required, fully private deployment supported | Mainstream products are closed-source commercial services |
 
 > **One-line distinction**: benchmark products solve "how an individual developer writes code faster"; fhcode additionally solves "**how a team puts AI coding into production — within compliance boundaries, auditable, at controllable cost**".
 
@@ -541,4 +541,4 @@ Scan to join the **Feihongzhi WeChat assistant** for:
 - **Lead**: Wu Cihong
 
 © 2026 Jinjiang Feihongzhi Technology Enterprise Management Co., Ltd. · Feiyang Qiyuan R&D Center · Lead: Wu Cihong
-Released under the [MIT License](./LICENSE).
+Released under a [Commercial License](./LICENSE). Requires activation key.
