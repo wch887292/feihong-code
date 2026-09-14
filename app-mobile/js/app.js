@@ -253,113 +253,163 @@ function callModelStream(messages, onDelta, onDone, onError) {
 
   var url = (model.apiBase || 'https://api.openai.com/v1').replace(/\/+$/, '') + '/chat/completions';
   var modelId = model.modelId || model.id;
-  var body = JSON.stringify({ model: modelId, messages: messages, stream: true, temperature: 0.7 });
+  var apiKey = model.apiKey;
 
-  state.streaming = true;
-  var xhr = new XMLHttpRequest();
-  var fullContent = '';
-  var lastPos = 0;
-  var done = false;
-  var hasProgress = false;
+  // ===== 稳定性参数：自动重试 + 长回答自动续写 =====
+  var RETRY_MAX = 2;      // 失败自动重试次数（网络/超时/5xx/429）
+  var CONTINUE_MAX = 2;   // finish_reason=length 自动续写次数
+  var retried = 0, continued = 0;
+  var totalContent = '';  // 跨重试/续写累计的完整内容
+  var cancelled = false;  // 用户主动停止标记
+  var currentXhr = null;
   var streamFallbackTimer = null;
 
+  state.streaming = true;
   state.abortController = {
     aborted: false,
-    abort: function () { this.aborted = true; try { xhr.abort(); } catch (e) {} }
+    abort: function () { cancelled = true; this.aborted = true; try { currentXhr && currentXhr.abort(); } catch (e) {} }
   };
 
-  function finish(content) {
-    if (done) return;
-    done = true;
-    state.streaming = false;
-    if (streamFallbackTimer) clearTimeout(streamFallbackTimer);
-    if (content) { onDone(content); }
-    else { onError(new Error('模型返回空内容，请重试或更换模型')); }
+  function isRetryable(msg, status) {
+    if (cancelled) return false;
+    if (status === 429 || (status >= 500 && status <= 599)) return true;
+    return /network|fetch|failed|timeout|超时|网络|ECONN|空内容|解析失败|no internet|unreachable/i.test(msg || '');
   }
 
-  function fail(err) {
-    if (done) return;
-    done = true;
-    state.streaming = false;
+  function attempt(curMessages) {
+    if (cancelled) return;
+    var body = JSON.stringify({ model: modelId, messages: curMessages, stream: true, temperature: 0.7 });
+    var xhr = new XMLHttpRequest();
+    currentXhr = xhr;
+    var fullContent = '';
+    var lastPos = 0;
+    var done = false;
+    var hasProgress = false;
+    var finishReason = '';
     if (streamFallbackTimer) clearTimeout(streamFallbackTimer);
-    onError(err);
-  }
 
-  // 流式回退保护：15秒内完全没有 onprogress 数据，自动切换非流式
-  streamFallbackTimer = setTimeout(function () {
-    if (done || state.abortController.aborted) return;
-    if (!hasProgress) {
-      try { xhr.abort(); } catch (e) {}
-      callModelNonStream(messages, onDelta, onDone, onError);
+    function finish(content) {
+      if (done || cancelled) return;
       done = true;
-      state.streaming = true;
+      state.streaming = false;
+      if (streamFallbackTimer) clearTimeout(streamFallbackTimer);
+      if (content) { onDone(content); }
+      else { onError(new Error('模型返回空内容，请重试或更换模型')); }
     }
-  }, 15000);
 
-  function parseSSE(text) {
-    var lines = text.split('\n');
-    for (var i = 0; i < lines.length; i++) {
-      var line = lines[i].trim();
-      if (!line || line.indexOf('data:') !== 0) continue;
-      var data = line.slice(5).trim();
-      if (data === '[DONE]') continue;
-      try {
-        var json = JSON.parse(data);
-        var delta = json.choices && json.choices[0] && json.choices[0].delta;
-        if (delta) {
-          // 支持 content 和 reasoning_content（思考过程不显示）
-          if (delta.content && delta.content !== '') {
-            fullContent += delta.content;
-            onDelta(delta.content);
-          }
-        }
-      } catch (e) { /* 忽略解析错误 */ }
+    function fail(err, status) {
+      if (done || cancelled) return;
+      done = true;
+      state.streaming = false;
+      if (streamFallbackTimer) clearTimeout(streamFallbackTimer);
+      if (retried < RETRY_MAX && isRetryable(err && err.message, status)) {
+        retried++;
+        state.streaming = true;
+        onDelta('\n\n> ⚠️ 网络波动，正在自动重连…（' + retried + '/' + RETRY_MAX + '）\n\n');
+        setTimeout(function () { attempt(curMessages); }, 1500 * retried);
+        return;
+      }
+      onError(err);
     }
+
+    // 流式回退保护：15秒内完全没有 onprogress 数据，自动切换非流式
+    streamFallbackTimer = setTimeout(function () {
+      if (done || cancelled || state.abortController.aborted) return;
+      if (!hasProgress) {
+        try { xhr.abort(); } catch (e) {}
+        done = true;
+        state.streaming = true;
+        callModelNonStream(curMessages, onDelta, function (full) {
+          if (cancelled) return;
+          totalContent += full;
+          finish(totalContent);
+        }, function (err) { fail(err); });
+      }
+    }, 15000);
+
+    function parseSSE(text) {
+      var lines = text.split('\n');
+      for (var i = 0; i < lines.length; i++) {
+        var line = lines[i].trim();
+        if (!line || line.indexOf('data:') !== 0) continue;
+        var data = line.slice(5).trim();
+        if (data === '[DONE]') { if (!finishReason) finishReason = 'stop'; continue; }
+        try {
+          var json = JSON.parse(data);
+          var choice = json.choices && json.choices[0];
+          if (choice) {
+            if (choice.finish_reason) finishReason = choice.finish_reason;
+            var delta = choice.delta;
+            if (delta && delta.content && delta.content !== '') {
+              fullContent += delta.content;
+              onDelta(delta.content);
+            }
+          }
+        } catch (e) { /* 忽略解析错误 */ }
+      }
+    }
+
+    xhr.open('POST', url, true);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.setRequestHeader('Authorization', 'Bearer ' + apiKey);
+
+    xhr.onprogress = function () {
+      if (cancelled || done) return;
+      hasProgress = true;
+      var text = xhr.responseText || '';
+      if (text.length > lastPos) {
+        parseSSE(text.slice(lastPos));
+        lastPos = text.length;
+      }
+    };
+
+    xhr.onload = function () {
+      if (done || cancelled) return;
+      if (xhr.status !== 200) {
+        fail(new Error('HTTP ' + xhr.status + ': ' + (xhr.responseText || xhr.statusText).slice(0, 200)), xhr.status);
+        return;
+      }
+      var text = xhr.responseText || '';
+      if (text.length > lastPos) parseSSE(text.slice(lastPos));
+      // 长回答截断（finish_reason=length）：自动续写，最多 CONTINUE_MAX 次
+      if (finishReason === 'length' && fullContent && continued < CONTINUE_MAX) {
+        continued++;
+        totalContent += fullContent;
+        onDelta('\n\n> ⏩ 回答较长已自动续写…（' + continued + '/' + CONTINUE_MAX + '）\n\n');
+        var next = curMessages.concat([
+          { role: 'assistant', content: fullContent },
+          { role: 'user', content: '请从刚才中断处继续输出，不要重复已写内容。' }
+        ]);
+        attempt(next);
+        return;
+      }
+      totalContent += fullContent;
+      finish(totalContent);
+    };
+
+    xhr.onerror = function () {
+      if (done || cancelled) return;
+      fail(new Error('网络连接失败，请检查网络后重试'), 0);
+    };
+
+    xhr.onabort = function () {
+      if (done) return;
+      // 用户主动停止：返回已有内容
+      if (cancelled) {
+        totalContent += fullContent;
+        finish(totalContent);
+      }
+    };
+
+    xhr.ontimeout = function () {
+      if (done || cancelled) return;
+      fail(new Error('请求超时，请检查网络后重试'), 0);
+    };
+
+    xhr.send(body);
   }
 
-  xhr.open('POST', url, true);
-  xhr.setRequestHeader('Content-Type', 'application/json');
-  xhr.setRequestHeader('Authorization', 'Bearer ' + model.apiKey);
-
-  xhr.onprogress = function () {
-    if (state.abortController.aborted || done) return;
-    hasProgress = true;
-    var text = xhr.responseText || '';
-    if (text.length > lastPos) {
-      parseSSE(text.slice(lastPos));
-      lastPos = text.length;
-    }
-  };
-
-  xhr.onload = function () {
-    if (done) return;
-    if (xhr.status !== 200) {
-      fail(new Error('HTTP ' + xhr.status + ': ' + (xhr.responseText || xhr.statusText).slice(0, 200)));
-      return;
-    }
-    var text = xhr.responseText || '';
-    if (text.length > lastPos) parseSSE(text.slice(lastPos));
-    finish(fullContent);
-  };
-
-  xhr.onerror = function () {
-    if (done) return;
-    fail(new Error('网络连接失败，请检查网络后重试'));
-  };
-
-  xhr.onabort = function () {
-    if (done) return;
-    // 用户主动停止：返回已有内容
-    if (fullContent) { finish(fullContent); }
-    else { done = true; state.streaming = false; if (streamFallbackTimer) clearTimeout(streamFallbackTimer); onDone(''); }
-  };
-
-  xhr.ontimeout = function () {
-    if (done) return;
-    fail(new Error('请求超时，请检查网络后重试'));
-  };
-
-  xhr.send(body);
+  attempt(messages);
 }
 
 /* 非流式请求（流式失败时的回退） */
@@ -974,6 +1024,8 @@ function renderComputerResult(task, data, rawText) {
       'mouse/click': '🖱️ 点击鼠标',
       'write': '📝 写入文件',
       'read': '📄 读取文件',
+      'save-file': '💾 保存文件（手机上传）',
+      'read-image': '🖼️ 读取图片',
       'ls': '📁 列出目录',
       'mkdir': '🗂️ 创建目录',
       'exec': '⚙️ 执行命令',
@@ -985,13 +1037,97 @@ function renderComputerResult(task, data, rawText) {
   }
   if (data && data.app) lines.push('目标：' + esc(data.app));
   if (data && data.message) lines.push('结果：' + esc(data.message));
-  if (data && data.bridge && data.bridge.result && data.bridge.result.text) {
-    lines.push('<div style="white-space:pre-wrap;font-family:ui-monospace,monospace;font-size:12px;background:rgba(127,127,127,.08);border-radius:6px;padding:6px;margin-top:4px;color:var(--ink-1);">' + esc(data.bridge.result.text) + '</div>');
+  var bridgeResult = data && data.bridge && data.bridge.result;
+  if (bridgeResult && bridgeResult.text) {
+    lines.push('<div style="white-space:pre-wrap;font-family:ui-monospace,monospace;font-size:12px;background:rgba(127,127,127,.08);border-radius:6px;padding:6px;margin-top:4px;color:var(--ink-1);">' + esc(bridgeResult.text) + '</div>');
   }
-  if (data && data.image) {
-    return { html: lines.join('<br>') + '<br><img src="' + data.image + '" style="max-width:100%;border-radius:8px;margin-top:6px;"/>', ok: true };
+  if (bridgeResult && bridgeResult.path) lines.push('路径：' + esc(bridgeResult.path));
+  var img = (data && data.image) || (bridgeResult && bridgeResult.image);
+  if (img) {
+    return { html: lines.join('<br>') + '<br><img src="' + img + '" style="max-width:100%;border-radius:8px;margin-top:6px;"/>', ok: true };
   }
   return { html: lines.join('<br>'), ok: true };
+}
+
+/* ===== v8.4.2 远程操控增强 ===== */
+/* 指令历史：拉取云端本设备指令记录并渲染 */
+function loadCloudHistory() {
+  var box = $('cloudHistoryBox');
+  if (!box) return;
+  if (box.classList.contains('hidden')) { box.classList.remove('hidden'); }
+  else { box.classList.add('hidden'); return; }
+  var deviceId = getPcDeviceId();
+  if (!deviceId) { box.innerHTML = '<div style="color:var(--ink-2);">未配置设备 ID，无法查看历史</div>'; return; }
+  var cloudBase = getCloudUrl().replace(/\/+$/, '');
+  var token = getCloudToken();
+  var headers = token ? { Authorization: 'Bearer ' + token } : {};
+  box.innerHTML = '<div style="color:var(--ink-2);">加载中…</div>';
+  getJson(cloudBase + '/api/bridge/commands?deviceId=' + encodeURIComponent(deviceId), headers,
+    function (data) {
+      var cmds = (data && data.commands) || [];
+      if (!cmds.length) { box.innerHTML = '<div style="color:var(--ink-2);">暂无指令记录</div>'; return; }
+      var statusMap = { queued: '⏳ 排队', running: '⚙️ 执行中', done: '✅ 完成', failed: '❌ 失败', refused: '🚫 拒绝', paused: '⏸️ 暂停' };
+      box.innerHTML = cmds.slice(0, 30).map(function (c) {
+        var st = statusMap[c.status] || c.status;
+        var t = (c.text || '').length > 60 ? c.text.slice(0, 60) + '…' : c.text;
+        return '<div style="padding:6px;border-bottom:1px solid rgba(127,127,127,.12);"><div style="color:var(--ink-1);">' + esc(t) + '</div><div style="color:var(--ink-2);font-size:11px;">' + st + ' · ' + (c.createdAt || '').replace('T', ' ').slice(5, 19) + '</div></div>';
+      }).join('');
+    },
+    function () { box.innerHTML = '<div style="color:var(--err);">加载失败：无法连接云端</div>'; });
+}
+
+/* 发送文件到电脑：文件 → base64 → 保存文件指令 → 云端桥接执行 */
+function sendFileToCloud() {
+  var input = $('cloudFileInput');
+  if (!input || !input.files || !input.files.length) return;
+  var file = input.files[0];
+  var MAX = 6 * 1024 * 1024;
+  if (file.size > MAX) { toast('文件过大（>6MB），请压缩后重试'); input.value = ''; return; }
+  var reader = new FileReader();
+  reader.onload = function () {
+    var base64 = String(reader.result).split(',')[1] || '';
+    if (!base64) { toast('文件读取失败'); input.value = ''; return; }
+    var text = '保存文件 upload/' + file.name + ' base64=' + base64;
+    var pcTask;
+    if (!state.currentTaskId || !getTask(state.currentTaskId)) {
+      pcTask = createTask('上传文件 ' + file.name, 'chat');
+      state.currentTaskId = pcTask.id;
+    } else { pcTask = getTask(state.currentTaskId); }
+    pcTask.messages.push({ role: 'user', content: '📁 发送文件到电脑：' + file.name });
+    pcTask.status = 'running'; saveTasks();
+    renderThread(pcTask);
+    var box = $('convMessages');
+    var msgEl = document.createElement('div');
+    msgEl.className = 'msg assistant';
+    msgEl.innerHTML = '<span style="color:var(--ink-2);">📁 正在上传文件到' + getExecEndLabel() + '…</span> <span class="typing-cursor">▋</span>';
+    box.appendChild(msgEl); box.scrollTop = box.scrollHeight;
+    callComputer(text,
+      function (data) {
+        var r = renderComputerResult(pcTask, data, '📁 发送文件到电脑：' + file.name);
+        msgEl.innerHTML = r.html;
+        appendAssistantMessage(pcTask.id, '📁 发送文件到电脑：' + file.name + '\n\n' + JSON.stringify(data));
+        renderThread(getTask(pcTask.id));
+        updateSendBtn(false);
+      },
+      function (err) {
+        msgEl.innerHTML = '<div style="color:var(--err);">❌ 上传失败：' + esc(friendlyError(err)) + '</div>';
+        pcTask.status = 'failed'; pcTask.error = err.message; saveTasks();
+        updateSendBtn(false);
+      });
+    updateSendBtn(true);
+    input.value = '';
+  };
+  reader.readAsDataURL(file);
+}
+
+/* 绑定远程操控面板按钮 */
+function bindRemoteControls() {
+  var hb = $('cloudHistoryBtn');
+  if (hb) hb.onclick = loadCloudHistory;
+  var sf = $('cloudSendFileBtn');
+  if (sf) sf.onclick = function () { var f = $('cloudFileInput'); if (f) f.click(); };
+  var fi = $('cloudFileInput');
+  if (fi) fi.onchange = sendFileToCloud;
 }
 
 function sendMessage() {
@@ -1974,7 +2110,7 @@ function playFlashApp(app) {
 }
 
 /* ========== AI 创作中心（文生图/文生视频） ========== */
-var APP_VER = 'v8.4.1';
+var APP_VER = 'v8.4.2';
 var LS_CREATIVE = 'fh.app.creative';
 var creativeConfig = { t2i: {}, t2v: {} };
 function loadCreativeConfig() {
@@ -2643,6 +2779,7 @@ function initSkillCenter() {
 
   // 发送消息（用 onclick 而非 addEventListener，避免与 updateSendBtn 的 onclick 切换重复绑定）
   $('sendBtn').onclick = sendMessage;
+  bindRemoteControls();
   $('goalInput').addEventListener('keydown', function (e) {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   });

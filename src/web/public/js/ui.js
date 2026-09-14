@@ -2304,6 +2304,37 @@
       const s2 = document.getElementById('pcCloudState');
       if (s2) s2.textContent += state.cloud ? '（已保存）' : '（已保存，暂未连通）';
     });
+    // 指令历史（v8.4.2：拉取云端本设备指令记录）
+    const histBtn = document.getElementById('pcCloudHistoryBtn');
+    if (histBtn) histBtn.addEventListener('click', async function () {
+      const box = document.getElementById('pcCloudHistoryBox');
+      if (!box) return;
+      if (box.style.display !== 'none') { box.style.display = 'none'; return; }
+      const base = get(LS.cloudUrl, 'https://api.klai.top/fhcode').replace(/\/+$/, '');
+      const token = get(LS.token, '');
+      const dev = get(LS.deviceId, '');
+      box.style.display = 'block';
+      box.textContent = '加载中…';
+      try {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 8000);
+        const res = await fetch(base + '/api/bridge/commands' + (dev ? '?deviceId=' + encodeURIComponent(dev) : ''), {
+          signal: ctrl.signal, cache: 'no-store',
+          headers: token ? { Authorization: 'Bearer ' + token } : {}
+        });
+        clearTimeout(t);
+        if (!res.ok) { box.textContent = '❌ 拉取失败：HTTP ' + res.status; return; }
+        const data = await res.json().catch(() => null);
+        const cmds = (data && data.commands) || [];
+        if (!cmds.length) { box.textContent = '暂无指令记录'; return; }
+        const statusMap = { queued: '⏳ 排队', running: '⚙️ 执行中', done: '✅ 完成', failed: '❌ 失败', refused: '🚫 拒绝', paused: '⏸️ 暂停' };
+        box.innerHTML = cmds.slice(0, 30).map(function (c) {
+          const st = statusMap[c.status] || c.status;
+          const tx = (c.text || '').length > 60 ? c.text.slice(0, 60) + '…' : c.text;
+          return '<div style="padding:6px;border-bottom:1px solid rgba(127,127,127,.15);"><div>' + tx + '</div><div style="color:var(--muted);font-size:11px;">' + st + ' · ' + String(c.createdAt || '').replace('T', ' ').slice(5, 19) + '</div></div>';
+        }).join('');
+      } catch (e) { box.textContent = '❌ 加载失败：' + e.message; }
+    });
     // 回填配置
     const urlEl = document.getElementById('cloudUrlInput');
     if (urlEl) urlEl.value = get(LS.cloudUrl, 'https://api.klai.top/fhcode');
