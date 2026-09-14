@@ -109,6 +109,18 @@
           </div>
         </div>
 
+        <!-- 文件夹栏目（电脑端：列出工作区项目文件夹，点击切换工作区） -->
+        <div class="sidebar-section" id="folderSection">
+          <div class="sidebar-section-title" style="display:flex;align-items:center;justify-content:space-between;">
+            <span>📂 文件夹</span>
+            <button class="new-task-btn" id="folderRefreshBtn" title="刷新文件夹">⟳</button>
+          </div>
+          <div class="folder-cwd" id="folderCwd" title="当前工作区">加载中…</div>
+          <div id="folderList" class="folder-list">
+            <div class="empty" style="font-size:11px;padding:6px;">加载中…</div>
+          </div>
+        </div>
+
         <div class="sidebar-spacer"></div>
 
         <!-- 用户和设置 -->
@@ -571,6 +583,7 @@
         <!-- 底部工具栏 -->
         <div class="chat-footbar" id="chatFootbar">
           <div data-i18n="sidebar.chat"><strong>对话任务</strong><span class="muted"> · 提交自然语言需求，云端静默执行并回传结果</span></div>
+          <span class="sync-exec-end" id="syncExecEnd" title="三端同步：当前执行端（手机端切换会同步到这里）">📱 手机对话</span>
           <div class="row" style="flex:0 0 auto; gap:8px; align-items:center;">
             <label class="model-label" for="modelSelect" data-i18n="footbar.model">大模型</label>
             <select id="modelSelect" class="model-select" title="切换当前使用的大模型" data-i18n="footbar.model">

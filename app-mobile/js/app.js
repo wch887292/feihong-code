@@ -523,19 +523,263 @@ function setFunc(func) {
   document.querySelectorAll('.q-btn').forEach(function (b) {
     b.classList.toggle('active', b.dataset.func === func);
   });
-  var tip = { chat: '💬 对话模式', game: '🎮 游戏中心', create: '🎨 AI 创作', flashapp: '✨ 闪应用', translate: '🌐 中英互译' };
+  var tip = { chat: '💬 对话模式', confirm: '☑ 按需确认', skill: '✦ 技能', connector: '🔗 连接器', model: '🧠 大模型切换' };
   $('toolTip').textContent = tip[func] || '💬 对话模式';
   if (func === 'chat') {
     $('goalInput').focus();
-  } else if (func === 'game') {
-    openGameCreator();
-  } else if (func === 'create') {
-    openCreateCenter();
-  } else if (func === 'flashapp') {
-    openFlashApp();
-  } else if (PLUGINS[func]) {
-    openPlugin(func);
+  } else if (func === 'confirm') {
+    openConfirmSheet();
+  } else if (func === 'skill') {
+    openSkillSheet();
+  } else if (func === 'connector') {
+    openConnectorSheet();
+  } else if (func === 'model') {
+    openModelSwitchSheet();
   }
+}
+
+/* ========== 二级页面：按需确认 ========== */
+var confirmModeKey = 'fhcode_confirm_mode';
+function loadConfirmMode() {
+  var v = localStorage.getItem(confirmModeKey);
+  state.confirmMode = v === null ? true : (v === '1');
+}
+function saveConfirmMode() {
+  localStorage.setItem(confirmModeKey, state.confirmMode ? '1' : '0');
+}
+function openConfirmSheet() {
+  var sw = $('confirmModeSwitch');
+  if (sw) sw.checked = !!state.confirmMode;
+  showSheet('confirmSheet');
+}
+
+/* ========== 二级页面：技能中心 ========== */
+function openSkillSheet() {
+  renderSkillSheetList();
+  showSheet('skillCenterSheet');
+}
+function renderSkillSheetList() {
+  var box = $('skillCenterGrid');
+  if (!box) return;
+  var cards = [];
+  cards.push('<div class="skill-card" data-skill="xiaohongshu">' +
+    '<div class="skill-ico">📕</div><div class="skill-name">小红书内容生成</div><div class="skill-desc">生成种草文案、爆款标题、话题标签</div></div>');
+  var skills = (typeof getHermesSkills === 'function') ? getHermesSkills() : [];
+  (skills || []).forEach(function (s) {
+    if (!s || !s.name) return;
+    cards.push('<div class="skill-card" data-skill-hermes="' + esc(s.name) + '">' +
+      '<div class="skill-ico">⚡</div><div class="skill-name">' + esc(s.name) + '</div><div class="skill-desc">' + esc(s.description || '已安装技能') + '</div></div>');
+  });
+  box.innerHTML = cards.join('') || '<div class="empty" style="padding:16px;">暂无技能，点击 ⚙️ 设置 → Hermes Agent 安装</div>';
+  box.querySelectorAll('.skill-card').forEach(function (card) {
+    card.addEventListener('click', function () {
+      var skill = card.dataset.skill;
+      var hermesSkill = card.dataset.skillHermes;
+      hideSheet('skillCenterSheet');
+      if (skill === 'xiaohongshu') openXiaohongshu();
+      else if (hermesSkill) { state.currentFunc = 'chat'; $('goalInput').value = '@' + hermesSkill + ' '; $('goalInput').focus(); toast('已输入技能指令'); }
+      else toast('该技能开发中');
+    });
+  });
+}
+
+/* ========== 二级页面：连接器 ========== */
+function openConnectorSheet() {
+  updateConnectorPills();
+  showSheet('connectorSheet');
+}
+function updateConnectorPills() {
+  var local = $('connectorPcPill'), cloud = $('connectorCloudPill');
+  if (!local || !cloud) return;
+  local.textContent = connState.local ? '● 已连接' : '● 未连接';
+  local.className = 'conn-pill ' + (connState.local ? 'local' : 'off');
+  cloud.textContent = connState.cloud ? '● 已连接' : '● 未连接';
+  cloud.className = 'conn-pill ' + (connState.cloud ? 'cloud' : 'off');
+}
+function openConnectorTarget(kind) {
+  hideSheet('connectorSheet');
+  openDrawer();
+  setTimeout(function () {
+    var el = null;
+    if (kind === 'pc') el = $('sec-pc');
+    else if (kind === 'cloud') el = $('sec-cloud');
+    else if (kind === 'keyless') el = $('sec-keyless');
+    else if (kind === 'hermes') el = $('sec-hermes');
+    if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 120);
+}
+
+/* ========== 二级页面：大模型切换 ========== */
+function openModelSwitchSheet() {
+  renderModelSwitchList();
+  showSheet('modelSwitchSheet');
+}
+function renderModelSwitchList() {
+  var listBox = $('modelSwitchList');
+  var curBox = $('modelCurrent');
+  if (!listBox || !curBox) return;
+  var cur = state.models.find(function (m) { return m.id === state.defaultModelId; });
+  curBox.innerHTML = '<div class="mc-ico">🧠</div><div style="flex:1;min-width:0;">' +
+    '<div class="mc-name">' + esc(cur ? cur.name : '未配置模型') + '</div>' +
+    '<div class="mc-sub">' + esc(cur ? (cur.modelId || cur.id) : '请先配置模型，或使用免密网络层') + '</div></div>';
+  if (!state.models.length) {
+    listBox.innerHTML = '<div class="empty" style="padding:18px;">暂无模型配置<br>点击下方「管理模型」添加，或开启免密网络层直接聊天</div>';
+    return;
+  }
+  listBox.innerHTML = state.models.map(function (m) {
+    var isDefault = m.id === state.defaultModelId;
+    return '<div class="model-switch-item' + (isDefault ? ' active' : '') + '" data-id="' + esc(m.id) + '">' +
+      '<div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:600;">' + esc(m.name) + '</div>' +
+      '<div style="font-size:11px;color:var(--ink-2);margin-top:2px;word-break:break-all;">' + esc(m.modelId || m.id) + '</div></div>' +
+      (isDefault ? '<span class="ms-check">✓ 当前</span>' : '<span style="font-size:11px;color:var(--ink-3);">点击切换</span>') +
+      '</div>';
+  }).join('');
+  listBox.querySelectorAll('.model-switch-item').forEach(function (el) {
+    el.addEventListener('click', function () {
+      var id = el.dataset.id;
+      state.defaultModelId = id;
+      saveModels();
+      renderModelSwitchList();
+      renderModelList();
+      updateModelBadge();
+      toast('已切换至 ' + (state.models.find(function (m) { return m.id === id; }) || {}).name);
+    });
+  });
+}
+function updateModelBadge() {
+  var cur = state.models.find(function (m) { return m.id === state.defaultModelId; });
+  if (cur && $('toolTip')) $('toolTip').textContent = '🧠 ' + cur.name;
+}
+
+/* ========== 中间栏目：执行端切换 + 项目栏（三端同步） ========== */
+function getSyncBase() {
+  return (getPcMode() === 'direct' ? getPcUrl() : getCloudUrl()).replace(/\/+$/, '');
+}
+function getSyncHeaders() {
+  var t = getCloudToken();
+  return t ? { Authorization: 'Bearer ' + t } : {};
+}
+function renderExecTabs() {
+  var mode = getPcMode();
+  document.querySelectorAll('.exec-tab').forEach(function (t) {
+    t.classList.toggle('active', t.dataset.exec === mode);
+  });
+  renderConnStatus();
+}
+function setExecEnd(mode) {
+  if (['phone', 'direct', 'cloud'].indexOf(mode) < 0) return;
+  setPcMode(mode);
+  renderExecTabs();
+  renderConnStatus();
+  var names = { phone: '📱 手机对话', direct: '🖥️ 本地电脑', cloud: '☁️ 云电脑' };
+  toast('已切换至 ' + (names[mode] || mode));
+  syncToServer();
+  if (mode !== 'phone') checkAllConns();
+}
+/* 三端同步：把本地执行端 + 项目状态写回服务器（手机 / Web / 桌面共享） */
+function syncToServer() {
+  var payload = { execEnd: getPcMode() };
+  var proj = getProjectPath();
+  if (proj) payload.project = proj;
+  postJson(getSyncBase() + '/api/sync', payload, getSyncHeaders(),
+    function (d) { if (!d || !d.ok) console.warn('[sync] 同步失败'); },
+    function (e) { console.warn('[sync] 同步失败', e.message); }, 8000);
+}
+/* 项目：localStorage fh.project（绝对路径）；显示用 basename */
+function getProjectPath() {
+  try { return localStorage.getItem('fh.project') || ''; } catch (e) { return ''; }
+}
+function setProjectPath(p) {
+  try { if (p) localStorage.setItem('fh.project', p); else localStorage.removeItem('fh.project'); } catch (e) {}
+}
+function projectDisplayName(p) {
+  if (!p) return '不使用项目';
+  var parts = p.replace(/\\/g, '/').split('/').filter(Boolean);
+  return parts[parts.length - 1] || p;
+}
+function renderProjectBar() {
+  var el = $('projectName');
+  if (el) el.textContent = projectDisplayName(getProjectPath());
+}
+/* 打开项目选择：从当前执行端读取工作区项目文件夹列表 */
+function openProjectSheet() {
+  renderProjectList();
+  showSheet('projectSheet');
+}
+function loadProjects(onDone) {
+  var base = getSyncBase();
+  getJson(base + '/api/workspace', getSyncHeaders(),
+    function (w) {
+      if (!w || !w.ok || !w.cwd) { onDone && onDone([]); return; }
+      getJson(base + '/api/workspace/list?path=' + encodeURIComponent(w.cwd), getSyncHeaders(),
+        function (d) {
+          var dirs = ((d && d.entries) || []).filter(function (e) { return e && e.type === 'dir'; });
+          onDone && onDone(dirs, w.cwd);
+        },
+        function () { onDone && onDone([], w.cwd); });
+    },
+    function () { onDone && onDone([]); }, 8000);
+}
+function renderProjectList() {
+  var box = $('projectList');
+  if (!box) return;
+  box.innerHTML = '<div style="padding:16px;text-align:center;color:var(--ink-2);">加载项目…</div>';
+  var cur = getProjectPath();
+  loadProjects(function (dirs) {
+    if (!dirs || !dirs.length) {
+      box.innerHTML = '<div class="empty" style="padding:18px;">工作区下暂无项目文件夹<br>点击下方「创建新项目」新建</div>';
+      return;
+    }
+    box.innerHTML = dirs.map(function (d) {
+      var isCur = d.path === cur;
+      return '<div class="project-item' + (isCur ? ' active' : '') + '" data-path="' + esc(d.path) + '">' +
+        '<span style="font-size:18px;">📁</span>' +
+        '<div style="flex:1;min-width:0;"><div class="pi-name">' + esc(d.name) + '</div>' +
+        '<div class="pi-path">' + esc(d.path) + '</div></div>' +
+        (isCur ? '<span class="pi-check">✓</span>' : '') + '</div>';
+    }).join('');
+    box.querySelectorAll('.project-item').forEach(function (el) {
+      el.addEventListener('click', function () { setProject(el.dataset.path); });
+    });
+  });
+}
+function setProject(p) {
+  setProjectPath(p);
+  renderProjectBar();
+  hideSheet('projectSheet');
+  toast(p ? '已切换项目：' + projectDisplayName(p) : '不使用项目');
+  syncToServer();
+}
+function createProject() {
+  var name = prompt('请输入新项目名称（将创建在工作区下）');
+  if (!name || !name.trim()) return;
+  name = name.trim();
+  var base = getSyncBase();
+  getJson(base + '/api/workspace', getSyncHeaders(),
+    function (w) {
+      var cwd = (w && w.cwd) || '';
+      postJson(base + '/api/workspace/mkdir', { parent: cwd, name: name }, getSyncHeaders(),
+        function (d) {
+          if (!d || !d.ok) { toast((d && d.error) || '创建失败'); return; }
+          setProject(d.path);
+        },
+        function (e) { toast('创建失败：' + friendlyError(e)); });
+    },
+    function () { toast('无法连接执行端，创建失败'); });
+}
+
+/* ========== 二级页面：更多功能 ========== */
+function openMoreSheet() {
+  showSheet('moreSheet');
+}
+function runMoreFunc(kind) {
+  hideSheet('moreSheet');
+  if (kind === 'chat') { state.currentFunc = 'chat'; $('goalInput').focus(); }
+  else if (kind === 'game') openGameCreator();
+  else if (kind === 'create') openCreateCenter();
+  else if (kind === 'flashapp') openFlashApp();
+  else if (kind === 'translate') openPlugin('translate');
+  else if (kind === 'tasks') { switchPage('taskPage'); renderTaskList(); }
 }
 
 /* ========== 任务管理 ========== */
@@ -660,7 +904,7 @@ function appendAssistantMessage(taskId, content) {
  * 配置（localStorage）：fh.pc.mode = 'cloud'|'direct'；fh.pc.cloudUrl / fh.pc.pcUrl / fh.pc.deviceId / fh.pc.token
  */
 function getPcMode() {
-  try { return localStorage.getItem('fh.pc.mode') || 'cloud'; } catch (e) { return 'cloud'; }
+  try { return localStorage.getItem('fh.pc.mode') || 'phone'; } catch (e) { return 'phone'; }
 }
 function setPcMode(m) { try { localStorage.setItem('fh.pc.mode', m); } catch (e) {} }
 function getPcUrl() {
@@ -715,7 +959,8 @@ function renderConnStatus() {
   var mode = getPcMode();
   var pill = $('connPill');
   var label = '● 未连接'; var cls = 'off';
-  if (mode === 'direct' && connState.local) { label = '● 本地电脑'; cls = 'local'; }
+  if (mode === 'phone') { label = '📱 手机对话'; cls = 'local'; }
+  else if (mode === 'direct' && connState.local) { label = '● 本地电脑'; cls = 'local'; }
   else if (mode === 'cloud' && connState.cloud) { label = '● 云电脑'; cls = 'cloud'; }
   else if (mode === 'direct') { label = '● 本地未连'; cls = 'off'; }
   else { label = '● 云未连接'; cls = 'off'; }
@@ -836,6 +1081,7 @@ function isComputerCommand(text) {
 /* 当前执行端标签：云端桥接模式 + 云端设备 → 「云端执行体」，否则「电脑」 */
 function getExecEndLabel() {
   var mode = getPcMode();
+  if (mode === 'phone') return '手机对话';
   var deviceId = getPcDeviceId();
   if (mode === 'cloud' && (deviceId.indexOf('cloud') === 0 || deviceId.indexOf('pc-cloud') === 0 || deviceId === 'pc-cloud-agent-01')) return '云端执行体';
   return '电脑';
@@ -1163,8 +1409,8 @@ function sendMessage() {
     }
   } catch (e) { /* 技能匹配失败不影响正常对话 */ }
 
-  // 电脑遥控分流：识别为电脑操作指令时，直接转发电脑端执行，不走大模型
-  if (isComputerCommand(finalText)) {
+  // 电脑遥控分流：识别为电脑操作指令时，直接转发电脑端执行，不走大模型（手机对话模式除外）
+  if (getPcMode() !== 'phone' && isComputerCommand(finalText)) {
     var pcTask;
     if (!state.currentTaskId || !getTask(state.currentTaskId)) {
       pcTask = createTask(finalText.slice(0, 30), 'chat');
@@ -2776,6 +3022,38 @@ function initSkillCenter() {
   document.querySelectorAll('.q-btn').forEach(function (b) {
     b.addEventListener('click', function () { setFunc(b.dataset.func); });
   });
+
+  // 新功能栏：更多按钮 + 二级页面绑定
+  loadConfirmMode();
+  var moreBtn = $('moreBtn');
+  if (moreBtn) moreBtn.addEventListener('click', openMoreSheet);
+  var csw = $('confirmModeSwitch');
+  if (csw) csw.addEventListener('change', function () {
+    state.confirmMode = csw.checked;
+    saveConfirmMode();
+    toast(state.confirmMode ? '已开启按需确认' : '已关闭按需确认');
+  });
+  var mgr = $('modelManageBtn');
+  if (mgr) mgr.addEventListener('click', function () { hideSheet('modelSwitchSheet'); openDrawer(); });
+  document.querySelectorAll('.more-cell').forEach(function (c) {
+    c.addEventListener('click', function () { runMoreFunc(c.dataset.more); });
+  });
+  document.querySelectorAll('.connector-card').forEach(function (c) {
+    c.addEventListener('click', function () { openConnectorTarget(c.dataset.conn); });
+  });
+
+  // 中间栏目：执行端切换 + 项目栏（三端同步）
+  renderExecTabs();
+  renderProjectBar();
+  document.querySelectorAll('.exec-tab').forEach(function (t) {
+    t.addEventListener('click', function () { setExecEnd(t.dataset.exec); });
+  });
+  var projBar = $('projectBar');
+  if (projBar) projBar.addEventListener('click', openProjectSheet);
+  var projNew = $('projectNewBtn');
+  if (projNew) projNew.addEventListener('click', createProject);
+  var projNone = $('projectNoneBtn');
+  if (projNone) projNone.addEventListener('click', function () { setProject(''); });
 
   // 发送消息（用 onclick 而非 addEventListener，避免与 updateSendBtn 的 onclick 切换重复绑定）
   $('sendBtn').onclick = sendMessage;
