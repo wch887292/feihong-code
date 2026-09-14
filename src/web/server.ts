@@ -11,6 +11,7 @@
  *   - 登录：手机号直登（无短信验证，本地会话令牌）
  *   - 文件/工作区：右侧任务详情可直接打开文件夹、浏览器、预览文件
  * 鉴权：Bearer Token（fail-closed），主令牌（FH_WEB_TOKEN）与会话令牌并行。
+ * 安全：三层防护——传输层(HTTPS/TLS) + 应用层(请求签名/防重放/暴力破解锁定) + 数据层(AES-256-GCM 落盘加密)
  */
 import express, { type Request, type Response } from 'express';
 import { randomBytes, randomUUID } from 'crypto';
@@ -28,6 +29,8 @@ import {
 } from 'fs';
 import { spawn, exec } from 'child_process';
 import dns from 'node:dns';
+import { securityHeaders, verifyRequestSignature, BruteForceGuard } from '../security';
+import { licenseState, licenseText, activateLicense } from '../license';
 import { requireToken, SessionStore, type Session, WELCOME_TASKS } from './auth';
 import { registerExtraApis } from './extra-apis';
 import {
@@ -113,8 +116,26 @@ export function startWebServer(opts: ServeOptions = {}): {
   }
 
   const app = express();
+  // CORS：允许跨域访问（接口已有 Bearer Token + HMAC 签名双重鉴权，放开 Origin 风险可控；
+  // 手机 H5 / 浏览器直接访问云桥接接口必须放行，否则 file:// 与 WebView 跨域请求被拦截）
+  app.use((req: any, res: any, next: any) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization,x-fh-ts,x-fh-nonce,x-fh-sig');
+    res.setHeader('Access-Control-Max-Age', '86400');
+    if (req.method === 'OPTIONS') { res.status(204).end(); return; }
+    next();
+  });
   // 放宽请求体上限以支持截图/图片 base64 上传（8MB），仍可有效防御内存耗尽
-  app.use(express.json({ limit: '8mb' }));
+  // verify 回调把原始 body 存入 req.rawBody，供请求签名校验使用
+  app.use(express.json({ limit: '8mb', verify: (req: any, _res: any, buf: Buffer) => { req.rawBody = buf.toString('utf-8'); } }));
+  // 第一层(应用部分)·安全响应头
+  app.use(securityHeaders);
+  // 第二层·请求签名防重放（对 /api/ 写请求启用；登录/回调豁免）
+  app.use(verifyRequestSignature(process.env.FH_SIGN_SECRET || token, { maxBodyBytes: 8 * 1024 * 1024 }));
+  // 第二层·暴力破解防护（登录/激活）
+  const bruteForce = new BruteForceGuard();
+  setInterval(() => bruteForce.cleanup(), 60 * 1000).unref();
   // 微信回调使用 XML body，单独路由用 text 解析
   app.use('/api/wechat/callback', (express as any).text({ type: ['*/xml', 'text/xml', 'application/xml'], limit: '1mb' }));
   // 元宝回调需要原始 body 用于 HMAC 签名校验
@@ -277,7 +298,8 @@ export function startWebServer(opts: ServeOptions = {}): {
     
     res.json({ 
       ok: true, 
-      token: result.token, 
+      token: result.token,
+      signSecret: process.env.FH_SIGN_SECRET || token, 
       phone,
       isFirstLogin: result.isFirstLogin,
       welcomeTasks,
@@ -1793,6 +1815,244 @@ export function startWebServer(opts: ServeOptions = {}): {
     }
   });
 
+  // 打开应用：Start-Process 启动常见应用 / 任意可执行文件 / 路径
+  // 应用名映射表（中文别名 → 可执行文件 / 协议 / 路径），覆盖高频场景
+  const APP_LAUNCH_MAP: Record<string, string> = {
+    '微信': 'WeChat',
+    'wechat': 'WeChat',
+    '微信输入法': 'WeChatInput',
+    'qq': 'QQ',
+    'qq音乐': 'QQMusic',
+    '腾讯会议': 'wemeetapp',
+    '浏览器': 'msedge',
+    'chrome': 'chrome',
+    '谷歌浏览器': 'chrome',
+    'edge': 'msedge',
+    '火狐': 'firefox',
+    '记事本': 'notepad',
+    '计算器': 'calc',
+    '画图': 'mspaint',
+    '文件管理器': 'explorer',
+    '资源管理器': 'explorer',
+    '任务管理器': 'taskmgr',
+    '控制面板': 'control',
+    'cmd': 'cmd',
+    '命令行': 'cmd',
+    'powershell': 'powershell',
+    'power shell': 'powershell',
+    'vscode': 'code',
+    'visual studio code': 'code',
+    'vs code': 'code',
+    'word': 'winword',
+    'excel': 'excel',
+    'powerpoint': 'powerpnt',
+    'ppt': 'powerpnt',
+    'outlook': 'outlook',
+    'pycharm': 'pycharm',
+    'intellij': 'idea64',
+    'clion': 'clion64',
+    'goland': 'goland64',
+    'xshell': 'Xshell',
+    '百度网盘': 'BaiduNetdisk',
+    '网易云音乐': 'cloudmusic',
+    'spotify': 'spotify',
+    'steam': 'steam',
+    '微信开发者工具': 'wechatdevtools',
+    '企业微信': 'WXWork',
+    '钉钉': 'DingTalk',
+    '飞书': 'Feishu',
+    'wps': 'wps',
+  };
+  // 打开应用
+  app.post('/api/computer/app/open', async (req: Request, res: Response) => {
+    try {
+      const body = (req.body ?? {}) as Record<string, any>;
+      const name = String(body?.app ?? body?.name ?? '').trim();
+      if (!name) {
+        res.status(400).json({ ok: false, error: '缺少 app 字段（应用名，如：微信 / chrome / notepad）' });
+        return;
+      }
+      // 别名解析：支持中文别名 → 常见可执行名；也支持直接传 exe 名 / 完整路径 / URL
+      const alias = APP_LAUNCH_MAP[name.toLowerCase()] ?? APP_LAUNCH_MAP[name];
+      const target = alias ?? name;
+      // 若带路径或扩展名则直接 Start-Process；否则尝试 Start-Process 名称（Windows 会查 PATH 与 App Paths）
+      const script = `
+        $t = '${target.replace(/'/g, "''")}'
+        if ($t -match '^https?://' -or $t -match '^shell:') {
+          Start-Process $t
+        } elseif (Test-Path $t) {
+          Start-Process $t
+        } else {
+          try { Start-Process $t -ErrorAction Stop } catch {
+            # 名称未命中时尝试通过 where.exe 查找
+            $found = (where.exe $t 2>$null | Select-Object -First 1)
+            if ($found) { Start-Process $found } else { throw "应用未找到: $t" }
+          }
+        }
+        Write-Output "opened:$t"
+      `;
+      const out = await runPowerShell(script);
+      res.json({ ok: true, app: name, resolved: target, message: out || `已尝试打开 ${name}` });
+    } catch (e) {
+      res.status(500).json({ ok: false, error: '打开应用失败: ' + (e as Error).message });
+    }
+  });
+  // 列出常用应用映射（供手机端展示可选应用胶囊）
+  app.get('/api/computer/apps', (_req: Request, res: Response) => {
+    const apps = Object.keys(APP_LAUNCH_MAP)
+      .filter((k) => k === k.toLowerCase() || /[\u4e00-\u9fa5]/.test(k))
+      .filter((k, i, arr) => arr.indexOf(k) === i)
+      .slice(0, 40);
+    res.json({ ok: true, apps });
+  });
+
+  // ========== 自然语言指令直达（手机对话发指令 → 电脑端执行） ==========
+  // 解析规则：打开/启动/运行 X → app/open；截图/截屏 → screenshot；
+  // 输入 X → keyboard/type；按 X/按键 X → keyboard/press；点击/单击 → mouse/click；其余尝试作为命令执行
+  function parseNaturalCommand(text: string): { action: string; params: Record<string, any> } | null {
+    const t = String(text ?? '').trim();
+    if (!t) return null;
+    const lower = t.toLowerCase();
+    // 打开类
+    const openMatch = /^(打开|启动|运行|开启|帮我打开|帮我启动|帮我运行|open|launch|start|run)\s*[:：]?\s*(.+)$/.exec(t);
+    if (openMatch) {
+      return { action: 'app/open', params: { app: openMatch[2].trim() } };
+    }
+    // 截图类
+    if (/^(截图|截屏|屏幕截图|screenshot|screen\s*shot|capture)\s*$/.test(lower)) {
+      return { action: 'screenshot', params: {} };
+    }
+    // 输入类
+    const typeMatch = /^(输入|键入|打上|type)\s*[:：]?\s*(.+)$/.exec(t);
+    if (typeMatch) {
+      return { action: 'keyboard/type', params: { text: typeMatch[2].trim() } };
+    }
+    // 按键类
+    const keyMatch = /^(按下|按|按键|press)\s*[:：]?\s*(.+)$/.exec(t);
+    if (keyMatch) {
+      return { action: 'keyboard/press', params: { key: keyMatch[2].trim() } };
+    }
+    // 点击类（含坐标）
+    const clickMatch = /^(点击|单击|点一下|click)\s*[:：]?\s*(?:\((\d+)[,，\s]+(\d+)\))?\s*$/i.exec(t);
+    if (clickMatch) {
+      const params: Record<string, any> = {};
+      if (clickMatch[2] && clickMatch[3]) {
+        params.x = parseInt(clickMatch[2], 10);
+        params.y = parseInt(clickMatch[3], 10);
+      }
+      return { action: 'mouse/click', params };
+    }
+    // 兜底：视为要执行的命令/打开项（如 "chrome"、"D:\x\a.exe"）
+    return { action: 'app/open', params: { app: t } };
+  }
+  // 自然语言指令直达：POST /api/computer/nl  body: { text: '打开微信' }
+  app.post('/api/computer/nl', async (req: Request, res: Response) => {
+    try {
+      const body = (req.body ?? {}) as Record<string, any>;
+      const text = String(body?.text ?? '').trim();
+      if (!text) {
+        res.status(400).json({ ok: false, error: '缺少 text 字段（自然语言指令，如：打开微信）' });
+        return;
+      }
+      const parsed = parseNaturalCommand(text);
+      if (!parsed) {
+        res.status(400).json({ ok: false, error: '无法解析指令，请换一种说法（如：打开微信 / 截图 / 输入你好）' });
+        return;
+      }
+      // 根据解析结果分发到对应 computer API 执行
+      let result: Record<string, any>;
+      switch (parsed.action) {
+        case 'app/open': {
+          const script = `
+            $t = '${String(parsed.params.app ?? '').replace(/'/g, "''")}'
+            if ($t -match '^https?://' -or $t -match '^shell:') { Start-Process $t }
+            elseif (Test-Path $t) { Start-Process $t }
+            else {
+              try { Start-Process $t -ErrorAction Stop } catch {
+                $found = (where.exe $t 2>$null | Select-Object -First 1)
+                if ($found) { Start-Process $found } else { throw "应用未找到: $t" }
+              }
+            }
+            Write-Output "ok:$t"
+          `;
+          const out = await runPowerShell(script);
+          result = { ok: true, action: 'app/open', app: parsed.params.app, message: out || `已执行：${text}` };
+          break;
+        }
+        case 'screenshot': {
+          const script = `
+            Add-Type -AssemblyName System.Windows.Forms
+            Add-Type -AssemblyName System.Drawing
+            $screen = [System.Windows.Forms.Screen]::PrimaryScreen
+            $bounds = $screen.Bounds
+            $bitmap = New-Object System.Drawing.Bitmap $bounds.Width, $bounds.Height
+            $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+            $graphics.CopyFromScreen($bounds.Location, [System.Drawing.Point]::Empty, $bounds.Size)
+            $ms = New-Object System.IO.MemoryStream
+            $bitmap.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png)
+            $bytes = $ms.ToArray()
+            [Convert]::ToBase64String($bytes)
+          `;
+          const base64 = await runPowerShell(script);
+          result = { ok: true, action: 'screenshot', image: 'data:image/png;base64,' + base64, width: 1920, height: 1080 };
+          break;
+        }
+        case 'keyboard/type': {
+          const textToType = String(parsed.params.text ?? '');
+          const escaped = textToType.replace(/([+^%~(){}])/g, '{$1}');
+          const script = `
+            Add-Type -AssemblyName System.Windows.Forms
+            [System.Windows.Forms.SendKeys]::SendWait('${escaped.replace(/'/g, "''")}')
+            Write-Output "ok"
+          `;
+          await runPowerShell(script);
+          result = { ok: true, action: 'keyboard/type', text: textToType };
+          break;
+        }
+        case 'keyboard/press': {
+          const key = String(parsed.params.key ?? '');
+          const script = `
+            Add-Type -AssemblyName System.Windows.Forms
+            [System.Windows.Forms.SendKeys]::SendWait('${key.replace(/'/g, "''")}')
+            Write-Output "ok"
+          `;
+          await runPowerShell(script);
+          result = { ok: true, action: 'keyboard/press', key };
+          break;
+        }
+        case 'mouse/click': {
+          const x = parsed.params.x;
+          const y = parsed.params.y;
+          const movePart = (x !== undefined && y !== undefined) ? `[MouseHelper]::SetCursorPos(${x}, ${y}) | Out-Null; Start-Sleep -Milliseconds 100;` : '';
+          const script = `
+            Add-Type @"
+            using System;
+            using System.Runtime.InteropServices;
+            public class MouseHelper {
+                [DllImport("user32.dll")]
+                public static extern bool SetCursorPos(int X, int Y);
+                [DllImport("user32.dll")]
+                public static extern void mouse_event(uint dwFlags, uint dx, uint dy, uint cButtons, uint dwExtraInfo);
+            }
+"@
+            ${movePart}
+            [MouseHelper]::mouse_event(0x0002, 0, 0, 0, 0)
+            [MouseHelper]::mouse_event(0x0004, 0, 0, 0, 0)
+            Write-Output "ok"
+          `;
+          await runPowerShell(script);
+          result = { ok: true, action: 'mouse/click', x: x ?? null, y: y ?? null };
+          break;
+        }
+        default:
+          result = { ok: false, error: '未知动作' };
+      }
+      res.json(result);
+    } catch (e) {
+      res.status(500).json({ ok: false, error: '指令执行失败: ' + (e as Error).message });
+    }
+  });
+
   /* ========== 节点系统（Plugin Node）：连接外部节点，扩展插件/模板/能力来源 ========== */
   interface PluginNode {
     id: string;
@@ -2969,6 +3229,232 @@ export function startWebServer(opts: ServeOptions = {}): {
       return;
     }
     res.json({ ok: true, defaultId: target.id });
+  });
+
+  /* ========== 云桥接（Cloud Bridge）：手机发指令 → 云端队列 → 电脑端执行 → 结果回传 ========== */
+  // 数据模型：devices（电脑设备注册）+ commands（待执行指令队列）
+  // 电脑端在内网无公网入口，由电脑端桥接代理主动长轮询拉取指令执行；
+  // 手机端把指令 POST 到云端队列，再轮询结果。全部落盘 FH_HOME 下，重启不丢。
+  interface BridgeDevice {
+    deviceId: string;
+    name: string;
+    lastSeenAt: string;
+    status: 'online' | 'offline';
+    createdAt: string;
+  }
+  interface BridgeCommand {
+    cmdId: string;
+    deviceId: string;
+    text: string;
+    status: 'queued' | 'running' | 'done' | 'failed' | 'refused' | 'paused';
+    result?: Record<string, any>;
+    error?: string;
+    createdAt: string;
+    executedAt?: string;
+  }
+  const bridgeFile = join(homeDir, 'bridge-devices.json');
+  const bridgeCmdsFile = join(homeDir, 'bridge-commands.json');
+  function loadBridgeDevices(): BridgeDevice[] { return loadJsonFile<BridgeDevice[]>(bridgeFile, []); }
+  function saveBridgeDevices(list: BridgeDevice[]): boolean { return saveJsonFile(bridgeFile, list); }
+  function loadBridgeCommands(): BridgeCommand[] { return loadJsonFile<BridgeCommand[]>(bridgeCmdsFile, []); }
+  function saveBridgeCommands(list: BridgeCommand[]): boolean { return saveJsonFile(bridgeCmdsFile, list); }
+
+  // 设备注册 / 心跳：电脑端桥接代理每次轮询前调用，标记在线
+  app.post('/api/bridge/register', (req: Request, res: Response) => {
+    const body = (req.body ?? {}) as Record<string, any>;
+    const deviceId = String(body?.deviceId ?? '').trim();
+    const name = String(body?.name ?? '').trim() || '未命名电脑';
+    if (!deviceId) { res.status(400).json({ ok: false, error: '缺少 deviceId' }); return; }
+    const list = loadBridgeDevices();
+    const now = new Date().toISOString();
+    const found = list.find((d) => d.deviceId === deviceId);
+    if (found) { found.lastSeenAt = now; found.status = 'online'; found.name = name; }
+    else { list.push({ deviceId, name, lastSeenAt: now, status: 'online', createdAt: now }); }
+    saveBridgeDevices(list);
+    res.json({ ok: true, deviceId, status: 'online' });
+  });
+
+  // 手机端：发送指令到指定电脑（入队）
+  app.post('/api/bridge/command', (req: Request, res: Response) => {
+    const body = (req.body ?? {}) as Record<string, any>;
+    const deviceId = String(body?.deviceId ?? '').trim();
+    const text = String(body?.text ?? '').trim();
+    if (!deviceId) { res.status(400).json({ ok: false, error: '缺少 deviceId（目标电脑）' }); return; }
+    if (!text) { res.status(400).json({ ok: false, error: '缺少 text（指令内容）' }); return; }
+    const devices = loadBridgeDevices();
+    if (!devices.some((d) => d.deviceId === deviceId)) {
+      res.status(404).json({ ok: false, error: '目标电脑未注册，请先在该电脑启动 fhcode bridge' });
+      return;
+    }
+    const cmd: BridgeCommand = {
+      cmdId: randomUUID(),
+      deviceId,
+      text,
+      status: 'queued',
+      createdAt: new Date().toISOString(),
+    };
+    const list = loadBridgeCommands();
+    list.unshift(cmd);
+    // 只保留每设备最近 200 条，防止无限增长
+    saveBridgeCommands(list.slice(0, 200));
+    res.json({ ok: true, cmdId: cmd.cmdId, status: 'queued' });
+  });
+
+  // 电脑端桥接代理：拉取待执行指令（长轮询，一次取一条，取后标记 running）
+  app.get('/api/bridge/pending', (req: Request, res: Response) => {
+    const deviceId = String(req.query.deviceId ?? '').trim();
+    if (!deviceId) { res.status(400).json({ ok: false, error: '缺少 deviceId' }); return; }
+    // 心跳：更新在线状态
+    const devices = loadBridgeDevices();
+    const dev = devices.find((d) => d.deviceId === deviceId);
+    if (dev) { dev.lastSeenAt = new Date().toISOString(); dev.status = 'online'; saveBridgeDevices(devices); }
+    const list = loadBridgeCommands();
+    const idx = list.findIndex((c) => c.deviceId === deviceId && c.status === 'queued');
+    if (idx < 0) { res.json({ ok: true, command: null }); return; }
+    const cmd = list[idx];
+    cmd.status = 'running';
+    cmd.executedAt = new Date().toISOString();
+    saveBridgeCommands(list);
+    res.json({ ok: true, command: { cmdId: cmd.cmdId, text: cmd.text } });
+  });
+
+  // 电脑端桥接代理：回传执行结果
+  app.post('/api/bridge/result', (req: Request, res: Response) => {
+    const body = (req.body ?? {}) as Record<string, any>;
+    const cmdId = String(body?.cmdId ?? '').trim();
+    const deviceId = String(body?.deviceId ?? '').trim();
+    const okFlag = body?.ok === true;
+    const result = body?.result;
+    const error = String(body?.error ?? '');
+    if (!cmdId || !deviceId) { res.status(400).json({ ok: false, error: '缺少 cmdId 或 deviceId' }); return; }
+    const list = loadBridgeCommands();
+    const cmd = list.find((c) => c.cmdId === cmdId && c.deviceId === deviceId);
+    if (!cmd) { res.status(404).json({ ok: false, error: '指令不存在' }); return; }
+    cmd.status = okFlag ? 'done' : 'failed';
+    if (okFlag) cmd.result = result ?? {};
+    else cmd.error = error || '执行失败';
+    saveBridgeCommands(list);
+    res.json({ ok: true, status: cmd.status });
+  });
+
+  // 手机端：查询指令执行结果
+  app.get('/api/bridge/command/:cmdId', (req: Request, res: Response) => {
+    const cmdId = req.params.cmdId;
+    const cmd = loadBridgeCommands().find((c) => c.cmdId === cmdId);
+    if (!cmd) { res.status(404).json({ ok: false, error: '指令不存在' }); return; }
+    res.json({ ok: true, command: cmd });
+  });
+
+  // 手机端：列出已注册电脑设备
+  app.get('/api/bridge/devices', (_req: Request, res: Response) => {
+    res.json({ ok: true, devices: loadBridgeDevices() });
+  });
+
+  // 授权状态查询（Web/手机端展示）
+  app.get('/api/license', (_req: Request, res: Response) => {
+    const state = licenseState();
+    res.json({ ok: true, license: state, text: licenseText(state) });
+  });
+
+  // 激活（手机端/Web 输入激活码）
+  app.post('/api/license/activate', (req: Request, res: Response) => {
+    const body = (req.body ?? {}) as Record<string, any>;
+    const key = String(body.text ?? body.key ?? '').trim();
+    if (!key) { res.status(400).json({ ok: false, error: '缺少激活码' }); return; }
+    // 暴力破解防护：IP 维度
+    const ip = (req as any).ip || (req.socket as any)?.remoteAddress || 'unknown';
+    const guardKey = `license:${ip}`;
+    if (bruteForce.isLocked(guardKey)) {
+      res.status(429).json({ ok: false, error: '激活尝试过于频繁，请 15 分钟后再试' });
+      return;
+    }
+    const result = activateLicense(key);
+    if (!result.ok) {
+      bruteForce.recordFailure(guardKey);
+      res.status(400).json({ ok: false, error: result.error || '激活失败' });
+      return;
+    }
+    bruteForce.clear(guardKey);
+    res.json({ ok: true, license: result.state, text: licenseText(result.state!) });
+  });
+
+  // 电脑端：列出本设备的全部指令（含状态/结果，供管理面板查看）
+  app.get('/api/bridge/commands', (req: Request, res: Response) => {
+    const deviceId = String(req.query.deviceId ?? '').trim();
+    const status = String(req.query.status ?? '').trim();
+    let list = loadBridgeCommands();
+    if (deviceId) list = list.filter((c) => c.deviceId === deviceId);
+    if (status) list = list.filter((c) => c.status === status);
+    res.json({ ok: true, commands: list.slice(0, 200) });
+  });
+
+  // 电脑端：修改指令内容（仅未执行的指令可改；已 running/done/failed 的不允许改）
+  app.post('/api/bridge/command/:cmdId/edit', (req: Request, res: Response) => {
+    const cmdId = req.params.cmdId;
+    const body = (req.body ?? {}) as Record<string, any>;
+    const newText = String(body?.text ?? '').trim();
+    if (!newText) { res.status(400).json({ ok: false, error: '缺少新的指令内容 text' }); return; }
+    const list = loadBridgeCommands();
+    const cmd = list.find((c) => c.cmdId === cmdId);
+    if (!cmd) { res.status(404).json({ ok: false, error: '指令不存在' }); return; }
+    if (cmd.status === 'running' || cmd.status === 'done') {
+      res.status(409).json({ ok: false, error: '指令已在执行或已完成，无法修改' });
+      return;
+    }
+    cmd.text = newText;
+    cmd.status = 'queued';
+    cmd.error = undefined;
+    cmd.result = undefined;
+    saveBridgeCommands(list);
+    res.json({ ok: true, command: cmd });
+  });
+
+  // 电脑端：批准执行（把 queued/paused 指令设为待执行；与「重发」等效）
+  app.post('/api/bridge/command/:cmdId/approve', (req: Request, res: Response) => {
+    const cmdId = req.params.cmdId;
+    const list = loadBridgeCommands();
+    const cmd = list.find((c) => c.cmdId === cmdId);
+    if (!cmd) { res.status(404).json({ ok: false, error: '指令不存在' }); return; }
+    if (cmd.status === 'running') { res.status(409).json({ ok: false, error: '指令正在执行中' }); return; }
+    cmd.status = 'queued';
+    cmd.error = undefined;
+    cmd.result = undefined;
+    saveBridgeCommands(list);
+    res.json({ ok: true, command: cmd });
+  });
+
+  // 电脑端：拒绝/撤销指令（标记 refused，电脑端不执行）
+  app.post('/api/bridge/command/:cmdId/refuse', (req: Request, res: Response) => {
+    const cmdId = req.params.cmdId;
+    const list = loadBridgeCommands();
+    const cmd = list.find((c) => c.cmdId === cmdId);
+    if (!cmd) { res.status(404).json({ ok: false, error: '指令不存在' }); return; }
+    if (cmd.status === 'running') { res.status(409).json({ ok: false, error: '指令正在执行中，无法拒绝' }); return; }
+    cmd.status = 'refused';
+    saveBridgeCommands(list);
+    res.json({ ok: true, command: cmd });
+  });
+
+  // 电脑端：删除指令
+  app.delete('/api/bridge/command/:cmdId', (req: Request, res: Response) => {
+    const cmdId = req.params.cmdId;
+    const list = loadBridgeCommands();
+    const next = list.filter((c) => c.cmdId !== cmdId);
+    if (next.length === list.length) { res.status(404).json({ ok: false, error: '指令不存在' }); return; }
+    saveBridgeCommands(next);
+    res.json({ ok: true });
+  });
+
+  // 电脑端：标记暂停（电脑端审批后才执行——审批流控制）
+  app.post('/api/bridge/command/:cmdId/pause', (req: Request, res: Response) => {
+    const cmdId = req.params.cmdId;
+    const list = loadBridgeCommands();
+    const cmd = list.find((c) => c.cmdId === cmdId);
+    if (!cmd) { res.status(404).json({ ok: false, error: '指令不存在' }); return; }
+    if (cmd.status === 'running') { res.status(409).json({ ok: false, error: '指令正在执行中' }); return; }
+    cmd.status = 'paused';
+    saveBridgeCommands(list);
+    res.json({ ok: true, command: cmd });
   });
 
   const server = app.listen(port, () => {

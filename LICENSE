@@ -1,22 +1,33 @@
-MIT License
+商业授权协议（EULA）
+====================
 
-Copyright (c) 2026 晋江市飞虹智科技企业管理有限公司
-飞扬企源研发中心 · 负责人：吴赐虹
+软件名称：飞虹 Code（fhcode）
+著作权人：晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心
+版本：8.3.0
+发布日期：2026-09-11
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+一、授权性质
+本软件为闭源商业软件（Proprietary Software）。未经著作权人书面许可，任何个人或组织不得复制、分发、传播、反编译、反汇编、逆向工程本软件的全部或部分源码、目标代码及文档。
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+二、授权方式
+1. 本软件采用「激活码（License Key）」授权模式。用户须通过合法渠道购买激活码，并在软件中完成激活后方可长期使用。
+2. 激活码分为三种授权类型：
+   - 标准版（standard）：个人使用，单台设备；
+   - 专业版（pro）：个人或小型团队，支持多台设备（按授权设备数）；
+   - 企业版（enterprise）：企业级部署，支持多租户、私有化与多台设备（按授权设备数）。
+3. 激活码绑定设备指纹（主机名 + 网卡 MAC + 操作系统），不得跨设备共享；更换设备须重新激活（请联系著作权人处理）。
+4. 未激活状态下，本软件提供 7 天试用期。试用期结束后必须激活方可继续使用。
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+三、权利保留
+1. 著作权人保留本软件的一切知识产权，包括但不限于源码、架构、算法、界面、文档。
+2. 用户仅获得在授权范围内的使用权，不获得所有权。
+3. 禁止将本软件用于任何违反中华人民共和国法律法规的活动。
+
+四、免责声明
+本软件按「现状」提供，著作权人不承诺任何明示或默示的保证，包括但不限于适销性、特定用途适用性。因使用本软件造成的直接或间接损失，著作权人仅在法律允许的范围内承担责任。
+
+五、联系方式
+邮箱：wch887292@gmail.com
+主体：晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心
+
+如您不同意本协议的任何条款，请勿安装或使用本软件；已安装的请立即删除。

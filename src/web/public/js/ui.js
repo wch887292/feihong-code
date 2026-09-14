@@ -2215,3 +2215,110 @@
       const bar = document.getElementById('memGhostBar');
       if (bar) bar.style.display = 'none';
     }
+
+/* ========== 电脑连接状态（v8.4.0：未连接灰 / 本地电脑绿 / 云电脑蓝） ========== */
+(function () {
+  const LS = { mode: 'fh.pc.mode', cloudUrl: 'fh.pc.cloudUrl', token: 'fh.pc.token', deviceId: 'fh.pc.deviceId' };
+  function get(k, d) { try { return localStorage.getItem(k) || d; } catch (e) { return d; } }
+  function set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  const state = { local: false, cloud: false, checking: false };
+
+  async function checkLocal() {
+    try {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 4000);
+      const res = await fetch('/api/health', { signal: ctrl.signal, cache: 'no-store' });
+      clearTimeout(t);
+      state.local = res.ok;
+    } catch (e) { state.local = false; }
+  }
+
+  async function checkCloud() {
+    try {
+      const base = get(LS.cloudUrl, 'https://api.klai.top/fhcode').replace(/\/+$/, '');
+      const token = get(LS.token, '');
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 6000);
+      const res = await fetch(base + '/api/bridge/devices', {
+        signal: ctrl.signal, cache: 'no-store',
+        headers: token ? { Authorization: 'Bearer ' + token } : {}
+      });
+      clearTimeout(t);
+      if (!res.ok) { state.cloud = false; return; }
+      const data = await res.json().catch(() => null);
+      state.cloud = !!(data && Array.isArray(data.devices));
+    } catch (e) { state.cloud = false; }
+  }
+
+  function render() {
+    const pills = [document.getElementById('connPill'), document.getElementById('pcConnDot')];
+    let label = '● 未连接', cls = 'off';
+    if (state.local) { label = '● 本地电脑'; cls = 'local'; }
+    else if (state.cloud) { label = '● 云电脑'; cls = 'cloud'; }
+    pills.forEach(function (p) { if (p) { p.className = 'conn-pill ' + cls; p.textContent = label; } });
+    const ls = document.getElementById('pcLocalState');
+    if (ls) ls.textContent = state.local ? '✅ 本地服务正常（端口 8081）' : '❌ 本地服务未响应';
+    const cs = document.getElementById('pcCloudState');
+    if (cs) cs.textContent = state.cloud ? '✅ 云电脑通道可用（' + (get(LS.cloudUrl, '').replace(/^https?:\/\//, '').split('/')[0] || '云端') + '）' : '❌ 云电脑通道未连接（检查地址/Token/CORS）';
+  }
+
+  async function checkAll() {
+    if (state.checking) return;
+    state.checking = true;
+    await Promise.all([checkLocal(), checkCloud()]);
+    state.checking = false;
+    render();
+  }
+
+  function bind() {
+    const pill = document.getElementById('connPill');
+    if (pill) pill.addEventListener('click', function () {
+      const nav = document.querySelector('.topbar-nav-item[data-nav="nodes"]') || document.querySelector('.sidebar-icon[data-nav="nodes"]');
+      if (nav) nav.click();
+    });
+    const testLocal = document.getElementById('pcLocalTestBtn');
+    if (testLocal) testLocal.addEventListener('click', async function () {
+      const ls = document.getElementById('pcLocalState');
+      if (ls) ls.textContent = '检测中…';
+      await checkLocal(); render();
+    });
+    const testCloud = document.getElementById('pcCloudTestBtn');
+    if (testCloud) testCloud.addEventListener('click', async function () {
+      const cs = document.getElementById('pcCloudState');
+      if (cs) cs.textContent = '检测中…';
+      await checkCloud(); render();
+    });
+    const saveCloud = document.getElementById('pcCloudSaveBtn');
+    if (saveCloud) saveCloud.addEventListener('click', async function () {
+      const urlEl = document.getElementById('cloudUrlInput');
+      const tokEl = document.getElementById('cloudTokenInput');
+      const devEl = document.getElementById('cloudDeviceInput');
+      const u = urlEl ? urlEl.value.trim() : '';
+      if (!u) { const cs = document.getElementById('pcCloudState'); if (cs) { cs.textContent = '请填写云端地址'; } return; }
+      set(LS.cloudUrl, u);
+      set(LS.token, tokEl ? tokEl.value.trim() : '');
+      set(LS.deviceId, devEl ? devEl.value.trim() : '');
+      const cs = document.getElementById('pcCloudState');
+      if (cs) cs.textContent = '检测中…';
+      await checkCloud(); render();
+      const s2 = document.getElementById('pcCloudState');
+      if (s2) s2.textContent += state.cloud ? '（已保存）' : '（已保存，暂未连通）';
+    });
+    // 回填配置
+    const urlEl = document.getElementById('cloudUrlInput');
+    if (urlEl) urlEl.value = get(LS.cloudUrl, 'https://api.klai.top/fhcode');
+    const tokEl = document.getElementById('cloudTokenInput');
+    if (tokEl) tokEl.value = get(LS.token, '');
+    const devEl = document.getElementById('cloudDeviceInput');
+    if (devEl) devEl.value = get(LS.deviceId, '');
+    // 启动检测 + 30s 心跳
+    checkAll();
+    setInterval(checkAll, 30000);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bind);
+  } else {
+    bind();
+  }
+})();

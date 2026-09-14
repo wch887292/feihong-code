@@ -1,7 +1,7 @@
 {
   "name": "feihong-code",
-  "version": "8.3.0",
-  "description": "fhcode（飞虹 Code）— 终端 AI 编程智能体，对标 Muse Code / Cursor CLI：多模型路由（DeepSeek/通义/Ollama/OpenAI）、企业级 RBAC 审计、全自动 SWE Agent、支持离线私有化",
+  "version": "8.4.1",
+  "description": "fhcode（飞虹 Code）— 终端 AI 编程智能体：多模型路由（DeepSeek/通义/Ollama/OpenAI）、企业级 RBAC 审计、全自动 SWE Agent、支持离线私有化。商业授权产品，源码闭源。",
   "bin": {
     "fhcode": "dist/cli/index.js"
   },
@@ -12,9 +12,6 @@
     "templates/skills",
     "README.md",
     "CHANGELOG.md",
-    "LICENSE",
-    "CONTRIBUTING.md",
-    "CODE_OF_CONDUCT.md",
     "AGENT-GUIDE.md",
     "tool-schema.json",
     "docs",
@@ -88,7 +85,8 @@
     "prompt-template"
   ],
   "author": "吴赐虹 (晋江市飞虹智科技企业管理有限公司) <wch887292@gmail.com>",
-  "license": "MIT",
+  "license": "UNLICENSED",
+  "private": true,
   "repository": {
     "type": "git",
     "url": "https://github.com/wch887292/feihong-code.git"
@@ -135,6 +133,7 @@
     "files": [
       "electron/**/*",
       "dist/**/*",
+      "node_modules/**/*",
       "package.json",
       "!**/*.ts",
       "!**/*.map",

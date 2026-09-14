@@ -245,7 +245,7 @@ function createMenu() {
           dialog.showMessageBox(mainWindow, {
             type: 'info',
             title: '关于飞虹 Code',
-            message: '飞虹 Code v0.6.1',
+            message: '飞虹 Code v8.4.1',
             detail: '终端 AI 编程智能体\n晋江市飞虹智科技企业管理有限公司'
           });
         }}

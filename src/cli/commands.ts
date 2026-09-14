@@ -44,6 +44,9 @@ export type ManagementCommand =
   | { kind: 'review'; path: string; json: boolean }
   | { kind: 'team'; goal: string }
   | { kind: 'serve'; port?: number }
+  | { kind: 'computer'; action: string; args: string[] }
+  | { kind: 'bridge'; action: string; args: string[] }
+  | { kind: 'license'; action: string; args: string[] }
   | { kind: 'model-stats' }
   | { kind: 'experiences'; path?: string }
   | { kind: 'code-write'; goal: string; filePath: string }
@@ -207,6 +210,9 @@ const MANAGE_BUILDERS: Record<string, ManageBuilder> = {
   review: ({ flags, rest }) => ({ kind: 'review', path: rest[0] || '.', json: !!flags.json }),
   team: ({ rest }) => ({ kind: 'team', goal: rest.join(' ') || '协作开发' }),
   serve: ({ flags }) => ({ kind: 'serve', port: flags.port }),
+  computer: ({ rest }) => ({ kind: 'computer', action: rest[0] ?? 'status', args: rest.slice(1) }),
+  bridge: ({ rest }) => ({ kind: 'bridge', action: rest[0] ?? 'status', args: rest.slice(1) }),
+  license: ({ rest }) => ({ kind: 'license', action: rest[0] ?? 'show', args: rest.slice(1) }),
   audit: ({ flags, rest }) => ({ kind: 'audit', verify: rest[0] === 'verify', limit: flags.limit ?? 20 }),
   'model-stats': () => ({ kind: 'model-stats' }),
   experiences: ({ rest }) => ({ kind: 'experiences', path: rest[0] }),
