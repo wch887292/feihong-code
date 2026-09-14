@@ -1049,7 +1049,7 @@ function renderComputerResult(task, data, rawText) {
   return { html: lines.join('<br>'), ok: true };
 }
 
-/* ===== v8.4.2 远程操控增强 ===== */
+/* ===== v8.4.3 远程操控增强 ===== */
 /* 指令历史：拉取云端本设备指令记录并渲染 */
 function loadCloudHistory() {
   var box = $('cloudHistoryBox');
@@ -2110,7 +2110,7 @@ function playFlashApp(app) {
 }
 
 /* ========== AI 创作中心（文生图/文生视频） ========== */
-var APP_VER = 'v8.4.2';
+var APP_VER = 'v8.4.3';
 var LS_CREATIVE = 'fh.app.creative';
 var creativeConfig = { t2i: {}, t2v: {} };
 function loadCreativeConfig() {
