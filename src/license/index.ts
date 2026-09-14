@@ -6,7 +6,7 @@
  *  - 激活码绑定：可指定到期时间（天数）与授权类型（standard / pro / enterprise）
  *  - 首次激活：输入激活码 → 校验签名 → 写入 FH_HOME/license.json（含设备指纹）
  *  - 离线校验：每次启动读取本地 license.json，校验签名 + 到期时间 + 设备指纹
- *  - 试用期：未激活时默认 7 天试用（以首次运行时间起算）
+ *  - 试用期：未激活时默认 60 天试用（以首次运行时间起算）
  *
  * 安全说明：
  *  - 主密钥 FH_LICENSE_SECRET（环境变量或 license-secret 文件），部署在服务端/开发商侧
@@ -44,7 +44,7 @@ export interface LicenseState {
   error?: string;
 }
 
-const TRIAL_DAYS = 7;
+const TRIAL_DAYS = 60;
 
 function homeDir(): string {
   return process.env.FH_HOME?.trim() || join(homedir(), '.feihong-code');
