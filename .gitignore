@@ -165,3 +165,6 @@ bench/real/_*.ps1
 bench/real/_*.sh
 # 2026-09-14 复盘归档目录
 archive-*/
+
+# 复盘自检截图（临时产物，不入库）
+**/_shots/
