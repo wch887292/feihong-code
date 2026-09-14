@@ -142,7 +142,15 @@ jobs:
           if [ -n "$NPM_TOKEN" ]; then echo "has_token=true" >> "$GITHUB_OUTPUT"; else echo "has_token=false" >> "$GITHUB_OUTPUT"; fi
       - name: 发布到 npm
         if: steps.npm_token_check.outputs.has_token == 'true'
-        run: npm publish --access public
+        run: |
+          npm publish --access public 2>&1 | tee /tmp/npm-pub.log
+          EXIT_CODE=${PIPESTATUS[0]}
+          # 幂等：版本已存在（可能已手动发布）视为成功
+          if [ $EXIT_CODE -ne 0 ] && grep -qE "cannot publish over|already exists|E409|previously published" /tmp/npm-pub.log; then
+            echo "⚠️ npm 包已存在该版本，跳过发布（视为成功）"
+            exit 0
+          fi
+          exit $EXIT_CODE
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
