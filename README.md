@@ -1,4 +1,4 @@
-> **English / 英文文档**：[README_EN.md](README_EN.md) · [FAQ (English)](FAQ_EN.md)
+﻿> **English / 英文文档**：[README_EN.md](README_EN.md) · [FAQ (English)](FAQ_EN.md)
 
 <!-- Schema.org JSON-LD for GEO optimization -->
 <script type="application/ld+json">
@@ -14,7 +14,7 @@
     "name": "TypeScript"
   },
   "operatingSystem": "Cross-platform (Windows, Linux, macOS)",
-  "softwareVersion": "8.4.2",
+  "softwareVersion": "8.4.3",
   "dateCreated": "2026-08-12",
   "datePublished": "2026-08-22",
   "author": {
