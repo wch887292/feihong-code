@@ -645,7 +645,7 @@
         }
         showWelcomeGuide([]);
       }
-      await Promise.allSettled([loadTasks(), loadAutomations(), loadTemplates(), loadMarket(), loadOffice(), loadWorkspace(), loadModels(), loadMemoryStats(), loadNodes(), loadSources()]);
+      await Promise.allSettled([loadTasks(), loadAutomations(), loadTemplates(), loadMarket(), loadOffice(), loadWorkspace(), loadModels(), loadMemoryStats(), loadNodes(), loadSources(), loadFolderSection(), loadSyncExecEnd()]);
       startRefresh();
     }
 
@@ -2211,6 +2211,59 @@
     document.querySelectorAll('.computer-actions [data-key]').forEach((btn) => {
       btn.addEventListener('click', () => pressKey(btn.getAttribute('data-key') || ''));
     });
+
+    /* ========== 文件夹栏目（三端：列出工作区项目文件夹，点击切换） ========== */
+    async function loadFolderSection() {
+      const listEl = document.getElementById('folderList');
+      const cwdEl = document.getElementById('folderCwd');
+      if (!listEl) return;
+      try {
+        const d = await api('/api/workspace');
+        const cwd = d.cwd || '';
+        if (cwdEl) { cwdEl.textContent = cwd; cwdEl.title = cwd; }
+        const l = await api('/api/workspace/list?path=' + encodeURIComponent(cwd));
+        const dirs = (l.entries || []).filter((e) => e.type === 'dir');
+        if (!dirs.length) {
+          listEl.innerHTML = '<div class="empty" style="font-size:11px;padding:6px;">工作区下暂无文件夹</div>';
+          return;
+        }
+        listEl.innerHTML = dirs.map((e) => {
+          const isActive = e.path === cwd;
+          return '<div class="folder-item' + (isActive ? ' active' : '') + '" data-path="' + escapeHtml(e.path) + '" title="' + escapeHtml(e.path) + '">' +
+            '<span class="fi-ico">📁</span><span>' + escapeHtml(e.name) + '</span></div>';
+        }).join('');
+        listEl.querySelectorAll('.folder-item').forEach((el) => {
+          el.addEventListener('click', async () => {
+            const p = el.getAttribute('data-path');
+            try {
+              const r = await api('/api/workspace', 'POST', { cwd: p });
+              if (r.ok) {
+                state.workspaceDir = r.cwd;
+                localStorage.setItem('fhcode.workspaceDir', r.cwd);
+                toast('已切换工作区：' + r.cwd);
+                loadFolderSection();
+                if (typeof renderWorkspaceBar === 'function') renderWorkspaceBar();
+              }
+            } catch (e2) { toast('切换失败：' + e2.message); }
+          });
+        });
+      } catch (e) {
+        listEl.innerHTML = '<div class="empty" style="font-size:11px;padding:6px;color:var(--err);">加载失败</div>';
+      }
+    }
+    /* 三端同步：执行端状态显示（手机端切换会写 /api/sync） */
+    async function loadSyncExecEnd() {
+      const el = document.getElementById('syncExecEnd');
+      if (!el) return;
+      try {
+        const d = await api('/api/sync');
+        const map = { phone: '📱 手机对话', direct: '🖥️ 本地电脑', cloud: '☁️ 云电脑' };
+        if (d && d.ok && d.execEnd && map[d.execEnd]) el.textContent = map[d.execEnd];
+        el.title = d && d.project ? ('三端同步项目：' + d.project) : '三端同步：当前执行端';
+      } catch { /* 不阻塞 */ }
+    }
+    const folderRefreshBtn = document.getElementById('folderRefreshBtn');
+    if (folderRefreshBtn) folderRefreshBtn.addEventListener('click', () => { loadFolderSection(); loadSyncExecEnd(); });
 
     /* ========== 记忆系统 ========== */
 

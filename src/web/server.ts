@@ -767,6 +767,33 @@ export function startWebServer(opts: ServeOptions = {}): {
     }
   });
 
+  /* ========== 三端同步状态（手机 / Web / 桌面共享：执行端 + 当前项目） ========== */
+  const syncStateFile = join(resolveHomeDir(), '.feihong-code', 'sync-state.json');
+  const readSyncState = (): Record<string, any> => {
+    try { return JSON.parse(readFileSync(syncStateFile, 'utf-8')); } catch { return {}; }
+  };
+  const writeSyncState = (patch: Record<string, any>): void => {
+    try {
+      mkdirSync(dirname(syncStateFile), { recursive: true });
+      const next = { ...readSyncState(), ...patch, updatedAt: new Date().toISOString() };
+      writeFileSync(syncStateFile, JSON.stringify(next, null, 2), 'utf-8');
+    } catch (e) {
+      console.warn('[sync] 保存三端同步状态失败: ' + (e as Error).message);
+    }
+  };
+  app.get('/api/sync', (_req: Request, res: Response) => {
+    res.json({ ok: true, ...readSyncState() });
+  });
+  app.post('/api/sync', (req: Request, res: Response) => {
+    const body = (req.body ?? {}) as Record<string, any>;
+    const clean: Record<string, any> = {};
+    if (typeof body?.execEnd === 'string' && ['phone', 'direct', 'cloud'].includes(body.execEnd)) clean.execEnd = body.execEnd;
+    if (typeof body?.project === 'string') clean.project = body.project.slice(0, 2000);
+    if (typeof body?.deviceId === 'string') clean.deviceId = body.deviceId.slice(0, 200);
+    if (Object.keys(clean).length) writeSyncState(clean);
+    res.json({ ok: true, ...readSyncState() });
+  });
+
   app.post('/api/files/read', (req: Request, res: Response) => {
     const body = (req.body ?? {}) as Record<string, any>;
     const file = typeof body?.path === 'string' ? body.path.trim() : '';

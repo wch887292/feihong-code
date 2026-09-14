@@ -24,20 +24,32 @@
 
 <!-- ===== 对话页 ===== -->
 <div class="page active" id="convPage">
+  <!-- 中间栏目条（豆包式）：栏目1 执行端切换 + 栏目2 项目栏 -->
+  <div class="conv-tabs">
+    <div class="exec-tabs" id="execTabs">
+      <button class="exec-tab active" data-exec="phone" title="手机本地对话，指令不转发电脑">📱 手机对话</button>
+      <button class="exec-tab" data-exec="direct" title="同局域网直连电脑执行">🖥️ 本地电脑</button>
+      <button class="exec-tab" data-exec="cloud" title="云端桥接执行体">☁️ 云电脑</button>
+    </div>
+    <div class="project-bar" id="projectBar">
+      <span class="project-ico">📁</span>
+      <span class="project-name" id="projectName">不使用项目</span>
+      <span class="project-arrow">▾</span>
+    </div>
+  </div>
   <div class="messages" id="convMessages">
     <div class="empty">选择下方功能，或直接输入指令开始对话<br>支持代码生成、修复、审查等</div>
   </div>
 
-  <!-- 底部快捷功能横排（豆包式：图标+文字胶囊） -->
+  <!-- 底部快捷功能横排（豆包式：图标+文字圆角卡片） -->
   <div class="quick-bar" id="quickBar">
-    <button class="q-btn active" data-func="chat"><span class="q-ico">💬</span><span>对话</span></button>
-    <button class="q-btn" data-func="game"><span class="q-ico">🎮</span><span>游戏</span></button>
-    <button class="q-btn" data-func="create"><span class="q-ico">🎨</span><span>创作</span></button>
-    <button class="q-btn" data-func="flashapp"><span class="q-ico">✨</span><span>闪应用</span></button>
-    <button class="q-btn" data-func="translate"><span class="q-ico">🌐</span><span>翻译</span></button>
+    <button class="q-btn active" data-func="chat"><span class="q-ico">☑</span><span>按需确认</span></button>
+    <button class="q-btn" data-func="skill"><span class="q-ico">✦</span><span>技能</span></button>
+    <button class="q-btn" data-func="connector"><span class="q-ico">🔗</span><span>连接器</span></button>
+    <button class="q-btn" data-func="model"><span class="q-ico">🧠</span><span>大模型切换</span></button>
   </div>
 
-  <!-- 底部输入区（胶囊输入框 + 附件按钮 + 圆形发送键） -->
+  <!-- 底部输入区（胶囊输入框 + 更多按钮 + 附件按钮 + 圆形发送键） -->
   <div class="input-wrap">
     <div class="input-attach-bar">
       <button class="attach-btn" id="attachImageBtn" title="添加图片"><span class="attach-ico">🖼️</span><span class="attach-label">图片</span></button>
@@ -49,6 +61,7 @@
     </div>
     <div class="input-box">
       <textarea class="goal-input" id="goalInput" placeholder="发消息或按住说…" rows="1"></textarea>
+      <button class="more-btn" id="moreBtn" title="更多功能">＋</button>
       <button class="send-btn" id="sendBtn">➤</button>
     </div>
     <div class="input-tools">
@@ -111,7 +124,7 @@
     <button class="hb-btn" id="drawerClose"><span class="hb-ico">✕</span></button>
   </div>
   <div class="drawer-body">
-    <div class="drawer-section">
+    <div class="drawer-section" id="sec-pc">
       <div class="drawer-section-title">🖥️ 电脑连接</div>
       <div style="font-size:12px;color:var(--ink-2);margin-bottom:8px;">连接电脑执行指令：<b>未连接</b>(灰) / <b>本地电脑</b>(绿) / <b>云电脑</b>(蓝)，顶栏状态胶囊实时显示当前使用通道</div>
       <div class="create-tabs" style="margin-bottom:8px;">
@@ -224,7 +237,7 @@
         <button class="btn" id="cgSaveBtn">保存配置</button>
       </div>
     </div>
-    <div class="drawer-section">
+    <div class="drawer-section" id="sec-keyless">
       <div class="drawer-section-title">🔓 免密网络层（Keyless Web Tier）</div>
       <div style="font-size:12px;color:var(--ink-2);margin-bottom:8px;">内置 5 家厂商免费模型环形轮转池，装完即聊，无需配置任何 API Key。哪家挂了自动切下一家（ring failover）。网页搜索同样开箱即用。</div>
       <div id="keylessStatus" style="background:var(--bg-2);border-radius:8px;padding:10px;margin-bottom:10px;font-size:12px;line-height:1.8;"></div>
@@ -241,7 +254,7 @@
         <div id="keylessSearchResult" style="font-size:12px;color:var(--ink-2);max-height:150px;overflow-y:auto;white-space:pre-wrap;"></div>
       </div>
     </div>
-    <div class="drawer-section">
+    <div class="drawer-section" id="sec-hermes">
       <div class="drawer-section-title">🧠 Hermes Agent（自我进化智能体）</div>
       <div style="font-size:12px;color:var(--ink-2);margin-bottom:10px;">持久记忆 + 自演化技能 + 自动化调度，运行越久越懂你</div>
       <div class="create-tabs" style="margin-bottom:10px;">
@@ -373,6 +386,117 @@
   </div>
 </div>
 
+<!-- ===== 按需确认 Sheet（豆包式二级页） ===== -->
+<div class="sheet-mask" id="confirmSheet">
+  <div class="sheet">
+    <div class="sheet-head"><div class="sheet-title">☑ 按需确认</div><span class="sheet-close" onclick="hideSheet('confirmSheet')">✕</span></div>
+    <div class="sheet-body">
+      <div class="setting-row">
+        <div style="flex:1;">
+          <div style="font-size:14px;font-weight:600;">执行前确认</div>
+          <div style="font-size:11.5px;color:var(--ink-2);margin-top:3px;">AI 执行创建文件、运行命令等操作前，先弹窗征求你的同意</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="confirmModeSwitch">
+          <span class="switch-slider"></span>
+        </label>
+      </div>
+      <div class="sheet-hint">开启后更安全可控；关闭后操作直接执行，更快捷。适合放心交给 AI 的场景。</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 连接器 Sheet（电脑连接 / 云电脑 / 免密网络层） ===== -->
+<div class="sheet-mask" id="connectorSheet">
+  <div class="sheet">
+    <div class="sheet-head"><div class="sheet-title">🔗 连接器</div><span class="sheet-close" onclick="hideSheet('connectorSheet')">✕</span></div>
+    <div class="sheet-body">
+      <div class="connector-card" data-conn="pc">
+        <div class="connector-ico">🖥️</div>
+        <div class="connector-info">
+          <div class="connector-name">本地电脑 <span class="conn-pill off" id="connectorPcPill" style="pointer-events:none;">● 未连接</span></div>
+          <div class="connector-desc">局域网直连电脑，执行命令 / 读写文件 / 抓取网页</div>
+        </div>
+        <div class="connector-arrow">›</div>
+      </div>
+      <div class="connector-card" data-conn="cloud">
+        <div class="connector-ico">☁️</div>
+        <div class="connector-info">
+          <div class="connector-name">云电脑 <span class="conn-pill off" id="connectorCloudPill" style="pointer-events:none;">● 未连接</span></div>
+          <div class="connector-desc">云端桥接执行体，跨网络远程执行（已预置地址）</div>
+        </div>
+        <div class="connector-arrow">›</div>
+      </div>
+      <div class="connector-card" data-conn="keyless">
+        <div class="connector-ico">🔓</div>
+        <div class="connector-info">
+          <div class="connector-name">免密网络层</div>
+          <div class="connector-desc">5 家厂商免费模型轮转池，网页搜索开箱即用</div>
+        </div>
+        <div class="connector-arrow">›</div>
+      </div>
+      <div class="connector-card" data-conn="hermes">
+        <div class="connector-ico">🧠</div>
+        <div class="connector-info">
+          <div class="connector-name">Hermes Agent</div>
+          <div class="connector-desc">持久记忆 + 自演化技能 + 自动化调度</div>
+        </div>
+        <div class="connector-arrow">›</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 大模型切换 Sheet（豆包式二级页：列出已配置模型一键切换） ===== -->
+<div class="sheet-mask" id="modelSwitchSheet">
+  <div class="sheet">
+    <div class="sheet-head">
+      <div class="sheet-title">🧠 大模型切换</div>
+      <span class="sheet-close" onclick="hideSheet('modelSwitchSheet')">✕</span>
+    </div>
+    <div class="sheet-body">
+      <div class="model-current" id="modelCurrent"></div>
+      <div class="label" style="margin:10px 0 6px;">已配置模型</div>
+      <div id="modelSwitchList" style="max-height:52vh;overflow-y:auto;"></div>
+      <div class="footer" style="margin-top:10px;">
+        <button class="btn ghost" id="modelManageBtn" style="width:100%;">⚙️ 管理模型（增删改 / 视觉 / 创作配置）</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 项目选择 Sheet（栏目2 二级页：列出工作区项目文件夹） ===== -->
+<div class="sheet-mask" id="projectSheet">
+  <div class="sheet">
+    <div class="sheet-head"><div class="sheet-title">📁 选择项目</div><span class="sheet-close" onclick="hideSheet('projectSheet')">✕</span></div>
+    <div class="sheet-body">
+      <div class="sheet-hint" style="margin-top:0;margin-bottom:10px;">项目即电脑工作区下的文件夹，选择后手机与电脑端同步切换工作目录</div>
+      <div id="projectList" style="max-height:50vh;overflow-y:auto;"></div>
+      <div class="footer" style="margin-top:10px;">
+        <button class="btn ghost" id="projectNewBtn" style="width:100%;">＋ 创建新项目</button>
+        <button class="btn ghost" id="projectNoneBtn" style="width:100%;margin-top:8px;">不使用项目</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 更多功能 Sheet（对话 / 游戏 / 创作 / 闪应用 / 翻译） ===== -->
+<div class="sheet-mask" id="moreSheet">
+  <div class="sheet">
+    <div class="sheet-head"><div class="sheet-title">＋ 更多功能</div><span class="sheet-close" onclick="hideSheet('moreSheet')">✕</span></div>
+    <div class="sheet-body">
+      <div class="more-grid">
+        <div class="more-cell" data-more="chat"><span class="more-ico">💬</span><span>对话</span></div>
+        <div class="more-cell" data-more="game"><span class="more-ico">🎮</span><span>游戏</span></div>
+        <div class="more-cell" data-more="create"><span class="more-ico">🎨</span><span>创作</span></div>
+        <div class="more-cell" data-more="flashapp"><span class="more-ico">✨</span><span>闪应用</span></div>
+        <div class="more-cell" data-more="translate"><span class="more-ico">🌐</span><span>翻译</span></div>
+        <div class="more-cell" data-more="tasks"><span class="more-ico">📋</span><span>任务</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ===== 小游戏创作 Sheet ===== -->
 <div class="sheet-mask" id="gameSheet">
   <div class="sheet">
@@ -468,13 +592,7 @@
   <div class="sheet">
     <div class="sheet-head"><div class="sheet-title">🎯 技能中心</div><span class="sheet-close" onclick="hideSheet('skillCenterSheet')">✕</span></div>
     <div class="sheet-body">
-      <div class="skill-grid" style="grid-template-columns:1fr;">
-        <div class="skill-card" data-skill="xiaohongshu">
-          <div class="skill-ico">📕</div>
-          <div class="skill-name">小红书内容生成</div>
-          <div class="skill-desc">生成种草文案、爆款标题、话题标签</div>
-        </div>
-      </div>
+      <div class="skill-grid" id="skillCenterGrid" style="grid-template-columns:1fr;"></div>
     </div>
   </div>
 </div>
