@@ -1,31 +1,31 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:988f29fc-87b4-41a5-b010-759a13a27ded",
+  "serialNumber": "urn:uuid:312227ba-0357-4e59-8628-1860146d2399",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-08-26T22:09:39.514Z",
+    "timestamp": "2026-09-18T06:14:58.840Z",
     "tools": [
       {
         "vendor": "feihong-code",
         "name": "fhcode-security-ci",
-        "version": "7.2.0"
+        "version": "8.4.3"
       }
     ],
     "component": {
       "type": "application",
       "name": "feihong-code",
-      "version": "7.2.0"
+      "version": "8.4.3"
     }
   },
   "components": [
     {
       "type": "library",
-      "bom-ref": "pkg:npm/%40capacitor%2Fcore@8.5.0",
+      "bom-ref": "pkg:npm/%40capacitor%2Fcore@8.5.1",
       "name": "@capacitor/core",
-      "version": "8.5.0",
+      "version": "8.5.1",
       "scope": "required",
-      "purl": "pkg:npm/%40capacitor%2Fcore@8.5.0",
+      "purl": "pkg:npm/%40capacitor%2Fcore@8.5.1",
       "properties": [
         {
           "name": "declared-range",
@@ -63,11 +63,11 @@
     },
     {
       "type": "library",
-      "bom-ref": "pkg:npm/playwright-core@1.62.1",
+      "bom-ref": "pkg:npm/playwright-core@1.63.0",
       "name": "playwright-core",
-      "version": "1.62.1",
+      "version": "1.63.0",
       "scope": "required",
-      "purl": "pkg:npm/playwright-core@1.62.1",
+      "purl": "pkg:npm/playwright-core@1.63.0",
       "properties": [
         {
           "name": "declared-range",
@@ -77,11 +77,11 @@
     },
     {
       "type": "library",
-      "bom-ref": "pkg:npm/zod@4.4.3",
+      "bom-ref": "pkg:npm/zod@4.5.4",
       "name": "zod",
-      "version": "4.4.3",
+      "version": "4.5.4",
       "scope": "required",
-      "purl": "pkg:npm/zod@4.4.3",
+      "purl": "pkg:npm/zod@4.5.4",
       "properties": [
         {
           "name": "declared-range",
@@ -91,11 +91,11 @@
     },
     {
       "type": "library",
-      "bom-ref": "pkg:npm/%40capacitor%2Fandroid@8.5.0",
+      "bom-ref": "pkg:npm/%40capacitor%2Fandroid@8.5.1",
       "name": "@capacitor/android",
-      "version": "8.5.0",
+      "version": "8.5.1",
       "scope": "optional",
-      "purl": "pkg:npm/%40capacitor%2Fandroid@8.5.0",
+      "purl": "pkg:npm/%40capacitor%2Fandroid@8.5.1",
       "properties": [
         {
           "name": "declared-range",
@@ -105,15 +105,15 @@
     },
     {
       "type": "library",
-      "bom-ref": "pkg:npm/%40capacitor%2Fcli@7.6.8",
+      "bom-ref": "pkg:npm/%40capacitor%2Fcli@8.5.1",
       "name": "@capacitor/cli",
-      "version": "7.6.8",
+      "version": "8.5.1",
       "scope": "optional",
-      "purl": "pkg:npm/%40capacitor%2Fcli@7.6.8",
+      "purl": "pkg:npm/%40capacitor%2Fcli@8.5.1",
       "properties": [
         {
           "name": "declared-range",
-          "value": "^7.6.8"
+          "value": "^8.5.0"
         }
       ]
     },
@@ -133,29 +133,29 @@
     },
     {
       "type": "library",
-      "bom-ref": "pkg:npm/%40types%2Fnode@26.2.0",
+      "bom-ref": "pkg:npm/%40types%2Fnode@26.5.0",
       "name": "@types/node",
-      "version": "26.2.0",
+      "version": "26.5.0",
       "scope": "optional",
-      "purl": "pkg:npm/%40types%2Fnode@26.2.0",
+      "purl": "pkg:npm/%40types%2Fnode@26.5.0",
       "properties": [
         {
           "name": "declared-range",
-          "value": "^26.2.0"
+          "value": "^26.5.0"
         }
       ]
     },
     {
       "type": "library",
-      "bom-ref": "pkg:npm/electron@41.7.1",
+      "bom-ref": "pkg:npm/electron@44.3.0",
       "name": "electron",
-      "version": "41.7.1",
+      "version": "44.3.0",
       "scope": "optional",
-      "purl": "pkg:npm/electron@41.7.1",
+      "purl": "pkg:npm/electron@44.3.0",
       "properties": [
         {
           "name": "declared-range",
-          "value": "^41.7.1"
+          "value": "^44.3.0"
         }
       ]
     },
@@ -175,15 +175,15 @@
     },
     {
       "type": "library",
-      "bom-ref": "pkg:npm/tsx@4.23.11",
+      "bom-ref": "pkg:npm/tsx@4.23.13",
       "name": "tsx",
-      "version": "4.23.11",
+      "version": "4.23.13",
       "scope": "optional",
-      "purl": "pkg:npm/tsx@4.23.11",
+      "purl": "pkg:npm/tsx@4.23.13",
       "properties": [
         {
           "name": "declared-range",
-          "value": "^4.19.2"
+          "value": "^4.23.12"
         }
       ]
     },
@@ -203,15 +203,15 @@
     },
     {
       "type": "library",
-      "bom-ref": "pkg:npm/typescript-language-server@5.3.0",
+      "bom-ref": "pkg:npm/typescript-language-server@6.0.0",
       "name": "typescript-language-server",
-      "version": "5.3.0",
+      "version": "6.0.0",
       "scope": "optional",
-      "purl": "pkg:npm/typescript-language-server@5.3.0",
+      "purl": "pkg:npm/typescript-language-server@6.0.0",
       "properties": [
         {
           "name": "declared-range",
-          "value": "^5.3.0"
+          "value": "^6.0.0"
         }
       ]
     }

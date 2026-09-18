@@ -31,8 +31,16 @@ export interface Session {
   isFirstLogin?: boolean; // 标记是否首次登录
 }
 
-/** 会话默认有效期：30 天 */
-const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+/** 会话默认有效期：30 天；等保部署可通过环境变量 FH_SESSION_TTL_MS 覆盖（如 1800000 = 30 分钟） */
+function sessionTtlMs(): number {
+  const raw = process.env.FH_SESSION_TTL_MS?.trim();
+  if (raw && /^\d+$/.test(raw)) {
+    const v = Number(raw);
+    if (v >= 60000) return v; // 下限 1 分钟，防止误配置
+  }
+  return 30 * 24 * 60 * 60 * 1000;
+}
+const SESSION_TTL_MS = sessionTtlMs();
 
 /** 引导任务列表：新用户首次登录时自动创建 */
 export const WELCOME_TASKS = [
