@@ -8,6 +8,9 @@
  * - 语音上下文：维护语音对话上下文
  */
 import { logger } from '../shared/logger';
+import { loadConfig } from '../shared/config';
+import { ModelRouter } from '../models/model-router';
+import { stripCodeFences } from '../agent/completion-postprocess';
 
 /** 语音指令类型 */
 export type VoiceCommandType =
@@ -140,9 +143,36 @@ const COMMAND_RULES: Array<{
  */
 export class VoiceProgrammingManager {
   private contexts: Map<string, VoiceContext> = new Map();
+  /** 惰性初始化的模型路由器（A-voice 修复：真实 LLM 生成，失败回退模板） */
+  private router: ModelRouter | null = null;
+  private routerTried = false;
 
-  constructor() {
+  /**
+   * @param router 可选注入：传 null 显式禁用真实模型（恒走模板回退，测试用）；
+   *               不传则首次调用 voiceToCode 时从配置惰性创建。
+   */
+  constructor(router?: ModelRouter | null) {
+    if (router !== undefined) {
+      this.router = router;
+      this.routerTried = true;
+    }
     logger.info('voice programming manager initialized');
+  }
+
+  /**
+   * 获取模型路由器；未配置模型/密钥时返回 null（只尝试一次，避免重复开销）
+   */
+  private getRouter(): ModelRouter | null {
+    if (this.routerTried) return this.router;
+    this.routerTried = true;
+    try {
+      this.router = ModelRouter.fromConfig(loadConfig());
+      return this.router;
+    } catch (e: any) {
+      logger.warn('voice model router unavailable, fallback to template', { error: e?.message });
+      this.router = null;
+      return null;
+    }
   }
 
   /**
@@ -182,14 +212,48 @@ export class VoiceProgrammingManager {
 
   /**
    * 语音转代码
+   * A-voice 修复(2026-09-27)：优先调用真实模型按描述生成代码；
+   * 未配置模型/密钥或调用失败时回退到本地模板（原占位行为），保证离线可用。
    */
   async voiceToCode(description: string, language: string = 'typescript', _context?: string): Promise<VoiceToCodeResult> {
     logger.info('voice to code', { description, language });
+
+    const router = this.getRouter();
+    if (router) {
+      try {
+        const resp = await router.chat({
+          messages: [
+            {
+              role: 'system',
+              content:
+                `你是一名资深工程师。请根据用户的语音描述生成可运行的 ${language} 代码。` +
+                '只输出代码本身，必要时用代码块包裹，不要附加解释性文字。',
+            },
+            { role: 'user', content: description },
+          ],
+          maxTokens: 2048,
+          temperature: 0.2,
+        });
+        const code = stripCodeFences(resp.message.content).trim();
+        if (code) {
+          return {
+            code,
+            language,
+            explanation: `已用真实模型根据语音描述"${description}"生成${language}代码`,
+            confidence: 0.95,
+          };
+        }
+        logger.warn('voice to code: model returned empty code, fallback to template');
+      } catch (e: any) {
+        logger.warn('voice to code: model call failed, fallback to template', { error: e?.message });
+      }
+    }
+
     const code = this.generateCodeFromTemplate(description, language);
     return {
       code,
       language,
-      explanation: `根据语音描述"${description}"生成的${language}代码`,
+      explanation: `根据语音描述"${description}"生成的${language}代码（模板回退）`,
       confidence: 0.7,
     };
   }
@@ -301,6 +365,6 @@ export class VoiceProgrammingManager {
   }
 }
 
-export function createVoiceProgrammingManager(): VoiceProgrammingManager {
-  return new VoiceProgrammingManager();
+export function createVoiceProgrammingManager(router?: ModelRouter | null): VoiceProgrammingManager {
+  return new VoiceProgrammingManager(router);
 }

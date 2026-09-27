@@ -1,9 +1,9 @@
 /**
- * voice-programming 模块单元测试：指令解析 / 参数提取 / 上下文 / 代码模板
+ * voice-programming 模块单元测试：指令解析 / 参数提取 / 上下文 / 代码生成（真实 LLM 与模板回退）
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createVoiceProgrammingManager } from '../../src/voice/voice-programming';
+import { VoiceProgrammingManager, createVoiceProgrammingManager } from '../../src/voice/voice-programming';
 
 const vp = createVoiceProgrammingManager();
 
@@ -81,13 +81,26 @@ test('getSupportedCommands: 覆盖全部可匹配命令类型（含曾缺失的 
   }
 });
 
-test('voiceToCode: 函数/类模板生成', async () => {
-  const fn = await vp.voiceToCode('写一个计算总价的函数 calculateTotal', 'typescript');
-  assert.ok(fn.code.includes('function calculateTotal'), '应生成具名函数');
-  assert.ok(fn.code.includes('TODO'), '骨架应含 TODO');
+test('voiceToCode: 真实 LLM 路径（桩路由器）', async () => {
+  const stubRouter = {
+    chat: async () => ({ message: { content: 'function calculateTotal(items: number[]): number {\n  return items.reduce((a, b) => a + b, 0);\n}' } }),
+  };
+  const vpReal = new VoiceProgrammingManager(stubRouter as any);
+  const r = await vpReal.voiceToCode('写一个计算总价的函数 calculateTotal', 'typescript');
+  assert.ok(r.code.includes('function calculateTotal'), '应返回模型生成的具名函数');
+  assert.ok(!r.code.includes('TODO'), '真实生成不应含 TODO 占位');
+  assert.equal(r.confidence, 0.95, '真实模型结果置信度应为 0.95');
+});
 
-  const cls = await vp.voiceToCode('创建一个用户类 User', 'typescript');
-  assert.ok(cls.code.includes('class User'), '应生成具名类');
+test('voiceToCode: 模型不可用时回退模板骨架', async () => {
+  // 显式传 null 禁用真实模型 → 恒走模板回退（确定性测试）
+  const vpFallback = new VoiceProgrammingManager(null);
+  const fn = await vpFallback.voiceToCode('写一个计算总价的函数 calculateTotal', 'typescript');
+  assert.ok(fn.code.includes('function calculateTotal'), '回退应生成具名函数');
+  assert.ok(fn.code.includes('TODO'), '模板回退骨架应含 TODO');
+
+  const cls = await vpFallback.voiceToCode('创建一个用户类 User', 'typescript');
+  assert.ok(cls.code.includes('class User'), '回退应生成具名类');
 });
 
 test('上下文：创建/写入/过期清理', () => {

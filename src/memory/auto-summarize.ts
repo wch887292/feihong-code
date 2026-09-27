@@ -8,9 +8,10 @@
  * - 更新长期记忆文件
  */
 
-import { execSync } from 'child_process';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
+import { loadConfig } from '../shared/config';
+import { ModelRouter } from '../models/model-router';
 import {
   MemoryConfig,
   getMemoryConfig,
@@ -78,22 +79,32 @@ export function getSummaryHistory(config: MemoryConfig, _limit: number = 30): Su
 }
 
 /**
- * 调用本地 AI 模型进行总结
- * 使用 fhcode CLI 直接调用
+ * 调用 AI 模型进行总结
+ * A-memory 修复(2026-09-27)：改为直连 ModelRouter（与 code-write 同法），
+ * 不再经 execSync 拼 shell 管道调用 CLI（原实现存在引号转义脆弱、cwd 依赖问题）。
  */
 async function summarizeWithAI(prompt: string): Promise<string> {
-  // 使用默认的 agnes-2.5-pro 模型
-  const modelCmd = `echo '${prompt.replace(/'/g, "'\"'\"'")}' | node dist/cli/index.js --model agnes-2.5-pro`;
-
   try {
-    const result = execSync(modelCmd, {
-      encoding: 'utf-8',
-      timeout: 60000,
-      cwd: join(process.cwd(), '..'),
+    const router = ModelRouter.fromConfig(loadConfig());
+    const resp = await router.chat({
+      messages: [
+        {
+          role: 'system',
+          content:
+            '你是一名记忆归档助手。请把用户的当日工作记录总结为结构化 Markdown：' +
+            '用 "### 新增条目" 或 "### 更新条目" 开头分段，每段第一行为分类名，' +
+            '随后是精炼后的条目内容（每条一行）。不要输出无关寒暄。',
+        },
+        { role: 'user', content: prompt },
+      ],
+      maxTokens: 2048,
+      temperature: 0.3,
     });
-    return result.trim();
+    const out = resp.message.content?.trim();
+    if (out) return out;
+    throw new Error('模型返回空内容');
   } catch (e: any) {
-    // 如果 CLI 失败，返回原始内容标记为需要手动处理
+    // 模型失败时降级：标记为需要手动处理，不中断主流程
     return `[AI调用失败] ${e.message}\n\n请手动总结以下内容：\n${prompt}`;
   }
 }
