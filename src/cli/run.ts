@@ -502,10 +502,22 @@ export function runSelfHealSkill(errorText: string): string {
   return out.text;
 }
 
+/**
+ * M10：是否启用第一性原理拆解并行（DAG 分波次）。
+ * 默认开启；可用环境变量 FH_FIRST_PRINCIPLES=0 关闭以回退到旧的连词规则拆分。
+ */
+function isFirstPrinciplesByDefault(): boolean {
+  const v = (process.env.FH_FIRST_PRINCIPLES ?? '').trim().toLowerCase();
+  if (v === '') return true; // 默认开启
+  return !(v === '0' || v === 'false' || v === 'off' || v === 'no');
+}
+
 /** --parallel 并行多子代理执行（离线用 Mock；真实模式接入 FH_PROVIDERS 路由） */
 export async function runParallelGoal(goal: string): Promise<void> {
   const offline = isOfflineByDefault();
+  const firstPrinciples = isFirstPrinciplesByDefault();
   console.log(t('run.parallelMode', { offline: offline ? t('run.modeOffline') : t('run.modeLive') }));
+  console.log(`[飞虹 Code] 任务拆解: ${firstPrinciples ? '第一性原理（领域本质 + DAG 分波次并行）' : '传统连词规则'}`);
 
   if (!offline) {
     const cfg = loadConfig();
@@ -518,6 +530,7 @@ export async function runParallelGoal(goal: string): Promise<void> {
       offline: false,
       router,
       approve: defaultApproverFor(security),
+      firstPrinciples,
     });
     console.log('\n' + t('run.parallelResult'));
     console.log(result.summary);
@@ -528,6 +541,7 @@ export async function runParallelGoal(goal: string): Promise<void> {
   const result = await runParallel(goal, {
     offline: true,
     mockFor: (task) => defaultParallelMock(task),
+    firstPrinciples,
   });
   console.log('\n' + t('run.parallelResult'));
   console.log(result.summary);
@@ -1161,44 +1175,61 @@ export function runServe(port?: number): void {
 /* ===================== M8：自主编程能力 ===================== */
 
 /** fhcode code-write <目标>：自主编写代码（规划→编写→测试→审查→修复） */
-export async function runCodeWrite(goal: string): Promise<void> {
-  const writer = createCodeWriter(process.cwd());
-  // 离线演示：生成一个简单的工具函数
-  const sampleCode = `/**
- * 飞虹 Code (对标 Muse Code · 自研内核)
+/** A3 修复(2026-09-27)：按 goal 派生输出文件名（替代固定 generated/commission.ts） */
+function slugifyGoal(goal: string): string {
+  const slug = goal.replace(/[^\w一-龥]/g, '').slice(0, 24);
+  return slug || 'output';
+}
+
+/** 去除 ```lang ... ``` 围栏，提取纯代码 */
+function stripCodeFences(text: string): string {
+  const m = text.match(/```(?:[a-zA-Z]+)?\s*([\s\S]*?)```/);
+  return (m ? m[1] : text).trim();
+}
+
+/** 离线 / 无可用模型时的目标相关脚手架（不再输出固定的「佣金示例」） */
+function goalScaffold(goal: string): string {
+  return `/**
+ * 飞虹 Code 自主编写脚手架（离线模式 / 未配置模型）
  * 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
- *
- * 示例：M8 自主编写演示
+ * 目标：${goal}
+ * 说明：未检测到可用模型或生成失败，已生成目标相关的占位骨架；
+ *       配置 FH_PROVIDERS 后重跑即可享受真实代码生成。
  */
-export function calculateCommission(base: number, rate: number): number {
-  if (rate < 0 || rate > 1) {
-    throw new Error('佣金比率必须在 0-1 之间');
-  }
-  return Math.round(base * rate * 100) / 100;
-}
-
-export interface CommissionPlan {
-  name: string;
-  baseRate: number;
-  tierRates: Array<{ min: number; rate: number }>;
-}
-
-export function calculateTieredCommission(plan: CommissionPlan, amount: number): number {
-  let total = 0;
-  let remaining = amount;
-  for (const tier of plan.tierRates.sort((a, b) => b.min - a.min)) {
-    if (remaining <= 0) break;
-    const tierAmount = Math.min(remaining, amount - tier.min);
-    if (tierAmount > 0) {
-      total += tierAmount * tier.rate;
-      remaining -= tierAmount;
-    }
-  }
-  total += Math.max(0, amount - plan.tierRates[0]?.min || 0) * plan.baseRate;
-  return Math.round(total * 100) / 100;
+// TODO: 根据目标实现：${goal}
+export function placeholder(): void {
+  throw new Error('请配置 FH_PROVIDERS 后重跑 fhcode code-write 以生成真实实现');
 }
 `;
-  const result = await writer.run(goal, sampleCode, 'generated/commission.ts');
+}
+
+/** 调用真实模型按 goal 生成代码（复用 ModelRouter + loadConfig） */
+async function generateCodeFromGoal(goal: string): Promise<string> {
+  const cfg = loadConfig();
+  const router = ModelRouter.fromConfig(cfg);
+  const resp = await router.chat({
+    messages: [
+      {
+        role: 'system',
+        content:
+          '你是一名资深 TypeScript 工程师，请根据用户目标生成可直接运行的代码。' +
+          '只输出代码本身，必要时用 ```ts 代码块包裹，不要附加解释性文字。',
+      },
+      { role: 'user', content: goal },
+    ],
+    maxTokens: 2048,
+    temperature: 0.2,
+  });
+  return stripCodeFences(resp.message.content);
+}
+
+export async function runCodeWrite(goal: string): Promise<void> {
+  const writer = createCodeWriter(process.cwd());
+  // A3 修复(2026-09-27)：先用真实模型按 goal 生成代码，失败/离线时回退到目标相关脚手架；
+  // 生成的代码交由 write→test→review→selfHeal 流水线（writer.run）处理，不再写入固定的佣金示例。
+  const filePath = 'generated/' + slugifyGoal(goal) + '.ts';
+  const code = await generateCodeFromGoal(goal).catch(() => goalScaffold(goal));
+  const result = await writer.run(goal, code, filePath);
   console.log('\n' + t('codewrite.resultTitle'));
   console.log(result.summary);
   console.log(t('codewrite.files', { files: result.finalFiles.join(', ') }));
