@@ -7,7 +7,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, readFileSync, readdirSync, writeFileSync } from 'fs';
+import { mkdtempSync, rmSync, readFileSync, readdirSync, writeFileSync, utimesSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { AuditLog, verifyAudit, readAudit, redact } from '../../src/enterprise/audit';
@@ -132,6 +132,32 @@ test('redact: 敏感信息在写入前被脱敏', () => {
     assert.ok(!records[0].resource.includes('sk-abc123secret'), '审计不得泄漏密钥原文');
     assert.ok(records[0].resource.includes('***'), '应保留脱敏标记');
     assert.equal(redact('Bearer tok12345 rest'), 'Bearer *** rest');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('withAuditLock: 残留 stale 锁（挂死进程遗留）应被自动清理，写入自愈', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'fhcode-audit-lock-'));
+  try {
+    // 模拟挂死进程遗留的锁：写入一个无效 PID，并把 mtime 回拨 30s（远超 10s stale 阈值）
+    const lockPath = join(dir, '.audit.lock');
+    writeFileSync(lockPath, '999999999');
+    const past = new Date(Date.now() - 30_000);
+    utimesSync(lockPath, past, past);
+
+    // 写入应清理 stale 锁并成功落盘，而不是抛"审计写入锁等待超时"
+    const log = new AuditLog(dir);
+    const rec = log.record(sampleInput());
+    assert.equal(rec.seq, 1, 'stale 锁被清理后应成功写入 seq=1');
+
+    // 锁文件不应残留（被 unlink 或 rename 挪开）
+    const leftover = readdirSync(dir).filter((f) => f === '.audit.lock');
+    assert.equal(leftover.length, 0, 'stale 锁应已被清理');
+
+    // 后续写入不受影响
+    log.record(sampleInput({ action: 'tool:run_shell' }));
+    assert.equal(readAudit(dir).length, 2);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

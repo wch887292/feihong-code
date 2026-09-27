@@ -21,6 +21,7 @@ import {
   openSync,
   closeSync,
   unlinkSync,
+  renameSync,
   statSync,
   writeSync,
 } from 'fs';
@@ -177,6 +178,38 @@ function pidAlive(pid: number): boolean {
 }
 
 /**
+ * C 修复(2026-09-27)：stale 锁清理的 unlink 失败兜底。
+ * 部分宿主环境（如 safe-delete shim 把 fs.unlink 重定向到回收站）会让 unlinkSync
+ * 对 stale 锁持续失败，导致所有写入者等待超时。此时改用 renameSync 把锁改名挪开
+ * （rename 通常不被拦截），让后续 openSync('wx') 可以重新原子建锁。
+ * @returns 是否成功移除 stale 锁
+ */
+function tryRemoveStaleLock(lockPath: string): boolean {
+  try {
+    unlinkSync(lockPath);
+    return true;
+  } catch (ue) {
+    const asidePath = `${lockPath}.stale-${process.pid}-${Date.now()}`;
+    try {
+      renameSync(lockPath, asidePath);
+      logger.warn('审计锁 unlink 失败，已用 rename 挪开 stale 锁', {
+        lockPath,
+        asidePath,
+        error: ue instanceof Error ? ue.message : String(ue),
+      });
+      return true;
+    } catch (re) {
+      logger.warn('审计锁清理失败（unlink 与 rename 均失败，等待重试）', {
+        lockPath,
+        unlinkError: ue instanceof Error ? ue.message : String(ue),
+        renameError: re instanceof Error ? re.message : String(re),
+      });
+      return false;
+    }
+  }
+}
+
+/**
  * M5 修复：跨进程 advisory 文件锁。
  * 用 `openSync(path,'wx')` 原子创建锁文件；持有期间执行 fn；
  * 锁超时/过期会被清理，避免挂死进程导致审计永久阻塞。
@@ -228,17 +261,11 @@ function withAuditLock(dir: string, fn: () => void): void {
           /* 锁已消失，重试 */
         }
         if (stale) {
-          try {
-            unlinkSync(lockPath);
+          if (tryRemoveStaleLock(lockPath)) {
             backoffMs = 10; // 锁已清理，重置退避
             continue;
-          } catch (ue) {
-            logger.warn('审计锁清理失败（stale 锁，等待重试）', {
-              lockPath,
-              lockPid,
-              error: ue instanceof Error ? ue.message : String(ue),
-            });
           }
+          // 清理失败：落入下方超时判断/退避重试
         }
         if (Date.now() > deadline) {
           const st = (() => {
