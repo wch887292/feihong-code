@@ -1,24 +1,30 @@
 #!/bin/bash
 # 撤销 fhcode 腾讯云部署（可逆：数据保留备份）
 # 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
+# D1 修复(2026-09-27)：变量驱动，对齐 fhcode-v843，避免删错目录 / 删不到 PM2 实例
 set -e
-BK=/www/dk_project/fhcode-backup-20260823
+
+# ── 部署参数（必须与线上实例保持一致）──
+DEP_DIR=/www/dk_project/fhcode-v843
+APP_NAME=fhcode-v843
+PORT=18080
+BK="${DEP_DIR}-backup-$(date +%Y%m%d)"
 
 echo "=== 1. 备份数据 ==="
 mkdir -p "$BK"
-if [ -d /www/dk_project/fhcode/data ]; then
-  mv /www/dk_project/fhcode/data "$BK/data" && echo "数据已备份到 $BK/data"
+if [ -d "$DEP_DIR/data" ]; then
+  mv "$DEP_DIR/data" "$BK/data" && echo "数据已备份到 $BK/data"
 fi
 for f in .htpasswd .fh_token .fh_secret_env .ba_cred; do
-  [ -f "/www/dk_project/fhcode/$f" ] && mv "/www/dk_project/fhcode/$f" "$BK/" && echo "备份 $f"
+  [ -f "$DEP_DIR/$f" ] && mv "$DEP_DIR/$f" "$BK/" && echo "备份 $f"
 done
 ls "$BK" | head -10
 
 echo "=== 2. 停止并删除 PM2 进程 ==="
-pm2 delete fhcode 2>/dev/null || echo "进程不存在或已删除"
+pm2 delete "$APP_NAME" 2>/dev/null || echo "进程不存在或已删除"
 pm2 save >/dev/null 2>&1 || true
 sleep 1
-ss -tlnp 2>/dev/null | grep 18080 && echo "⚠️ 18080 仍在监听" || echo "18080 已释放 ✅"
+ss -tlnp 2>/dev/null | grep "$PORT" && echo "⚠️ $PORT 仍在监听" || echo "$PORT 已释放 ✅"
 
 echo "=== 3. 恢复 Nginx 原配置 ==="
 if [ -f /www/server/panel/vhost/nginx/www.jb.klai.top.conf.bak.fhcode ]; then
@@ -32,8 +38,8 @@ else
 fi
 
 echo "=== 4. 删除部署目录 ==="
-rm -rf /www/dk_project/fhcode /www/dk_project/fhcode-mobile
-echo "fhcode 与 fhcode-mobile 目录已删除"
+rm -rf "$DEP_DIR" /www/dk_project/fhcode-mobile
+echo "$APP_NAME 与 fhcode-mobile 目录已删除"
 
 echo "=== 5. 清理临时文件 ==="
 rm -f /tmp/fhcode-deploy.tar.gz /tmp/deploy-server.sh /tmp/deploy-secure.sh /tmp/fhcode-test.log 2>/dev/null || true

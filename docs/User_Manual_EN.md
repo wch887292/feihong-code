@@ -11,7 +11,7 @@
 
 ### 1.1 Requirements
 
-- Node.js ≥ 18 (20/22 recommended)
+- Node.js ≥ 22.5.0 (22 LTS or 24 recommended)
 - npm ≥ 9
 - git (needed for diff/rollback/parallel worktrees)
 - Docker (only for `FH_SANDBOX_MODE=container`)

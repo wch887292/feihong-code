@@ -84,7 +84,7 @@ License: Apache-2.0
 > 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
 
 [![License: Commercial](https://img.shields.io/badge/License-Commercial-blue.svg)](./LICENSE)
-[![Node.js >= 18](https://img.shields.io/badge/node-%3E%3D18-brightgreen.svg)](https://nodejs.org)
+[![Node.js >= 22.5.0](https://img.shields.io/badge/node-%3E%3D22.5-brightgreen.svg)](https://nodejs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue.svg)](https://typescriptlang.org)
 [![GitHub stars](https://img.shields.io/github/stars/wch887292/feihong-code?style=social)](https://github.com/wch887292/feihong-code/stargazers)
 [![GitHub issues](https://img.shields.io/github/issues/wch887292/feihong-code)](https://github.com/wch887292/feihong-code/issues)
@@ -265,7 +265,7 @@ fhcode --version           # 直接调用 bin（Windows 下为 fhcode.cmd）
 > 也支持别名包：`npm install -g feihong-cli`（与 feihong-code 同源，bin 同为 `fhcode`）。
 ```
 
-> 要求 Node.js >= 18。入口 `dist/cli/index.js` 已带 `#!/usr/bin/env node` shebang。
+> 要求 Node.js >= 22.5.0。入口 `dist/cli/index.js` 已带 `#!/usr/bin/env node` shebang。
 > 源码与问题反馈请前往 GitHub 仓库：<https://github.com/wch887292/feihong-code>
 ### 方式三：Docker
 
@@ -557,7 +557,7 @@ node dist/cli/index.js --version
 - **npm 全局**：`npm install -g .` 或发布后 `npm install -g feihong-code`。
 - **Docker**：见 `Dockerfile`（多阶段，已含 `git` 以支持 `--parallel`）。
 - **CI**：见 `.github/workflows/ci.yml`，三条流水线全离线、零 Secrets：
-  - `build`：Node 18/20/22 矩阵 → typecheck → 编译 → 离线端到端 → 只读技能；
+  - `build`：Node 22.5/24 矩阵 → typecheck → 编译 → 离线端到端 → 只读技能；
   - `enterprise`：M4 断言套件（41 项）+ CLI 企业命令冒烟 + **租户隔离断言**（beta 租户不得读到其它租户会话）；
   - `security`：`npm pack` 白名单校验（禁止 `.env`/`src`/`policy.json` 入包）+ 仓库明文密钥扫描 + `npm audit`。
 - **发布**：`npm publish` 仅携带 `files` 白名单（dist + 文档），密钥安全。

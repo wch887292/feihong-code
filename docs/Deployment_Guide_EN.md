@@ -23,7 +23,7 @@
 
 | Item | Requirement | Notes |
 |------|-------------|-------|
-| Node.js | ≥ 18 (20/22 recommended) | Runtime |
+| Node.js | ≥ 22.5.0 (22 LTS or 24 recommended) | Runtime |
 | npm | ≥ 9 | Package manager |
 | git | Recommended | diff/rollback/parallel worktrees |
 | Docker | Optional | `FH_SANDBOX_MODE=container` and Docker deployment |

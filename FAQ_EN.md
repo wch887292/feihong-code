@@ -40,7 +40,7 @@ Dangerous commands and sensitive paths (`.env`, `.ssh/id_rsa`, etc.) are denied-
 Yes. `.env` is gitignored and excluded from the npm package. Audit logs redact secret values (`apiKey=`/`Bearer`/`sk-xxx` → `***`) and never echo full keys. If the audit write fails, tool execution is refused.
 
 **Q12. Which Node.js version is required?**
-Node.js >= 18. The published package exposes the `fhcode` bin (on Windows: `fhcode.cmd`). Source builds use `npm run build` (tsc → dist/).
+Node.js >= 22.5.0. The published package exposes the `fhcode` bin (on Windows: `fhcode.cmd`). Source builds use `npm run build` (tsc → dist/).
 
 **Q13. How do I deploy it?**
 Three ways: `npm install -g feihong-code` (global), Docker (multi-stage `Dockerfile` includes `git` for `--parallel`), or via CI (GitHub Actions 3 pipelines, all offline, zero Secrets). See docs/部署指南.md.

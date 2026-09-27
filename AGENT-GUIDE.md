@@ -24,7 +24,7 @@
 
 ```bash
 # 必需
-Node.js >= 18（推荐 20 或 22）
+Node.js >= 22.5.0（推荐 22 LTS 或 24）
 npm >= 9
 
 # 可选但推荐
@@ -34,7 +34,7 @@ tsx（开发模式）
 
 **验证环境**：
 ```bash
-node --version  # 应 >= 18.0.0
+node --version  # 应 >= 22.5.0
 npm --version   # 应 >= 9.0.0
 ```
 
@@ -226,6 +226,25 @@ fhcode --stream "重构 src/calc.ts 的 add 函数"
 fhcode --parallel "实现登录模块 并且 添加用户管理 并且 写集成测试"
 ```
 
+**M10 第一性原理拆解（默认开启）**：`--parallel` 不再只按「并且 / 同时」等连词切分，
+而是从任务本质出发——识别每个片段所属的领域（实现/修复/重构/测试/文档/配置/接口/安全…）与
+目标文件域，拆成彼此独立的目标单元；无依赖的单元同一波次并行，文件域耦合的单元自动串行。
+启动时会打印当前拆解模式：
+```
+[飞虹 Code] 任务拆解: 第一性原理（领域本质 + DAG 分波次并行）
+```
+
+**并发控制**：并行子代理默认上限 3，可用环境变量调整（设为 1 即退化为串行）：
+```bash
+export FH_PARALLEL_CONCURRENCY=5   # 提高并发（额度充足时）
+export FH_PARALLEL_CONCURRENCY=1   # 退化为串行（API 限流时）
+```
+
+**关闭第一性原理**（回退到旧连词规则拆分）：
+```bash
+export FH_FIRST_PRINCIPLES=0
+```
+
 ### 5.3 全自动软件工程
 ```bash
 # 读取整个仓库 → 规划 → 实现 → 验证 → 报告
@@ -234,6 +253,18 @@ fhcode swe "修复 src/calc.ts 的 add 函数 bug，让 tests/calc.test.ts 通�
   --max-tasks 3 \
   --max-iterations 5
 ```
+
+**M10 分波次并行（SWE）**：`swe` 规划时先用第一性原理拆出多个独立实现单元
+（不同领域/不同文件域），并按依赖做拓扑分波次调度——同一波次内的子任务并行实现，
+波次之间串行等待前置完成（勘察 → 并行实现 → 测试 → 全量验证）。报告会显示调度波次数
+与每个任务所在波次（`[wN]`）。
+
+**SWE 并发上限**（默认 2，防止同一仓库并行冲突与 API 限流）：
+```bash
+export FH_SWE_CONCURRENCY=3   # 提高 SWE 波内并行数
+export FH_SWE_CONCURRENCY=1   # 退化为串行（保守模式）
+```
+`FH_SWE_CONCURRENCY` 同时作为 `--parallel` 的兜底并发值（`FH_PARALLEL_CONCURRENCY` 未设置时）。
 
 ### 5.4 只读技能
 ```bash

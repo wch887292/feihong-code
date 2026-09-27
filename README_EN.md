@@ -4,7 +4,7 @@
 > Jinjiang Feihongzhi Technology Enterprise Management Co., Ltd. · Feiyang Qiyuan R&D Center · Lead: Wu Cihong
 
 [![License: Commercial](https://img.shields.io/badge/License-Commercial-blue.svg)](./LICENSE)
-[![Node.js >= 18](https://img.shields.io/badge/node-%3E%3D18-brightgreen.svg)](https://nodejs.org)
+[![Node.js >= 22.5.0](https://img.shields.io/badge/node-%3E%3D22.5-brightgreen.svg)](https://nodejs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue.svg)](https://typescriptlang.org)
 [![GitHub stars](https://img.shields.io/github/stars/wch887292/feihong-code?style=social)](https://github.com/wch887292/feihong-code/stargazers)
 [![GitHub issues](https://img.shields.io/github/issues/wch887292/feihong-code)](https://github.com/wch887292/feihong-code/issues)
@@ -170,7 +170,7 @@ fhcode --version           # call the bin directly (on Windows: fhcode.cmd)
 # Alias package also supported: npm install -g feihong-cli (same source, same bin fhcode)
 ```
 
-> Requires Node.js >= 18. The entry `dist/cli/index.js` already carries the `#!/usr/bin/env node` shebang.
+> Requires Node.js >= 22.5.0. The entry `dist/cli/index.js` already carries the `#!/usr/bin/env node` shebang.
 > Source and issue tracking have migrated to the GitCode mirror: <https://gitcode.com/gcw_YuRlTP0G/feihong-code>
 
 ### Option C: Docker
@@ -461,7 +461,7 @@ node dist/cli/index.js --version
 - **npm global**: `npm install -g .` or after publish `npm install -g feihong-code`.
 - **Docker**: see `Dockerfile` (multi-stage, includes `git` to support `--parallel`).
 - **CI**: see `.github/workflows/ci.yml`, three pipelines all offline, zero Secrets:
-  - `build`: Node 18/20/22 matrix → typecheck → compile → offline e2e → read-only skills;
+  - `build`: Node 22.5/24 matrix → typecheck → compile → offline e2e → read-only skills;
   - `enterprise`: M4 assertion suite (41 items) + CLI enterprise command smoke + **tenant isolation assertion** (beta tenant must not read other tenants' sessions);
   - `security`: `npm pack` allowlist check (forbid `.env`/`src`/`policy.json` in package) + repo plaintext secret scan + `npm audit`.
 - **Publish**: `npm publish` carries only the `files` allowlist (dist + docs), secrets safe.

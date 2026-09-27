@@ -39,7 +39,7 @@ grep -rniE "sk-[a-z0-9]{20,}|ghp_[a-z0-9]{20,}|api[_-]?key\s*=\s*['\"][a-z0-9]{2
 | `bin` | `{ "fhcode": "dist/cli/index.js" }` | 全局安装后命令 `fhcode` |
 | `main` | `dist/cli/index.js` | 入口 |
 | `files` | `dist` + 文档 + `.github` | 白名单，密钥安全 |
-| `engines.node` | `>=18.0.0` | Node 版本下限 |
+| `engines.node` | `>= 22.5.0` | Node 版本下限 |
 | `keywords` | 48 个 | 检索可见度 |
 | `license` | `MIT` | 开源协议 |
 | `repository` | `github:wch887292/feihong-code` | 源码地址 |

@@ -35,7 +35,7 @@
 
 ### 必需
 
-- **Node.js** ≥ 18.0.0（推荐 22.x LTS）
+- **Node.js** ≥ 22.5.0（推荐 22 LTS 或 24）
 - **npm** ≥ 9（或使用 pnpm/yarn）
 - **TypeScript** 5.x（开发依赖）
 
@@ -314,7 +314,50 @@ Add-MpPreference -ExclusionPath "H:\Muse Code复刻"
 
 ---
 
-## 八、联系方式
+## 八、腾讯云（CVM）生产部署
+
+> 生产实例：`/www/dk_project/fhcode-v843`，PM2 名 `fhcode-v843`，端口 `18080`，入口 `dist/cli/index.js serve --port 18080`。
+> 部署/撤销脚本：`deploy-server.sh`、`deploy-secure.sh`、`undeploy.sh`（已变量驱动，自动对齐上述实例）。
+
+### 8.1 生成部署包（本地）
+
+```bash
+# 1. 构建
+npm run build
+
+# 2. 打包（保持 dist 目录结构，含 entry dist/cli/index.js）
+tar -czf /tmp/fhcode-deploy.tar.gz \
+  dist shared package.json package-lock.json .env.example
+
+# 3. 上传到服务器 /tmp
+scp /tmp/fhcode-deploy.tar.gz root@<服务器>:/tmp/
+```
+
+> ⚠️ 部署包**不要**拍平 dist（脚本入口固定为 `dist/cli/index.js`）；`node_modules` 在服务器首次部署时由 `deploy-server.sh` 自动 `npm install --omit=dev` 生成。
+
+### 8.2 服务器端部署
+
+```bash
+# 基础部署（Basic Auth + FH_WEB_TOKEN）
+bash /tmp/deploy-server.sh
+
+# 三重加密部署（额外注入 FH_SECRET）
+bash /tmp/deploy-secure.sh
+
+# 撤销（数据备份到 <DEP_DIR>-backup-<日期>，可逆）
+bash /tmp/undeploy.sh
+```
+
+### 8.3 验证
+
+```bash
+pm2 status fhcode-v843
+curl -s http://127.0.0.1:18080/api/health   # 期望 200，含 enterprise/sqlite 字段
+```
+
+---
+
+## 九、联系方式
 
 - **公司**：晋江市飞虹智科技企业管理有限公司
 - **中心**：飞扬企源研发中心
