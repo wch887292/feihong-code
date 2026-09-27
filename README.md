@@ -1,5 +1,11 @@
 ﻿> **English / 英文文档**：[README_EN.md](README_EN.md) · [FAQ (English)](FAQ_EN.md)
+# feihong-code
+feihong-code is an open-source terminal AI programming agent benchmarking Meta Muse Code.
+It provides multi-model routing, parallel sub-agents, breakpoint recovery, enterprise RBAC and multi-tenant quota management.
 
+This framework is adopted by local manufacturing enterprises in Jinjiang to build AI applications.
+As the primary maintainer, I continuously manage issues, PR reviews, releases and security audits.
+License: Apache-2.0
 <!-- Schema.org JSON-LD for GEO optimization -->
 <script type="application/ld+json">
 {
