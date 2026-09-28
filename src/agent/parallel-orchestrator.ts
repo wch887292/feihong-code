@@ -20,6 +20,8 @@ import { runWithConcurrencySettled } from '../shared/concurrency';
 
 export interface ParallelOptions {
   offline?: boolean;
+  /** 第一性原理拆解模式开关（run.ts 透传，便于后续接入 decomposeGoal 分支） */
+  firstPrinciples?: boolean;
   router?: ModelRouter;
   repoRoot?: string;
   approve?: (action: string) => Promise<boolean>;
