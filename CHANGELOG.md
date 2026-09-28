@@ -1,4 +1,21 @@
 ﻿# 飞虹 Code 更新日志 / Changelog
+## v8.5.0 (2026-09-28)
+
+### 架构治理（B3 全链路重构，向后兼容）
+- **server.ts 神文件拆分**：新增 `src/web/routes/` 七个域路由模块（managers / model-domain / filesystem / cline / cloud-bridge / capability-source / computer），`server.ts` 由约 3585 行历史峰值降至约 690 行。采用 `registerXxx(app, deps)` + `Deps` 依赖注入接口；可变绑定（`serverWorkspaceDir`、`sharedModelRouter`）以 getter/setter 注入保活。
+- **run.ts 命令实现下沉**：`src/cli/run.ts` 由 1889 行改为 32 行薄转发层（`export *` 再导出），命令实现外迁至 `src/cli/cmds/` 下 11 个模块（skills / sessions / enterprise / integrations / skill-market / self-evolve / code-write / swe / harness / computer-control / license）。`cli/index.ts`、`repl.ts` 零改动。
+- **循环依赖打断**：新增中性模块 `src/core/task-executor.ts` 承载 `executeTask`，切断 `cli/run → web/server → web/task-queue → cli/run` 依赖环。
+
+### 修复与加固
+- 修复提交基线既有 `ParallelOptions` 缺 `firstPrinciples` 字段导致的 tsc 报错。
+- 审计锁（audit lock）在 safe-delete shim 环境下的死锁防护（`tryRemoveStaleLock`）。
+
+### 验证
+- `npm run typecheck` 退出码 0；`npm run build` 通过；运行时冒烟（CLI 入口、转发层 39 符号、18 个拆分模块加载）全绿。
+
+### 说明
+- 本次为纯架构重构，CLI 命令、Web API、配置格式均保持向后兼容，无 breaking change。
+
 ## v8.4.3 (2026-09-14)
 
 ### 授权与依赖维护

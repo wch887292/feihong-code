@@ -1,11 +1,14 @@
-﻿> **English / 英文文档**：[README_EN.md](README_EN.md) · [FAQ (English)](FAQ_EN.md)
-# feihong-code
+﻿# feihong-code
 feihong-code is an open-source terminal AI programming agent benchmarking Meta Muse Code.
 It provides multi-model routing, parallel sub-agents, breakpoint recovery, enterprise RBAC and multi-tenant quota management.
-
 This framework is adopted by local manufacturing enterprises in Jinjiang to build AI applications.
 As the primary maintainer, I continuously manage issues, PR reviews, releases and security audits.
 License: Apache-2.0
+
+---
+
+> **English / 英文文档**：[README_EN.md](README_EN.md) · [FAQ (English)](FAQ_EN.md)
+
 <!-- Schema.org JSON-LD for GEO optimization -->
 <script type="application/ld+json">
 {
@@ -20,7 +23,7 @@ License: Apache-2.0
     "name": "TypeScript"
   },
   "operatingSystem": "Cross-platform (Windows, Linux, macOS)",
-  "softwareVersion": "8.4.3",
+  "softwareVersion": "8.5.0",
   "dateCreated": "2026-08-12",
   "datePublished": "2026-08-22",
   "author": {
@@ -527,6 +530,17 @@ src/
 **企业管控流（M4）**：`环境注入身份（tenant/user/role）→ 加载策略（默认→全局→租户→内联）→ 配额前置校验 → 每次工具调用经 guard：策略判定 → 必要时人工审批 → 写入哈希链审计 → 放行/拒绝`。
 
 > 架构详解见 [`docs/架构与API.md`](./docs/架构与API.md)。
+
+---
+
+## v8.5.0 架构治理（B3 全链路）
+
+为消除历史神文件（god-file）、提升可维护性，v8.5.0 对两大核心模块做了彻底拆分，**全部 API 向后兼容**（CLI 命令、Web 路由、配置格式均无 breaking change）：
+
+- **`src/web/server.ts`**：从约 3585 行历史峰值降至约 690 行，路由按业务域下沉到 `src/web/routes/`：`managers`（三端同步 / 变更管理 / MCP / Git / 团队 / SOLO / 多智能体 / 事件驱动 / 自定义 Agent）、`model-domain`（代码补全 / 补全 Pro / 设计稿转代码 / 大模型配置 / 共享 ModelRouter）、`filesystem`（工作区与文件浏览 / 打开文件夹浏览器 / 上传 / 系统截图 / 自然语言指令直达）、`cline`（Cline 进程级嫁接）、`cloud-bridge`（手机指令 → 电脑执行云桥接全生命周期 + 授权激活，含暴力破解防护）、`capability-source`（节点系统 / 技能市场 / 自动化 / 模板库 / 办公助理）、`computer`（电脑操作）。采用 `registerXxx(app, deps)` + `Deps` 依赖注入接口；可变绑定（`serverWorkspaceDir`、`sharedModelRouter`）以 getter/setter 注入保活。
+- **`src/cli/run.ts`**：从 1889 行改为 32 行薄转发层（`export *` 再导出），命令实现下沉到 `src/cli/cmds/` 下 11 个模块：`skills` / `sessions` / `enterprise` / `integrations` / `skill-market` / `self-evolve` / `code-write` / `swe` / `harness` / `computer-control` / `license`。`cli/index.ts`、`repl.ts` 零改动。
+- **循环依赖打断**：新增中性模块 `src/core/task-executor.ts` 承载 `executeTask`，切断 `cli/run → web/server → web/task-queue → cli/run` 依赖环。
+- **验证**：类型检查 / 构建 / 运行时冒烟（CLI 入口、转发层 39 符号、18 个拆分模块加载）全部通过。
 
 ---
 
