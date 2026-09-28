@@ -13,7 +13,7 @@
  *  - 每任务独立文件天然支持多实例并发写；同任务竞争由 executeTask 幂等兜底
  */
 import { randomUUID } from 'crypto';
-import { executeTask } from '../cli/run';
+import { executeTask } from '../core/task-executor';
 import { logger } from '../shared/logger';
 import { existsSync, readdirSync, readFileSync, writeFileSync, mkdirSync, renameSync, rmSync } from 'fs';
 import { join } from 'path';
