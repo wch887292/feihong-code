@@ -542,3 +542,13 @@ export class TaskQueue {
 export function publicRecord(r: TaskRecord): TaskRecord {
   return r;
 }
+
+/** 对外暴露的任务视图。withSteps=true 时携带思维链路步骤与对话历史（仅单任务详情使用），列表接口剔除以降低负载 */
+export function publicTask(r: TaskRecord, withSteps = false): TaskRecord {
+  if (withSteps) return r;
+  const { steps: _steps, conversation: _conversation, ...rest } = r as TaskRecord & {
+    steps?: TaskStep[];
+    conversation?: Array<{ role: string; content: string }>;
+  };
+  return rest;
+}
