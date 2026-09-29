@@ -2503,8 +2503,12 @@ function playFlashApp(app) {
 }
 
 /* ========== AI 创作中心（文生图/文生视频） ========== */
-var APP_VER = 'v8.4.3';
+var APP_VER = 'v8.5.7';
 var LS_CREATIVE = 'fh.app.creative';
+// Agnes 内置 Key（2026-09-29 用户提供并实测：生图 11s / 生视频异步 ~100s；仅随 APK 自用，勿外传）
+var AGNES_BUILTIN_KEY = 'sk-ToxyGNB8dFYBwCGQtT988SmHgoVER8jD6C3JiVOHUv0zrdRt';
+var AGNES_GEN_BASE = 'https://api.agnes-ai.cn/v1';
+var LS_AGNES_CREATIVE = 'fh.app.agnesCreative.v1'; // 一次性默认标记（此后尊重用户手动修改）
 var creativeConfig = { t2i: {}, t2v: {} };
 function loadCreativeConfig() {
   try {
@@ -2513,6 +2517,12 @@ function loadCreativeConfig() {
   } catch (e) { creativeConfig = { t2i: {}, t2v: {} }; }
   if (!creativeConfig.t2i) creativeConfig.t2i = {};
   if (!creativeConfig.t2v) creativeConfig.t2v = {};
+  // 一次性默认：未配置过创作模型时，内置 Agnes 生图+生视频（开箱即用）
+  if (!localStorage.getItem(LS_AGNES_CREATIVE)) {
+    if (!creativeConfig.t2i.apiKey) creativeConfig.t2i = { apiBase: AGNES_GEN_BASE, apiKey: AGNES_BUILTIN_KEY, modelId: 'agnes-image-2.5-flash' };
+    if (!creativeConfig.t2v.apiKey) creativeConfig.t2v = { apiBase: AGNES_GEN_BASE, apiKey: AGNES_BUILTIN_KEY, modelId: 'agnes-video-2.5-flash' };
+    try { localStorage.setItem(LS_AGNES_CREATIVE, '1'); saveCreativeConfig(); } catch (e) {}
+  }
 }
 function saveCreativeConfig() {
   try { localStorage.setItem(LS_CREATIVE, JSON.stringify(creativeConfig)); } catch (e) {}
@@ -2629,43 +2639,52 @@ function genText2Video() {
   };
   if (t2vRefData) {
     body.mode = 'reference';
-    body.image = t2vRefData;
+    body.images = [t2vRefData]; // 官方契约：参考图走 images 数组
   } else {
     body.mode = 'text';
   }
 
-  var xhr = new XMLHttpRequest();
-  xhr.open('POST', cfg.apiBase.replace(/\/+$/, '') + '/videos', true);
-  xhr.setRequestHeader('Content-Type', 'application/json');
-  xhr.setRequestHeader('Authorization', 'Bearer ' + cfg.apiKey);
-  xhr.timeout = 180000;
-  xhr.onload = function () {
-    if (xhr.status >= 200 && xhr.status < 300) {
-      try {
-        var data = JSON.parse(xhr.responseText);
-        var taskId = data.id || (data.data && data.data.id);
-        if (taskId) {
-          result.innerHTML = '<div class="gen-loading"><div class="spinner"></div><div>视频生成中，任务已提交<br>正在查询进度…</div></div>';
-          pollVideoTask(cfg, taskId, result, msg, 't2vBtn', 0);
-        } else {
+  // 队列重试：免费档视频队列常满（video_queue_full），自动重试最多 3 次（间隔 10s）
+  var queueRetries = 0;
+  function submitVideo() {
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', cfg.apiBase.replace(/\/+$/, '') + '/videos', true);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.setRequestHeader('Authorization', 'Bearer ' + cfg.apiKey);
+    xhr.timeout = 180000;
+    xhr.onload = function () {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          var data = JSON.parse(xhr.responseText);
+          var taskId = data.id || (data.data && data.data.id);
+          if (taskId) {
+            result.innerHTML = '<div class="gen-loading"><div class="spinner"></div><div>视频生成中，任务已提交<br>正在查询进度…</div></div>';
+            pollVideoTask(cfg, taskId, result, msg, 't2vBtn', 0);
+          } else {
+            $('t2vBtn').disabled = false;
+            result.innerHTML = '';
+            msg.textContent = '❌ ' + (data.error && data.error.message ? data.error.message : '响应中未找到任务ID：' + xhr.responseText.slice(0, 200));
+          }
+        } catch (e) {
           $('t2vBtn').disabled = false;
           result.innerHTML = '';
-          msg.textContent = '❌ ' + (data.error && data.error.message ? data.error.message : '响应中未找到任务ID：' + xhr.responseText.slice(0, 200));
+          msg.textContent = '❌ 解析响应失败：' + e.message;
         }
-      } catch (e) {
+      } else if (/video_queue_full|队列已满/.test(xhr.responseText) && queueRetries < 3) {
+        queueRetries++;
+        result.innerHTML = '<div class="gen-loading"><div class="spinner"></div><div>⏳ 视频队列繁忙，自动重试 ' + queueRetries + '/3（约 10 秒）…</div></div>';
+        setTimeout(submitVideo, 10000);
+      } else {
         $('t2vBtn').disabled = false;
         result.innerHTML = '';
-        msg.textContent = '❌ 解析响应失败：' + e.message;
+        msg.textContent = '❌ HTTP ' + xhr.status + '：' + (xhr.responseText || '').slice(0, 300);
       }
-    } else {
-      $('t2vBtn').disabled = false;
-      result.innerHTML = '';
-      msg.textContent = '❌ HTTP ' + xhr.status + '：' + (xhr.responseText || '').slice(0, 300);
-    }
-  };
-  xhr.onerror = function () { $('t2vBtn').disabled = false; result.innerHTML = ''; msg.textContent = '❌ 网络错误，请检查 API 地址'; };
-  xhr.ontimeout = function () { $('t2vBtn').disabled = false; result.innerHTML = ''; msg.textContent = '⏱️ 请求超时（3分钟），请重试'; };
-  xhr.send(JSON.stringify(body));
+    };
+    xhr.onerror = function () { $('t2vBtn').disabled = false; result.innerHTML = ''; msg.textContent = '❌ 网络错误，请检查 API 地址'; };
+    xhr.ontimeout = function () { $('t2vBtn').disabled = false; result.innerHTML = ''; msg.textContent = '⏱️ 请求超时（3分钟），请重试'; };
+    xhr.send(JSON.stringify(body));
+  }
+  submitVideo();
 }
 
 /* 轮询视频任务：GET {base}/agnesapi?video_id= 或 /videos/{task_id}（2.5-flash 契约） */
@@ -2733,8 +2752,8 @@ function pollVideoTask(cfg, videoId, resultEl, msgEl, btnId, attempts) {
 
 /* 一键填充 Agnes 创作模型（文生图 agnes-image-2.5-flash + 文生视频 agnes-video-2.5-flash） */
 function fillAgnesVideo() {
-  var base = 'https://api.agnes-ai.cn/v1';
-  var key = ''; // 安全策略：不内置明文 API Key，请在此填写你自己的 Agnes Key（设置→大模型→创作模型 也可配置）
+  var base = AGNES_GEN_BASE;
+  var key = AGNES_BUILTIN_KEY; // 内置 Key（实测可用），也可在输入框改成自己的
   $('cgT2IBase').value = base;
   $('cgT2IKey').value = key;
   $('cgT2IModel').value = 'agnes-image-2.5-flash';
@@ -2752,7 +2771,7 @@ function fillAgnesVideo() {
     if (!exists) { state.models.push(m); added++; }
   });
   if (added > 0) { saveModels(); if (typeof renderModelList === 'function') renderModelList(); }
-  $('cgMsg').textContent = '已填充 Agnes 文生图+文生视频并加入模型列表，点保存配置后即可使用';
+  $('cgMsg').textContent = '已填充 Agnes 文生图+文生视频（Key 已内置），点保存配置后即可使用';
   $('cgMsg').className = 'form-msg ok';
 }
 
