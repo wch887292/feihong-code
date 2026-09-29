@@ -13,6 +13,7 @@
         'nav.office': '📎 办公',
         'nav.memory': '🧠 记忆',
         'nav.release': '🚀 发布',
+        'nav.cline': '🤖 Cline',
         'sidebar.nav': '导航',
         'sidebar.chat': '对话任务',
         'sidebar.automations': '自动化',
@@ -211,6 +212,7 @@
         'nav.market': '🧩 Market',
         'nav.office': '📎 Office',
         'nav.release': '🚀 Release',
+        'nav.cline': '🤖 Cline',
         'nav.memory': '🧠 Memory',
         'sidebar.nav': 'Nav',
         'sidebar.chat': 'Chat',
@@ -2281,6 +2283,88 @@
       }
     };
 
+    /* ========== Cline 进程级嫁接（Web 控制台入口） ========== */
+    async function loadClineStatus() {
+      const bar = document.getElementById('clineStatusBar');
+      if (!bar) return;
+      try {
+        bar.textContent = '检测中…';
+        bar.className = 'cline-status-bar';
+        const d = await api('/api/cline/status');
+        if (d.available) {
+          bar.textContent = '✅ Cline CLI 已就绪' + (d.version ? '（v' + d.version + '）' : '') + ' · 免费模型 cline-free/deepseek-v4.1-flash';
+          bar.classList.add('ok');
+        } else {
+          bar.textContent = '⚠️ Cline CLI 未安装或未登录：请先运行 cline auth 登录';
+          bar.classList.add('warn');
+        }
+      } catch (e) {
+        bar.textContent = '⚠️ 无法检测 Cline：' + e.message;
+        bar.className = 'cline-status-bar warn';
+      }
+    }
+
+    async function runClineTask() {
+      const btn = document.getElementById('clineRunBtn');
+      const inp = document.getElementById('clineTaskInput');
+      const result = document.getElementById('clineResult');
+      const task = (inp.value || '').trim();
+      if (!task) { toast('请先输入任务内容'); inp.focus(); return; }
+      const modelEl = document.getElementById('clineModelInput');
+      const model = (modelEl.value || '').trim() || undefined;
+      btn.disabled = true;
+      btn.textContent = '⏳ Cline 执行中…';
+      result.style.display = 'block';
+      document.getElementById('clineResultStatus').textContent = '⏳ 执行中';
+      document.getElementById('clineResultTime').textContent = '';
+      document.getElementById('clineResultText').textContent = '正在派发给 Cline…（免费模型，最多约 3 分钟）';
+      try {
+        const d = await api('/api/cline/run', 'POST', { task, model });
+        const st = document.getElementById('clineResultStatus');
+        const tm = document.getElementById('clineResultTime');
+        const tx = document.getElementById('clineResultText');
+        if (d.rateLimited) {
+          st.textContent = '⛔ 429/限流';
+          st.style.color = '#d93025';
+          tm.textContent = '耗时 ' + Math.round((d.elapsedMs || 0) / 1000) + 's';
+          tx.textContent = 'Cline 免费额度受限，已标记退回主模型。\n\n' + (d.text || d.error || '');
+        } else if (d.ok) {
+          st.textContent = '✅ 完成';
+          st.style.color = '#188038';
+          tm.textContent = '耗时 ' + Math.round((d.elapsedMs || 0) / 1000) + 's';
+          tx.textContent = d.text || '（无返回文本）';
+        } else {
+          st.textContent = '❌ 失败';
+          st.style.color = '#d93025';
+          tm.textContent = '耗时 ' + Math.round((d.elapsedMs || 0) / 1000) + 's';
+          tx.textContent = d.error || '执行失败';
+        }
+      } catch (e) {
+        document.getElementById('clineResultStatus').textContent = '❌ 异常';
+        document.getElementById('clineResultStatus').style.color = '#d93025';
+        document.getElementById('clineResultText').textContent = '请求失败：' + e.message;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '▶ 派发给 Cline';
+      }
+    }
+
+    function initClineUI() {
+      const btn = document.getElementById('clineRunBtn');
+      if (btn && !btn.dataset.bound) {
+        btn.dataset.bound = '1';
+        btn.addEventListener('click', runClineTask);
+      }
+      loadClineStatus();
+    }
+
+    const origSwitchView2 = window.switchView;
+    window.switchView = function (nav) {
+      (origSwitchView2 || origSwitchView)(nav);
+      if (nav === 'cline') {
+        setTimeout(initClineUI, 120);
+      }
+    };
     if (state.token && state.phone) {
       document.getElementById('loginOverlay').style.display = 'none';
       document.getElementById('appLayout').classList.add('show');

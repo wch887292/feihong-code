@@ -44,6 +44,7 @@
         <div class="topbar-nav-item" data-nav="market" data-i18n="nav.market">🧩 插件</div>
         <div class="topbar-nav-item" data-nav="office" data-i18n="nav.office">📎 办公</div>
         <div class="topbar-nav-item" data-nav="memory" data-i18n="nav.memory">🧠 记忆</div>
+        <div class="topbar-nav-item" data-nav="cline" data-i18n="nav.cline">🤖 Cline</div>
         <div class="topbar-nav-item" data-nav="release" data-i18n="nav.release">🚀 发布</div>
       </nav>
       <div class="topbar-spacer"></div>
@@ -219,6 +220,25 @@
           <div class="grid" id="autoGrid" data-i18n="empty.no_automations"><div class="empty">还没有自定义指令，点击上方「新建指令」或从常用指令保存</div></div>
         </div>
 
+        <!-- Cline 控制台页面（进程级嫁接） -->
+        <div class="page-view" data-view="cline">
+          <div class="page-head">
+            <div data-i18n="nav.cline"><h2>🤖 Cline</h2><div class="sub">fhcode 调度 → Cline CLI 免费模型执行，429 自动退回主模型</div></div>
+          </div>
+          <div class="cline-status-bar" id="clineStatusBar">检测中…</div>
+          <div class="section-title">派发任务</div>
+          <div class="cline-form">
+            <textarea id="clineTaskInput" rows="4" placeholder="输入要派给 Cline 的任务，例如：在项目里写一个 Python 计算器并运行"></textarea>
+            <div class="cline-form-row">
+              <input id="clineModelInput" type="text" placeholder="模型（可留空，默认 Cline 免费模型）" />
+              <button id="clineRunBtn">▶ 派发给 Cline</button>
+            </div>
+          </div>
+          <div class="cline-result" id="clineResult" style="display:none;">
+            <div class="cline-result-head"><span id="clineResultStatus"></span><span class="cline-result-time" id="clineResultTime"></span></div>
+            <pre id="clineResultText"></pre>
+          </div>
+        </div>
         <!-- 模板库页面 -->
         <div class="page-view" data-view="templates">
           <div class="page-head">
