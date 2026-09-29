@@ -34,6 +34,7 @@ import { registerModelDomainRoutes, getSharedModelRouter } from './routes/model-
 import { registerFilesystemRoutes } from './routes/filesystem';
 import { registerClineRoutes } from './routes/cline';
 import { registerCloudBridgeRoutes } from './routes/cloud-bridge';
+import { registerShopRoutes } from './routes/shop';
 import {
   TaskQueue,
   publicTask,
@@ -681,6 +682,8 @@ export function startWebServer(opts: ServeOptions = {}): {
   registerClineRoutes(app, { homeDir });
   /* ========== 云桥接（手机指令→电脑执行）+ 授权 → routes/cloud-bridge.ts ========== */
   registerCloudBridgeRoutes(app, { homeDir, loadJsonFile, saveJsonFile, bruteForce });
+  /* ========== P-7 自建商城（支付 + 自动发码闭环）→ routes/shop.ts ========== */
+  registerShopRoutes(app, { token, sessions });
   const server = app.listen(port, () => {
     console.log(t('serve.started', { port }));
   });

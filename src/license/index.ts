@@ -1,5 +1,5 @@
 /**
- * fhcode 商业授权模块（闭源收费核心）
+ * fhcode 商业授权模块（企业版增值能力核心）
  *
  * 授权模型：
  *  - 激活码（License Key）：由开发商持有主密钥生成，格式 FH-XXXX-XXXX-XXXX-XXXX
@@ -99,7 +99,9 @@ export function generateLicenseKey(opts: {
     .slice(0, 12)
     .toUpperCase();
   const body = Buffer.from(payload, 'utf-8').toString('base64url');
-  return `FH-${body.slice(0, 4)}-${body.slice(4, 8)}-${body.slice(8, 12)}-${body.slice(12, 16)}-${sig}`;
+  // 将 body 按 4 字符分组完整写入激活码，避免长 payload 被截断导致类型/天数/设备数丢失
+  const groups = (body.match(/.{1,4}/g) || ['']).join('-');
+  return `FH-${groups}-${sig}`;
 }
 
 interface ParsedKey {
@@ -115,11 +117,12 @@ interface ParsedKey {
 /** 解析 + 校验激活码签名 */
 export function parseLicenseKey(key: string, secretOverride?: string): ParsedKey {
   const k = String(key || '').trim();
-  if (!/^FH-[A-Za-z0-9_-]{4}-[A-Za-z0-9_-]{4}-[A-Za-z0-9_-]{4}-[A-Za-z0-9_-]{4}-[A-F0-9]{12}$/.test(k)) {
+  if (!/^FH-(?:[A-Za-z0-9_-]{1,4}-)+[A-F0-9]{12}$/.test(k)) {
     return { type: 'standard', issuedTo: '', days: 0, seats: 1, sig: '', ok: false, reason: '激活码格式不正确' };
   }
-  const [, b0, b1, b2, b3, sig] = k.split('-');
-  const body = `${b0}${b1}${b2}${b3}`;
+  const segments = k.split('-');
+  const sig = segments[segments.length - 1];
+  const body = segments.slice(1, segments.length - 1).join('');
   const payload = Buffer.from(body, 'base64url').toString('utf-8');
   const parts = payload.split('|');
   if (parts.length !== 5) return { type: 'standard', issuedTo: '', days: 0, seats: 1, sig: '', ok: false, reason: '激活码内容损坏' };

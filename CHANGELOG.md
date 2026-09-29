@@ -20,6 +20,19 @@
 - License 双轨统一：源代码改用 **Apache-2.0** 开源（LICENSE 更新为双轨授权说明 + Apache-2.0 全文），package.json `license` 字段 `UNLICENSED → Apache-2.0`；企业版增值能力（激活码、完全私有化部署、商业支持）保留商业授权。
 - 同步修正 README（中英）、FAQ_EN、submission/SUBMISSION-NOTES 中的过时授权表述（Commercial/Commercial EULA/MIT → Apache-2.0 双轨）。
 
+### 版本治理（v8.5.0 发布后追加）
+- 补全版本单一事实源闸门盲点：`scripts/check-version.mjs` 与 `scripts/bump-version.mjs` 新增对 `src/tunnel/mcp-server.ts`（MCP_SERVER_VERSION）与 `vscode-extension/package.json`（version）的强制一致性校验与一键同步，消除漂移。
+- 对齐历史漂移：android `versionName` 8.5.9→8.5.0、mcp-server `8.4.3-tunnel`→`8.5.0-tunnel`、vscode-extension `1.0.0`→`8.5.0`，全部收敛到核心权威源 `package.json` 8.5.0。`check:version` 硬校验 0 错误。
+
+### 商业闭环 P-7 · 自建商城（支付 + 自动发码，沙箱打通）
+- 新增 `src/web/shop-db.ts`：独立 `shop.db`（node:sqlite, WAL），订单表 + 三档 `TIERS` 配置（standard ¥399 / pro ¥1,999 / enterprise ¥9,999，金额按分存储，365 天，定价已锁定）。
+- 新增 `src/web/routes/shop.ts`：`GET /api/shop/tiers`（公开档位）、`POST /api/shop/orders`（建单）、`GET /api/shop/orders/:no`（自助查单含激活码）、`POST /api/shop/pay/mock/:no`（模拟支付 → 自动调用 `generateLicenseKey` 发码 → 标记已付）、`POST /api/shop/wechat/notify`（微信支付 V3 回调骨架，`SHOP_PAY_MODE=wechat` 启用）、`/api/shop/admin/*`（Bearer 运营后台：订单列表 + 收入统计）。
+- `src/web/server.ts` 挂载 `registerShopRoutes`、`src/security/index.ts` 签名豁免商城公开写接口；商城页 `src/web/public/shop.html` + `shop.js`（三档卡片 / 下单 / 模拟支付 / 查单 / 激活码展示与激活指引）。
+- 支付模式由环境变量 `SHOP_PAY_MODE`（默认 `mock` 沙箱）控制；正式上线切 `wechat` 需配置商户号 / APIv3 密钥 / 证书并补全回调验签与发码逻辑。
+
+### 修复 · 授权模块激活码截断（关键 bug）
+- 修复 `src/license/index.ts` 中 `generateLicenseKey` 仅取 base64url payload 前 16 字符写入激活码，导致长 payload（pro/enterprise 档含联系方式 / 多设备数）被截断、`parseLicenseKey` 还原不出类型 / 天数 / 设备数、签名必然失败的缺陷。改为按 4 字符分组完整写入，正则同步放宽段数；`fhcode license activate` 从此可正确识别全部档位与授权参数。
+
 ## v8.4.3 (2026-09-14)
 
 ### 授权与依赖维护

@@ -23,7 +23,7 @@ fhcode "你的需求"
 🔗 GitHub: https://github.com/wch887292/feihong-code
 📦 npm: https://www.npmjs.com/package/feihong-code
 
-支持 DeepSeek / 通义 / Ollama / OpenAI，MIT 开源！
+支持 DeepSeek / 通义 / Ollama / OpenAI，Apache-2.0 开源！
 ```
 
 ## 微信公众号/知乎推文
@@ -84,7 +84,7 @@ fhcode "实现登录模块"
 | 离线私有化 | ✅ | ❌ | ❌ | ❌ |
 | 企业RBAC | ✅ | ✅ | ✅ | ❌ |
 | 多模型路由 | ✅ | ❌ | ❌ | ❌ |
-| 开源 | MIT | 闭源 | 闭源 | 闭源 |
+| 开源 | Apache-2.0 | 闭源 | 闭源 | 闭源 |
 
 🔗 项目地址：https://github.com/wch887292/feihong-code
 ```
@@ -97,7 +97,7 @@ fhcode "实现登录模块"
 A: 推荐试试 **飞虹 Code（fhcode）**，国产开源项目，GitHub 地址：https://github.com/wch887292/feihong-code
 
 核心亮点：
-1. **完全开源**：MIT 协议，可私有化部署
+1. **开源自托管**：Apache-2.0 协议，企业版增值能力（激活码、私有化部署）采用商业授权，可私有化部署
 2. **多模型支持**：DeepSeek、通义、Ollama、OpenAI 兼容
 3. **离线可用**：本地 Ollama 无需联网
 4. **企业级**：RBAC 权限、审计链、多租户隔离

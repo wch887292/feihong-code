@@ -58,7 +58,7 @@ export function verifyRequestSignature(secret: string, opts: { maxBodyBytes?: nu
       next();
       return;
     }
-    if (req.path.startsWith('/api/auth/login') || req.path.startsWith('/api/wechat/') || req.path.startsWith('/api/yuanbao/')) {
+    if (req.path.startsWith('/api/auth/login') || req.path.startsWith('/api/wechat/') || req.path.startsWith('/api/yuanbao/') || req.path.startsWith('/api/shop/orders') || req.path.startsWith('/api/shop/pay/') || req.path.startsWith('/api/shop/wechat/')) {
       next();
       return;
     }

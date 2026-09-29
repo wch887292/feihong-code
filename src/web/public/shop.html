@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>飞虹 Code · 官方授权商城</title>
+  <style>
+    :root {
+      --brand: #4f46e5;
+      --brand2: #7c3aed;
+      --ink: #1f2937;
+      --muted: #6b7280;
+      --line: #e5e7eb;
+      --bg: #f5f6fa;
+      --ok: #16a34a;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: var(--bg); color: var(--ink); line-height: 1.6;
+    }
+    .topbar {
+      background: linear-gradient(135deg, var(--brand), var(--brand2));
+      color: #fff; padding: 18px 20px; display: flex; align-items: center; gap: 12px;
+    }
+    .topbar .logo { font-weight: 800; font-size: 18px; letter-spacing: .5px; }
+    .topbar .sub { opacity: .85; font-size: 13px; }
+    main { max-width: 980px; margin: 0 auto; padding: 24px 16px 60px; }
+    .hero { text-align: center; padding: 24px 0 8px; }
+    .hero h1 { font-size: 28px; margin: 0 0 8px; }
+    .hero p { color: var(--muted); margin: 0; }
+    .tiers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 28px 0; }
+    @media (max-width: 760px) { .tiers { grid-template-columns: 1fr; } }
+    .card {
+      background: #fff; border: 1px solid var(--line); border-radius: 14px;
+      padding: 22px 18px; position: relative; display: flex; flex-direction: column;
+      box-shadow: 0 2px 10px rgba(0,0,0,.04);
+    }
+    .card.recommended { border-color: var(--brand); box-shadow: 0 6px 20px rgba(79,70,229,.18); }
+    .badge {
+      position: absolute; top: -11px; left: 50%; transform: translateX(-50%);
+      background: linear-gradient(135deg, var(--brand), var(--brand2)); color: #fff;
+      font-size: 12px; padding: 3px 12px; border-radius: 999px;
+    }
+    .card h3 { margin: 4px 0 2px; font-size: 19px; }
+    .card .tagline { color: var(--muted); font-size: 13px; min-height: 36px; }
+    .price { font-size: 30px; font-weight: 800; margin: 10px 0 2px; }
+    .price small { font-size: 14px; font-weight: 500; color: var(--muted); }
+    .features { list-style: none; padding: 0; margin: 12px 0 18px; flex: 1; }
+    .features li { padding: 5px 0 5px 22px; position: relative; font-size: 14px; color: #374151; }
+    .features li::before { content: "✓"; position: absolute; left: 0; color: var(--ok); font-weight: 700; }
+    .btn {
+      border: 0; border-radius: 10px; padding: 12px 16px; font-size: 15px; font-weight: 700;
+      color: #fff; background: linear-gradient(135deg, var(--brand), var(--brand2)); cursor: pointer;
+      width: 100%; transition: transform .06s ease, opacity .2s;
+    }
+    .btn:hover { opacity: .94; }
+    .btn:active { transform: translateY(1px); }
+    .btn.ghost { background: #fff; color: var(--brand); border: 1px solid var(--brand); }
+    .btn:disabled { opacity: .55; cursor: not-allowed; }
+    .query { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 20px; margin-top: 8px; }
+    .query h2 { font-size: 17px; margin: 0 0 12px; }
+    .query-row { display: flex; gap: 10px; }
+    .query-row input {
+      flex: 1; padding: 11px 12px; border: 1px solid var(--line); border-radius: 10px; font-size: 14px;
+    }
+    #queryResult, #status { margin-top: 14px; font-size: 14px; }
+    .status-box {
+      background: #f8fafc; border: 1px dashed var(--line); border-radius: 12px; padding: 16px; margin-top: 12px;
+    }
+    .status-box .row { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid #eef; }
+    .status-box .row:last-child { border-bottom: 0; }
+    .pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+    .pill.paid { background: #dcfce7; color: #15803d; }
+    .pill.pending { background: #fef9c3; color: #a16207; }
+    .pill.cancelled, .pill.refunded { background: #fee2e2; color: #b91c1c; }
+    .key-box {
+      margin-top: 10px; background: #0f172a; color: #a7f3d0; border-radius: 10px; padding: 14px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 15px; word-break: break-all;
+      display: flex; justify-content: space-between; align-items: center; gap: 10px;
+    }
+    .key-box button { background: #334155; color: #e2e8f0; border: 0; border-radius: 6px; padding: 6px 10px; cursor: pointer; font-size: 12px; }
+    .hint { color: var(--muted); font-size: 13px; margin-top: 8px; }
+    .err { color: #b91c1c; }
+    footer { text-align: center; color: var(--muted); font-size: 12px; padding: 24px 16px 40px; }
+    .modal-mask {
+      position: fixed; inset: 0; background: rgba(15,23,42,.5); display: none; align-items: center; justify-content: center; padding: 16px; z-index: 50;
+    }
+    .modal-mask.show { display: flex; }
+    .modal {
+      background: #fff; border-radius: 16px; padding: 22px; width: 100%; max-width: 420px;
+    }
+    .modal h3 { margin: 0 0 4px; }
+    .modal .m-sub { color: var(--muted); font-size: 13px; margin: 0 0 16px; }
+    .modal label { display: block; font-size: 13px; margin: 12px 0 6px; }
+    .modal input {
+      width: 100%; padding: 11px 12px; border: 1px solid var(--line); border-radius: 10px; font-size: 14px;
+    }
+    .modal .actions { display: flex; gap: 10px; margin-top: 18px; }
+    .modal .actions .btn { flex: 1; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <span class="logo">飞虹 Code</span>
+    <span class="sub">晋江市飞虹智科技 · 飞扬企源研发中心</span>
+  </header>
+
+  <main>
+    <section class="hero">
+      <h1>官方授权商城</h1>
+      <p>AI 编程生产工具 · 一次购买，全年授权 · 开箱即用，无需部署</p>
+    </section>
+
+    <section id="tiers" class="tiers"><!-- 档位卡片由 shop.js 渲染 --></section>
+
+    <section class="query">
+      <h2>查询订单 / 激活码</h2>
+      <div class="query-row">
+        <input id="orderInput" placeholder="输入订单号，例如 FH260929183045AB12" />
+        <button class="btn ghost" id="queryBtn" style="width:auto;padding:11px 20px;">查询</button>
+      </div>
+      <div id="queryResult"></div>
+    </section>
+  </main>
+
+  <footer>
+    晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹<br />
+    飞虹 Code 采用 Apache-2.0 开源核心 + 企业版商业授权双轨模式
+  </footer>
+
+  <!-- 下单弹层 -->
+  <div class="modal-mask" id="modal">
+    <div class="modal">
+      <h3 id="mTitle">确认购买</h3>
+      <p class="m-sub" id="mSub"></p>
+      <label for="mContact">联系方式（手机或邮箱，用于交付与售后）</label>
+      <input id="mContact" placeholder="例如 138xxxx 或 you@example.com" />
+      <div id="mErr" class="err" style="min-height:18px;margin-top:6px;"></div>
+      <div class="actions">
+        <button class="btn ghost" id="mCancel">取消</button>
+        <button class="btn" id="mSubmit">提交订单</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/shop.js"></script>
+</body>
+</html>

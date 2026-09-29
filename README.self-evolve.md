@@ -272,7 +272,7 @@ fe review --daily
 
 ## 📄 许可证
 
-商业授权（Commercial License），详见 [LICENSE](LICENSE)
+源代码基于 Apache-2.0 开源自托管，企业版增值能力（激活码、完全私有化部署与商业支持）采用商业授权双轨模式，详见 [LICENSE](LICENSE) 与 [NOTICE](NOTICE)
 
 ---
 

@@ -8,6 +8,8 @@
  *   3. android/app/build.gradle         versionName（存在 android 目录时）
  *   4. CHANGELOG.md                     最新 `## vX.Y.Z` 段
  *   5. README.md                        JSON-LD softwareVersion
+ *   6. src/tunnel/mcp-server.ts         MCP_SERVER_VERSION（取 -tunnel 前主版本）
+ *   7. vscode-extension/package.json    version（存在时）
  *
  * 软校验（仅列出供人工复核，不阻塞）：
  *   - docs/*.md 中残留低于当前版本的旧 7.x 版本号
@@ -85,7 +87,33 @@ if (version) {
     errors.push('README.md 不存在');
   }
 
-  // ---------- 6. docs 旧版本残留（软校验） ----------
+  // ---------- 6. src/tunnel/mcp-server.ts MCP_SERVER_VERSION ----------
+  try {
+    const ms = read('src/tunnel/mcp-server.ts');
+    const m = ms.match(/export const MCP_SERVER_VERSION\s*=\s*'([^']+)'/);
+    if (!m) errors.push('src/tunnel/mcp-server.ts 找不到 `export const MCP_SERVER_VERSION`');
+    else {
+      const mver = m[1].split('-')[0];
+      if (!/^\d+\.\d+\.\d+$/.test(mver)) errors.push(`src/tunnel/mcp-server.ts MCP_SERVER_VERSION='${m[1]}' 主版本号不合法`);
+      else if (mver !== version) errors.push(`src/tunnel/mcp-server.ts MCP_SERVER_VERSION='${m[1]}' 主版本 != package.json ${version}（用 bump-version.mjs 同步）`);
+    }
+  } catch {
+    warnings.push('src/tunnel/mcp-server.ts 不存在（跳过）');
+  }
+
+  // ---------- 7. vscode-extension/package.json ----------
+  const vsePath = 'vscode-extension/package.json';
+  if (existsSync(path.join(root, vsePath))) {
+    try {
+      const vse = JSON.parse(read(vsePath));
+      if (!vse.version) errors.push('vscode-extension/package.json 无 version 字段');
+      else if (vse.version !== version) errors.push(`vscode-extension/package.json version='${vse.version}' != package.json ${version}（用 bump-version.mjs 同步）`);
+    } catch (e) {
+      errors.push(`vscode-extension/package.json 解析失败: ${e.message}`);
+    }
+  }
+
+  // ---------- 8. docs 旧版本残留（软校验） ----------
   const docsDir = path.join(root, 'docs');
   if (existsSync(docsDir)) {
     const stale = [];

@@ -7,6 +7,8 @@
  *   2. src/cli/version.ts      export const VERSION
  *   3. android/app/build.gradle versionName + versionCode(+1)（存在时）
  *   4. README.md               JSON-LD softwareVersion
+ *   5. src/tunnel/mcp-server.ts MCP_SERVER_VERSION（追加 -tunnel 后缀）
+ *   6. vscode-extension/package.json version
  *
  * 需人工补充（脚本只提示，不代写）：
  *   - CHANGELOG.md 新版本段（check-version.mjs 会强制要求其存在）
@@ -75,6 +77,28 @@ if (/"softwareVersion":\s*"[^"]+"/.test(rm)) {
   rm = rm.replace(/"softwareVersion":\s*"[^"]+"/, `"softwareVersion": "${next}"`);
   write(rmPath, rm);
   console.log(`✓ README JSON-LD          softwareVersion = "${next}"`);
+}
+
+// 4.5 src/tunnel/mcp-server.ts MCP_SERVER_VERSION（保留 -tunnel 后缀）
+const msPath = 'src/tunnel/mcp-server.ts';
+if (existsSync(p(msPath))) {
+  let ms = read(msPath);
+  if (/export const MCP_SERVER_VERSION\s*=\s*'[^']+'/.test(ms)) {
+    ms = ms.replace(/export const MCP_SERVER_VERSION\s*=\s*'[^']+'/, `export const MCP_SERVER_VERSION = '${next}-tunnel'`);
+    write(msPath, ms);
+    console.log(`✓ src/tunnel/mcp-server.ts  MCP_SERVER_VERSION = '${next}-tunnel'`);
+  } else {
+    console.warn(`⚠ src/tunnel/mcp-server.ts 未找到 MCP_SERVER_VERSION 常量，请人工修改`);
+  }
+}
+
+// 4.6 vscode-extension/package.json
+const vsePath = 'vscode-extension/package.json';
+if (existsSync(p(vsePath))) {
+  const vse = JSON.parse(read(vsePath));
+  vse.version = next;
+  write(vsePath, JSON.stringify(vse, null, 2) + '\n');
+  console.log(`✓ vscode-extension/package.json version = '${next}'`);
 }
 
 // 5. 提示人工事项
