@@ -541,4 +541,4 @@ Scan to join the **Feihongzhi WeChat assistant** for:
 - **Lead**: Wu Cihong
 
 © 2026 Jinjiang Feihongzhi Technology Enterprise Management Co., Ltd. · Feiyang Qiyuan R&D Center · Lead: Wu Cihong
-Released under the [Apache License 2.0](./LICENSE). Enterprise add-ons (activation key, private deployment, commercial support) are offered under a separate commercial license — see the dual-licensing notice in [LICENSE](./LICENSE).
+Released under the [Apache License 2.0](./LICENSE). Enterprise add-ons (activation key, private deployment, commercial support) are offered under a separate commercial license — see the dual-licensing notice in [NOTICE](./NOTICE).

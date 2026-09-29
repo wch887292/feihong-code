@@ -655,7 +655,7 @@ node dist/cli/index.js --version
 - **负责人**：吴赐虹
 
 © 2026 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
-源代码基于 [Apache License 2.0](./LICENSE) 开源发布；企业版增值能力（激活码、私有化部署、商业支持）采用商业授权，详见 [LICENSE](./LICENSE) 双轨授权说明。
+源代码基于 [Apache License 2.0](./LICENSE) 开源发布；企业版增值能力（激活码、私有化部署、商业支持）采用商业授权，详见 [NOTICE](./NOTICE) 双轨授权说明。
 
 ---
 

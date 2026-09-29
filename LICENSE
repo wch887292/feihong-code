@@ -1,21 +1,3 @@
-飞虹 Code（feihong-code）双轨授权说明 / Dual Licensing Notice
-==============================================================
-
-1. 本仓库源代码依据 Apache License 2.0 开源发布（见下方全文）。
-   The source code in this repository is released under the Apache License, Version 2.0 (full text below).
-
-2. 企业版增值能力（激活码授权、企业级 RBAC/审计/多租户配额的商业支持、
-   完全私有化部署、授权范围内的二次开发服务）由 晋江市飞虹智科技企业管理有限公司（飞扬企源研发中心）
-   提供商业授权与技术服务。Apache-2.0 授权不涵盖上述商业服务承诺本身。
-   Enterprise add-ons (activation-key licensing, commercial support, fully private
-   deployment and licensed secondary development) are offered commercially by
-   Jinjiang Feihong Intelligent Technology Enterprise Management Co., Ltd.
-   Commercial terms do not alter the Apache-2.0 grant of the source code.
-
-3. 版权所有（C）2026 吴赐虹 / 晋江市飞虹智科技企业管理有限公司。
-   Copyright (C) 2026 Wucihong / Jinjiang Feihong Intelligent Technology Enterprise Management Co., Ltd.
-
---------------------------------------------------------------------------
 
 
                                  Apache License
