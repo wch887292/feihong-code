@@ -10,6 +10,7 @@ const config: CapacitorConfig = {
   appName: '飞虹 Code',
   webDir: 'dist/web/public',
   server: {
+    url: 'https://jb.klai.top',
     androidScheme: 'https'
   },
   android: {
