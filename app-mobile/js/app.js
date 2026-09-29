@@ -522,6 +522,9 @@ function renderMarkdown(text) {
   html = html.replace(/^# (.*)$/gm, '<div class="md-h1">$1</div>');
   html = html.replace(/^[-*] (.*)$/gm, '<div class="md-li">• $1</div>');
   html = html.replace(/^(\d+)\. (.*)$/gm, '<div class="md-li">$1. $2</div>');
+  html = html.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, function (_, alt, src) {
+    return '<img src="' + src + '" alt="' + alt + '" style="max-width:100%;border-radius:8px;margin:6px 0;display:block;" onclick="window.open(this.src)">';
+  });
   html = html.replace(/(https?:\/\/[^\s<>"'()]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
   html = html.replace(/\n/g, '<br>');
   html = html.replace(/\x00CB(\d+)\x00/g, function (_, idx) { return codeBlocks[parseInt(idx)]; });
@@ -917,7 +920,7 @@ function renderThread(task) {
       var imgHtml = m.image ? '<img src="' + m.image + '" style="max-width:200px;max-height:200px;border-radius:8px;margin-top:6px;display:block;" onclick="window.open(this.src)">' : '';
       html += '<div class="msg user">' + esc(m.content) + imgHtml + '</div>';
     }
-    else if (m.role === 'assistant') html += '<div class="msg assistant">' + renderMarkdown(m.content) + '</div>';
+    else if (m.role === 'assistant') html += '<div class="msg assistant">' + renderMarkdown(beautifyStoredComputerMsg(m.content)) + '</div>';
   });
   box.innerHTML = html;
   box.scrollTop = box.scrollHeight;
@@ -1292,6 +1295,72 @@ function callComputer(text, onDone, onError) {
     onError);
 }
 /* 渲染电脑执行结果到对话流 */
+/* 电脑/云端执行动作名映射（共用） */
+var PC_ACTION_NAMES = {
+  'app/open': '📂 打开应用',
+  'screenshot': '📷 截屏',
+  'keyboard/type': '⌨️ 输入文字',
+  'keyboard/press': '🔘 按键',
+  'mouse/click': '🖱️ 点击鼠标',
+  'mouse/move': '🖱️ 移动鼠标',
+  'write': '📝 写入文件',
+  'read': '📄 读取文件',
+  'save-file': '💾 保存文件（手机上传）',
+  'read-image': '🖼️ 读取图片',
+  'ls': '📁 列出目录',
+  'mkdir': '🗂️ 创建目录',
+  'exec': '⚙️ 执行命令',
+  'fetch': '🌐 抓取网页',
+  'sysinfo': '🖥️ 系统状态',
+  'grep': '🔍 搜索文件',
+  'bridge': '🔗 桥接指令'
+};
+
+/* 执行结果 → 结构化 markdown（存储与渲染统一格式，替代原始 JSON） */
+function formatComputerResult(data, rawText) {
+  var isCloud = getExecEndLabel() === '云端执行体';
+  var lines = [];
+  var head = (isCloud ? '☁️ **云端执行体已完成**' : '🖥️ **电脑已完成**');
+  if (rawText) head += '：' + rawText;
+  lines.push(head);
+  var br = data && data.bridge ? data.bridge : data;
+  var r = (br && br.result) || (data && data.result);
+  var act = (r && r.action) || (br && br.action) || (data && data.action);
+  if (act) {
+    lines.push('**动作**：' + (PC_ACTION_NAMES[act] || act));
+  }
+  if (br && br.status) {
+    lines.push('**状态**：' + (br.status === 'done' ? '✅ 完成' : br.status === 'error' ? '❌ 出错' : br.status));
+  }
+  if (br && br.createdAt && br.executedAt) {
+    var ms = new Date(br.executedAt) - new Date(br.createdAt);
+    if (ms >= 0 && ms < 600000) lines.push('**耗时**：' + (ms / 1000).toFixed(1) + ' 秒');
+  }
+  if (data && data.message && data.message !== '已在云端执行体执行完成' && data.message !== '已在电脑执行完成') {
+    lines.push('**说明**：' + data.message);
+  }
+  if (r && r.text) {
+    lines.push('', '```', r.text, '```');
+  }
+  if (r && r.path) lines.push('**路径**：`' + r.path + '`');
+  var img = (data && data.image) || (r && r.image);
+  if (img) lines.push('', '![' + (rawText || '执行结果') + '](' + img + ')');
+  return lines.join('\n');
+}
+
+/* 兼容历史脏数据：消息尾部是原始桥接 JSON 时，动态转为结构化 markdown */
+function beautifyStoredComputerMsg(content) {
+  if (!content || content.indexOf('{"ok"') < 0) return content;
+  var idx = content.lastIndexOf('{"ok":true');
+  if (idx < 0) return content;
+  var head = content.slice(0, idx).trim();
+  try {
+    var data = JSON.parse(content.slice(idx));
+    var md = formatComputerResult(data, '');
+    return head ? head + '\n\n' + md : md;
+  } catch (e) { return content; }
+}
+
 function renderComputerResult(task, data, rawText) {
   var lines = [];
   lines.push((getExecEndLabel() === '云端执行体' ? '☁️ 云端执行体已执行指令：' : '🖥️ 电脑已执行指令：') + esc(rawText));
@@ -1384,9 +1453,7 @@ function sendFileToCloud() {
     box.appendChild(msgEl); box.scrollTop = box.scrollHeight;
     callComputer(text,
       function (data) {
-        var r = renderComputerResult(pcTask, data, '📁 发送文件到电脑：' + file.name);
-        msgEl.innerHTML = r.html;
-        appendAssistantMessage(pcTask.id, '📁 发送文件到电脑：' + file.name + '\n\n' + JSON.stringify(data));
+        appendAssistantMessage(pcTask.id, formatComputerResult(data, '📁 发送文件到电脑：' + file.name));
         renderThread(getTask(pcTask.id));
         updateSendBtn(false);
       },
@@ -1469,9 +1536,7 @@ function sendMessage() {
     callComputer(finalText,
       function (data) {
         stopThinking();
-        var r = renderComputerResult(pcTask, data, finalText);
-        pcMsgEl.innerHTML = r.html;
-        appendAssistantMessage(pcTask.id, finalText + '\n\n' + JSON.stringify(data));
+        appendAssistantMessage(pcTask.id, formatComputerResult(data, finalText));
         renderThread(getTask(pcTask.id));
         updateSendBtn(false);
       },
