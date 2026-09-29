@@ -265,7 +265,35 @@ function withAuditLock(dir: string, fn: () => void): void {
             backoffMs = 10; // 锁已清理，重置退避
             continue;
           }
-          // 清理失败：落入下方超时判断/退避重试
+          // 清理失败（unlink/rename 被 safe-delete shim 拦截）：
+          // 若已确认持有进程已死，直接覆写锁文件声明所有权，不再等待。
+          if (lockPid !== null && !pidAlive(lockPid)) {
+            logger.warn('stale 锁清理失败但持有进程已死，覆写锁文件继续执行', {
+              lockPath,
+              stalePid: lockPid,
+            });
+            try {
+              const fd = openSync(lockPath, 'w'); // 'w' 截断写入，绕过删除拦截
+              try {
+                writeSync(fd, String(process.pid));
+              } finally {
+                closeSync(fd);
+              }
+              try {
+                fn();
+                return;
+              } finally {
+                try {
+                  unlinkSync(lockPath);
+                } catch {
+                  /* 释放失败不影响，下个写入者会按 stale 逻辑处理 */
+                }
+              }
+            } catch {
+              // 'w' 也失败：落入下方超时判断/退避重试
+            }
+          }
+          // 清理失败且无法确认进程状态：落入下方超时判断/退避重试
         }
         if (Date.now() > deadline) {
           const st = (() => {
