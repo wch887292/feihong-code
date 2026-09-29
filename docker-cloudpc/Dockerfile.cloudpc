@@ -1,42 +1,45 @@
 # fhcode 云电脑 · 视觉桌面镜像（KasmVNC / CVD 路线）
 # ------------------------------------------------------------
-# 基于 node:22-slim，内置：
-#   - TigerVNC(Xtigervnc)：真实 X 服务 + VNC
-#   - fluxbox：轻量窗口管理器
-#   - novnc + websockify：浏览器访问 VNC（noVNC）
-#   - imagemagick：供 cloud-agent 截图（import 截 X 显示）
+# 基于 daocloud 镜像源的 node:22-slim（Debian 12 bookworm），内置：
+#   - TigerVNC(Xtigervnc)：真实 X 服务 + VNC（单进程，免 Xvfb）
+#   - openbox：轻量窗口管理器
+#   - novnc + websockify：浏览器访问 VNC（noVNC web 客户端）
+#   - imagemagick / scrot：供 cloud-agent 截图（import/scrot 截 X 显示）
 #   - xterm：容器内终端
-#   - cloud-agent：fhcode bridge 无头→桌面执行体（带截图）
+#   - python3：websockify 运行时依赖
+#   - cloud-agent：fhcode bridge 桌面执行体（支持指令 + 截图回传）
 #
-# 构建（在有 apt + Docker 的机器上）：
+# 构建（在能连 daocloud 镜像源 + Docker 的机器上，本镜像针对腾讯云优化）：
 #   docker build -f Dockerfile.cloudpc -t fhcode-cloudpc:latest .
-# 导出并传到云端：
-#   docker save fhcode-cloudpc:latest | gzip > fhcode-cloudpc.tar.gz
-#   # 云端：docker load < fhcode-cloudpc.tar.gz
 # 之后 cloud-pc-manager 检测到镜像即自动启用「视觉桌面」模式。
-FROM node:22-slim
+FROM docker.m.daocloud.io/library/node:22-slim
 
 ENV DEBIAN_FRONTEND=noninteractive \
     DISPLAY=:1 \
     VNC_PORT=5901 \
     NOVNC_PORT=6080
 
-RUN apt-get update \
+# 服务器位于腾讯云，改用腾讯云内网 apt 镜像（HTTP，避免基础镜像缺 ca-certificates 导致 HTTPS 证书校验失败）
+RUN rm -f /etc/apt/sources.list /etc/apt/sources.list.d/*.sources /etc/apt/sources.list.d/*.list 2>/dev/null; \
+    printf 'Types: deb\nURIs: http://mirrors.tencent.com/debian\nSuites: bookworm bookworm-updates\nComponents: main\n\n' > /etc/apt/sources.list.d/tencent.sources; \
+    printf 'Types: deb\nURIs: http://mirrors.tencent.com/debian-security\nSuites: bookworm-security\nComponents: main\n' >> /etc/apt/sources.list.d/tencent.sources; \
+    apt-get update \
  && apt-get install -y --no-install-recommends \
+      ca-certificates \
+      python3 \
+      openbox \
       tigervnc-standalone-server \
-      fluxbox \
-      xterm \
       novnc \
       websockify \
+      scrot \
       imagemagick \
-      fonts-dejavu-core \
-      procps \
+      xterm \
  && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /app
-COPY cloud-agent.js /app/cloud-agent.js
-COPY start-cloudpc.sh /app/start-cloudpc.sh
-RUN chmod +x /app/start-cloudpc.sh
+WORKDIR /opt/cloudpc
+COPY cloud-agent.js /opt/cloudpc/cloud-agent.js
+COPY start-cloudpc.sh /opt/cloudpc/start-cloudpc.sh
+RUN chmod +x /opt/cloudpc/start-cloudpc.sh
 
-EXPOSE 6080
-CMD ["/app/start-cloudpc.sh"]
+EXPOSE 5901 6080
+CMD ["/opt/cloudpc/start-cloudpc.sh"]

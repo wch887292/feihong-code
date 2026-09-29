@@ -36,6 +36,8 @@ const { URL } = require('url');
 // ===================== 配置 =====================
 const C = {
   BRIDGE_URL: (process.env.FH_BRIDGE_URL || 'http://127.0.0.1:18080').replace(/\/+$/, ''),
+  // 容器内访问宿主机 bridge 的地址（容器 localhost 是自身，必须走 docker 网关）
+  HOST_BRIDGE_URL: (process.env.FH_PC_HOST_BRIDGE_URL || 'http://host.docker.internal:18080').replace(/\/+$/, ''),
   TOKEN: process.env.FH_BRIDGE_TOKEN || '',
   MANAGER_ID: process.env.FH_PC_MANAGER_ID || 'pc-cloud-manager',
   MANAGER_NAME: process.env.FH_PC_MANAGER_NAME || '☁️ 云电脑管理器',
@@ -162,7 +164,8 @@ async function createInstance(name) {
     try {
       const r = spawnSync('docker', [
         'run', '-d', '--name', `fhcode-cloudpc-${seq}`, '--rm',
-        '-e', `FH_BRIDGE_URL=${C.BRIDGE_URL}`, '-e', `FH_BRIDGE_TOKEN=${C.TOKEN}`,
+        '--add-host', 'host.docker.internal:host-gateway',
+        '-e', `FH_BRIDGE_URL=${C.HOST_BRIDGE_URL}`, '-e', `FH_BRIDGE_TOKEN=${C.TOKEN}`,
         '-e', `FH_CLOUD_DEVICE_ID=${deviceId}`, '-e', `FH_CLOUD_NAME=${displayName}`,
         '-e', `FH_CLOUD_WORKDIR=${workdir}`, '-e', 'DISPLAY=:1', '-e', 'VNC_PORT=5901', '-e', 'NOVNC_PORT=6080',
         '-p', `${novncPort}:6080`, C.IMAGE,
@@ -171,7 +174,7 @@ async function createInstance(name) {
       inst.containerId = (r.stdout || '').toString().trim().slice(0, 12);
       inst.mode = 'desktop';
       inst.novncPort = novncPort;
-      inst.novncUrl = `http://${C.NOVNC_HOST}:${novncPort}/vnc.html?autoconnect=true&resize=scale`;
+      inst.novncUrl = `https://${C.NOVNC_HOST}/fhcode-pc/${seq}/vnc.html?path=fhcode-pc/${seq}/websockify&autoconnect=true&resize=scale`;
     } catch (e) {
       return { ok: false, error: '视觉桌面容器启动失败: ' + e.message };
     }
