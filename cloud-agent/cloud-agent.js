@@ -20,7 +20,7 @@
  */
 'use strict';
 
-const { execFile } = require('child_process');
+const { execFile, execFileSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -131,6 +131,32 @@ function runCmd(cmdline, opts) {
   });
 }
 
+// ===================== 屏幕截图（Linux X 显示，视觉桌面模式专用） =====================
+function captureScreen() {
+  // 仅在设置了 DISPLAY 且安装了截图工具时可用（容器视觉桌面模式）
+  if (!process.env.DISPLAY) {
+    return { ok: false, error: '当前云电脑为无头模式，无图形界面，无法截图（视觉桌面镜像启用后可截图）' };
+  }
+  const tools = [
+    { bin: 'import', args: ['-window', 'root', '-quality', '80', 'png:-'] }, // ImageMagick
+    { bin: 'scrot', args: ['-z', '-o', '/dev/stdout'] },                     // scrot
+  ];
+  for (const t of tools) {
+    try {
+      const out = execFileSync(t.bin, t.args, {
+        maxBuffer: 8 * 1024 * 1024,
+        timeout: 8000,
+        encoding: 'buffer',
+      });
+      if (out && out.length > 100) {
+        const base64 = out.toString('base64');
+        return { ok: true, result: { action: 'screenshot', image: 'data:image/png;base64,' + base64, text: '屏幕截图已生成（' + Math.round(base64.length / 1024) + ' KB）' } };
+      }
+    } catch { /* 尝试下一个工具 */ }
+  }
+  return { ok: false, error: '未找到可用的截图工具（请在桌面镜像中安装 ImageMagick 或 scrot）' };
+}
+
 // ===================== 自然语言 → 云端动作 =====================
 async function execute(text) {
   const t = String(text || '').trim();
@@ -204,6 +230,14 @@ async function execute(text) {
     } catch (e) {
       return { ok: false, error: '抓取失败: ' + (e instanceof Error ? e.message : String(e)) };
     }
+  }
+
+  // 5.5) 屏幕截图（视觉桌面模式）： 截图 | 截屏 | screenshot
+  if (/(截图|截屏|screenshot|screen\s*shot)/i.test(t) && !/文件/.test(t)) {
+    const shot = captureScreen();
+    if (shot.ok) return shot;
+    // 无图形界面时仍回报明确错误，便于手机端提示
+    return { ok: false, error: shot.error };
   }
 
   // 6) 系统状态： 系统状态 | 内存 | 磁盘 | 服务器状态（Node 原生，跨平台）

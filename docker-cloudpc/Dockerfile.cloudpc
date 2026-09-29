@@ -1,0 +1,42 @@
+# fhcode 云电脑 · 视觉桌面镜像（KasmVNC / CVD 路线）
+# ------------------------------------------------------------
+# 基于 node:22-slim，内置：
+#   - TigerVNC(Xtigervnc)：真实 X 服务 + VNC
+#   - fluxbox：轻量窗口管理器
+#   - novnc + websockify：浏览器访问 VNC（noVNC）
+#   - imagemagick：供 cloud-agent 截图（import 截 X 显示）
+#   - xterm：容器内终端
+#   - cloud-agent：fhcode bridge 无头→桌面执行体（带截图）
+#
+# 构建（在有 apt + Docker 的机器上）：
+#   docker build -f Dockerfile.cloudpc -t fhcode-cloudpc:latest .
+# 导出并传到云端：
+#   docker save fhcode-cloudpc:latest | gzip > fhcode-cloudpc.tar.gz
+#   # 云端：docker load < fhcode-cloudpc.tar.gz
+# 之后 cloud-pc-manager 检测到镜像即自动启用「视觉桌面」模式。
+FROM node:22-slim
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    DISPLAY=:1 \
+    VNC_PORT=5901 \
+    NOVNC_PORT=6080
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      tigervnc-standalone-server \
+      fluxbox \
+      xterm \
+      novnc \
+      websockify \
+      imagemagick \
+      fonts-dejavu-core \
+      procps \
+ && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY cloud-agent.js /app/cloud-agent.js
+COPY start-cloudpc.sh /app/start-cloudpc.sh
+RUN chmod +x /app/start-cloudpc.sh
+
+EXPOSE 6080
+CMD ["/app/start-cloudpc.sh"]

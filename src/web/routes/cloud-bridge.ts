@@ -145,6 +145,19 @@ export function registerCloudBridgeRoutes(app: ExpressApp, deps: CloudBridgeDeps
     res.json({ ok: true, devices: loadBridgeDevices() });
   });
 
+  // 设备注销（销毁云电脑实例 / 移除离线设备时清理列表，避免手机端出现僵尸设备）
+  app.delete('/api/bridge/devices/:deviceId', (req: Request, res: Response) => {
+    const deviceId = String(req.params.deviceId ?? '').trim();
+    if (!deviceId) { res.status(400).json({ ok: false, error: '缺少 deviceId' }); return; }
+    const devices = loadBridgeDevices();
+    const next = devices.filter((d) => d.deviceId !== deviceId);
+    saveBridgeDevices(next);
+    // 一并清理该设备的待执行指令，防止僵尸指令堆积
+    const cmds = loadBridgeCommands();
+    saveBridgeCommands(cmds.filter((c) => c.deviceId !== deviceId));
+    res.json({ ok: true, removed: devices.length - next.length });
+  });
+
   // 授权状态查询（Web/手机端展示）
   app.get('/api/license', (_req: Request, res: Response) => {
     const state = licenseState();
