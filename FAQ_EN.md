@@ -3,7 +3,7 @@
 > 中文 README: [README.md](README.md) · 中文常见问题见 docs/常见问题与故障排查.md
 
 **Q1. What is fhcode and how is it different from Claude Code / Cursor / Aider?**
-fhcode is a terminal-native AI coding agent (like Meta Muse Code). Its differentiators: multi-model routing across DeepSeek / Tongyi / Ollama / OpenAI-compatible gateways, offline/on-prem operation (data stays in your intranet via local Ollama), and enterprise-grade RBAC + tamper-proof audit chain. It is MIT-licensed and self-hostable.
+fhcode is a terminal-native AI coding agent (like Meta Muse Code). Its differentiators: multi-model routing across DeepSeek / Tongyi / Ollama / OpenAI-compatible gateways, offline/on-prem operation (data stays in your intranet via local Ollama), and enterprise-grade RBAC + tamper-proof audit chain. It is Apache-2.0 licensed and self-hostable.
 
 **Q2. Do I need an API key to try it?**
 No. Without `FH_PROVIDERS` (or with `FH_OFFLINE=true`), fhcode runs a full closed loop using a built-in Mock driver — you can see planning → file writes → summary without any LLM. Run `fhcode "your goal"` after `npm i -g feihong-code`.
@@ -49,7 +49,7 @@ Three ways: `npm install -g feihong-code` (global), Docker (multi-stage `Dockerf
 Under `<FH_HOME>` (default `~/.feihong-code`), split per tenant: `sessions/`, `audit/`, `goals/`. Tenant IDs are strictly validated to prevent `../` traversal; tenants are fully isolated.
 
 **Q15. The project is MIT — can I use it commercially?**
-Yes. fhcode is MIT-licensed and self-hostable. Enterprise features (RBAC/audit/tenant/quota) are part of the open-source codebase. For commercial deployment support, contact the Feihongzhi klAI team (see Community Support in README).
+Yes. fhcode is Apache-2.0 licensed and self-hostable. Enterprise features (RBAC/audit/tenant/quota) are part of the open-source codebase. For commercial deployment support, contact the Feihongzhi klAI team (see Community Support in README).
 
 ---
 

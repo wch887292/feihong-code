@@ -28,10 +28,11 @@ related_software_url: https://github.com/wch887292/feihong-code/blob/master/AGEN
 - **No telemetry**: Zero tracking, all data stays local
 - **Enterprise security**: RBAC, audit chain, multi-tenant isolation
 
-### Commercial License
-- **Commercial EULA**: Proprietary closed-source, distributed under license agreement
+### Licensing (Dual-Track)
+- **Open source**: Source code released under Apache License 2.0
+- **Enterprise add-ons**: Commercial license for activation-key services, fully private deployment, and licensed secondary development
 - **Enterprise security**: RBAC, audit chain, multi-tenant isolation
-- **License activation**: Activation-code based with device binding
+- **License activation**: Activation-code based with device binding (commercial track)
 
 ### Technical Highlights
 1. **Multi-Model Routing**: DeepSeek, Qwen, Ollama, OpenAI compatible

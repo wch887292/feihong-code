@@ -16,6 +16,10 @@
 ### 说明
 - 本次为纯架构重构，CLI 命令、Web API、配置格式均保持向后兼容，无 breaking change。
 
+### 授权合规（v8.5.0 发布后追加）
+- License 双轨统一：源代码改用 **Apache-2.0** 开源（LICENSE 更新为双轨授权说明 + Apache-2.0 全文），package.json `license` 字段 `UNLICENSED → Apache-2.0`；企业版增值能力（激活码、完全私有化部署、商业支持）保留商业授权。
+- 同步修正 README（中英）、FAQ_EN、submission/SUBMISSION-NOTES 中的过时授权表述（Commercial/Commercial EULA/MIT → Apache-2.0 双轨）。
+
 ## v8.4.3 (2026-09-14)
 
 ### 授权与依赖维护

@@ -86,7 +86,7 @@ License: Apache-2.0
 > **终端 AI 编程智能体** · 对标 Meta Muse Code / Claude Code / Cursor CLI · 自研内核实现差异化 · 全功能 M0→M9.1 完成 · 企业级 RBAC/审计/SWE Agent
 > 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
 
-[![License: Commercial](https://img.shields.io/badge/License-Commercial-blue.svg)](./LICENSE)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](./LICENSE)
 [![Node.js >= 22.5.0](https://img.shields.io/badge/node-%3E%3D22.5-brightgreen.svg)](https://nodejs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue.svg)](https://typescriptlang.org)
 [![GitHub stars](https://img.shields.io/github/stars/wch887292/feihong-code?style=social)](https://github.com/wch887292/feihong-code/stargazers)
@@ -108,7 +108,7 @@ License: Apache-2.0
 
 ## 🌐 品牌与官网
 
-本项目由 **晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心** 开发维护，是飞虹智 klAI 商业智能体生态的核心组件，采用商业授权模式（激活码激活）。
+本项目由 **晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心** 开发维护，是飞虹智 klAI 商业智能体生态的核心组件，源代码采用 Apache-2.0 开源，企业版增值能力（激活码激活、私有化部署与商业支持）采用商业授权双轨模式。
 
 - 🏠 **官方网站**：[https://www.klai.top](https://www.klai.top) — 飞虹智 klAI · 泉州制造业 AI 服务商
 - 📦 **产品中心**：[https://www.klai.top](https://www.klai.top)
@@ -174,7 +174,7 @@ export FH_ROLE=developer
 | 全自动 SWE Agent（M0→M9.1） | ✅ | ✅ | ⚠️ | ✅ | ⚠️ |
 | 多子代理并行（M2） | ✅ | ✅ | ❌ | ❌ | ❌ |
 | 自我进化（M6） | ✅ | ❌ | ❌ | ❌ | ❌ |
-| 授权模式 | 商业授权（激活码） | ❌ | ❌ | ✅ Apache-2.0 | ✅ MIT |
+| 授权模式 | ✅ Apache-2.0 开源 + 商业授权（激活码/企业版） | ❌ | ❌ | ✅ Apache-2.0 | ✅ MIT |
 
 > 最适合：**数据不出内网**、需要**企业权限审计**、希望**混合调度多家大模型**的团队与个人开发者。
 
@@ -190,7 +190,7 @@ export FH_ROLE=developer
 | 自我进化（M6） | 经验库沉淀 + 自愈循环，失败模式跨会话复用，越用越准 | 基本无对应机制 |
 | 并行隔离（M2） | `git worktree` 为每个子代理建立物理隔离工作区，并发推进零冲突 | 部分支持，隔离强度与冲突处理参差 |
 | 可恢复性（M3） | append-only 事件日志为单一可信源，会话可断点恢复、可完整回放 | 会话状态多不可恢复，中断即重来 |
-| 授权与自托管 | 商业授权（激活码），企业版支持完全私有化部署与授权范围内的二次开发 | 主流产品为闭源商业服务 |
+| 授权与自托管 | 代码 Apache-2.0 开源自托管；企业版增值能力（激活码、完全私有化部署与授权范围内的二次开发服务）采用商业授权 | 主流产品为闭源商业服务 |
 
 > **一句话区分**：对标产品解决"个人开发者如何更快写代码"，fhcode 额外解决"**团队如何在合规边界内、可审计地、用可控成本把 AI 编程落地到生产**"。
 
@@ -655,7 +655,7 @@ node dist/cli/index.js --version
 - **负责人**：吴赐虹
 
 © 2026 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
-Licensed under the Commercial License. See [LICENSE](./LICENSE) for details.
+源代码基于 [Apache License 2.0](./LICENSE) 开源发布；企业版增值能力（激活码、私有化部署、商业支持）采用商业授权，详见 [LICENSE](./LICENSE) 双轨授权说明。
 
 ---
 
