@@ -237,7 +237,7 @@ function startThinking(el) {
   THINK_EL = el; THINK_T0 = Date.now(); THINK_ACTIVE = true; THINK_FALLBACK = false;
   var tick = function () {
     if (!THINK_ACTIVE || !THINK_EL) return;
-    THINK_EL.innerHTML = '<span style="color:var(--ink-2);">' + thinkingText() + '</span> <span class="typing-cursor">▋</span>';
+    THINK_EL.innerHTML = '<span style="color:var(--ink-2);">' + thinkingText() + '</span> <span class="think-dots"><i></i><i></i><i></i></span>';
   };
   tick();
   THINK_TIMER = setInterval(tick, 1000);
