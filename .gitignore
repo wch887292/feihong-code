@@ -168,3 +168,6 @@ archive-*/
 
 # 复盘自检截图（临时产物，不入库）
 **/_shots/
+
+release-8.5.0/
+release-*/
