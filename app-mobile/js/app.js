@@ -223,6 +223,30 @@ function getDefaultModel() {
   return state.models.find(function (m) { return m.id === state.defaultModelId; }) || state.models[0] || null;
 }
 
+/* ========== 思考等待计时器：让"正在思考…"有实时反馈（耗时秒数 + 阶段提示） ========== */
+var THINK_EL = null, THINK_T0 = 0, THINK_TIMER = null, THINK_ACTIVE = false, THINK_FALLBACK = false;
+function thinkingText() {
+  var s = Math.round((Date.now() - THINK_T0) / 1000);
+  var base = THINK_FALLBACK ? '⏳ 流式无响应，已改用整段接收' : '正在思考';
+  if (s < 12) return base + '…';
+  if (s < 45) return base + '（已等待 ' + s + ' 秒）…';
+  return base + '（已等待 ' + s + ' 秒，较慢可点 ⏹ 停止或到设置换模型）…';
+}
+function startThinking(el) {
+  stopThinking();
+  THINK_EL = el; THINK_T0 = Date.now(); THINK_ACTIVE = true; THINK_FALLBACK = false;
+  var tick = function () {
+    if (!THINK_ACTIVE || !THINK_EL) return;
+    THINK_EL.innerHTML = '<span style="color:var(--ink-2);">' + thinkingText() + '</span> <span class="typing-cursor">▋</span>';
+  };
+  tick();
+  THINK_TIMER = setInterval(tick, 1000);
+}
+function stopThinking() {
+  if (THINK_TIMER) { clearInterval(THINK_TIMER); THINK_TIMER = null; }
+  THINK_ACTIVE = false; THINK_EL = null;
+}
+
 /* ========== 大模型 API 调用（流式 SSE） ========== */
 /* 生成对用户友好的错误提示 */
 function friendlyError(err) {
@@ -319,6 +343,7 @@ function callModelStream(messages, onDelta, onDone, onError) {
         try { xhr.abort(); } catch (e) {}
         done = true;
         state.streaming = true;
+        THINK_FALLBACK = true;
         callModelNonStream(curMessages, onDelta, function (full) {
           if (cancelled) return;
           totalContent += full;
@@ -868,15 +893,25 @@ function renderDocList() {
 }
 
 /* ========== 对话渲染 ========== */
+/* 豆包式顶栏：动态话题名（当前会话标题，无会话时显示应用名） */
+function updateTopicTitle(task) {
+  var el = $('hbTitle');
+  if (!el) return;
+  var t = task || (state.currentTaskId ? getTask(state.currentTaskId) : null);
+  var name = t ? (t.title || t.goal || '') : '';
+  el.textContent = name || '飞虹 Code';
+}
+
 function renderThread(task) {
   var box = $('convMessages');
+  updateTopicTitle(task);
   if (!task) {
     box.innerHTML = '<div class="empty">选择下方功能，或直接输入指令开始对话<br>支持代码生成、修复、审查等</div>';
     return;
   }
   var msgs = task.messages || [];
   if (!msgs.length) { box.innerHTML = '<div class="empty">任务已创建，等待回复…</div>'; return; }
-  var html = '';
+  var html = '<div class="ai-note">AI 生成内容可能会有误，请仔细甄别</div>';
   msgs.forEach(function (m) {
     if (m.role === 'user') {
       var imgHtml = m.image ? '<img src="' + m.image + '" style="max-width:200px;max-height:200px;border-radius:8px;margin-top:6px;display:block;" onclick="window.open(this.src)">' : '';
@@ -1429,9 +1464,11 @@ function sendMessage() {
     pcMsgEl.className = 'msg assistant';
     pcMsgEl.innerHTML = '<span style="color:var(--ink-2);">' + (getExecEndLabel() === '云端执行体' ? '☁️ 正在指挥云端执行体…' : '🖥️ 正在指挥电脑执行…') + '</span> <span class="typing-cursor">▋</span>';
     pcBox.appendChild(pcMsgEl);
+    startThinking(pcMsgEl);
     pcBox.scrollTop = pcBox.scrollHeight;
     callComputer(finalText,
       function (data) {
+        stopThinking();
         var r = renderComputerResult(pcTask, data, finalText);
         pcMsgEl.innerHTML = r.html;
         appendAssistantMessage(pcTask.id, finalText + '\n\n' + JSON.stringify(data));
@@ -1439,6 +1476,7 @@ function sendMessage() {
         updateSendBtn(false);
       },
       function (err) {
+        stopThinking();
         pcMsgEl.innerHTML = '<div style="color:var(--err);white-space:pre-wrap;">❌ 电脑执行失败：' + esc(friendlyError(err)) + '</div>';
         pcTask.status = 'failed'; pcTask.error = err.message; saveTasks();
         updateSendBtn(false);
@@ -1467,17 +1505,19 @@ function sendMessage() {
   var box = $('convMessages');
   var msgEl = document.createElement('div');
   msgEl.className = 'msg assistant';
-  msgEl.innerHTML = '<span style="color:var(--ink-2);">正在思考…</span> <span class="typing-cursor">▋</span>';
   box.appendChild(msgEl);
+  startThinking(msgEl);
   box.scrollTop = box.scrollHeight;
 
   callModelStream(messages,
     function (delta) {
+      if (delta.indexOf('⚠️') < 0 && delta.indexOf('⏩') < 0) stopThinking();
       assistantContent += delta;
       msgEl.innerHTML = renderMarkdown(assistantContent) + '<span class="typing-cursor">▋</span>';
       box.scrollTop = box.scrollHeight;
     },
     function (full) {
+      stopThinking();
       msgEl.innerHTML = renderMarkdown(full || assistantContent);
       appendAssistantMessage(task.id, full || assistantContent);
       renderThread(getTask(task.id));
@@ -1490,6 +1530,7 @@ function sendMessage() {
       try { rememberConversation(task.messages, null); } catch (e) {}
     },
     function (err) {
+      stopThinking();
       msgEl.innerHTML = '<div style="color:var(--err);white-space:pre-wrap;">❌ 生成失败：' + esc(friendlyError(err)) + '</div>';
       task.status = 'failed'; task.error = err.message; saveTasks();
       updateSendBtn(false);
@@ -1526,18 +1567,21 @@ function sendImageMessage(userText) {
   var box = $('convMessages');
   var msgEl = document.createElement('div');
   msgEl.className = 'msg assistant';
-  msgEl.innerHTML = '<span style="color:var(--ink-2);">🖼️ 正在识别 ' + images.length + ' 张图片…</span> <span class="typing-cursor">▋</span>';
   box.appendChild(msgEl);
+  startThinking(msgEl);
+  msgEl.innerHTML = '<span style="color:var(--ink-2);">🖼️ 正在识别 ' + images.length + ' 张图片…</span> <span class="typing-cursor">▋</span>';
   box.scrollTop = box.scrollHeight;
 
   var assistantContent = '';
   recognizeImages(images, userText,
     function (delta) {
+      stopThinking();
       assistantContent += delta;
       msgEl.innerHTML = renderMarkdown(assistantContent) + '<span class="typing-cursor">▋</span>';
       box.scrollTop = box.scrollHeight;
     },
     function (full) {
+      stopThinking();
       msgEl.innerHTML = renderMarkdown(full || assistantContent);
       appendAssistantMessage(task.id, full || assistantContent);
       task.status = 'done';
@@ -1588,21 +1632,25 @@ function runPromptTask(goal, type, prompt) {
   var box = $('convMessages');
   var msgEl = document.createElement('div');
   msgEl.className = 'msg assistant';
-  msgEl.innerHTML = '<span style="color:var(--ink-2);">正在思考…</span> <span class="typing-cursor">▋</span>';
   box.appendChild(msgEl);
+  startThinking(msgEl);
+  box.scrollTop = box.scrollHeight;
 
   callModelStream(messages,
     function (delta) {
+      if (delta.indexOf('⚠️') < 0 && delta.indexOf('⏩') < 0) stopThinking();
       assistantContent += delta;
       msgEl.innerHTML = renderMarkdown(assistantContent) + '<span class="typing-cursor">▋</span>';
       box.scrollTop = box.scrollHeight;
     },
     function (full) {
+      stopThinking();
       msgEl.innerHTML = renderMarkdown(full || assistantContent);
       appendAssistantMessage(task.id, full || assistantContent);
       renderThread(getTask(task.id));
     },
     function (err) {
+      stopThinking();
       msgEl.innerHTML = '<div style="color:var(--err);white-space:pre-wrap;">❌ 生成失败：' + esc(friendlyError(err)) + '</div>';
       task.status = 'failed'; saveTasks();
     }

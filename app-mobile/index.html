@@ -15,7 +15,7 @@
 <!-- ===== 顶栏（豆包式：居中标题 + 左右图标） ===== -->
 <div class="headbar">
   <button class="hb-btn" id="menuBtn" title="菜单"><span class="hb-ico">☰</span></button>
-  <div class="hb-title">飞虹 Code</div>
+  <div class="hb-title" id="hbTitle">飞虹 Code</div>
   <div style="display:flex;align-items:center;gap:2px;">
     <button class="conn-pill off" id="connPill" title="电脑连接状态 · 点击设置">● 未连接</button>
     <button class="hb-btn" id="newChatBtn" title="新对话"><span class="hb-ico">✎</span></button>
@@ -332,7 +332,7 @@
     <div class="drawer-section">
       <div class="drawer-section-title">🎖 关于</div>
       <div style="font-size:13px;color:var(--ink-2);line-height:1.8;">
-        飞虹 Code 移动版 v8.5.0<br>
+        飞虹 Code 移动版 v8.5.2<br>
         纯前端独立 APP · 数据本地存储<br>
         晋江市飞虹智科技企业管理有限公司
       </div>
@@ -669,12 +669,11 @@
   var pop = document.getElementById('workPop');
   var workBtn = document.getElementById('workBtn');
 
-  // 首页/对话态自动切换：messages 只剩 .empty 时显示问候态
+  // 首页/对话态自动切换：无任何 .msg 消息时显示问候态（.ai-note 头注不算消息）
   function syncHome() {
     if (!box) return;
-    var kids = box.children;
-    var home = kids.length === 1 && kids[0].classList && kids[0].classList.contains('empty');
-    document.body.classList.toggle('home-mode', home);
+    var hasMsg = !!box.querySelector('.msg');
+    document.body.classList.toggle('home-mode', !hasMsg);
   }
   if (box && window.MutationObserver) {
     new MutationObserver(syncHome).observe(box, { childList: true, subtree: false });

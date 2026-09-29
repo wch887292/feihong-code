@@ -12,8 +12,30 @@
   padding: 9vh 22px 10px;
 }
 body.home-mode .home-hero { display: flex; }
-body.home-mode .notice-bar { display: none; }
+/* 旧通知条已由消息流内 .ai-note 头注替代，全局隐藏 */
+.notice-bar { display: none !important; }
 body.home-mode #convMessages .empty { display: none; }
+
+/* ===== 顶栏：豆包式居中话题名 ===== */
+.hb-title {
+  position: absolute;
+  left: 50%; transform: translateX(-50%);
+  max-width: 48%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 15.5px; font-weight: 600; color: var(--ink);
+  text-align: center; letter-spacing: 0.2px;
+  pointer-events: none;
+}
+
+/* ===== 消息流内「AI 生成可能有误」头注（豆包式，随消息滚动） ===== */
+.ai-note {
+  text-align: center;
+  font-size: 11px;
+  color: #b3b8c2;
+  padding: 8px 0 2px;
+  letter-spacing: 0.3px;
+  user-select: none;
+}
 
 .hero-title {
   font-size: 23px;
