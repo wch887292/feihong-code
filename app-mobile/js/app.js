@@ -38,10 +38,12 @@ var PROVIDER_PRESETS = {
     name: '硅基流动 SiliconFlow',
     apiBase: 'https://api.siliconflow.cn/v1',
     models: [
-      { id: 'Qwen/Qwen2.5-72B-Instruct', name: 'Qwen2.5-72B（推荐·极速）' },
-      { id: 'Qwen/Qwen2.5-7B-Instruct', name: 'Qwen2.5-7B（轻量·更快）' },
-      { id: 'deepseek-ai/DeepSeek-V4-Flash', name: 'DeepSeek-V4-Flash（深度思考）' },
-      { id: 'deepseek-ai/DeepSeek-V4', name: 'DeepSeek-V4（强大）' },
+      { id: 'Qwen/Qwen3-8B', name: 'Qwen3-8B（免费·推荐·快）' },
+      { id: 'nex-agi/Nex-N2-Pro', name: 'Nex-N2-Pro（免费·397B 旗舰）' },
+      { id: 'deepseek-ai/DeepSeek-R1-Distill-Qwen-7B', name: 'R1-Distill-7B（免费·推理）' },
+      { id: 'THUDM/glm-4-9b-chat', name: 'GLM-4-9B（免费·轻量）' },
+      { id: 'deepseek-ai/DeepSeek-OCR', name: 'DeepSeek-OCR（免费·图片识字）' },
+      { id: 'deepseek-ai/DeepSeek-V4-Flash', name: 'DeepSeek-V4-Flash（付费·极速）' },
     ]
   },
   deepseek: {
@@ -183,6 +185,17 @@ var AGNES_MODEL = {
   apiKey: '',
   reasoning: ''
 };
+/* 内置硅基流动免费模型（Key 由用户 2026-09-29 提供，随包预置） */
+var SILICONFLOW_BUILTIN = {
+  id: 'sf_qwen3_8b',
+  modelId: 'Qwen/Qwen3-8B',
+  name: 'Qwen3-8B（硅基流动·免费）',
+  apiBase: 'https://api.siliconflow.cn/v1',
+  apiKey: 'sk-kjrjycaphmbykatxfmiisiiovswrqqsiziiodvkrzjadxebr',
+  enableThinking: false,
+  reasoning: ''
+};
+var LS_SF_DEFAULT = 'fh.app.sfdefault.v1';
 var LS_MIGRATED = 'fh.app.migrated.v3';
 
 function loadModels() {
@@ -206,6 +219,20 @@ function loadModels() {
     } catch (e) {}
   }
   if (!state.defaultModelId && state.models.length) state.defaultModelId = state.models[0].id;
+  // 内置硅基流动免费模型：确保在列（不覆盖用户已有同名条目）
+  var hasSF = state.models.some(function (m) { return m.id === SILICONFLOW_BUILTIN.id; });
+  if (!hasSF) {
+    state.models.push(JSON.parse(JSON.stringify(SILICONFLOW_BUILTIN)));
+    try { localStorage.setItem(LS_MODELS, JSON.stringify(state.models)); } catch (e) {}
+  }
+  // 一次性升级：默认模型切到硅基流动免费（此后尊重用户选择）
+  if (!localStorage.getItem(LS_SF_DEFAULT)) {
+    state.defaultModelId = SILICONFLOW_BUILTIN.id;
+    try {
+      localStorage.setItem(LS_DEFAULT, state.defaultModelId);
+      localStorage.setItem(LS_SF_DEFAULT, '1');
+    } catch (e) {}
+  }
 }
 function saveModels() {
   localStorage.setItem(LS_MODELS, JSON.stringify(state.models));
@@ -304,7 +331,9 @@ function callModelStream(messages, onDelta, onDone, onError) {
 
   function attempt(curMessages) {
     if (cancelled) return;
-    var body = JSON.stringify({ model: modelId, messages: curMessages, stream: true, temperature: 0.7 });
+    var bodyObj = { model: modelId, messages: curMessages, stream: true, temperature: 0.7 };
+    if (model.enableThinking === false) bodyObj.enable_thinking = false;
+    var body = JSON.stringify(bodyObj);
     var xhr = new XMLHttpRequest();
     currentXhr = xhr;
     var fullContent = '';
@@ -446,7 +475,9 @@ function callModelNonStream(messages, onDelta, onDone, onError) {
   if (!model) { onError(new Error('请先配置大模型')); return; }
   var url = (model.apiBase || 'https://api.openai.com/v1').replace(/\/+$/, '') + '/chat/completions';
   var modelId = model.modelId || model.id;
-  var body = JSON.stringify({ model: modelId, messages: messages, stream: false, temperature: 0.7, max_tokens: 4000 });
+  var bodyObj = { model: modelId, messages: messages, stream: false, temperature: 0.7, max_tokens: 4000 };
+  if (model.enableThinking === false) bodyObj.enable_thinking = false;
+  var body = JSON.stringify(bodyObj);
 
   var xhr = new XMLHttpRequest();
   var done = false;
