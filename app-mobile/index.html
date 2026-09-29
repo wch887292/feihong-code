@@ -160,8 +160,8 @@
       </div>
       <div class="create-panel" id="ctab2-direct">
         <label class="label">本地电脑地址（局域网直连）</label>
-        <input class="input" id="pcUrlInput" placeholder="http://192.168.0.116:8081">
-        <div style="font-size:11px;color:var(--ink-2);margin:4px 0 8px;">⚠️ 不能填 127.0.0.1（手机上指向手机自身）。手机与电脑同一 WiFi，填电脑局域网 IP，电脑端需已启动 fhcode 桌面端且防火墙放行 8081</div>
+        <input class="input" id="pcUrlInput" placeholder="http://192.168.0.101:8082">
+        <div style="font-size:11px;color:var(--ink-2);margin:4px 0 8px;">⚠️ 不能填 127.0.0.1（手机上指向手机自身）。手机与电脑同一 WiFi，填电脑局域网 IP（KLZX 当前为 192.168.0.101），电脑端 fhcode 直连服务跑在 8082 端口（防火墙已放行）。已内置直连令牌，填对地址即可连</div>
         <div class="footer" style="margin-top:4px;">
           <button class="btn ghost" id="pcTestBtn" style="color:var(--ok);">📡 测试连接</button>
           <button class="btn" id="pcSaveBtn">保存并连接</button>
@@ -333,7 +333,7 @@
     <div class="drawer-section">
       <div class="drawer-section-title">🎖 关于</div>
       <div style="font-size:13px;color:var(--ink-2);line-height:1.8;">
-        飞虹 Code 移动版 v8.5.7<br>
+        飞虹 Code 移动版 v8.5.8<br>
         纯前端独立 APP · 数据本地存储<br>
         晋江市飞虹智科技企业管理有限公司
       </div>

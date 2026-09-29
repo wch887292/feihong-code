@@ -980,7 +980,14 @@ function getPcMode() {
 }
 function setPcMode(m) { try { localStorage.setItem('fh.pc.mode', m); } catch (e) {} }
 function getPcUrl() {
-  try { return localStorage.getItem('fh.pc.pcUrl') || 'http://127.0.0.1:8081'; } catch (e) { return 'http://127.0.0.1:8081'; }
+  // 预置本机（KLZX）局域网直连地址：fhcode web 专用实例跑在 8082（8080 为常驻服务、8081 被占用）
+  var fallback = 'http://192.168.0.101:8082';
+  try {
+    var saved = localStorage.getItem('fh.pc.pcUrl');
+    // 一次性迁移：曾存过错误的 127.0.0.1 默认值 → 升级为新默认（用户自定义值不动）
+    if (saved === 'http://127.0.0.1:8081') { localStorage.setItem('fh.pc.pcUrl', fallback); return fallback; }
+    return saved || fallback;
+  } catch (e) { return fallback; }
 }
 function setPcUrl(u) { try { localStorage.setItem('fh.pc.pcUrl', u); } catch (e) {} }
 function getCloudUrl() {
@@ -1296,8 +1303,10 @@ function fetchCloudDevices(onDone) {
 function callComputer(text, onDone, onError) {
   var mode = getPcMode();
   if (mode === 'direct') {
-    // 直连模式：同局域网，直接调电脑端
-    postJson(getPcUrl().replace(/\/+$/, '') + '/api/computer/nl', { text: text }, null, onDone, onError);
+    // 直连模式：同局域网，直接调电脑端（带内置 token，匹配 FH_WEB_TOKEN 启动的直连服务）
+    var pcToken = getCloudToken();
+    var pcHeaders = pcToken ? { Authorization: 'Bearer ' + pcToken } : {};
+    postJson(getPcUrl().replace(/\/+$/, '') + '/api/computer/nl', { text: text }, pcHeaders, onDone, onError);
     return;
   }
   // 云端桥接模式
