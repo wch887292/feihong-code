@@ -230,7 +230,8 @@ function thinkingText() {
   var base = THINK_FALLBACK ? '⏳ 流式无响应，已改用整段接收' : '正在思考';
   if (s < 12) return base + '…';
   if (s < 45) return base + '（已等待 ' + s + ' 秒）…';
-  return base + '（已等待 ' + s + ' 秒，较慢可点 ⏹ 停止或到设置换模型）…';
+  if (s < 75) return base + '（已等待 ' + s + ' 秒，较慢可点 ⏹ 停止或到设置换模型）…';
+  return '⌛ 已等待 ' + s + ' 秒，即将达到超时上限（最迟约 90 秒），建议停止后换更快模型…';
 }
 function startThinking(el) {
   stopThinking();
@@ -256,6 +257,7 @@ function friendlyError(err) {
   }
   if (/401|invalid.*api|unauthorized/i.test(msg)) return 'API Key 无效或已过期，请到「⚙ 设置 → 大模型」检查 API Key。';
   if (/429|rate.?limit/i.test(msg)) return '请求过于频繁（429），请稍等片刻再试。';
+  if (/响应超时|超时（\d+秒无响应）/i.test(msg)) return '模型响应超时：该模型可能过载或响应过慢。\n建议到「⚙ 设置 → 大模型」切换更快模型（如 DeepSeek-V4-Flash）后重试。';
   if (/network|fetch|failed to fetch|timeout/i.test(msg)) return '网络连接失败，请检查网络后重试。';
   return msg;
 }
@@ -326,7 +328,8 @@ function callModelStream(messages, onDelta, onDone, onError) {
       done = true;
       state.streaming = false;
       if (streamFallbackTimer) clearTimeout(streamFallbackTimer);
-      if (retried < RETRY_MAX && isRetryable(err && err.message, status)) {
+      // 已转非流式回退后不再自动重试：避免 15s + 75s×N 的无限吊死
+      if (!THINK_FALLBACK && retried < RETRY_MAX && isRetryable(err && err.message, status)) {
         retried++;
         state.streaming = true;
         onDelta('\n\n> ⚠️ 网络波动，正在自动重连…（' + retried + '/' + RETRY_MAX + '）\n\n');
@@ -455,7 +458,7 @@ function callModelNonStream(messages, onDelta, onDone, onError) {
   xhr.open('POST', url, true);
   xhr.setRequestHeader('Content-Type', 'application/json');
   xhr.setRequestHeader('Authorization', 'Bearer ' + model.apiKey);
-  xhr.timeout = 120000;
+  xhr.timeout = 75000;
 
   xhr.onload = function () {
     if (done) return;
@@ -486,7 +489,7 @@ function callModelNonStream(messages, onDelta, onDone, onError) {
     }
   };
   xhr.onerror = function () { if (!done) { done = true; state.streaming = false; onError(new Error('网络连接失败')); } };
-  xhr.ontimeout = function () { if (!done) { done = true; state.streaming = false; onError(new Error('请求超时（120秒）')); } };
+  xhr.ontimeout = function () { if (!done) { done = true; state.streaming = false; onError(new Error('模型响应超时（75秒无响应）')); } };
   xhr.onabort = function () { if (!done) { done = true; state.streaming = false; onDone(''); } };
   xhr.send(body);
 }
