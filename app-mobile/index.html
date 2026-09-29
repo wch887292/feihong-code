@@ -8,6 +8,7 @@
 <meta name="theme-color" content="#ffffff">
 <title>飞虹 Code · 移动版</title>
 <link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/doubao.css">
 </head>
 <body>
 
@@ -24,7 +25,21 @@
 
 <!-- ===== 对话页 ===== -->
 <div class="page active" id="convPage">
-  <!-- 中间栏目条（豆包式）：栏目1 执行端切换 + 栏目2 项目栏 -->
+  <!-- 首页问候态（豆包式：仅在无消息时显示） -->
+  <div class="home-hero" id="homeHero">
+    <h1 class="hero-title">有什么我能帮你的吗?</h1>
+    <div class="seg-pill">
+      <button class="seg-btn exec-tab active" data-exec="phone">对话</button>
+      <button class="seg-btn" id="workBtn">工作</button>
+    </div>
+    <div class="reco-title">为你推荐</div>
+    <div class="reco-card" onclick="recoSend('帮我写一段分钱模式的销售文案，突出客户见证与信任背书')">帮我写一段分钱模式的销售文案，突出客户见证与信任背书</div>
+    <div class="reco-card" onclick="recoSend('为我解读工业4.0的关键技术')">为我解读工业4.0的关键技术</div>
+    <div class="reco-card" onclick="recoSend('系统状态')">🖥️ 查看电脑系统状态（CPU / 内存 / 磁盘）</div>
+    <div class="reco-card" onclick="recoSend('截图')">🖥️ 截取电脑屏幕发给我</div>
+  </div>
+
+  <!-- 中间栏目条（保留供 JS 渲染，样式层隐藏；模式切换入口在「工作」弹层） -->
   <div class="conv-tabs">
     <div class="exec-tabs" id="execTabs">
       <button class="exec-tab active" data-exec="phone" title="手机本地对话，指令不转发电脑">📱 手机对话</button>
@@ -54,13 +69,14 @@
     <div class="input-attach-bar">
       <button class="attach-btn" id="attachImageBtn" title="添加图片"><span class="attach-ico">🖼️</span><span class="attach-label">图片</span></button>
       <button class="attach-btn" id="attachFileBtn" title="上传文件"><span class="attach-ico">📄</span><span class="attach-label">文件</span></button>
-      <button class="attach-btn" id="attachCameraBtn" title="拍照"><span class="attach-ico">📷</span><span class="attach-label">拍照</span></button>
       <input type="file" id="imageInput" accept="image/*" multiple style="display:none;">
       <input type="file" id="fileInput" style="display:none;">
       <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none;">
     </div>
     <div class="input-box">
+      <button class="cam-btn" id="attachCameraBtn" title="拍照">📷</button>
       <textarea class="goal-input" id="goalInput" placeholder="发消息或按住说…" rows="1"></textarea>
+      <button class="voice-btn" id="voiceBtn" title="语音输入">🎤</button>
       <button class="more-btn" id="moreBtn" title="更多功能">＋</button>
       <button class="send-btn" id="sendBtn">➤</button>
     </div>
@@ -70,6 +86,16 @@
       <span class="attach-imgs" id="attachImgs" style="display:none;"></span>
     </div>
   </div>
+</div>
+
+<!-- ===== 工作弹层（豆包式：对话/工作任务/模型/任务） ===== -->
+<div class="work-pop" id="workPop">
+  <div class="wp-item exec-tab" data-exec="phone"><span class="wp-ico">💬</span><span class="wp-name">对话</span><span class="wp-check">✓</span></div>
+  <div class="wp-item exec-tab" data-exec="direct"><span class="wp-ico">🖥️</span><span class="wp-name">工作任务 · KLZX 本机</span><span class="wp-check">✓</span></div>
+  <div class="wp-item exec-tab" data-exec="cloud"><span class="wp-ico">☁️</span><span class="wp-name">工作任务 · 云电脑</span><span class="wp-check">✓</span></div>
+  <div class="wp-item" onclick="showSheet('modelSwitchSheet');closeWorkPop();"><span class="wp-ico">🧠</span><span class="wp-name">模型</span><span class="wp-sub" id="wpModelName">切换 ›</span></div>
+  <div class="wp-item" onclick="document.getElementById('projectBar').click();closeWorkPop();"><span class="wp-ico">📁</span><span class="wp-name">项目</span><span class="wp-sub">选择 ›</span></div>
+  <div class="wp-item" onclick="var m=document.querySelector('.sn-menu-item[data-menu=tasks]');if(m)m.click();closeWorkPop();"><span class="wp-ico">📋</span><span class="wp-name">任务管理</span><span class="wp-sub">›</span></div>
 </div>
 
 <!-- ===== 任务页 ===== -->
@@ -306,7 +332,7 @@
     <div class="drawer-section">
       <div class="drawer-section-title">🎖 关于</div>
       <div style="font-size:13px;color:var(--ink-2);line-height:1.8;">
-        飞虹 Code 移动版 v8.4.1<br>
+        飞虹 Code 移动版 v8.5.0<br>
         纯前端独立 APP · 数据本地存储<br>
         晋江市飞虹智科技企业管理有限公司
       </div>
@@ -636,5 +662,61 @@
 <script src="js/keyless.js"></script>
 <script src="js/hermes-agent.js"></script>
 <script src="js/app.js"></script>
+<script>
+/* ===== 豆包式交互层：首页问候态显隐 + 工作弹层 + 语音提示 ===== */
+(function () {
+  var box = document.getElementById('convMessages');
+  var pop = document.getElementById('workPop');
+  var workBtn = document.getElementById('workBtn');
+
+  // 首页/对话态自动切换：messages 只剩 .empty 时显示问候态
+  function syncHome() {
+    if (!box) return;
+    var kids = box.children;
+    var home = kids.length === 1 && kids[0].classList && kids[0].classList.contains('empty');
+    document.body.classList.toggle('home-mode', home);
+  }
+  if (box && window.MutationObserver) {
+    new MutationObserver(syncHome).observe(box, { childList: true, subtree: false });
+  }
+
+  // 胶囊「对话/工作」高亮同步（读 fh.pc.mode）
+  function segSync() {
+    var mode = 'phone';
+    try { mode = localStorage.getItem('fh.pc.mode') || 'phone'; } catch (e) {}
+    if (workBtn) workBtn.classList.toggle('work-active', mode !== 'phone');
+  }
+  document.addEventListener('click', function (e) {
+    if (e.target.closest && e.target.closest('.exec-tab')) setTimeout(segSync, 60);
+  }, true);
+
+  // 工作弹层开合（挂载到对话/工作胶囊下方）
+  var segPill = document.querySelector('.seg-pill');
+  if (segPill && pop) segPill.appendChild(pop);
+  window.closeWorkPop = function () { if (pop) pop.classList.remove('show'); };
+  if (workBtn) workBtn.addEventListener('click', function (e) {
+    e.stopPropagation();
+    if (pop) { pop.classList.toggle('show'); segSync(); }
+  });
+  document.addEventListener('click', function (e) {
+    if (pop && pop.classList.contains('show') && !pop.contains(e.target) && e.target !== workBtn) pop.classList.remove('show');
+  });
+
+  // 推荐卡：填充并直接发送
+  window.recoSend = function (text) {
+    var gi = document.getElementById('goalInput');
+    var sb = document.getElementById('sendBtn');
+    if (gi && sb) { gi.value = text; sb.click(); window.closeWorkPop(); }
+  };
+
+  // 语音按钮（占位提示）
+  var vb = document.getElementById('voiceBtn');
+  if (vb) vb.addEventListener('click', function () {
+    try { toast('🎤 语音输入即将开放，请先打字'); } catch (e) {}
+  });
+
+  syncHome(); segSync();
+})();
+</script>
 </body>
 </html>

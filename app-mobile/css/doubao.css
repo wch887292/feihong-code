@@ -1,0 +1,181 @@
+/* ============================================================
+ * 飞虹 Code 移动版 · 豆包主题层 v8.5.0
+ * 首页问候态 + 对话/工作胶囊 + 为你推荐 + 工作弹层 + 输入栏(相机/语音)
+ * 叠加于 style.css 之上，仅覆盖视觉，不动功能
+ * ============================================================ */
+
+/* ===== 首页问候态 ===== */
+.home-hero {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  padding: 9vh 22px 10px;
+}
+body.home-mode .home-hero { display: flex; }
+body.home-mode .notice-bar { display: none; }
+body.home-mode #convMessages .empty { display: none; }
+
+.hero-title {
+  font-size: 23px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: 0.5px;
+  margin-bottom: 22px;
+}
+
+/* 对话 / 工作 胶囊（豆包式分段器） */
+.seg-pill {
+  position: relative;
+  display: flex;
+  background: #eceef1;
+  border-radius: 999px;
+  padding: 3px;
+  margin-bottom: 26px;
+}
+html.dark .seg-pill { background: #262a33; }
+.seg-btn {
+  border: none;
+  background: transparent;
+  padding: 8px 36px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: all .18s;
+}
+.seg-btn.active,
+.seg-btn.work-active {
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .10);
+}
+.seg-btn:active { transform: scale(.96); }
+
+/* 为你推荐 */
+.reco-title {
+  align-self: flex-start;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2);
+  margin: 4px 0 10px;
+}
+.reco-card {
+  align-self: stretch;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 13px 15px;
+  margin-bottom: 10px;
+  font-size: 14.5px;
+  color: var(--ink);
+  line-height: 1.55;
+  cursor: pointer;
+  transition: transform .15s, background .15s;
+}
+.reco-card:active { transform: scale(.98); background: var(--brand-soft); }
+
+/* ===== 中间栏目条保留 DOM 但隐藏（模式切换入口在「工作」弹层） ===== */
+.conv-tabs { display: none !important; }
+
+/* ===== 工作弹层（挂载于 seg-pill 下方，由内联脚本 appendChild） ===== */
+.work-pop {
+  display: none;
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 285px;
+  background: var(--card);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, .16);
+  padding: 6px;
+  z-index: 70;
+}
+.work-pop.show { display: block; animation: wpIn .16s ease-out; }
+@keyframes wpIn { from { opacity: 0; transform: translateX(-50%) translateY(-6px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+.wp-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 12px;
+  border-radius: 12px;
+  font-size: 14.5px;
+  color: var(--ink);
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+}
+.wp-item:active { background: var(--bg); }
+.wp-ico { font-size: 17px; width: 22px; text-align: center; }
+.wp-name { flex: 1; min-width: 0; font-weight: 500; }
+.wp-sub { font-size: 12px; color: var(--ink-3); }
+.wp-check { visibility: hidden; color: var(--brand); font-weight: 700; font-size: 15px; }
+.wp-item.exec-tab.active .wp-check { visibility: visible; }
+.wp-item.exec-tab { border-radius: 12px; }
+.wp-item.exec-tab.active { background: transparent; box-shadow: none; color: var(--ink); }
+
+/* ===== 输入栏（豆包式：相机在左 · 语音 + 加号 + 发送在右） ===== */
+.cam-btn,
+.voice-btn {
+  width: 32px; height: 32px; min-width: 32px;
+  border: none; background: transparent;
+  font-size: 19px; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%; cursor: pointer;
+  color: var(--ink-2);
+  padding: 0;
+}
+.cam-btn:active, .voice-btn:active { background: var(--line); transform: scale(.92); }
+.input-box { padding: 6px 6px 6px 8px; gap: 5px; }
+
+/* ===== 气泡微调（豆包式大圆角） ===== */
+.msg { border-radius: 18px; }
+.msg.user { border-bottom-right-radius: 6px; }
+.msg.assistant { border-bottom-left-radius: 6px; }
+
+/* ===== 侧边栏打磨（豆包式大间距菜单） ===== */
+.sn-menu { padding: 10px 0; }
+.sn-menu-item { padding: 13px 20px; font-size: 15.5px; }
+.sn-menu-item .q-ico { font-size: 19px; }
+.sn-head { border-bottom: none; }
+.sn-search { background: var(--bg); border-radius: 20px; }
+.sn-section-title { padding: 16px 20px 8px; }
+
+/* ===== 快捷 chips 行（豆包式横向滑动胶囊） ===== */
+.quick-bar {
+  border-top: none;
+  background: transparent;
+  padding: 6px 12px 2px;
+  overflow-x: auto;
+  gap: 8px;
+  -webkit-overflow-scrolling: touch;
+}
+.quick-bar::-webkit-scrollbar { display: none; }
+.q-btn {
+  flex: 0 0 auto;
+  flex-direction: row;
+  gap: 5px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  font-size: 12px;
+}
+.q-btn .q-ico { font-size: 14px; }
+.q-btn.active { border-color: rgba(51,112,255,.35); }
+
+/* ===== 底部输入区（豆包式：无顶边线，融入背景） ===== */
+.input-wrap { border-top: none; background: var(--bg); padding-top: 4px; }
+.input-box { background: var(--card); border: 1px solid var(--line); box-shadow: 0 1px 6px rgba(0,0,0,.04); }
+.input-box:focus-within { border-color: var(--brand); box-shadow: 0 1px 8px rgba(51,112,255,.10); }
+
+/* 附件行收窄为小图标行 */
+.input-attach-bar { display: flex; gap: 4px; padding: 0 2px 4px; }
+.attach-btn { padding: 4px 8px; font-size: 11px; border-radius: 10px; }
+.attach-ico { font-size: 14px; }
+
+/* ===== 首页态隐藏附件行（更干净） ===== */
+body.home-mode .input-attach-bar { visibility: hidden; height: 0; padding: 0; margin: 0; overflow: hidden; }
