@@ -16,25 +16,35 @@ cd "$DEP_DIR"
 echo "=== 1. 验证依赖 ==="
 ls node_modules/ | grep -E '^(express|zod)$' && echo "依赖 OK" || { echo "依赖缺失，重新安装"; npm install --omit=dev --no-audit --no-fund; }
 
-echo "=== 2. 生成 Basic Auth 凭据 ==="
-BA_PASS=$(openssl rand -base64 12 | tr -d '/+=' | head -c 12)
-echo "BasicAuth用户: fhcode"
-echo "BasicAuth密码: $BA_PASS"
-if command -v htpasswd >/dev/null 2>&1; then
-  htpasswd -cb .htpasswd fhcode "$BA_PASS"
+echo "=== 2. 生成 / 复用 Basic Auth 凭据（升级模式复用，避免 nginx 登录失效）==="
+if [ -f "$DEP_DIR/.ba_cred" ] && [ -f "$DEP_DIR/.htpasswd" ]; then
+  BA_PASS=$(awk -F: '{print $2}' "$DEP_DIR/.ba_cred")
+  echo "复用已有 BasicAuth（升级模式，不重新生成）"
 else
-  openssl passwd -apr1 "$BA_PASS" | awk '{print "fhcode:" $0}' > .htpasswd
+  BA_PASS=$(openssl rand -base64 12 | tr -d '/+=' | head -c 12)
+  echo "BasicAuth用户: fhcode"
+  echo "BasicAuth密码: $BA_PASS"
+  if command -v htpasswd >/dev/null 2>&1; then
+    htpasswd -cb .htpasswd fhcode "$BA_PASS"
+  else
+    openssl passwd -apr1 "$BA_PASS" | awk '{print "fhcode:" $0}' > .htpasswd
+  fi
+  # 保存凭据到安全位置
+  echo "fhcode:$BA_PASS" > "$DEP_DIR/.ba_cred"
+  chmod 600 .ba_cred .htpasswd
+  echo ".htpasswd 已生成"
 fi
-echo ".htpasswd 已生成"
-# 保存凭据到安全位置
-echo "fhcode:$BA_PASS" > "$DEP_DIR/.ba_cred"
-chmod 600 .ba_cred .htpasswd
 
-echo "=== 3. 生成 FH_WEB_TOKEN ==="
-FH_TOKEN=$(openssl rand -hex 32)
-echo "$FH_TOKEN" > "$DEP_DIR/.fh_token"
-chmod 600 .fh_token
-echo "FH_WEB_TOKEN 已生成"
+echo "=== 3. 生成 / 复用 FH_WEB_TOKEN（升级模式复用，避免已连接设备掉线）==="
+if [ -f "$DEP_DIR/.fh_token" ]; then
+  FH_TOKEN=$(cat "$DEP_DIR/.fh_token")
+  echo "复用已有 FH_WEB_TOKEN（升级模式，不破坏手机/电脑/云电脑连接）"
+else
+  FH_TOKEN=$(openssl rand -hex 32)
+  echo "$FH_TOKEN" > "$DEP_DIR/.fh_token"
+  chmod 600 .fh_token
+  echo "FH_WEB_TOKEN 已生成（全新部署）"
+fi
 
 echo "=== 4. 测试服务启动 ==="
 mkdir -p "$DEP_DIR/data"
