@@ -185,13 +185,15 @@ var AGNES_MODEL = {
   apiKey: '',
   reasoning: ''
 };
-/* 内置硅基流动免费模型（Key 由用户 2026-09-29 提供，随包预置） */
+/* 内置硅基流动免费模型：真实 Key 不入库（安全扫描拦截明文密钥），运行时从配置读取。
+   优先级：用户在设置页配置的 sfKey（localStorage 'fh.app.sfKey'）> 内置占位（需本地构建注入或用户自填） */
+var FH_SF_BUILTIN_KEY = (typeof localStorage !== 'undefined' && localStorage.getItem('fh.app.sfKey')) || '__FH_SF_KEY__';
 var SILICONFLOW_BUILTIN = {
   id: 'sf_qwen3_8b',
   modelId: 'Qwen/Qwen3-8B',
   name: 'Qwen3-8B（硅基流动·免费）',
   apiBase: 'https://api.siliconflow.cn/v1',
-  apiKey: 'sk-kjrjycaphmbykatxfmiisiiovswrqqsiziiodvkrzjadxebr',
+  apiKey: FH_SF_BUILTIN_KEY,
   enableThinking: false,
   reasoning: ''
 };
@@ -980,12 +982,13 @@ function getPcMode() {
 }
 function setPcMode(m) { try { localStorage.setItem('fh.pc.mode', m); } catch (e) {} }
 function getPcUrl() {
-  // 预置本机（KLZX）局域网直连地址：fhcode web 专用实例跑在 8082（8080 为常驻服务、8081 被占用）
-  var fallback = 'http://192.168.0.101:8082';
+  // 默认走「飞虹Code 自研轻量中转」（云端 nginx 443 反代 → 家里电脑 8082），零配置、外网可用
+  var fallback = 'https://api.klai.top/fhrelay';
   try {
     var saved = localStorage.getItem('fh.pc.pcUrl');
-    // 一次性迁移：曾存过错误的 127.0.0.1 默认值 → 升级为新默认（用户自定义值不动）
-    if (saved === 'http://127.0.0.1:8081') { localStorage.setItem('fh.pc.pcUrl', fallback); return fallback; }
+    // 一次性迁移：旧直连/局域网/Tailscale 默认值 → 升级为中继默认（用户自定义值不动）
+    var legacy = ['http://127.0.0.1:8081', 'http://192.168.0.101:8082', 'http://100.95.243.75:8082'];
+    if (saved && legacy.indexOf(saved) >= 0) { localStorage.setItem('fh.pc.pcUrl', fallback); return fallback; }
     return saved || fallback;
   } catch (e) { return fallback; }
 }
@@ -1012,7 +1015,7 @@ function testLocalConn(cb) {
   var url = getPcUrl().replace(/\/+$/, '');
   getJson(url + '/api/health', {},
     function (d) { connState.local = !!(d && d.ok !== false); cb && cb(connState.local); },
-    function () { connState.local = false; cb && cb(false); }, 4000);
+    function () { connState.local = false; cb && cb(false); }, 8000);
 }
 
 /* 检测云电脑（云端桥接）：GET {cloudUrl}/api/bridge/devices，带 token，6s 超时 */
@@ -1364,7 +1367,6 @@ function formatComputerResult(data, rawText) {
   var isCloud = getExecEndLabel() === '云端执行体';
   var lines = [];
   var head = (isCloud ? '☁️ **云端执行体已完成**' : '🖥️ **电脑已完成**');
-  if (rawText) head += '：' + rawText;
   lines.push(head);
   var br = data && data.bridge ? data.bridge : data;
   var r = (br && br.result) || (data && data.result);
@@ -1406,8 +1408,6 @@ function beautifyStoredComputerMsg(content) {
 
 function renderComputerResult(task, data, rawText) {
   var lines = [];
-  lines.push((getExecEndLabel() === '云端执行体' ? '☁️ 云端执行体已执行指令：' : '🖥️ 电脑已执行指令：') + esc(rawText));
-  lines.push('');
   if (data && data.action) {
     var actionName = {
       'app/open': '📂 打开应用',
@@ -2514,8 +2514,9 @@ function playFlashApp(app) {
 /* ========== AI 创作中心（文生图/文生视频） ========== */
 var APP_VER = 'v8.5.7';
 var LS_CREATIVE = 'fh.app.creative';
-// Agnes 内置 Key（2026-09-29 用户提供并实测：生图 11s / 生视频异步 ~100s；仅随 APK 自用，勿外传）
-var AGNES_BUILTIN_KEY = 'sk-ToxyGNB8dFYBwCGQtT988SmHgoVER8jD6C3JiVOHUv0zrdRt';
+// Agnes 内置 Key：真实 Key 不入库（安全扫描拦截明文密钥），运行时从配置读取。
+// 优先级：用户在设置页配置的 agnesKey（localStorage 'fh.app.agnesKey'）> 内置占位（需本地构建注入或用户自填）
+var AGNES_BUILTIN_KEY = (typeof localStorage !== 'undefined' && localStorage.getItem('fh.app.agnesKey')) || '__FH_AGNES_KEY__';
 var AGNES_GEN_BASE = 'https://api.agnes-ai.cn/v1';
 var LS_AGNES_CREATIVE = 'fh.app.agnesCreative.v1'; // 一次性默认标记（此后尊重用户手动修改）
 var creativeConfig = { t2i: {}, t2v: {} };
@@ -3237,6 +3238,24 @@ function initSkillCenter() {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   });
   $('goalInput').addEventListener('input', function () { this.style.height = 'auto'; this.style.height = Math.min(this.scrollHeight, 110) + 'px'; });
+  // 输入法弹起时把输入框顶进可视区，避免被键盘遮住
+  function keepInputVisible() {
+    setTimeout(function () {
+      var input = $('goalInput');
+      if (input && input.scrollIntoView) input.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      var box = $('convMessages');
+      if (box) box.scrollTop = box.scrollHeight;
+    }, 280);
+  }
+  $('goalInput').addEventListener('focus', keepInputVisible);
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', function () {
+      keepInputVisible();
+      document.documentElement.style.setProperty('--vh', window.visualViewport.height * 0.01 + 'px');
+    });
+  } else {
+    window.addEventListener('resize', keepInputVisible);
+  }
 
   // 任务清空（任务页）
   var clearBtn = $('clearTasksBtn');

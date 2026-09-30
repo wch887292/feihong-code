@@ -186,7 +186,7 @@ cd android
 ### 4.1 运行环境
 | 组件 | 最低要求 | 推荐版本 |
 |------|----------|----------|
-| Node.js | >= 18.0.0 | 22.x LTS |
+| Node.js | >= 22.5.0 | 22.x LTS |
 | 操作系统 | Windows 10+ / Linux / macOS | Windows 11 |
 | 浏览器（Web控制台） | Chrome 90+ / Edge 90+ | 最新版 |
 | Android（APP） | Android 8.0+ | Android 12+ |

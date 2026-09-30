@@ -30,7 +30,7 @@
  *
  * 用法：node scripts/check-cross-platform.mjs [--runtime]
  */
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -140,6 +140,18 @@ if (extPkg) {
   }
   const serverRoutes = [...serverTs.matchAll(/app\.(?:get|post|put|delete|patch)\(\s*['"`]([^'"`]+)['"`]/g)]
     .map((m) => m[1]);
+  // 子模块路由（通过 registerXxxRoutes(app) 注册，如 routes/model-domain.ts 的 /api/completion、/api/lint）：
+  // server.ts 仅调用注册函数，字面量不含路径，必须递归扫描 src/web/routes 才能识别，否则 E11 误判「未注册」。
+  try {
+    const routesDir = path.join(root, 'src/web/routes');
+    for (const f of readdirSync(routesDir)) {
+      if (!f.endsWith('.ts')) continue;
+      const rts = readFileSync(path.join(routesDir, f), 'utf8');
+      for (const m of rts.matchAll(/(?:app|router)\.(?:get|post|put|delete|patch)\(\s*['"`]([^'"`]+)['"`]/g)) {
+        serverRoutes.push(m[1]);
+      }
+    }
+  } catch (e) { /* 无 routes 目录则跳过 */ }
 
   const seg = (p2) => p2.split('/').filter(Boolean);
   const segMatch = (r, e) => r.startsWith(':') || r === '*' || r === e;

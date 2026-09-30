@@ -160,6 +160,6 @@ class CustomHook {
 
 ## 版本兼容性
 
-- Node.js >= 18.0.0
+- Node.js >= 22.5.0
 - TypeScript >= 5.0
 - 飞虹 Code >= 0.5.0

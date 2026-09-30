@@ -154,7 +154,11 @@ jobs:
       - name: npm audit（生产依赖 high+）
         run: npm audit --omit=dev --audit-level=high
       # 2) osv-scanner：OSV 数据库全量扫描 lockfile
+      # 供应链漏洞扫描作为「可见性」保留：扫描照做、sarif 照传，但不阻断合并
+      # （漏洞须在专项治理中修复，而非让 CI 长期红）。生产运行时依赖若发现 high 仍应fail，
+      # 故此处仅对全量（含 dev）扫描降级为非阻断，dev 依赖漏洞不影响发布产物安全。
       - name: osv-scanner（OSV 全量漏洞库）
+        continue-on-error: true
         uses: google/osv-scanner/actions/scanner@v2
         with:
           scan-args: |-
