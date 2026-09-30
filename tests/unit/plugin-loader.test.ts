@@ -19,6 +19,10 @@ import {
   pluginRoot,
 } from '../../src/plugins/plugin-loader';
 
+// 测试环境：开启本地路径插件安装（F5 安全门禁 FH_PLUGIN_ALLOW_LOCAL），
+// 仅用于验证 installPlugin 本地目录安装/清单校验行为，不影响远程白名单逻辑。
+process.env.FH_PLUGIN_ALLOW_LOCAL = '1';
+
 /** 构造一个最小合法插件目录 */
 function makePlugin(root: string, name: string, extra: Record<string, unknown> = {}): string {
   const dir = join(root, name);

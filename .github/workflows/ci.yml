@@ -53,6 +53,21 @@ jobs:
           node dist/cli/index.js /plan "实现登录并且添加支付"
           node dist/cli/index.js /grill src
 
+  # ---------- 1b. 单元测试（强制 fail-closed 门禁） ----------
+  test:
+    name: 单元测试 (fail-closed)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      # 单元测试任一用例失败 → step 退出码非 0 → job 失败 → 整个 CI 判红，
+      # 阻断合并 / 发布（fail-closed）。所有 job 独立且须全绿，无需额外 needs 约束。
+      - name: 单元测试（任一失败即阻断）
+        run: npm test
+
   # ---------- 2. M4 企业能力（权限 / 审计 / 多租户 / 配额） ----------
   enterprise:
     name: 企业能力冒烟 (M4)

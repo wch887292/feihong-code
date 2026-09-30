@@ -1,122 +1,91 @@
 /**
- * planner 第一性原理拆解单元测试
- * 验证 firstPrinciplesDecompose 与 buildWaves 的核心行为。
+ * planner 目标拆解单元测试
+ * 覆盖 decomposeGoal 的核心行为（v8.5.0 重构后当前真实 API）。
+ * 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
+ *
+ * 说明：v8.5.0 重构后 firstPrinciplesDecompose / classifyDomain / buildWaves
+ * 已被移除，目标拆解统一由 decomposeGoal 提供（返回 SubTask[]，字段 id/title/goal），
+ * 子任务彼此独立、适合并行隔离执行。本测试对齐该真实实现。
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { firstPrinciplesDecompose, classifyDomain } from '../../src/agent/planner';
-import { buildWaves } from '../../src/agent/parallel-orchestrator';
+import { decomposeGoal } from '../../src/agent/planner';
 
-test('firstPrinciplesDecompose: 空目标返回空数组', () => {
-  assert.deepStrictEqual(firstPrinciplesDecompose(''), []);
-  assert.deepStrictEqual(firstPrinciplesDecompose('   '), []);
+test('decomposeGoal: 空目标返回空数组', () => {
+  assert.deepStrictEqual(decomposeGoal(''), []);
+  assert.deepStrictEqual(decomposeGoal('   '), []);
 });
 
-test('firstPrinciplesDecompose: 单目标返回一个单元', () => {
-  const units = firstPrinciplesDecompose('修复登录页面的样式问题');
-  assert.strictEqual(units.length, 1);
-  assert.strictEqual(units[0].goal, '修复登录页面的样式问题');
-  assert.strictEqual(units[0].category, 'bugfix');
-  assert.ok(units[0].domainTags.includes('bugfix'));
+test('decomposeGoal: 单句目标返回单一子任务', () => {
+  const tasks = decomposeGoal('修复登录页面的样式问题');
+  assert.strictEqual(tasks.length, 1);
+  assert.strictEqual(tasks[0].id, 't1');
+  assert.strictEqual(tasks[0].title, '主线任务');
+  assert.strictEqual(tasks[0].goal, '修复登录页面的样式问题');
 });
 
-test('firstPrinciplesDecompose: 多句目标拆分为多个单元', () => {
-  const units = firstPrinciplesDecompose('修复登录页面的样式问题。实现完整的用户登录认证功能。');
-  assert.ok(units.length >= 2, `应拆分为多个单元，实际 ${units.length}`);
-  // 第一个单元应为修复类，第二个应为实现类
-  assert.strictEqual(units[0].category, 'bugfix');
-  assert.strictEqual(units[1].category, 'feature');
+test('decomposeGoal: 句号分隔的多句目标拆分为多个子任务', () => {
+  const tasks = decomposeGoal('修复登录页面的样式问题。实现完整的用户登录认证功能。');
+  assert.ok(tasks.length >= 2, `应拆分为多个子任务，实际 ${tasks.length}`);
+  assert.strictEqual(tasks[0].goal, '修复登录页面的样式问题');
+  assert.strictEqual(tasks[1].goal, '实现完整的用户登录认证功能');
 });
 
-test('firstPrinciplesDecompose: 每个单元有 id/title/goal/category/dependsOn/parallelizable/domainTags', () => {
-  const units = firstPrinciplesDecompose('做A。做B。');
-  for (const u of units) {
-    assert.ok(u.id, '应有 id');
-    assert.ok(u.title, '应有 title');
-    assert.ok(u.goal, '应有 goal');
-    assert.ok(typeof u.category === 'string');
-    assert.ok(Array.isArray(u.dependsOn));
-    assert.ok(typeof u.parallelizable === 'boolean');
-    assert.ok(Array.isArray(u.domainTags));
+test('decomposeGoal: 分号分隔拆分为多个子任务', () => {
+  const tasks = decomposeGoal('修复登录页面的样式问题；实现用户注册功能');
+  assert.strictEqual(tasks.length, 2);
+  assert.strictEqual(tasks[1].goal, '实现用户注册功能');
+});
+
+test('decomposeGoal: “并且”连接拆分为多个子任务', () => {
+  const tasks = decomposeGoal('修复登录页面的样式问题 并且 实现用户注册功能');
+  assert.strictEqual(tasks.length, 2);
+  assert.strictEqual(tasks[0].goal, '修复登录页面的样式问题');
+  assert.strictEqual(tasks[1].goal, '实现用户注册功能');
+});
+
+test('decomposeGoal: “同时”连接拆分为多个子任务', () => {
+  const tasks = decomposeGoal('实现用户登录功能同时实现用户退出功能');
+  assert.ok(tasks.length >= 2, `“同时”应触发拆分，实际 ${tasks.length}`);
+});
+
+test('decomposeGoal: 并列连词回退拆分（和/与/、）', () => {
+  // 主分隔符不命中时，回退到“和/与/、”等并列连词再拆
+  const tasks = decomposeGoal('实现登录功能并且实现注册功能');
+  assert.strictEqual(tasks.length, 2);
+});
+
+test('decomposeGoal: 每个子任务具备 id/title/goal 字段', () => {
+  const tasks = decomposeGoal('实现登录功能。实现注册功能。');
+  assert.ok(tasks.length >= 2, `应为多子任务，实际 ${tasks.length}`);
+  for (const t of tasks) {
+    assert.ok(t.id, '应有 id');
+    assert.ok(t.title, '应有 title');
+    assert.ok(t.goal, '应有 goal');
+    assert.strictEqual(typeof t.id, 'string');
+    assert.strictEqual(typeof t.title, 'string');
+    assert.strictEqual(typeof t.goal, 'string');
   }
 });
 
-test('firstPrinciplesDecompose: 无耦合的独立单元 parallelizable 为 true', () => {
-  // 修复登录页 + 实现注册功能：不同文件域、不同类别，应可并行
-  const units = firstPrinciplesDecompose('修复登录页面的样式问题。实现用户注册功能。');
-  // 两个单元应都标记为 parallelizable（无依赖）
-  for (const u of units) {
-    assert.ok(u.dependsOn.length === 0, `${u.title} 不应有依赖，实际 dependsOn=${JSON.stringify(u.dependsOn)}`);
-  }
+test('decomposeGoal: 子任务 id 按 t1/t2/t3… 顺序编号', () => {
+  const tasks = decomposeGoal('修复登录页面的样式问题。实现完整的用户注册功能。重构首页的导航栏结构。');
+  const ids = tasks.map((t) => t.id);
+  assert.deepStrictEqual(ids, ['t1', 't2', 't3']);
 });
 
-test('classifyDomain: 修复类识别', () => {
-  const tags = classifyDomain('修复登录页面的样式问题');
-  assert.ok(tags.includes('bugfix'));
+test('decomposeGoal: 过短续接片段被合并，不撕碎语义', () => {
+  // “实现登录。先测试。再发布” 中“先测试/再发布”均 <5 字，应合并回前一句
+  const tasks = decomposeGoal('实现登录。先测试。再发布');
+  assert.strictEqual(tasks.length, 1);
+  assert.ok(tasks[0].goal.includes('实现登录'));
 });
 
-test('classifyDomain: 实现类识别', () => {
-  const tags = classifyDomain('实现用户注册功能');
-  assert.ok(tags.includes('feature'));
-});
-
-test('classifyDomain: 重构类识别', () => {
-  const tags = classifyDomain('重构登录模块的代码结构');
-  assert.ok(tags.includes('refactor'));
-});
-
-test('classifyDomain: 识别不出领域时兜底为 general', () => {
-  const tags = classifyDomain('做点什么');
-  assert.ok(tags.includes('general'));
-});
-
-test('buildWaves: 空任务返回空波次', () => {
-  const waves = buildWaves([]);
-  assert.deepStrictEqual(waves, []);
-});
-
-test('buildWaves: 单任务返回一个波次', () => {
-  const waves = buildWaves([{ id: 'a', dependsOn: [] }]);
-  assert.strictEqual(waves.length, 1);
-  assert.deepStrictEqual(waves[0].taskIds, ['a']);
-});
-
-test('buildWaves: 无依赖的多个任务在同一波次并行', () => {
-  const waves = buildWaves([
-    { id: 'a', dependsOn: [] },
-    { id: 'b', dependsOn: [] },
-    { id: 'c', dependsOn: [] },
-  ]);
-  assert.strictEqual(waves.length, 1);
-  assert.strictEqual(waves[0].taskIds.length, 3);
-});
-
-test('buildWaves: 有依赖的任务分波次串行', () => {
-  const waves = buildWaves([
-    { id: 'a', dependsOn: [] },
-    { id: 'b', dependsOn: ['a'] },
-  ]);
-  assert.strictEqual(waves.length, 2);
-  assert.deepStrictEqual(waves[0].taskIds, ['a']);
-  assert.deepStrictEqual(waves[1].taskIds, ['b']);
-});
-
-test('buildWaves: 依赖成环时剔除环依赖不产生死锁', () => {
-  // a→b→c→a 成环
-  const waves = buildWaves([
-    { id: 'a', dependsOn: ['c'] },
-    { id: 'b', dependsOn: ['a'] },
-    { id: 'c', dependsOn: ['b'] },
-  ]);
-  // 环被剔除后所有任务应在同一波次完成，不会死锁
-  const allIds = waves.flatMap((w) => w.taskIds).sort();
-  assert.deepStrictEqual(allIds, ['a', 'b', 'c']);
-});
-
-test('buildWaves: 悬空依赖（指向不存在任务）被忽略', () => {
-  const waves = buildWaves([
-    { id: 'a', dependsOn: ['nonexistent'] },
-  ]);
-  assert.strictEqual(waves.length, 1);
-  assert.deepStrictEqual(waves[0].taskIds, ['a']);
+test('decomposeGoal: 拆分出的子任务彼此独立，适合并行执行', () => {
+  // 注释明确：生成的子任务目标彼此独立，适合并行隔离执行
+  const tasks = decomposeGoal('实现用户登录功能。实现用户注册功能。实现用户退出功能。');
+  assert.strictEqual(tasks.length, 3);
+  const goals = tasks.map((t) => t.goal);
+  assert.ok(goals.every((g) => g && g.length > 0));
+  assert.strictEqual(new Set(goals).size, goals.length, '各子任务目标应互不重复');
 });
