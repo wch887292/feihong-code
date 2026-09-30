@@ -164,6 +164,15 @@ export function registerFilesystemRoutes(app: ExpressApp, deps: FilesystemDeps):
       res.status(400).json({ ok: false, error: '缺少 url 字段' });
       return;
     }
+    // F9 加固（2026-09-30 安全审计 P1）：仅允许 http(s)，过滤 cmd 元字符，防命令注入与任意协议唤起
+    if (!/^https?:\/\//i.test(url)) {
+      res.status(400).json({ ok: false, error: '仅允许 http/https 链接' });
+      return;
+    }
+    if (!/^[A-Za-z0-9\-._~:/?#[\]@!$'()*+,;=%]+$/.test(url)) {
+      res.status(400).json({ ok: false, error: 'URL 含不允许的字符' });
+      return;
+    }
     try {
       openBrowser(url);
       res.json({ ok: true });

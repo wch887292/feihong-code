@@ -55,14 +55,20 @@ export function registerCloudBridgeRoutes(app: ExpressApp, deps: CloudBridgeDeps
   function saveBridgeCommands(list: BridgeCommand[]): boolean { return saveJsonFile(bridgeCmdsFile, list); }
 
   // 设备注册 / 心跳：电脑端桥接代理每次轮询前调用，标记在线
+  // F11 加固（2026-09-30 安全审计 P1）：字段截断 + 设备数量上限，防伪造注册刷爆设备表
   app.post('/api/bridge/register', (req: Request, res: Response) => {
     const body = (req.body ?? {}) as Record<string, any>;
     const deviceId = String(body?.deviceId ?? '').trim();
-    const name = String(body?.name ?? '').trim() || '未命名电脑';
+    const name = (String(body?.name ?? '').trim() || '未命名电脑').slice(0, 100);
     if (!deviceId) { res.status(400).json({ ok: false, error: '缺少 deviceId' }); return; }
+    if (deviceId.length > 200) { res.status(400).json({ ok: false, error: 'deviceId 过长' }); return; }
     const list = loadBridgeDevices();
     const now = new Date().toISOString();
     const found = list.find((d) => d.deviceId === deviceId);
+    if (!found && list.length >= 50) {
+      res.status(429).json({ ok: false, error: '设备数已达上限（50），请先注销离线设备' });
+      return;
+    }
     if (found) { found.lastSeenAt = now; found.status = 'online'; found.name = name; }
     else { list.push({ deviceId, name, lastSeenAt: now, status: 'online', createdAt: now }); }
     saveBridgeDevices(list);

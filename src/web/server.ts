@@ -319,6 +319,11 @@ export function startWebServer(opts: ServeOptions = {}): {
       welcomeTasks,
     });
   });
+  // F7 加固（2026-09-30 安全审计 P1）：记忆/存储/honcho 属敏感数据，统一要求登录后才可读写
+  app.use('/api/memory', requireToken(token, sessions));
+  app.use('/api/storage', requireToken(token, sessions));
+  app.use('/api/honcho', requireToken(token, sessions));
+
   // 鉴权：其余 /api 需 Bearer token（静态资源与 login/health 除外）
   // 公开 API（无需认证）
   app.get('/api/drives', (_req: Request, res: Response) => {
@@ -491,6 +496,8 @@ export function startWebServer(opts: ServeOptions = {}): {
       typeof body?.workspaceDir === 'string' && body.workspaceDir.trim()
         ? body.workspaceDir.trim()
         : serverWorkspaceDir;
+    // F10 加固（2026-09-30 安全审计 P1）：任务工作区必须落在允许根内，防路径穿越
+    if (workspaceDir && !assertPathAllowed(workspaceDir, res)) return;
     const modelId =
       typeof body?.modelId === 'string' && body.modelId.trim() ? body.modelId.trim() : undefined;
     // 附件：前端暂存区统一上传后的文件路径列表
@@ -554,11 +561,30 @@ export function startWebServer(opts: ServeOptions = {}): {
   });
 
   // P5-2：webhook 注册/查询
+  // F8 加固（2026-09-30 安全审计 P1）：仅允许公网 http(s) 地址，禁内网/回环/云元数据，防 SSRF 与数据外泄
+  function assertPublicHttpUrl(rawUrl: string): string | null {
+    let u: URL;
+    try { u = new URL(rawUrl); } catch { return 'URL 格式不合法'; }
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return '仅允许 http/https 协议';
+    const host = (u.hostname || '').toLowerCase().replace(/^\[|\]$/g, '');
+    if (!host) return '缺少主机名';
+    if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local') || host.endsWith('.internal')) return '禁止本地/内网域名';
+    if (/^(127\.|10\.|192\.168\.|169\.254\.|0\.0\.0\.0$)/.test(host)) return '禁止内网/回环地址';
+    if (/^172\.(1[6-9]|2\d|3[01])\./.test(host)) return '禁止内网地址';
+    if (host === '::1' || host.startsWith('fc') || host.startsWith('fd') || host.startsWith('fe80')) return '禁止本地/内网 IPv6';
+    if (host.endsWith('.metadata.google.internal') || host === 'metadata.tencentyun.com' || host === '100.100.100.200') return '禁止云元数据地址';
+    return null;
+  }
   app.post('/api/webhook', (req: Request, res: Response) => {
     const body = req.body as Record<string, any>;
     const url = typeof body?.url === 'string' ? body.url.trim() : '';
     if (!url) {
       res.status(400).json({ ok: false, error: '缺少 url 字段' });
+      return;
+    }
+    const urlError = assertPublicHttpUrl(url);
+    if (urlError) {
+      res.status(400).json({ ok: false, error: 'webhook 地址被拒绝：' + urlError });
       return;
     }
     queue.setWebhookUrl(url);
