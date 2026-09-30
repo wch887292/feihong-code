@@ -2257,7 +2257,10 @@
     else if (state.cloud) { label = '● 云电脑'; cls = 'cloud'; }
     pills.forEach(function (p) { if (p) { p.className = 'conn-pill ' + cls; p.textContent = label; } });
     const ls = document.getElementById('pcLocalState');
-    if (ls) ls.textContent = state.local ? '✅ 本地服务正常（端口 8081）' : '❌ 本地服务未响应';
+    const portText = location.port || (location.protocol === 'https:' ? '443' : '80');
+    const portEl = document.getElementById('pcLocalPort');
+    if (portEl) portEl.textContent = portText;
+    if (ls) ls.textContent = state.local ? '✅ 本地服务正常（端口 ' + portText + '）' : '❌ 本地服务未响应';
     const cs = document.getElementById('pcCloudState');
     if (cs) cs.textContent = state.cloud ? '✅ 云电脑通道可用（' + (get(LS.cloudUrl, '').replace(/^https?:\/\//, '').split('/')[0] || '云端') + '）' : '❌ 云电脑通道未连接（检查地址/Token/CORS）';
   }
