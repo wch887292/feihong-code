@@ -164,29 +164,42 @@ export async function summarizeMemory(
     // 生成总结提示词
     const prompt = generateSummaryPrompt(cfg, date);
 
-    // 调用 AI 模型总结（这里使用占位实现，实际需要接入 LLM API）
-    // 由于 Web 环境限制，我们先使用规则总结
+    // 调用 AI 模型总结（2026-09-30 补实：直连 ModelRouter，结构化条目真实写入长期记忆）
     const aiOutput = await summarizeWithAI(prompt);
-    parseSummaryOutput(aiOutput);
+    const parsed = parseSummaryOutput(aiOutput);
 
-    // 提取关键信息（简化版：直接提取带 **的条目）
-    const lines = shortTerm.split('\n').filter(l => l.trim().startsWith('- **'));
     let added = 0;
     let updated = 0;
 
-    for (const line of lines) {
-      const match = line.match(/- \*\*(.+?)\*\*:\s*(.+)/);
-      if (match) {
-        const category = match[1].trim();
-        const content = match[2].trim();
-        if (content.length > 5) {
-          appendLongTerm(cfg, {
-            title: category,
-            summarizedFrom: date,
-            category: '技术修复',
-            content,
-          });
-          added++;
+    // AI 总结成功且解析出结构化条目 → 以 AI 归档结果为准写入长期记忆
+    const aiFailed = aiOutput.startsWith('[AI调用失败]');
+    if (!aiFailed && parsed.newEntries.length > 0) {
+      for (const entry of parsed.newEntries) {
+        appendLongTerm(cfg, {
+          title: entry.category,
+          summarizedFrom: date,
+          category: entry.category,
+          content: entry.content,
+        });
+        added++;
+      }
+    } else {
+      // AI 不可用（降级输出）或未解析出条目 → 回退规则提取（带 ** 的条目）
+      const lines = shortTerm.split('\n').filter(l => l.trim().startsWith('- **'));
+      for (const line of lines) {
+        const match = line.match(/- \*\*(.+?)\*\*:\s*(.+)/);
+        if (match) {
+          const category = match[1].trim();
+          const content = match[2].trim();
+          if (content.length > 5) {
+            appendLongTerm(cfg, {
+              title: category,
+              summarizedFrom: date,
+              category: '技术修复',
+              content,
+            });
+            added++;
+          }
         }
       }
     }
@@ -234,11 +247,12 @@ export async function summarizeMemory(
 export function scheduleDailySummary(config?: Partial<MemoryConfig>): void {
   const cfg = getMemoryConfig(config);
 
-  // 计算到明天 00:00 的毫秒数
+  // 计算到明天 00:00（本地时区）的毫秒数 —— 「每天 00:00」应指用户本地零点；
+  // 原用 UTC 零点，对 GMT+8 用户实际是早上 8 点触发。
   const now = new Date();
   const tomorrow = new Date(now);
-  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
-  tomorrow.setUTCHours(0, 0, 0, 0);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(0, 0, 0, 0);
   const msUntilMidnight = tomorrow.getTime() - now.getTime();
 
   // 设置定时器
@@ -250,7 +264,7 @@ export function scheduleDailySummary(config?: Partial<MemoryConfig>): void {
     // 每分钟检查一次，确保每天执行
     setInterval(async () => {
       const now = new Date();
-      if (now.getUTCHours() === 0 && now.getUTCMinutes() === 0) {
+      if (now.getHours() === 0 && now.getMinutes() === 0) {
         await summarizeMemory(cfg);
       }
     }, 60000); // 每分钟检查
