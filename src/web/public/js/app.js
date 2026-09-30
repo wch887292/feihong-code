@@ -2267,6 +2267,26 @@
     const folderRefreshBtn = document.getElementById('folderRefreshBtn');
     if (folderRefreshBtn) folderRefreshBtn.addEventListener('click', () => { loadFolderSection(); loadSyncExecEnd(); });
 
+    /* 执行端切换：点击底部徽标循环 手机对话 → 本地电脑 → 云电脑（三端同步 /api/sync） */
+    const execEndEl = document.getElementById('syncExecEnd');
+    if (execEndEl) {
+      execEndEl.style.cursor = 'pointer';
+      execEndEl.addEventListener('click', async () => {
+        const order = ['phone', 'direct', 'cloud'];
+        const label = { phone: '📱 手机对话', direct: '🖥️ 本地电脑', cloud: '☁️ 云电脑' };
+        let cur = 'phone';
+        try { const d = await api('/api/sync'); if (d && d.execEnd && order.indexOf(d.execEnd) >= 0) cur = d.execEnd; } catch { /* 读失败按 phone 处理 */ }
+        const next = order[(order.indexOf(cur) + 1) % order.length];
+        try {
+          const r = await api('/api/sync', 'POST', { execEnd: next });
+          if (r && r.ok) {
+            execEndEl.textContent = label[next];
+            toast('执行端已切换：' + label[next]);
+          } else { toast('切换失败：服务返回异常'); }
+        } catch (e) { toast('切换失败：' + e.message); }
+      });
+    }
+
     /* ========== 记忆系统 ========== */
 
 
