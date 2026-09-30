@@ -159,9 +159,9 @@
         <button class="create-tab" data-ctab2="cloud">☁️ 云电脑</button>
       </div>
       <div class="create-panel" id="ctab2-direct">
-        <label class="label">本地电脑地址（局域网直连）</label>
-        <input class="input" id="pcUrlInput" placeholder="http://192.168.0.101:8082">
-        <div style="font-size:11px;color:var(--ink-2);margin:4px 0 8px;">⚠️ 不能填 127.0.0.1（手机上指向手机自身）。手机与电脑同一 WiFi，填电脑局域网 IP（KLZX 当前为 192.168.0.101），电脑端 fhcode 直连服务跑在 8082 端口（防火墙已放行）。已内置直连令牌，填对地址即可连</div>
+        <label class="label">本地电脑地址（飞虹云中转 · 外网可用）</label>
+        <input class="input" id="pcUrlInput" placeholder="https://api.klai.top/fhrelay">
+        <div style="font-size:11px;color:var(--ink-2);margin:4px 0 8px;">✅ 默认已填飞虹云中转地址，家里/外网（流量/异地 WiFi）都能连，无需配 IP 或 VPN。原理：手机 → 云端 → 家里电脑 fhcode 直连服务（8082）。若你已手动改过地址请确认无误，否则留空默认值即可。</div>
         <div class="footer" style="margin-top:4px;">
           <button class="btn ghost" id="pcTestBtn" style="color:var(--ok);">📡 测试连接</button>
           <button class="btn" id="pcSaveBtn">保存并连接</button>

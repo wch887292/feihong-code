@@ -8,14 +8,11 @@ import type { CapacitorConfig } from '@capacitor/cli';
 const config: CapacitorConfig = {
   appId: 'com.feihong.code',
   appName: '飞虹 Code',
-  webDir: 'dist/web/public',
-  server: {
-    url: 'https://jb.klai.top',
-    androidScheme: 'https'
-  },
+  // 移动版 APK 实际打包的是 app-mobile（本地嵌入，非远程 jb.klai.top 控制台）
+  webDir: 'app-mobile',
   android: {
     allowMixedContent: true,
-    backgroundColor: '#1a1a2e'
+    backgroundColor: '#f7f8fa'
   }
 };
 
