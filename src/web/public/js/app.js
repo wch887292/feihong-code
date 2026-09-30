@@ -970,6 +970,15 @@
     }
     document.getElementById('sendBtn').addEventListener('click', sendTask);
     document.getElementById('goalInput').addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) sendTask(); });
+    // 豆包式欢迎卡片：点击推荐提示词 → 填入输入框并聚焦（事件委托，任务渲染覆盖后依然有效）
+    document.getElementById('messages').addEventListener('click', (e) => {
+      const chip = e.target.closest ? e.target.closest('[data-fill]') : null;
+      if (!chip) return;
+      const input = document.getElementById('goalInput');
+      if (!input) return;
+      input.value = chip.getAttribute('data-fill') || '';
+      input.focus();
+    });
     // 粘贴图片：用户用 Win+Shift+S 截图后可直接粘贴到输入框
     document.getElementById('goalInput').addEventListener('paste', (e) => {
       const items = e.clipboardData?.items;

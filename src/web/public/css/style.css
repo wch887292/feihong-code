@@ -1807,3 +1807,144 @@ pre, code, .code-block, .code-block * {
 .cline-result-head { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; background: #f6f8fa; border-bottom: 1px solid #e1e4e8; font-weight: 600; font-size: 13px; }
 .cline-result-time { font-weight: 400; color: #6e7781; font-size: 12px; }
 .cline-result pre { margin: 0; padding: 14px; white-space: pre-wrap; word-break: break-word; font-size: 13px; line-height: 1.6; max-height: 60vh; overflow: auto; background: #fff; }
+/* ==========================================================
+   豆包式界面主题（Doubao-style Theme Overlay）
+   对标豆包桌面版：蓝紫主色 · 大圆角气泡 · 胶囊输入区 · 欢迎卡片
+   晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
+   ========================================================== */
+:root {
+  --brand: #4e5bff;
+  --brand-2: #7b5bff;
+  --brand-soft: #eef0ff;
+  --bg: #f7f8fa;
+  --bubble-user: linear-gradient(135deg, #4e5bff 0%, #6a5bff 100%);
+  --bubble-ai: #f5f6f8;
+}
+.dark {
+  --brand: #6b7bff;
+  --brand-soft: #2a2f55;
+  --bubble-ai: #1b2333;
+}
+
+/* ---- 对话消息气泡（豆包式：用户右侧蓝紫渐变 / AI 左侧浅灰+头像） ---- */
+.messages { gap: 14px; padding: 20px 24px; }
+.msg { border-radius: 18px; font-size: 14px; padding: 10px 16px; }
+.msg.user {
+  background: var(--bubble-user);
+  color: #fff;
+  border-radius: 18px 18px 6px 18px;
+  align-self: flex-end;
+  box-shadow: 0 2px 8px rgba(78,91,255,0.18);
+  max-width: 78%;
+}
+.msg.user .msg-actions { background: rgba(255,255,255,0.18); }
+.msg.user .msg-action-btn { color: rgba(255,255,255,0.92); }
+.msg.user .msg-action-btn:hover { background: rgba(255,255,255,0.24); color: #fff; }
+.msg.assistant {
+  background: var(--bubble-ai);
+  border: none;
+  border-radius: 18px 18px 18px 6px;
+  align-self: flex-start;
+  margin-left: 42px;
+  max-width: 82%;
+}
+.msg.assistant::before {
+  content: '虹';
+  position: absolute; left: -42px; top: 0;
+  width: 30px; height: 30px;
+  border-radius: 9px;
+  background: linear-gradient(135deg, #4e5bff, #7b5bff);
+  color: #fff; font-size: 14px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 2px 6px rgba(78,91,255,0.30);
+}
+.msg.sys {
+  align-self: center; background: transparent; border: none;
+  color: var(--muted); font-size: 12px; text-align: center;
+  max-width: 92%; padding: 4px 12px;
+}
+.msg.error-msg { background: #fff2f0; border-left: 3px solid var(--err); }
+.dark .msg.error-msg { background: #3a1d1d; }
+
+/* ---- 输入区：豆包胶囊输入框 ---- */
+.input-area { padding: 0 24px 20px; }
+.input-bar {
+  border-radius: 24px;
+  border: 1.5px solid transparent;
+  background: #f2f3f7;
+  padding: 14px 16px 10px;
+  box-shadow: 0 2px 10px rgba(31,41,51,0.04);
+  transition: border-color .2s, background .2s, box-shadow .2s;
+}
+.input-bar:focus-within {
+  background: var(--card);
+  border-color: var(--brand);
+  box-shadow: 0 4px 18px rgba(78,91,255,0.12);
+}
+.input-bar textarea { font-size: 14.5px; min-height: 56px; }
+.input-toolbar { margin-top: 8px; }
+.pill {
+  border: none; border-radius: 999px;
+  padding: 6px 12px; font-size: 12.5px;
+  background: #eef0f4; color: var(--ink-2);
+  transition: background .15s, color .15s;
+}
+.pill:hover { background: var(--brand-soft); color: var(--brand); }
+.dark .pill { background: #262f42; }
+
+#sendBtn {
+  width: 42px; height: 42px; padding: 0;
+  border: none; border-radius: 50%;
+  background: linear-gradient(135deg, #4e5bff 0%, #6a5bff 100%);
+  color: #fff; font-size: 19px; font-weight: 700; line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(78,91,255,0.35);
+  transition: filter .15s, transform .05s, box-shadow .2s;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+#sendBtn:hover { filter: brightness(1.08); box-shadow: 0 4px 14px rgba(78,91,255,0.45); }
+#sendBtn:active { transform: scale(0.94); }
+#sendBtn:disabled { background: #c9cede; box-shadow: none; cursor: not-allowed; filter: none; }
+
+/* ---- 欢迎空状态（豆包式问候 + 推荐提示词卡片） ---- */
+.doubao-hero {
+  align-self: center;
+  margin: auto;
+  display: flex; flex-direction: column; align-items: center;
+  gap: 10px; padding: 30px 16px 10px; max-width: 560px; width: 100%;
+  text-align: center;
+}
+.doubao-hero .hero-logo {
+  width: 56px; height: 56px; border-radius: 18px;
+  background: linear-gradient(135deg, #4e5bff, #7b5bff);
+  color: #fff; font-size: 26px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 8px 24px rgba(78,91,255,0.35);
+}
+.doubao-hero .hero-title { font-size: 22px; font-weight: 700; color: var(--ink); margin-top: 4px; }
+.doubao-hero .hero-sub { font-size: 13px; color: var(--muted); }
+.doubao-chips {
+  margin-top: 14px;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%;
+}
+.doubao-chips .chip {
+  border: 1px solid var(--border); border-radius: 14px;
+  background: var(--card);
+  padding: 12px 14px; font-size: 13px; color: var(--ink-2);
+  cursor: pointer; text-align: left; line-height: 1.5;
+  transition: border-color .15s, box-shadow .15s, transform .1s, color .15s;
+}
+.doubao-chips .chip:hover {
+  border-color: var(--brand); color: var(--brand);
+  box-shadow: 0 4px 14px rgba(78,91,255,0.10);
+}
+.doubao-chips .chip:active { transform: scale(0.98); }
+
+/* ---- 顶栏 / 侧栏豆包化（胶囊导航 + 圆角选中态） ---- */
+.topbar { background: transparent; border-bottom: none; }
+.topbar-brand .logo { background: linear-gradient(135deg, #4e5bff, #7b5bff); border-radius: 9px; }
+.topbar-nav-item { border-radius: 999px; padding: 6px 14px; }
+.topbar-nav-item.active { background: var(--brand-soft); color: var(--brand); font-weight: 600; }
+.sidebar-icon { border-radius: 12px; }
+.sidebar-icon.active { background: var(--brand-soft); }
+.sidebar-icon.active .label { color: var(--brand); font-weight: 600; }

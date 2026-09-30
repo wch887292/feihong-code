@@ -158,7 +158,17 @@
         <!-- 对话视图 -->
         <div class="conv view active" data-view="chat">
           <div class="messages" id="messages">
-            <div class="msg sys" data-i18n="btn.new_task">点击「＋ 新建任务」开启一个新任务，或直接在下方向当前任务发送消息——所有对话都会归属同一个任务运行。</div>
+            <div class="doubao-hero" id="doubaoHero">
+              <div class="hero-logo">虹</div>
+              <div class="hero-title">你好，我是飞虹 Code</div>
+              <div class="hero-sub">终端 AI 编程智能体 · 提交需求，全程追踪推理与工具执行</div>
+              <div class="doubao-chips">
+                <div class="chip" data-fill="帮我写一个 Python 脚本，批量重命名当前目录下的图片文件">🐍 帮我写个批量重命名脚本</div>
+                <div class="chip" data-fill="解读这段报错并给出修复方案：">🐞 排查并修复一段报错</div>
+                <div class="chip" data-fill="给当前项目做一次代码审查，列出风险与改进点">🔍 做一次代码审查</div>
+                <div class="chip" data-fill="把下面的功能写成完整的 PRD 文档：">📋 写一份功能 PRD</div>
+              </div>
+            </div>
           </div>
 
           <div class="input-area">
@@ -184,7 +194,7 @@
                 <span class="pill" id="directModePill" style="display:none;" title="电脑操作模式已开启" data-i18n="chat.direct_mode">🖥 电脑操作</span>
                 <span id="voiceBadge" class="voice-badge" style="display:none;" data-i18n="chat.listening">● 正在听…</span>
                 <span class="spacer"></span>
-                <button id="sendBtn" data-i18n="chat.send">▶ 发送</button>
+                <button id="sendBtn" title="发送（Ctrl+Enter）" aria-label="发送">↑</button>
               </div>
             </div>
             <div class="workspace-bar">
