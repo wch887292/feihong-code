@@ -398,6 +398,17 @@ export async function handleWechatCallback(
   }
 
   // POST 消息处理
+  // F4 修复：fail-closed 来源校验——任何 POST 消息必须先验签，失败即 403，
+  // 防止伪造消息（无签名或签名错误）直接驱动 TaskQueue 执行任意目标（RCE）。
+  const postTs = query.timestamp || '';
+  const postNonce = query.nonce || '';
+  const postValid = cfg.mode === 'wecom'
+    ? verifyWecomSignature(cfg.token, postTs, postNonce, parseXmlTag(body, 'Encrypt') || '', query.msg_signature || '')
+    : verifyMpSignature(cfg.token, postTs, postNonce, query.signature || '');
+  if (!postValid) {
+    logger.warn('wechat post signature verify failed', { mode: cfg.mode });
+    return { status: 403, body: 'invalid signature', contentType: 'text/plain' };
+  }
   try {
     let plainXml = body;
 

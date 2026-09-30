@@ -86,6 +86,10 @@ export interface ServeOptions {
  * - 端口：opts.port > FH_WEB_PORT > 8080
  * - 令牌：opts.token > FH_WEB_TOKEN > 自动生成（仅本次会话有效，fail-closed）
  */
+
+// 登录频率限制（F2）：来源 IP → 计数与时间窗，60 秒窗口内超限即 429
+const loginAttempts = new Map<string, { count: number; ts: number }>();
+
 export function startWebServer(opts: ServeOptions = {}): {
   port: number;
   token: string;
@@ -121,7 +125,14 @@ export function startWebServer(opts: ServeOptions = {}): {
   // 第一层(应用部分)·安全响应头
   app.use(securityHeaders);
   // 第二层·请求签名防重放（对 /api/ 写请求启用；登录/回调豁免）
-  app.use(verifyRequestSignature(process.env.FH_SIGN_SECRET || token, { maxBodyBytes: 8 * 1024 * 1024 }));
+  // F2 修复：签名密钥优先从请求 Bearer 令牌派生（客户端用自身会话令牌签名，服务端同源校验），
+  // 不再回显任何全局签名密钥；FH_SIGN_SECRET / token 仅作为服务端向后兼容的后备校验密钥（不对外下发）。
+  app.use(verifyRequestSignature((req: any) => {
+    const auth = (req.headers && req.headers.authorization) || '';
+    const m = /^Bearer\s+(.+)$/i.exec(auth);
+    const bearer = m ? m[1] : '';
+    return bearer || (process.env.FH_SIGN_SECRET || token);
+  }, { maxBodyBytes: 8 * 1024 * 1024 }));
   // 第二层·暴力破解防护（登录/激活）
   setInterval(() => bruteForce.cleanup(), 60 * 1000).unref();
   const bruteForce = new BruteForceGuard();
@@ -257,11 +268,26 @@ export function startWebServer(opts: ServeOptions = {}): {
   });
 
   // 手机号直登：无短信验证，生成本地会话令牌
+  // 安全约束（F2）：响应绝不回显签名密钥；登录加基础格式校验与频率限制，防暴力与密钥泄露。
   app.post('/api/auth/login', (req: Request, res: Response) => {
     const body = (req.body ?? {}) as Record<string, any>;
     const phone = typeof body?.phone === 'string' ? body.phone.trim() : '';
-    if (!phone) {
-      res.status(400).json({ ok: false, error: '请输入手机号码' });
+    if (!/^\+?[0-9]{6,20}$/.test(phone)) {
+      res.status(400).json({ ok: false, error: '请输入有效的手机号码（6-20 位数字）' });
+      return;
+    }
+    // 频率限制：同一来源 60 秒内最多 10 次登录尝试
+    const loginLimit = (() => {
+      const key = (req.ip ?? 'unknown').toString();
+      const now = Date.now();
+      const rec = loginAttempts.get(key) || { count: 0, ts: now };
+      if (now - rec.ts > 60_000) { rec.count = 0; rec.ts = now; }
+      rec.count += 1;
+      loginAttempts.set(key, rec);
+      return rec.count <= 10;
+    })();
+    if (!loginLimit) {
+      res.status(429).json({ ok: false, error: '登录尝试过于频繁，请稍后再试' });
       return;
     }
     // 使用新的登录方法，支持首次登录检测
@@ -288,7 +314,6 @@ export function startWebServer(opts: ServeOptions = {}): {
     res.json({ 
       ok: true, 
       token: result.token,
-      signSecret: process.env.FH_SIGN_SECRET || token, 
       phone,
       isFirstLogin: result.isFirstLogin,
       welcomeTasks,

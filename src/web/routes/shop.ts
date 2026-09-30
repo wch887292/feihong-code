@@ -29,6 +29,12 @@ type ExpressApp = ReturnType<typeof express>;
 
 /** 支付模式：mock（沙箱，默认）/ wechat（真实微信支付 V3） */
 const PAY_MODE = (process.env.SHOP_PAY_MODE || 'mock').toLowerCase();
+/**
+ * 演示支付开关（F3 修复）：
+ *  - 默认关闭（false）。生产必须显式设置 SHOP_ALLOW_MOCK=1 才允许 mock 支付，否则 fail-closed 拒发激活码。
+ *  - 生产环境使用微信支付（SHOP_PAY_MODE=wechat）时，mock 支付本就不启用，此项无效。
+ */
+const MOCK_ALLOWED = process.env.SHOP_ALLOW_MOCK === '1';
 
 export function registerShopRoutes(app: ExpressApp, deps: { token: string; sessions: SessionStore }): void {
   const shop = getShopDB();
@@ -36,7 +42,7 @@ export function registerShopRoutes(app: ExpressApp, deps: { token: string; sessi
 
   /** 档位配置（公开） */
   app.get('/api/shop/tiers', (_req: Request, res: Response) => {
-    res.json({ ok: true, tiers: Object.values(TIERS), payMode: PAY_MODE });
+    res.json({ ok: true, tiers: Object.values(TIERS), payMode: PAY_MODE, mockAllowed: MOCK_ALLOWED });
   });
 
   /** 创建订单（公开）；body: { tier, contact, contactType? } */
@@ -56,11 +62,32 @@ export function registerShopRoutes(app: ExpressApp, deps: { token: string; sessi
     }
   });
 
-  /** 买家自助查单（公开，含激活码） */
+  /**
+   * 买家自助查单（公开）：返回订单状态，但**绝不返回激活码明文**（F3 修复）。
+   * 激活码需经 /api/shop/deliver 按联系方式校验后交付。
+   */
   app.get('/api/shop/orders/:no', (req: Request, res: Response) => {
     const order = shop.getOrder(String(req.params.no));
     if (!order) return res.status(404).json({ ok: false, error: '订单不存在' });
-    res.json({ ok: true, order: serializeOrder(order) });
+    const safe = serializeOrder(order);
+    safe.licenseKey = null; // 公开接口不裸返激活码
+    res.json({ ok: true, order: safe });
+  });
+
+  /**
+   * 激活码交付（公开，需验证联系方式）：仅当 query.contact 与下单时一致才返回激活码。
+   * 避免任何知道订单号的人直接拿走激活码（F3 修复）。
+   */
+  app.get('/api/shop/deliver/:no', (req: Request, res: Response) => {
+    const order = shop.getOrder(String(req.params.no));
+    if (!order) return res.status(404).json({ ok: false, error: '订单不存在' });
+    if (order.status !== 'paid') return res.status(409).json({ ok: false, error: '订单尚未支付' });
+    const contact = String((req.query.contact as string) || '').trim().toLowerCase();
+    const stored = String(order.contact || '').trim().toLowerCase();
+    if (!contact || contact !== stored) {
+      return res.status(403).json({ ok: false, error: '联系方式校验失败' });
+    }
+    res.json({ ok: true, licenseKey: order.license_key, tier: order.tier });
   });
 
   /**
@@ -68,8 +95,8 @@ export function registerShopRoutes(app: ExpressApp, deps: { token: string; sessi
    * 真实支付时，此步骤由微信支付回调 /api/shop/wechat/notify 中的同一套发码逻辑完成。
    */
   app.post('/api/shop/pay/mock/:no', (req: Request, res: Response) => {
-    if (PAY_MODE !== 'mock') {
-      return res.status(403).json({ ok: false, error: '当前支付模式非模拟，请使用真实支付通道' });
+    if (PAY_MODE !== 'mock' || !MOCK_ALLOWED) {
+      return res.status(403).json({ ok: false, error: '演示支付未开启，请使用真实支付通道' });
     }
     const orderNo = String(req.params.no);
     const order = shop.getOrder(orderNo);
@@ -119,19 +146,33 @@ export function registerShopRoutes(app: ExpressApp, deps: { token: string; sessi
 /**
  * 发码：调用核心授权模块 generateLicenseKey。
  * 商城是开发商自营服务端，只需配置 FH_LICENSE_SECRET 即可发码（无需客户侧 FH_LICENSE_MASTER 门禁）。
+ *
+ * 密钥一致性（重要）：
+ *  - generateLicenseKey 默认用 secret() 回落（FH_LICENSE_SECRET 环境变量 > FH_HOME/license-secret 文件 > 内置占位）。
+ *  - 客户端 `fhcode activate` 同样使用 secret() 默认回落。
+ *  - 为让买家在本地 fhcode「零配置」激活成功，云端发码密钥必须与客户端激活密钥一致：
+ *      演示/当前开源版 → 两端都未配置，统一回落内置占位 secret，闭环可跑通；
+ *      生产安全版   → 需在云端配置 FH_LICENSE_SECRET，并配套客户端密钥安全下发机制（超出 P-7 范围）。
  */
 function issueLicense(order: ShopOrder): string {
-  if (!process.env.FH_LICENSE_SECRET) {
-    throw new Error('服务端未配置 FH_LICENSE_SECRET，无法签发激活码（请在部署环境设置）');
-  }
   const cfg = TIERS[order.tier];
   if (!cfg) throw new Error('订单档位无效: ' + order.tier);
+  // F3 修复：演示支付仅当显式开启时可用；生产（wechat 模式或 mock 未授权）一律 fail-closed 拒发，杜绝免费拿激活码。
+  if (PAY_MODE === 'mock' && !MOCK_ALLOWED) {
+    throw new Error('演示支付未授权，无法发码（生产环境请使用真实支付通道）');
+  }
   const issuedTo = (order.contact || 'customer').slice(0, 64);
+  // F1 修复：使用 Ed25519 私钥签名（FH_LICENSE_SIGN_PRIVATE_KEY 生产 / FH_LICENSE_DEV 本地自测）。
+  const signKey = process.env.FH_LICENSE_SIGN_PRIVATE_KEY?.trim() || undefined;
+  if (!signKey && process.env.FH_LICENSE_DEV !== '1') {
+    console.warn('[shop] 警告：未配置 FH_LICENSE_SIGN_PRIVATE_KEY，将回退开发签名（仅本地自测有效，生产请配置真私钥）。');
+  }
   return generateLicenseKey({
     type: order.tier as 'standard' | 'pro' | 'enterprise',
     issuedTo,
     days: cfg.days,
     seats: cfg.seats,
+    privateKey: signKey,
   });
 }
 

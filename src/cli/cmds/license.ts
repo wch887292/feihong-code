@@ -18,7 +18,7 @@ function printLicenseHelp(): void {
   fhcode license activate <激活码>      输入激活码激活
   fhcode license fingerprint           打印本机设备指纹
   （开发商专属，受双重密钥门禁）:
-  fhcode license gen <类型> <客户名> [天数] [设备数]   生成激活码（需 FH_LICENSE_SECRET + FH_LICENSE_MASTER）
+  fhcode license gen <类型> <客户名> [天数] [设备数]   生成激活码（需 FH_LICENSE_SIGN_PRIVATE_KEY + FH_LICENSE_MASTER）
   fhcode license help                  显示帮助`);
 }
 
@@ -73,9 +73,10 @@ export async function runLicense(action: string, args: string[]): Promise<void> 
       }
       if (!issuedTo) { console.error('缺少客户名: fhcode license gen <类型> <客户名> [天数] [设备数]'); process.exitCode = 1; return; }
       // 双重密钥门禁：激活码只能在开发商源码端生成
-      // 1) FH_LICENSE_SECRET（发码签名密钥）
-      if (!process.env.FH_LICENSE_SECRET) {
-        console.error('❌ 未配置 FH_LICENSE_SECRET（发码签名密钥），禁止生成激活码');
+      // 1) FH_LICENSE_SIGN_PRIVATE_KEY（Ed25519 私钥，生产发码签名；本地自测可用 FH_LICENSE_DEV=1）
+      const signKey = process.env.FH_LICENSE_SIGN_PRIVATE_KEY?.trim();
+      if (!signKey && process.env.FH_LICENSE_DEV !== '1') {
+        console.error('❌ 未配置 FH_LICENSE_SIGN_PRIVATE_KEY（发码私钥），禁止生成生产激活码；本地自测请设置 FH_LICENSE_DEV=1');
         process.exitCode = 1;
         return;
       }
@@ -88,7 +89,13 @@ export async function runLicense(action: string, args: string[]): Promise<void> 
         process.exitCode = 1;
         return;
       }
-      const key = generateLicenseKey({ type: type as 'standard' | 'pro' | 'enterprise', issuedTo, days, seats });
+      const key = generateLicenseKey({
+        type: type as 'standard' | 'pro' | 'enterprise',
+        issuedTo,
+        days,
+        seats,
+        privateKey: signKey,
+      });
       console.log('激活码: ' + key);
       console.log(`类型: ${type} | 客户: ${issuedTo} | 天数: ${days || '永久'} | 设备数: ${seats}`);
       console.log('交付话术: 请打开 fhcode，运行 fhcode license activate ' + key);

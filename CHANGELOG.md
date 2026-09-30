@@ -1,4 +1,16 @@
 ﻿# 飞虹 Code 更新日志 / Changelog
+## v8.5.0-security · P0 安全熔断（2026-09-30）
+
+**安全审计后 P0 阻断修复（F1–F6，端到端验证通过）**：
+- **F1 激活码可任意伪造 → 非对称签名**：`src/license/index.ts` 移除硬编码默认密钥，改为 **Ed25519** 签名——服务端持私钥（`FH_LICENSE_SIGN_PRIVATE_KEY`）签发，客户端仅内嵌公钥验签（公钥可公开，无私钥无法伪造）；签名长度升至 64 字节（hex）。彻底解决"对称密钥必须下发客户端"的死结（详见 `安全审计报告与防护体系设计.md` 附录 B）。`fhcode license gen` 改用 `FH_LICENSE_SIGN_PRIVATE_KEY`。
+- **F2 鉴权全绕过 → 不回显密钥**：`src/web/server.ts` 登录响应删除 `signSecret`；HMAC 签名密钥改为从请求 `Bearer` 令牌派生（服务端不再下发全局签名密钥）；登录加手机号格式校验 + 60s 频率限制。
+- **F3 免费企业版 → mock 门禁**：`src/web/routes/shop.ts` 仅 `SHOP_ALLOW_MOCK=1` 允许演示支付，否则 `issueLicense` fail-closed 拒发；公开查单不返回激活码明文，新增 `/api/shop/deliver` 按联系方式校验交付。
+- **F4 微信回调 RCE → POST 验签**：`src/integrations/wechat-bridge.ts` POST 分支入口 fail-closed 验签（MP/WeCom），失败即 403。
+- **F5 插件安装 RCE → 白名单 + 管理员令牌**：`src/plugins/plugin-loader.ts` 远程来源需 `FH_PLUGIN_ALLOWLIST`、本地路径需 `FH_PLUGIN_ALLOW_LOCAL`；`src/web/extra-apis.ts` 安装接口加 `FH_PLUGIN_ADMIN_TOKEN` 校验。
+- **F6 电脑端任意进程 RCE → 白名单**：`src/web/routes/computer.ts` `/api/computer/app/open` 仅允许 `APP_LAUNCH_MAP` 内已知应用名，禁任意路径/URL/参数注入。
+
+**验证**：`npm run typecheck` 0 错误；临时端到端脚本双模式（mock 允许 18/0、默认门禁 15/0）全部通过；`npm run build` 与 `check:version` 无回归。生产私钥、微信商户凭据、插件白名单、管理员令牌等敏感配置部署时设置，不入库。
+
 ## v8.5.0 (2026-09-28)
 
 ### 架构治理（B3 全链路重构，向后兼容）

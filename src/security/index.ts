@@ -49,10 +49,16 @@ export function createRequestSignature(secret: string, bodyRaw: string): Request
  * - 校验 nonce 是否已使用（防重放）
  * - 恒定时间比较签名（防时序攻击）
  */
-export function verifyRequestSignature(secret: string, opts: { maxBodyBytes?: number } = {}) {
+export function verifyRequestSignature(secret: string | ((req: any) => string), opts: { maxBodyBytes?: number } = {}) {
   const usedNonces = new Set<string>();
   const maxBodyBytes = opts.maxBodyBytes ?? 1024 * 1024;
   return function (req: any, res: any, next: any): void {
+    // 签名密钥：支持固定字符串或按请求派生（F2：优先从 Bearer 令牌派生，避免回显全局密钥）
+    const secretKey = typeof secret === 'function' ? secret(req) : secret;
+    if (!secretKey) {
+      res.status(401).json({ ok: false, error: '缺少签名密钥（请先登录获取令牌）' });
+      return;
+    }
     // 仅对 /api/ 下的写请求启用签名校验（登录接口除外，走用户名密码）
     if (!req.path.startsWith('/api/') || !['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
       next();
@@ -88,7 +94,7 @@ export function verifyRequestSignature(secret: string, opts: { maxBodyBytes?: nu
       res.status(413).json({ ok: false, error: '请求体过大' });
       return;
     }
-    const expect = signRequest(secret, bodyRaw, ts, nonce);
+    const expect = signRequest(secretKey, bodyRaw, ts, nonce);
     const a = Buffer.from(expect, 'utf-8');
     const b = Buffer.from(sig, 'utf-8');
     if (a.length !== b.length || !timingSafeEqual(a, b)) {

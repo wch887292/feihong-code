@@ -231,6 +231,18 @@ export function registerExtraApis(app: ExpressApp, opts: ExtraApisOptions): void
     res.json({ ok: true, stats: plugins.getStats() });
   });
   app.post('/api/plugins/install', async (req: Request, res: Response) => {
+    // F5 修复：插件安装强制鉴权。配置了 FH_PLUGIN_ADMIN_TOKEN 时，必须携带匹配的 x-plugin-admin 头；
+    // 未配置则仅告警放行（开发环境），生产务必配置以与 HMAC 双重保护。
+    const adminToken = process.env.FH_PLUGIN_ADMIN_TOKEN?.trim();
+    if (adminToken) {
+      const provided = (req.headers['x-plugin-admin'] as string) || '';
+      if (provided !== adminToken) {
+        res.status(401).json({ ok: false, error: '插件安装需管理员令牌（x-plugin-admin）' });
+        return;
+      }
+    } else {
+      console.warn('[extra-apis] 未配置 FH_PLUGIN_ADMIN_TOKEN，插件安装接口仅依赖 HMAC 鉴权（生产建议配置管理员令牌）');
+    }
     const body = bodyOf(req);
     if (!body.plugin) { res.json({ ok: false, error: '缺少 plugin' }); return; }
     try {

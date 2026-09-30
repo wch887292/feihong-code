@@ -120,6 +120,27 @@ export async function installPlugin(source: string): Promise<{ name: string; dir
 
   // 1) 校验源
   if (!source) throw new Error('缺少插件源路径（本地目录或 git URL）');
+
+  // F5 修复：来源白名单 + 本地路径开关，杜绝任意 git clone → require() RCE。
+  // 白名单（FH_PLUGIN_ALLOWLIST，逗号分隔）未配置时，拒绝一切远程来源安装。
+  const isRemote = /\.git(\/|$)|^git@|^https?:\/\//.test(source);
+  if (isRemote) {
+    const allow = (process.env.FH_PLUGIN_ALLOWLIST || '')
+      .split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
+    const lower = source.toLowerCase();
+    if (allow.length === 0) {
+      throw new Error('远程插件安装未配置白名单（FH_PLUGIN_ALLOWLIST），拒绝安装: ' + source);
+    }
+    if (!allow.some((prefix) => lower.startsWith(prefix))) {
+      throw new Error('插件来源不在白名单内，拒绝安装: ' + source);
+    }
+  } else {
+    // 本地路径安装需显式开启（默认禁止，防路径穿越/任意目录 require）
+    if (process.env.FH_PLUGIN_ALLOW_LOCAL !== '1') {
+      throw new Error('本地路径插件安装未开启（设置 FH_PLUGIN_ALLOW_LOCAL=1 仅限开发环境），拒绝安装: ' + source);
+    }
+  }
+
   const tmp = join(destRoot, `.tmp-install-${Date.now()}`);
   try {
     if (/\.git(\/|$)|^git@|^https?:\/\//.test(source)) {

@@ -222,7 +222,7 @@ export function registerComputerRoutes(app: ExpressApp): void {
     }
   });
 
-  // 打开应用
+  // 打开应用（F6 修复：严格白名单，仅允许 APP_LAUNCH_MAP 内已知应用名，禁止任意路径/URL/参数注入）
   app.post('/api/computer/app/open', async (req: Request, res: Response) => {
     try {
       const body = (req.body ?? {}) as Record<string, any>;
@@ -231,24 +231,20 @@ export function registerComputerRoutes(app: ExpressApp): void {
         res.status(400).json({ ok: false, error: '缺少 app 字段（应用名，如：微信 / chrome / notepad）' });
         return;
       }
-      // 别名解析：支持中文别名 → 常见可执行名；也支持直接传 exe 名 / 完整路径 / URL
-      const alias = APP_LAUNCH_MAP[name.toLowerCase()] ?? APP_LAUNCH_MAP[name];
-      const target = alias ?? name;
-      // 若带路径或扩展名则直接 Start-Process；否则尝试 Start-Process 名称（Windows 会查 PATH 与 App Paths）
+      // 仅允许白名单内的应用名（中文别名或英文键），拒绝一切白名单外输入（含路径/URL/参数）
+      const target = APP_LAUNCH_MAP[name.toLowerCase()] ?? APP_LAUNCH_MAP[name];
+      if (!target) {
+        res.status(400).json({ ok: false, error: '应用不在允许列表内，已拒绝启动: ' + name });
+        return;
+      }
+      // 二次净化：白名单目标不得含路径分隔符、冒号、引号或 .exe 后缀（防绕过）
+      if (/[\\/:"]/.test(target) || /\.exe$/i.test(target)) {
+        res.status(400).json({ ok: false, error: '非法启动目标，已拒绝' });
+        return;
+      }
       const script = `
-        $t = '${target.replace(/'/g, "''")}'
-        if ($t -match '^https?://' -or $t -match '^shell:') {
-          Start-Process $t
-        } elseif (Test-Path $t) {
-          Start-Process $t
-        } else {
-          try { Start-Process $t -ErrorAction Stop } catch {
-            # 名称未命中时尝试通过 where.exe 查找
-            $found = (where.exe $t 2>$null | Select-Object -First 1)
-            if ($found) { Start-Process $found } else { throw "应用未找到: $t" }
-          }
-        }
-        Write-Output "opened:$t"
+        try { Start-Process '${target.replace(/'/g, "''")}' -ErrorAction Stop } catch { throw "应用未找到: ${target}" }
+        Write-Output "opened:${target}"
       `;
       const out = await runPowerShell(script);
       res.json({ ok: true, app: name, resolved: target, message: out || `已尝试打开 ${name}` });

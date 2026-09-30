@@ -2,19 +2,20 @@
  * fhcode 商业授权模块（企业版增值能力核心）
  *
  * 授权模型：
- *  - 激活码（License Key）：由开发商持有主密钥生成，格式 FH-XXXX-XXXX-XXXX-XXXX
+ *  - 激活码（License Key）：由开发商持有私钥生成，格式 FH-<base64url 分组>-<Ed25519 签名(hex)>
  *  - 激活码绑定：可指定到期时间（天数）与授权类型（standard / pro / enterprise）
- *  - 首次激活：输入激活码 → 校验签名 → 写入 FH_HOME/license.json（含设备指纹）
- *  - 离线校验：每次启动读取本地 license.json，校验签名 + 到期时间 + 设备指纹
+ *  - 首次激活：输入激活码 → 验签（内嵌公钥）→ 写入 FH_HOME/license.json（含设备指纹）
+ *  - 离线校验：每次启动读取本地 license.json，验签 + 到期时间 + 设备指纹
  *  - 试用期：未激活时默认 60 天试用（以首次运行时间起算）
  *
- * 安全说明：
- *  - 主密钥 FH_LICENSE_SECRET（环境变量或 license-secret 文件），部署在服务端/开发商侧
- *  - 客户端只保存激活码与设备指纹，不保存主密钥
- *  - 设备指纹 = SHA256(hostname + mac + os 平台)
+ * 安全模型（F1 修复 · 非对称验签）：
+ *  - 服务端持 **Ed25519 私钥** 签名（生产：FH_LICENSE_SIGN_PRIVATE_KEY；本地自测：FH_LICENSE_DEV=1 + 内嵌开发私钥）。
+ *  - 客户端仅内嵌 **公钥**（PROD_PUBLIC_KEY，可公开，无私钥无法伪造），离线验签。
+ *  - 彻底解决"对称密钥必须下发客户端"的死结：公开仓库仅含公钥与开发密钥；生产私钥仅存服务端环境变量，不入库。
+ *  - 开发签名（DEV）仅在显式设置 FH_LICENSE_DEV=1 时本地/测试中可用，生产客户端默认拒绝开发签名，杜绝用开发私钥伪造生产授权。
  */
 
-import { createHmac, createHash, randomBytes } from 'crypto';
+import { createHash, randomBytes, createPublicKey, createPrivateKey, sign, verify, type KeyObject } from 'crypto';
 import { homedir, hostname, networkInterfaces, platform } from 'os';
 import { join } from 'path';
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
@@ -54,12 +55,46 @@ function licenseFile(): string {
   return join(homeDir(), 'license.json');
 }
 
-function secret(): string {
-  // 优先级：环境变量 > license-secret 文件 > 内置占位（生产必须配置环境变量）
-  if (process.env.FH_LICENSE_SECRET?.trim()) return process.env.FH_LICENSE_SECRET.trim();
-  const secretFile = join(homeDir(), 'license-secret');
-  if (existsSync(secretFile)) return readFileSync(secretFile, 'utf-8').trim();
-  return 'fhcode-dev-secret-do-not-use-in-production';
+/* ===================== 非对称授权签名（Ed25519） ===================== */
+// 内嵌密钥（DER/SPKI 或 PKCS8 hex）。公开仓库仅含公钥与开发私钥；生产私钥仅存服务端环境变量。
+const PROD_PUBLIC_KEY = '302a300506032b65700321006e7479988cbdde1720e001fcae40c5d7d6f7aaa83c2d371b38c5e1be17639c0d';
+const DEV_PUBLIC_KEY  = '302a300506032b6570032100aa51e2f41f9d092a043acc90fa08e0dd27e6919be1fec139da69a985bfdd4cae';
+const DEV_PRIVATE_KEY = '302e020100300506032b6570042204203dbd2b16e70fd61f766ada282a37d3aa0acfbeca0d6ec9803a312c0a554c7817';
+
+function importPub(derHex: string): KeyObject {
+  return createPublicKey({ key: Buffer.from(derHex, 'hex'), format: 'der', type: 'spki' });
+}
+function importPriv(derHex: string): KeyObject {
+  return createPrivateKey({ key: Buffer.from(derHex, 'hex'), format: 'der', type: 'pkcs8' });
+}
+function asPrivKey(material?: string): KeyObject {
+  if (!material) throw new Error('授权签名私钥为空');
+  return material.startsWith('30') ? importPriv(material) : createPrivateKey(material); // DER hex 或 PEM
+}
+
+/** 服务端签名：生产用 FH_LICENSE_SIGN_PRIVATE_KEY，本地自测用内嵌开发私钥（需 FH_LICENSE_DEV=1），否则拒绝。 */
+function signPayload(payload: string): string {
+  let key: KeyObject;
+  const envPriv = process.env.FH_LICENSE_SIGN_PRIVATE_KEY?.trim();
+  if (envPriv) {
+    key = asPrivKey(envPriv);
+  } else if (process.env.FH_LICENSE_DEV === '1') {
+    key = importPriv(DEV_PRIVATE_KEY);
+  } else {
+    throw new Error('授权签名密钥未配置：生产请设置 FH_LICENSE_SIGN_PRIVATE_KEY；本地自测请设置 FH_LICENSE_DEV=1');
+  }
+  return sign(null, Buffer.from(payload, 'utf-8'), key).toString('hex').toUpperCase();
+}
+
+/** 客户端验签：优先生产公钥；显式开发模式允许开发公钥（防公开仓库开发私钥被滥用于伪造生产授权）。 */
+function verifyPayload(payload: string, sigHex: string): boolean {
+  let sig: Buffer;
+  try { sig = Buffer.from(sigHex, 'hex'); } catch { return false; }
+  try { if (verify(null, Buffer.from(payload, 'utf-8'), importPub(PROD_PUBLIC_KEY), sig)) return true; } catch { /* fallthrough */ }
+  if (process.env.FH_LICENSE_DEV === '1') {
+    try { if (verify(null, Buffer.from(payload, 'utf-8'), importPub(DEV_PUBLIC_KEY), sig)) return true; } catch { /* fallthrough */ }
+  }
+  return false;
 }
 
 /** 设备指纹：主机名 + 所有网卡 MAC + 平台 */
@@ -82,7 +117,7 @@ export function generateLicenseKey(opts: {
   issuedTo: string;
   days?: number; // 到期天数；不传 = 永久
   seats?: number;
-  secret?: string;
+  privateKey?: string; // 可选显式私钥（DER hex / PEM）；缺省按 FH_LICENSE_SIGN_PRIVATE_KEY → FH_LICENSE_DEV 回落
 }): string {
   const days = opts.days ?? 0;
   const seats = opts.seats ?? 1;
@@ -93,11 +128,9 @@ export function generateLicenseKey(opts: {
     String(seats),
     randomBytes(3).toString('hex'),
   ].join('|');
-  const sig = createHmac('sha256', opts.secret || secret())
-    .update(payload)
-    .digest('hex')
-    .slice(0, 12)
-    .toUpperCase();
+  const sig = opts.privateKey
+    ? sign(null, Buffer.from(payload, 'utf-8'), asPrivKey(opts.privateKey)).toString('hex').toUpperCase()
+    : signPayload(payload);
   const body = Buffer.from(payload, 'utf-8').toString('base64url');
   // 将 body 按 4 字符分组完整写入激活码，避免长 payload 被截断导致类型/天数/设备数丢失
   const groups = (body.match(/.{1,4}/g) || ['']).join('-');
@@ -114,10 +147,10 @@ interface ParsedKey {
   reason?: string;
 }
 
-/** 解析 + 校验激活码签名 */
-export function parseLicenseKey(key: string, secretOverride?: string): ParsedKey {
+/** 解析 + 校验激活码签名（非对称：内嵌公钥验签） */
+export function parseLicenseKey(key: string): ParsedKey {
   const k = String(key || '').trim();
-  if (!/^FH-(?:[A-Za-z0-9_-]{1,4}-)+[A-F0-9]{12}$/.test(k)) {
+  if (!/^FH-(?:[A-Za-z0-9_-]{1,4}-)+[A-F0-9]{64,160}$/.test(k)) {
     return { type: 'standard', issuedTo: '', days: 0, seats: 1, sig: '', ok: false, reason: '激活码格式不正确' };
   }
   const segments = k.split('-');
@@ -127,12 +160,7 @@ export function parseLicenseKey(key: string, secretOverride?: string): ParsedKey
   const parts = payload.split('|');
   if (parts.length !== 5) return { type: 'standard', issuedTo: '', days: 0, seats: 1, sig: '', ok: false, reason: '激活码内容损坏' };
   const [type, issuedTo, daysStr, seatsStr] = parts;
-  const expectSig = createHmac('sha256', secretOverride || secret())
-    .update(payload)
-    .digest('hex')
-    .slice(0, 12)
-    .toUpperCase();
-  if (expectSig !== sig) return { type: 'standard', issuedTo: '', days: 0, seats: 1, sig: '', ok: false, reason: '激活码签名无效' };
+  if (!verifyPayload(payload, sig)) return { type: 'standard', issuedTo: '', days: 0, seats: 1, sig: '', ok: false, reason: '激活码签名无效' };
   return {
     type: (['standard', 'pro', 'enterprise'].includes(type) ? type : 'standard') as LicenseType,
     issuedTo,
