@@ -1,198 +1,409 @@
 {
   "name": "feihong-code",
-  "version": "7.0.0",
-  "description": "Terminal AI Coding Agent 鈥?缁堢 AI 缂栫▼鏅鸿兘浣?,
+  "version": "8.5.0",
+  "description": "Terminal AI Coding Agent — 终端 AI 编程智能体（由 scripts/gen-tool-schema.ts 从运行时工具注册表自动生成）",
+  "generatedAt": "2026-10-01",
+  "toolCount": 21,
   "tools": [
     {
-      "name": "write_file",
-      "description": "鍐欏叆鎴栬鐩栨枃浠跺唴瀹广€傚鏋滄枃浠朵笉瀛樺湪鍒欏垱寤猴紝濡傛灉宸插瓨鍦ㄥ垯瀹屽叏鏇挎崲銆?,
+      "name": "read_file",
+      "description": "读取工作区内指定文件的文本内容",
       "parameters": {
         "type": "object",
         "properties": {
           "path": {
             "type": "string",
-            "description": "鏂囦欢鐩稿璺緞锛堢浉瀵逛簬宸ヤ綔鍖烘牴鐩綍锛?
+            "description": "文件相对工作区的路径"
+          }
+        },
+        "required": [
+          "path"
+        ]
+      }
+    },
+    {
+      "name": "write_file",
+      "description": "在工作区内写入/覆盖文件（自动创建父目录）",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "文件相对路径"
           },
           "content": {
             "type": "string",
-            "description": "鏂囦欢鐨勫畬鏁村唴瀹?
+            "description": "要写入的完整内容"
           }
         },
         "required": [
           "path",
           "content"
-        ],
-        "additionalProperties": false
-      },
-      "example": {
-        "path": "src/main.ts",
-        "content": "export function hello() { return 'world'; }"
+        ]
       }
     },
     {
       "name": "edit_file",
-      "description": "鍦ㄦ枃浠朵腑鎻掑叆銆佸垹闄ゆ垨鏇挎崲鏂囨湰鍧椼€備娇鐢?oldText/newText 绮剧‘鍖归厤銆?,
+      "description": "在文件中将 oldText 首次精确替换为 newText",
       "parameters": {
         "type": "object",
         "properties": {
           "path": {
             "type": "string",
-            "description": "鐩爣鏂囦欢璺緞"
+            "description": "文件相对路径"
           },
           "oldText": {
             "type": "string",
-            "description": "寰呮浛鎹㈢殑鍘熸枃鏈紙蹇呴』鍞竴瀛樺湪浜庢枃浠朵腑锛?
+            "description": "待替换的原文本"
           },
           "newText": {
             "type": "string",
-            "description": "鏇挎崲鍚庣殑鏂版枃鏈?
+            "description": "替换后的新文本"
           }
         },
         "required": [
           "path",
           "oldText",
           "newText"
-        ],
-        "additionalProperties": false
-      },
-      "example": {
-        "path": "src/calc.ts",
-        "oldText": "return a - b;",
-        "newText": "return a + b;"
+        ]
       }
     },
     {
-      "name": "read_file",
-      "description": "璇诲彇鏂囦欢鐨勫叏閮ㄥ唴瀹广€?,
+      "name": "list_dir",
+      "description": "列出工作区内目录内容（d=目录，-=文件）",
       "parameters": {
         "type": "object",
         "properties": {
           "path": {
             "type": "string",
-            "description": "鏂囦欢鐩稿璺緞"
+            "description": "目录相对路径，默认工作区根"
           }
-        },
-        "required": [
-          "path"
-        ],
-        "additionalProperties": false
-      },
-      "example": {
-        "path": "package.json"
-      }
-    },
-    {
-      "name": "list_files",
-      "description": "鍒楀嚭鐩綍涓嬬殑鏂囦欢鍜屽瓙鐩綍銆?,
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "path": {
-            "type": "string",
-            "description": "鐩綍璺緞锛岄粯璁や负 '.'锛堝伐浣滃尯鏍癸級"
-          }
-        },
-        "additionalProperties": false
-      },
-      "example": {
-        "path": "src/"
+        }
       }
     },
     {
       "name": "grep",
-      "description": "浣跨敤姝ｅ垯琛ㄨ揪寮忓湪椤圭洰涓悳绱㈡枃鏈€?,
+      "description": "在工作区内递归搜索匹配文本（忽略 node_modules/.git 等），返回 file:line:content",
       "parameters": {
         "type": "object",
         "properties": {
           "pattern": {
             "type": "string",
-            "description": "姝ｅ垯琛ㄨ揪寮忔ā寮?
+            "description": "正则模式"
           },
           "path": {
             "type": "string",
-            "description": "鎼滅储璧峰鐩綍锛岄粯璁や负宸ヤ綔鍖烘牴"
+            "description": "搜索起始目录，默认工作区根"
           }
         },
         "required": [
           "pattern"
-        ],
-        "additionalProperties": false
-      },
-      "example": {
-        "pattern": "class.*Error",
-        "path": "src/"
+        ]
       }
     },
     {
       "name": "run_shell",
-      "description": "鍦ㄥ伐浣滃尯鍐呮墽琛?shell 鍛戒护銆傚懡浠ら渶閫氳繃鐧藉悕鍗曢獙璇併€?,
+      "description": "执行 shell 命令（受白名单约束，需审批时会被拦截）",
       "parameters": {
         "type": "object",
         "properties": {
           "command": {
             "type": "string",
-            "description": "瑕佹墽琛岀殑瀹屾暣鍛戒护锛堝 'npm test'銆?node index.js'锛?
+            "description": "要执行的完整命令"
           }
         },
         "required": [
           "command"
-        ],
-        "additionalProperties": false
-      },
-      "example": {
-        "command": "npm run typecheck"
+        ]
+      }
+    },
+    {
+      "name": "run_tests",
+      "description": "运行项目测试套件（默认 npm test）",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "command": {
+            "type": "string",
+            "description": "测试命令，默认 npm test"
+          }
+        }
       }
     },
     {
       "name": "build_check",
-      "description": "妫€鏌ラ」鐩槸鍚﹁兘鎴愬姛缂栬瘧锛堣繍琛?tsc --noEmit锛夈€?,
+      "description": "执行构建检查（默认 npm run build）",
       "parameters": {
         "type": "object",
-        "properties": {},
-        "additionalProperties": false
-      },
-      "example": {}
+        "properties": {
+          "command": {
+            "type": "string",
+            "description": "构建命令，默认 npm run build"
+          }
+        }
+      }
     },
     {
-      "name": "run_tests",
-      "description": "杩愯娴嬭瘯濂椾欢骞惰繑鍥炵粨鏋溿€?,
+      "name": "load_skill",
+      "description": "加载指定技能的完整指令（技能名见 system prompt 中的技能索引）",
       "parameters": {
         "type": "object",
-        "properties": {},
-        "additionalProperties": false
-      },
-      "example": {}
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "技能名，如 plan / grill / goal"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      }
+    },
+    {
+      "name": "web_fetch",
+      "description": "抓取指定 URL 的文本内容（HTML 转纯文本，最多 6KB；目标域名受网络白名单/黑名单约束）",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "要抓取的 http(s) URL"
+          }
+        },
+        "required": [
+          "url"
+        ]
+      }
+    },
+    {
+      "name": "web_search",
+      "description": "实时关键词搜索（默认 DuckDuckGo；FH_SEARCH_ENDPOINT 可指定端点），返回标题与链接",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "搜索关键词"
+          },
+          "maxResults": {
+            "type": "number",
+            "description": "返回条数，默认 5，最多 10"
+          }
+        },
+        "required": [
+          "query"
+        ]
+      }
+    },
+    {
+      "name": "browser_navigate",
+      "description": "在浏览器中导航到指定 URL。如果输入的是搜索关键词（含空格或无域名），自动用 Bing 搜索。返回页面标题和 pageId。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "目标 URL 或搜索关键词"
+          },
+          "pageId": {
+            "type": "string",
+            "description": "可选，复用已有页面 ID；不填则新建页面"
+          }
+        },
+        "required": [
+          "url"
+        ]
+      }
+    },
+    {
+      "name": "browser_click",
+      "description": "点击页面中匹配 CSS 选择器的元素。需要先调用 browser_navigate 获取 pageId。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "selector": {
+            "type": "string",
+            "description": "CSS 选择器，如 button.submit、a.login、#search-button"
+          },
+          "pageId": {
+            "type": "string",
+            "description": "页面 ID（从 browser_navigate 返回）"
+          }
+        },
+        "required": [
+          "selector",
+          "pageId"
+        ]
+      }
+    },
+    {
+      "name": "browser_type",
+      "description": "在页面输入框中输入文本（先清空再输入）。需要先调用 browser_navigate。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "selector": {
+            "type": "string",
+            "description": "输入框的 CSS 选择器，如 input[name=q]、textarea#comment"
+          },
+          "text": {
+            "type": "string",
+            "description": "要输入的文本"
+          },
+          "pageId": {
+            "type": "string",
+            "description": "页面 ID"
+          }
+        },
+        "required": [
+          "selector",
+          "text",
+          "pageId"
+        ]
+      }
+    },
+    {
+      "name": "browser_press",
+      "description": "按下键盘按键，如 Enter、Escape、ArrowDown、Control+a。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "按键名称，如 Enter、Escape、Tab、ArrowDown、Control+c"
+          },
+          "pageId": {
+            "type": "string",
+            "description": "页面 ID"
+          }
+        },
+        "required": [
+          "key",
+          "pageId"
+        ]
+      }
+    },
+    {
+      "name": "browser_extract",
+      "description": "提取页面文本内容。不指定 selector 时提取整个 body 文本（最多 10000 字符）。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "selector": {
+            "type": "string",
+            "description": "可选，只提取指定元素的文本，如 div.article、#content"
+          },
+          "pageId": {
+            "type": "string",
+            "description": "页面 ID"
+          }
+        },
+        "required": [
+          "pageId"
+        ]
+      }
+    },
+    {
+      "name": "browser_screenshot",
+      "description": "对当前页面截图，返回 base64 编码的 PNG 图片（可用于多模态分析）。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "pageId": {
+            "type": "string",
+            "description": "页面 ID"
+          },
+          "fullPage": {
+            "type": "boolean",
+            "description": "是否截取整页（默认 false，只截视口）"
+          }
+        },
+        "required": [
+          "pageId"
+        ]
+      }
+    },
+    {
+      "name": "browser_evaluate",
+      "description": "在页面上下文中执行 JavaScript 代码，返回执行结果。可用于提取数据、操作 DOM、调试。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "script": {
+            "type": "string",
+            "description": "要执行的 JavaScript 代码，如 document.title、JSON.stringify({url: location.href})"
+          },
+          "pageId": {
+            "type": "string",
+            "description": "页面 ID"
+          }
+        },
+        "required": [
+          "script",
+          "pageId"
+        ]
+      }
+    },
+    {
+      "name": "browser_close",
+      "description": "关闭指定浏览器页面，释放资源。任务完成后应调用此工具。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "pageId": {
+            "type": "string",
+            "description": "页面 ID"
+          }
+        },
+        "required": [
+          "pageId"
+        ]
+      }
+    },
+    {
+      "name": "feihong_agents_list",
+      "description": "查询 AI 员工军团：员工清单（17 个 AI 员工，按 L1-L5 分层）或任务统计。只读，不改状态。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "scope": {
+            "type": "string",
+            "enum": [
+              "agents",
+              "stats"
+            ],
+            "description": "agents=员工清单（默认）| stats=任务统计"
+          }
+        }
+      }
+    },
+    {
+      "name": "feihong_agents_submit",
+      "description": "向 AI 员工军团提交任务（需审批）：指定员工编号（1-17）与 JSON 入参。提交后自动执行一轮（LLM 用飞虹模型路由，未配置时 mock）。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "agentId": {
+            "type": [
+              "number",
+              "string"
+            ],
+            "description": "员工编号 1-17"
+          },
+          "input": {
+            "type": "string",
+            "description": "任务入参 JSON 字符串（字段见对应技能 SKILL.md）"
+          },
+          "executeNow": {
+            "type": "boolean",
+            "description": "是否立即执行（默认 true）"
+          }
+        },
+        "required": [
+          "agentId",
+          "input"
+        ]
+      }
     }
-  ],
-  "toolCategories": {
-    "file": [
-      "write_file",
-      "edit_file",
-      "read_file",
-      "list_files"
-    ],
-    "search": [
-      "grep"
-    ],
-    "shell": [
-      "run_shell"
-    ],
-    "verify": [
-      "build_check",
-      "run_tests"
-    ]
-  },
-  "security": {
-    "sandbox": "鎵€鏈夋枃浠舵搷浣滈檺鍒跺湪宸ヤ綔鍖虹洰褰曞唴",
-    "approval": "鍗遍櫓鎿嶄綔锛坰hell 鍛戒护銆佸啓鍏ユ晱鎰熸枃浠讹級鍙兘闇€瑕佷汉宸ュ鎵?,
-    "audit": "鎵€鏈夊伐鍏疯皟鐢ㄨ褰曞埌 JSONL 浜嬩欢鏃ュ織"
-  },
-  "errorCodes": {
-    "FH_4001": "閰嶉瓒呴檺 鈥?鏃ラ绠楀凡鑰楀敖锛岀瓑寰呮鏃ラ噸缃垨鐢宠閰嶉",
-    "FH_4003": "鏉冮檺鎷掔粷 鈥?褰撳墠瑙掕壊鏃犳潈鎵ц姝ゆ搷浣滐紝妫€鏌?RBAC 绛栫暐",
-    "FH_5001": "妯″瀷璋冪敤澶辫触 鈥?缃戠粶闂鎴?API Key 鏃犳晥锛屾鏌?provider 閰嶇疆",
-    "FH_5002": "涓婁笅鏂囧帇缂╁け璐?鈥?瀵硅瘽杩囬暱锛屽皾璇曚娇鐢?/plan 閲嶆柊瑙勫垝",
-    "FH_6001": "鏂囦欢璺緞瓒婃潈 鈥?璺緞鍖呭惈 '..' 鎴栫鍙烽摼鎺ワ紝妫€鏌ユ矙绠辫鍒?
-  },
-  "authoredBy": "鏅嬫睙甯傞铏规櫤绉戞妧浼佷笟绠＄悊鏈夐檺鍏徃 路 椋炴壃浼佹簮鐮斿彂涓績 路 璐熻矗浜猴細鍚磋祼铏?
+  ]
 }
