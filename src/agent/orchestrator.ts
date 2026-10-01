@@ -25,7 +25,7 @@ import type { SandboxMode, SandboxRules } from '../tools/sandbox';
 import type { HookConfig } from '../runtime/hooks';
 import type { SessionStore } from '../runtime/session-store';
 import type { SessionCheckpoint, SessionStatus } from '../runtime/session-persist';
-import { SYSTEM_PROMPT } from './prompts';
+import { buildSystemPrompt } from './self-awareness';
 import { planTask } from './planner';
 import { buildRepoInstructionsPrompt, scopedInstructionsFor } from './repo-context';
 import { discoverSkills, buildSkillIndexPrompt } from '../skills/skill-loader';
@@ -187,7 +187,11 @@ export class Orchestrator {
       const repoPrompt = buildRepoInstructionsPrompt(cwd);
       // P1-2: 技能索引渐进式披露（name+description 常驻，正文由 load_skill 按需加载）
       const skillIndex = buildSkillIndexPrompt(discoverSkills(cwd, this.deps.pluginSkillDirs ?? []));
-      let systemPrompt = experiencePrompt ? `${SYSTEM_PROMPT}\n\n${experiencePrompt}` : SYSTEM_PROMPT;
+      // v8.6.0 P1: 自我认知注入（tool-schema 自省；加载失败自动回退基础 prompt）
+      const introspection = buildSystemPrompt();
+      let systemPrompt = experiencePrompt
+        ? `${introspection.prompt}\n\n${experiencePrompt}`
+        : introspection.prompt;
       if (repoPrompt) systemPrompt += repoPrompt;
       if (skillIndex) systemPrompt += skillIndex;
 
@@ -243,6 +247,9 @@ export class Orchestrator {
     let cost = carryCost;
     let calls = 0;
     let consecutiveErrors = 0;
+    // 异常中止标记：成本熔断/原地打转/自愈失败/迭代上限结束时，checkpoint 不标 done，
+    // 否则 resume 会因 status==='done' 直接返回"已完成"，续跑承诺落空（2026-10-01 实测踩坑）
+    let abnormalEnd = false;
     // 原地打转检测：模型连续输出相同文案且仍调用工具 → 强制注入卡死提示交回大模型重新规划
     let lastAssistantText = '';
     let sameTextStreak = 0;
@@ -363,6 +370,7 @@ export class Orchestrator {
       // M4：单任务成本熔断（超预算立即停手，避免失控烧钱）
       if (maxCost > 0 && cost >= maxCost) {
         finalAnswer = `已达单任务成本上限 $${maxCost}（当前 $${cost.toFixed(6)}），任务中止。可调高角色策略 maxCostUsd 后用 resume 续跑。`;
+        abnormalEnd = true;
         await eventLog.append('error', { reason: 'cost-limit-reached', costUsd: cost, maxCost });
         logger.warn('orchestrator hit cost limit', { runId: session.runId, cost, maxCost });
         calls++;
@@ -398,6 +406,7 @@ export class Orchestrator {
         logger.warn('orchestrator detected same-text loop, injected break prompt', { runId: session.runId, streak: sameTextStreak + 1, loopBreaks });
         if (loopBreaks >= 3) {
           finalAnswer = `检测到任务连续在原地打转（已注入卡死提示 ${loopBreaks} 次仍无进展），已自动终止，避免无限空转。请重新描述目标、换一种思路，或在对话区细化指令后重新发起任务。`;
+          abnormalEnd = true;
           await eventLog.append('error', { reason: 'loop-abort', loopBreaks });
           break;
         }
@@ -420,6 +429,7 @@ export class Orchestrator {
         });
         if (rec.signal === 'break') {
           finalAnswer = rec.finalAnswer;
+          abnormalEnd = true;
           calls++;
           break;
         }
@@ -472,6 +482,7 @@ export class Orchestrator {
         ? `可在对话区继续发送"继续"二字，让任务以 resume 方式接着跑（已生成/修改的文件位于工作区）。`
         : `可点击「继续」按钮让任务接着执行，或在对话区细化任务目标重新提交。`;
       finalAnswer = `已达到最大迭代次数 ${maxIter} 轮，任务可能未完全完成。${hint}`;
+      abnormalEnd = true;
       await eventLog.append('error', { reason: 'max-iterations-reached', maxIter, touchedFiles });
       logger.warn('orchestrator reached max iterations', { runId: session.runId, maxIter });
     }
@@ -509,7 +520,9 @@ export class Orchestrator {
       }
     }
 
-    await emitCheckpoint('done');
+    // 异常中止（成本熔断/打转/自愈失败/迭代上限）标 crashed 以允许 resume 续跑；
+    // 正常完成才标 done
+    await emitCheckpoint(abnormalEnd ? 'crashed' : 'done');
     await eventLog.append('session.end', {
       iterations: baselineIterations + calls,
       costUsd: cost,
