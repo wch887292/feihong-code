@@ -1,0 +1,12 @@
+[Unit]
+Description=Restore fh iptables hardening rules (8002/19999/888 drop)
+After=network-pre.target
+Wants=network-pre.target
+
+[Service]
+Type=oneshot
+ExecStart=/sbin/iptables-restore /etc/sysconfig/iptables
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
