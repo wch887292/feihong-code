@@ -1,4 +1,14 @@
 ﻿# 飞虹 Code 更新日志 / Changelog
+## v8.5.1 · 三项核心 bug 修复（2026-10-01）
+
+**修复（全部含单元测试，301/301 通过）**：
+- **bug① dots/Qwen 文本格式 tool call 不解析**：新增 `src/models/text-toolcall.ts`——解析 `<dots_function_call><invoke name="X"><parameter name="k">v</parameter></invoke></dots_function_call>` 与 Qwen `<tool_call>` JSON 两种文本格式，含**截断容错**（未闭合块也解析、`truncated` 标记、末参数取到文末）；`openai-compatible.provider.ts` 在标准 tool_calls 为空时自动兜底提取，dots3/agnes 等只回文本的 provider 从此可正常驱动工具链。
+- **bug② 成本闸中止后 checkpoint 误标 done**：`orchestrator.ts` 新增 `abnormalEnd` 标记——成本熔断/loop-abort/自愈失败 break/迭代上限四种异常终止均将 checkpoint 落为 `crashed`，resume 不再被"假 done"挡住。
+- **bug③ FH_BUDGET_USD 未接硬闸**：`task-executor.ts` 新增 `resolveMaxCostUsd()`——环境变量 `FH_BUDGET_USD` 优先于角色策略 `maxCostUsd`，sessions/swe/executor 三处调用点统一接入；`FH_BUDGET_USD=100` 即真实硬闸（此前仅告警）。
+- **附带加固**：`model.dto.ts` 放宽 `tool_calls[].type` 校验（`z.literal('function')` → `z.string().optional()`，修复 Ollama/AMD 返回显式 null 导致整包被拒）；`openai-compatible.provider.ts` 默认 `max_tokens` 4096 → 8192，缓解长报告截断。
+
+**新增测试**：`tests/unit/text-toolcall.test.ts`（9 例，含截断容错）、`tests/unit/budget-usd.test.ts`（5 例）、`orchestrator.test.ts` 补 2 例 checkpoint 状态用例。
+
 ## v8.5.0-security · P0 安全熔断（2026-09-30）
 
 **安全审计后 P0 阻断修复（F1–F6，端到端验证通过）**：

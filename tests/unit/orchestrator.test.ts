@@ -165,6 +165,47 @@ test('run: 从检查点恢复继承迭代计数', async () => {
   }
 });
 
+test('run: 成本超限中止时 checkpoint 标为 crashed 而非 done（resume 可续跑）', async () => {
+  const checkpoints: Array<{ status: string }> = [];
+  const orch = new Orchestrator(
+    baseDeps({
+      maxCostUsd: 0.001,
+      persist: async (cp) => {
+        checkpoints.push({ status: cp.status });
+      },
+      router: {
+        chat: async () => ({ providerId: 'mock', model: 'mock', costUsd: 0.01, message: { role: 'assistant', content: '', toolCalls: [{ id: 't', name: 'run_shell', arguments: { command: 'echo hi' } }] } }),
+        getStats: () => [],
+      } as unknown as OrchestratorDeps['router'],
+      tools: {
+        definitions: () => [{ name: 'run_shell', description: '', inputSchema: {} }],
+        execute: async () => ({ ok: true, output: 'hi' }),
+      } as unknown as OrchestratorDeps['tools'],
+    }),
+  );
+  const result = await orch.run('超预算任务');
+  assert.match(result.finalAnswer, /成本上限/);
+  assert.ok(checkpoints.length > 0, '应至少落盘一次 checkpoint');
+  const last = checkpoints[checkpoints.length - 1];
+  assert.notStrictEqual(last.status, 'done', '成本闸中止不应标 done（否则 resume 直接返回已完成）');
+  assert.strictEqual(last.status, 'crashed');
+});
+
+test('run: 正常完成时 checkpoint 标为 done', async () => {
+  const checkpoints: Array<{ status: string }> = [];
+  const orch = new Orchestrator(
+    baseDeps({
+      persist: async (cp) => {
+        checkpoints.push({ status: cp.status });
+      },
+    }),
+  );
+  const result = await orch.run('写个 hello.ts');
+  assert.ok(result.ok);
+  assert.ok(checkpoints.length > 0);
+  assert.strictEqual(checkpoints[checkpoints.length - 1].status, 'done');
+});
+
 test('run: 经验目录写入经验条目', async () => {
   const experienceDir = mkdtempSync(join(tmpdir(), 'fhcode-expo-'));
   try {

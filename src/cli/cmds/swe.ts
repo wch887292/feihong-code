@@ -25,7 +25,7 @@ import { assertQuota } from '../../enterprise';
 import { Orchestrator, type OrchestratorSecurity } from '../../agent/orchestrator';
 import { runSweAgent, type SweReport, type SubTaskOutcome } from '../../agent/swe-agent';
 import { summarizeSubTaskAnswer } from '../../agent/subagent-summary';
-import { getEnterprise, isOfflineByDefault, getSessionHome, buildDemoSteps, interactiveApprover, defaultApproverFor } from '../../core/task-executor';
+import { getEnterprise, isOfflineByDefault, getSessionHome, buildDemoSteps, interactiveApprover, defaultApproverFor, resolveMaxCostUsd } from '../../core/task-executor';
 
 export interface SweOptions {
   repo?: string;
@@ -103,7 +103,7 @@ export async function runSwe(goal: string, opts: SweOptions = {}): Promise<void>
       approve,
       guard,
       maxIterations: opts.maxIterations ?? 15,
-      maxCostUsd: rt?.maxCostUsd ?? 0,
+      maxCostUsd: resolveMaxCostUsd(rt?.maxCostUsd),
       // P1-1：子任务用低成本模型分担（编排器主模型保持 code-gen，worker 加 cheap 优先）
       tags: ['code-gen', 'cheap'],
       persist: (cp: import('../../runtime/session-persist').SessionCheckpoint) =>

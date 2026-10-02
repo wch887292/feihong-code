@@ -9,6 +9,7 @@ import type { ProviderConfig } from '../../shared/config';
 import type { CapabilityTag } from '../../shared/types';
 import type { ChatRequest, ChatResponse, ModelProvider, ToolDefinition } from '../model.interface';
 import { openAIChatResponseSchema, parseToolArgs } from '../model.dto';
+import { extractTextToolCalls } from '../text-toolcall';
 import { estimateCost } from '../cost';
 
 export class OpenAICompatibleProvider implements ModelProvider {
@@ -49,7 +50,9 @@ export class OpenAICompatibleProvider implements ModelProvider {
             }))
           : undefined,
       temperature: req.temperature ?? 0,
-      max_tokens: req.maxTokens ?? 4096,
+      // 8192：长报告/长代码输出在 4096 下频繁截断（dots 系网关把 tool call 混在
+      // content 里，截断导致闭合标签缺失、工具静默失效），默认放宽一倍
+      max_tokens: req.maxTokens ?? 8192,
     };
 
     const controller = new AbortController();
@@ -104,14 +107,27 @@ export class OpenAICompatibleProvider implements ModelProvider {
         }
       : { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
 
-    const toolCalls = choice.message.tool_calls?.map((tc) => ({
+    let content = choice.message.content ?? '';
+
+    let toolCalls = choice.message.tool_calls?.map((tc) => ({
       id: tc.id,
       name: tc.function.name,
       arguments: parseToolArgs(tc.function.arguments),
     }));
 
+    // 兜底：部分模型/网关（dots 系、无原生 FC 的 Qwen 系）把 tool call 以
+    // 文本形式混在 content 里而不返回 tool_calls 字段——提取为标准结构，
+    // 否则 write_file 等工具会静默失效、XML 直接漏进对话正文。
+    if ((!toolCalls || toolCalls.length === 0) && content) {
+      const extracted = extractTextToolCalls(content);
+      if (extracted) {
+        toolCalls = extracted.toolCalls;
+        content = extracted.cleanedContent;
+      }
+    }
+
     return {
-      message: { role: 'assistant', content: choice.message.content ?? '', toolCalls },
+      message: { role: 'assistant', content, toolCalls },
       usage,
       providerId: this.id,
       model: this.model,

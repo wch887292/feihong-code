@@ -222,6 +222,18 @@ export function isOfflineByDefault(): boolean {
 }
 
 /**
+ * 单任务成本上限（orchestrator 硬闸）解析。
+ * FH_BUDGET_USD 显式设置（>0）时优先——用户显式指定的预算应压过角色策略默认值
+ * （此前该变量只接到 model-router 的告警层，orchestrator 仍按角色 maxCostUsd 中止，
+ * 2026-10-01 实测踩坑：FH_BUDGET_USD=100 依旧被 $1 角色闸拦截）。
+ */
+export function resolveMaxCostUsd(rtMaxCost: number | undefined | null): number {
+  const env = Number(process.env.FH_BUDGET_USD);
+  if (Number.isFinite(env) && env > 0) return env;
+  return rtMaxCost ?? 0;
+}
+
+/**
  * P4-1 服务端可复用执行函数：装配编排器并执行目标，返回结构化结果。
  * 不打印任何 console 输出（供 Web 任务队列等非 CLI 场景调用）。
  * runGoal 在其上叠加展示层。
@@ -354,7 +366,7 @@ export async function executeTask(goal: string, opts: RunOptions = {}): Promise<
     security,
     approve,
     guard,
-    maxCostUsd: rt?.maxCostUsd ?? 0,
+    maxCostUsd: resolveMaxCostUsd(rt?.maxCostUsd),
     persist: (cp: SessionCheckpoint) => saveCheckpoint(logDir, cp),
     onEvent: opts.renderer ?? (opts.stream ? streamRenderer() : undefined),
     pluginSkillDirs,

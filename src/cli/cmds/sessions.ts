@@ -18,7 +18,7 @@ import { saveCheckpoint, loadCheckpoint, listCheckpoints, updateStatus, type Ses
 import { gitDiff, gitRollback } from '../../runtime/git';
 import { assertQuota } from '../../enterprise';
 import { Orchestrator, type OrchestratorSecurity } from '../../agent/orchestrator';
-import { getEnterprise, isOfflineByDefault, getSessionHome, buildDemoSteps, interactiveApprover, defaultApproverFor } from '../../core/task-executor';
+import { getEnterprise, isOfflineByDefault, getSessionHome, buildDemoSteps, interactiveApprover, defaultApproverFor, resolveMaxCostUsd } from '../../core/task-executor';
 
 async function resolveCheckpoint(home: string, id: string): Promise<SessionCheckpoint> {
   const exact = await loadCheckpoint(home, id);
@@ -105,7 +105,7 @@ export async function runResume(runId: string): Promise<void> {
     security,
     approve,
     guard,
-    maxCostUsd: rt?.maxCostUsd ?? 0,
+    maxCostUsd: resolveMaxCostUsd(rt?.maxCostUsd),
     persist: (c: SessionCheckpoint) => saveCheckpoint(home, c),
   });
 

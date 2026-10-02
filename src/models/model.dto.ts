@@ -13,7 +13,9 @@ export const openAIMessageSchema = z.object({
     .array(
       z.object({
         id: z.string(),
-        type: z.literal('function'),
+        // 宽松处理：部分网关（Ollama/AMD 等实测）会返回空串或其他 type 值，
+        // 代码不依赖该字段，只要求结构存在即可，避免整包响应被 zod 拒掉
+        type: z.string().optional(),
         function: z.object({
           name: z.string(),
           arguments: z.union([z.string(), z.record(z.string(), z.unknown())]),
