@@ -1,0 +1,39 @@
+# 一次性维护任务：关闭基于旧 master 快照的过时 dependabot PR
+# 触发方式：workflow_dispatch（手动）
+# 背景：#34-#38 基于 2026-09-19 快照，CI 失败问题在当前 master 已修复，
+#       bump 目标已被 master 实际运行版本超越；依赖升级由维护者统一治理。
+# 用后可删：维护者可保留 workflow_dispatch 以便日后清理 stale PR。
+name: Close Stale Dependabot PRs
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_numbers:
+        description: '要关闭的 PR 编号（空格分隔）'
+        required: false
+        default: '34 35 36 37 38'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  close:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Close listed PRs with reason
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PRS: ${{ github.event.inputs.pr_numbers }}
+        run: |
+          REASON=$(cat <<'EOF'
+          关闭：本 PR 基于 2026-09-19 的旧 master 快照，此后 master 已经历 v8.5.0 架构治理、v8.5.1 安全修复与 v8.6.0「Always-on 飞虹 dots」四期升级，PR 分支已严重过时（其 CI 失败的明文密钥扫描与 check:cross 版本一致性问题在当前 master 均已修复）。且该 bump 目标已被 master 实际运行版本超越（如 electron 实际 44.5.1）。本仓库 package-lock.json 不入库（跨平台 npm #4828 坑），依赖升级将在下个迭代由维护者统一治理后手动提交。感谢 dependabot 服务。—— 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心
+          EOF
+          )
+          for pr in $PRS; do
+            echo "Closing #$pr ..."
+            gh pr close "$pr" --comment "$REASON" || echo "#$pr 关闭失败（可能已关闭）"
+            gh pr edit "$pr" --remove-label "dependencies" 2>/dev/null || true
+          done
+          echo "=== 剩余 open PR ==="
+          gh pr list --state open || true
