@@ -517,6 +517,33 @@ export class SQLiteStore {
     ).all(userId, q, limit) as Row[];
   }
 
+  /** v8.6.0 P2（透明记忆）：按 id 更新记忆内容/分类/重要度，返回是否命中 */
+  userUpdateMemory(
+    userId: string,
+    id: number,
+    patch: { content?: string; category?: string; importance?: number }
+  ): boolean {
+    const sets: string[] = [];
+    const vals: unknown[] = [];
+    if (patch.content !== undefined) { sets.push('content = ?'); vals.push(patch.content); }
+    if (patch.category !== undefined) { sets.push('category = ?'); vals.push(patch.category); }
+    if (patch.importance !== undefined) { sets.push('importance = ?'); vals.push(patch.importance); }
+    if (sets.length === 0) return false;
+    vals.push(userId, id);
+    const r = this.db
+      .prepare(`UPDATE user_memory SET ${sets.join(', ')} WHERE user_id = ? AND id = ?`)
+      .run(...(vals as never[]));
+    return Number((r as { changes: number }).changes) > 0;
+  }
+
+  /** v8.6.0 P2（透明记忆）：按 id 删除记忆，返回是否命中 */
+  userDeleteMemory(userId: string, id: number): boolean {
+    const r = this.db
+      .prepare('DELETE FROM user_memory WHERE user_id = ? AND id = ?')
+      .run(userId, id);
+    return Number((r as { changes: number }).changes) > 0;
+  }
+
   /* ========== 知识库 CRUD ========== */
 
   knowledgeUpsert(doc: {
