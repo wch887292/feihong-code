@@ -11,10 +11,7 @@ on:
       pr_numbers:
         description: '要关闭的 PR 编号（空格分隔）'
         required: false
-        default: '34 35 36 37 38'
-  push:
-    branches: [master]
-    paths: ['.github/workflows/close-stale-deps.yml']
+        default: ''
 
 permissions:
   contents: read
