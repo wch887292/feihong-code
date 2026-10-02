@@ -1,4 +1,17 @@
 ﻿# 飞虹 Code 更新日志 / Changelog
+## v8.6.0 · Always-on 飞虹 dots（2026-10-02）
+
+**主题**：借鉴 OpenAI dots 范式四期升级——Agent 自我认知 / 透明记忆 / Routines 调度 / 三级权限规则引擎。对标 dots 三大差异化：透明可导出记忆、内置任务管理、自我认知。
+
+- **P1 Agent 自我认知**：新增 `src/agent/self-awareness.ts`——orchestrator 启动时经 `buildSystemPrompt()` 把运行时工具注册表（21 工具）自省注入系统提示词，Agent 明确"我能做什么、参数怎么传、失败如何降级"；能力清单双来源（ToolRegistry > tool-schema.json），任一来源损坏均降级回退不阻断；`scripts/gen-tool-schema.ts` 从运行时注册表重新生成 schema（修复历史乱码损坏，确立代码为单一事实源）。
+- **P2 透明记忆**：新增 `src/memory/transparent.ts`——TransparentMemory 增/列/搜/改/删 + exportJson/exportMarkdown/importJson 全量可导出（对比 dots 记忆不可读不可导出）；导出默认过 M4 audit.redact 脱敏；SQLiteStore 补 userUpdateMemory/userDeleteMemory（userId+id 双条件防越权）。
+- **P3 Routines 调度**：新增 `src/runtime/routines/` 四模块——五字段 cron（宏/步进/区间/dom-dow OR 语义/4 年闰日扫描窗）、JSON 原子写持久化、调度器（retry > catchup > cron 优先级、事件触发、错过窗口补偿恰好一次、运行中互斥 + 全局并发上限、失败指数退避 maxRetries）；真实动作执行默认 noop runner，预留 P4 审批门控接线。
+- **P4 三级规则引擎 + 审批收件箱**：新增 `src/security/rules-engine.ts` + `approval-inbox.ts`——allow/ask/deny 三级判定（硬红线 > 精确 > 通配 > fail-safe 默认 ask）；硬红线四类任何规则不可放行（改密码/转账/永久删除/外发，中英双语词表）；审批收件箱 submit→pending→approved/rejected/expired 全闭环，裁决幂等、TTL 过期、approvals.json 原子写持久化、审批事件入 M4 hash chain、落盘前 redact 脱敏。
+
+**验证终态**：npm test **354/354**（基线 302 → 354，+52 用例）；verify 链十项全绿——typecheck / check:version / build / verify:m4(41) / m6(29) / m7(12) / m8(27) / m9(25) / **verify:routines(18，新增)** / **verify:policy(13，新增)**，端到端合计 165 项。
+
+**兼容性**：全量向后兼容——self-awareness 失败自动回退基础提示词；TransparentMemory/Routines/规则引擎均为新增独立模块，既有 CLI/Server 行为不变。
+
 ## v8.5.1 · 三项核心 bug 修复（2026-10-01）
 
 **修复（全部含单元测试，301/301 通过）**：

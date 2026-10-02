@@ -2,44 +2,95 @@
   "name": "feihong-code",
   "displayName": "飞虹 Code",
   "description": "飞虹 Code AI 编程助手 - 对话、代码生成、任务派发",
-  "version": "8.5.1",
+  "version": "8.6.0",
   "publisher": "feihong",
-  "engines": { "vscode": "^1.80.0" },
-  "categories": ["AI", "Programming Languages"],
-  "activationEvents": ["onStartupFinished"],
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "AI",
+    "Programming Languages"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "main": "./extension.js",
   "contributes": {
     "viewsContainers": {
       "activitybar": [
-        { "id": "feihong-code", "title": "飞虹 Code", "icon": "media/icon.svg" }
+        {
+          "id": "feihong-code",
+          "title": "飞虹 Code",
+          "icon": "media/icon.svg"
+        }
       ]
     },
     "views": {
       "feihong-code": [
-        { "type": "webview", "id": "feihong-code.chat", "name": "对话" }
+        {
+          "type": "webview",
+          "id": "feihong-code.chat",
+          "name": "对话"
+        }
       ]
     },
     "commands": [
-      { "command": "feihong-code.chat", "title": "飞虹 Code: 打开对话" },
-      { "command": "feihong-code.toggleAgent", "title": "飞虹 Code: 切换驱动模式（AI 直接改文件）" },
-      { "command": "feihong-code.explain", "title": "飞虹 Code: 解释选中代码" },
-      { "command": "feihong-code.refactor", "title": "飞虹 Code: 重构选中代码" }
+      {
+        "command": "feihong-code.chat",
+        "title": "飞虹 Code: 打开对话"
+      },
+      {
+        "command": "feihong-code.toggleAgent",
+        "title": "飞虹 Code: 切换驱动模式（AI 直接改文件）"
+      },
+      {
+        "command": "feihong-code.explain",
+        "title": "飞虹 Code: 解释选中代码"
+      },
+      {
+        "command": "feihong-code.refactor",
+        "title": "飞虹 Code: 重构选中代码"
+      }
     ],
     "keybindings": [
-      { "command": "feihong-code.toggleAgent", "key": "ctrl+alt+a", "when": "editorTextFocus" }
+      {
+        "command": "feihong-code.toggleAgent",
+        "key": "ctrl+alt+a",
+        "when": "editorTextFocus"
+      }
     ],
     "menus": {
       "editor/context": [
-        { "command": "feihong-code.explain", "when": "editorHasSelection", "group": "feihong@1" },
-        { "command": "feihong-code.refactor", "when": "editorHasSelection", "group": "feihong@2" }
+        {
+          "command": "feihong-code.explain",
+          "when": "editorHasSelection",
+          "group": "feihong@1"
+        },
+        {
+          "command": "feihong-code.refactor",
+          "when": "editorHasSelection",
+          "group": "feihong@2"
+        }
       ]
     },
     "configuration": {
       "title": "飞虹 Code",
       "properties": {
-        "feihong-code.serverUrl": { "type": "string", "default": "http://127.0.0.1:8082", "description": "飞虹 Code 后端服务地址" },
-        "feihong-code.phone": { "type": "string", "default": "", "description": "登录手机号（6-20 位数字，本地服务免验证码）" },
-        "feihong-code.token": { "type": "string", "default": "", "description": "访问令牌（可选，高级：配置后跳过手机号登录）" }
+        "feihong-code.serverUrl": {
+          "type": "string",
+          "default": "http://127.0.0.1:8082",
+          "description": "飞虹 Code 后端服务地址"
+        },
+        "feihong-code.phone": {
+          "type": "string",
+          "default": "",
+          "description": "登录手机号（6-20 位数字，本地服务免验证码）"
+        },
+        "feihong-code.token": {
+          "type": "string",
+          "default": "",
+          "description": "访问令牌（可选，高级：配置后跳过手机号登录）"
+        }
       }
     }
   }
