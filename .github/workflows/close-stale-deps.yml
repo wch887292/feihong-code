@@ -12,6 +12,9 @@ on:
         description: '要关闭的 PR 编号（空格分隔）'
         required: false
         default: '34 35 36 37 38'
+  push:
+    branches: [master]
+    paths: ['.github/workflows/close-stale-deps.yml']
 
 permissions:
   contents: read
@@ -26,6 +29,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PRS: ${{ github.event.inputs.pr_numbers }}
         run: |
+          PRS="${PRS:-34 35 36 37 38}"
           REASON=$(cat <<'EOF'
           关闭：本 PR 基于 2026-09-19 的旧 master 快照，此后 master 已经历 v8.5.0 架构治理、v8.5.1 安全修复与 v8.6.0「Always-on 飞虹 dots」四期升级，PR 分支已严重过时（其 CI 失败的明文密钥扫描与 check:cross 版本一致性问题在当前 master 均已修复）。且该 bump 目标已被 master 实际运行版本超越（如 electron 实际 44.5.1）。本仓库 package-lock.json 不入库（跨平台 npm #4828 坑），依赖升级将在下个迭代由维护者统一治理后手动提交。感谢 dependabot 服务。—— 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心
           EOF
