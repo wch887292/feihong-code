@@ -1,0 +1,4 @@
+{"task_id": "HumanEval/0", "entry_point": "has_close_elements", "passed": false, "phase": "api", "err": "API 重试失败: HTTP 500", "sec": 214.8}
+{"task_id": "HumanEval/1", "entry_point": "separate_paren_groups", "passed": false, "phase": "api", "err": "API 重试失败: The read operation timed out", "sec": 126.4}
+{"task_id": "HumanEval/2", "entry_point": "truncate_number", "passed": false, "phase": "api", "err": "API 重试失败: HTTP 500", "sec": 22.5}
+{"task_id": "HumanEval/3", "entry_point": "below_zero", "passed": false, "phase": "api", "err": "API 重试失败: The read operation timed out", "sec": 311.8}

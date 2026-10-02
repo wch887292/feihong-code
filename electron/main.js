@@ -9,12 +9,25 @@ const { existsSync } = require('fs');
 const { join } = require('path');
 const http = require('http');
 
+// 内置 Web 服务器（主进程内直接启动，避免 spawn 路径问题）
+let runServe = null;
+try {
+  ({ runServe } = require('../dist/cli/cmds/integrations'));
+} catch (e) {
+  console.error('[Electron] 无法加载服务器模块:', e.message);
+}
+
 // 禁用安全警告
 process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
 
 // 配置
-const PORT = parseInt(process.env.FH_WEB_PORT || '8081');
+let PORT = parseInt(process.env.FH_WEB_PORT || '8089');
 const isDev = !app.isPackaged;
+
+// 桌面端专用 Token：生成后注入环境变量，服务器和前端共用同一个 token，免登录
+const crypto = require('crypto');
+const DESKTOP_TOKEN = crypto.randomBytes(24).toString('hex');
+process.env.FH_WEB_TOKEN = DESKTOP_TOKEN;
 
 // 全局变量
 let mainWindow = null;
@@ -24,7 +37,7 @@ let tray = null;
 // 获取应用根目录
 function getAppPath() {
   if (isDev) return join(__dirname, '..');
-  return process.resourcesPath ? join(process.resourcesPath, 'app') : app.getAppPath();
+  return app.getAppPath();
 }
 const APP_PATH = getAppPath();
 
@@ -58,60 +71,35 @@ function waitForServer(port, timeoutMs) {
 }
 
 /**
- * 启动内置 Web 服务器
+ * 检测端口是否被占用
  */
-function startServer() {
-  return new Promise((resolve, reject) => {
-    const serverEntry = join(APP_PATH, 'dist', 'cli', 'index.js');
-    if (!existsSync(serverEntry)) {
-      reject(new Error('未找到服务器入口文件，请先运行 npm run build'));
-      return;
-    }
-
-    console.log('[Electron] 启动服务器，端口: ' + PORT);
-
-    let serverLog = '';
-    let started = false;
-
-    serverProcess = spawn('node', [serverEntry, 'serve'], {
-      cwd: APP_PATH,
-      env: { ...process.env, FH_WEB_PORT: String(PORT) },
-      stdio: ['ignore', 'pipe', 'pipe']
+function isPortInUse(port) {
+  return new Promise((resolve) => {
+    const net = require('net');
+    const tester = net.createServer();
+    tester.once('error', (err) => {
+      if (err.code === 'EADDRINUSE') resolve(true);
+      else resolve(false);
     });
-
-    serverProcess.stdout.on('data', (data) => {
-      const text = data.toString();
-      serverLog += text;
-      console.log('[Server] ' + text.trim());
-    });
-
-    serverProcess.stderr.on('data', (data) => {
-      const text = data.toString();
-      serverLog += text;
-      console.error('[Server Error] ' + text.trim());
-    });
-
-    serverProcess.on('error', (err) => {
-      if (!started) reject(new Error('启动服务器失败: ' + err.message));
-    });
-
-    serverProcess.on('exit', (code) => {
-      console.log('[Electron] 服务器退出，代码: ' + code);
-      serverProcess = null;
-      if (!started) {
-        reject(new Error('服务器启动失败，退出代码: ' + code + '\n\n日志:\n' + serverLog.slice(-2000)));
-      }
-    });
-
-    // 等待服务器就绪
-    waitForServer(PORT, 60000).then(() => {
-      started = true;
-      console.log('[Electron] 服务器已就绪');
-      resolve();
-    }).catch((err) => {
-      if (!started) reject(new Error(err.message + '\n\n服务器日志:\n' + serverLog.slice(-2000)));
-    });
+    tester.once('listening', () => { tester.close(); resolve(false); });
+    tester.listen(port);
   });
+}
+
+/**
+ * 启动内置 Web 服务器（端口被占用时自动切换）
+ */
+async function startServer() {
+  if (!runServe) throw new Error('未找到服务器入口文件，请先运行 npm run build');
+  let tries = 0;
+  while (await isPortInUse(PORT) && tries < 20) {
+    console.log('[Electron] 端口 ' + PORT + ' 被占用，尝试 ' + (PORT + 1));
+    PORT++; tries++;
+  }
+  console.log('[Electron] 启动服务器，端口: ' + PORT);
+  try { runServe(PORT); } catch (err) { throw new Error('启动服务器失败: ' + (err instanceof Error ? err.message : String(err))); }
+  await waitForServer(PORT, 60000);
+  console.log('[Electron] 服务器已就绪');
 }
 
 /**
@@ -133,7 +121,7 @@ function createWindow() {
     backgroundColor: '#1a1a2e'
   });
 
-  const url = `http://127.0.0.1:${PORT}/`;
+  const url = `http://127.0.0.1:${PORT}/?token=${DESKTOP_TOKEN}&phone=desktop`;
   console.log('[Electron] 加载页面: ' + url);
   mainWindow.loadURL(url);
 
@@ -380,13 +368,9 @@ app.whenReady().then(async () => {
 // 所有窗口关闭时不退出（保持托盘运行）
 app.on('window-all-closed', () => {});
 
-// 退出前停止服务器
+// 退出前清理
 app.on('before-quit', () => {
   app.isQuitting = true;
-  if (serverProcess) {
-    serverProcess.kill();
-    serverProcess = null;
-  }
 });
 
 // 防止多开
