@@ -36,8 +36,7 @@ jobs:
           )
           for pr in $PRS; do
             echo "Closing #$pr ..."
-            gh pr close "$pr" --comment "$REASON" || echo "#$pr 关闭失败（可能已关闭）"
-            gh pr edit "$pr" --remove-label "dependencies" 2>/dev/null || true
+            gh pr close "$pr" --repo wch887292/feihong-code --comment "$REASON" || echo "#$pr 关闭失败（可能已关闭）"
           done
           echo "=== 剩余 open PR ==="
-          gh pr list --state open || true
+          gh pr list --state open --repo wch887292/feihong-code || true
