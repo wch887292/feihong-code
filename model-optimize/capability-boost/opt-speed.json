@@ -1,0 +1,334 @@
+{
+  "speed": {
+    "qwen3-8b-opt:latest": {
+      "short_r1": {
+        "wallMs": 43808,
+        "loadSec": 7.18,
+        "promptTokens": 17,
+        "promptEvalSec": 0.5,
+        "genTokens": 256,
+        "genSec": 36.08,
+        "tokPerSec": 7.09,
+        "ttftApproxSec": 7.68,
+        "sample": "",
+        "full": ""
+      },
+      "short_r2": {
+        "wallMs": 36571,
+        "loadSec": 0.01,
+        "promptTokens": 17,
+        "promptEvalSec": 0.14,
+        "genTokens": 256,
+        "genSec": 36.41,
+        "tokPerSec": 7.03,
+        "ttftApproxSec": 0.15,
+        "sample": "",
+        "full": ""
+      },
+      "long_r2": {
+        "wallMs": 72503,
+        "loadSec": 0.01,
+        "promptTokens": 1018,
+        "promptEvalSec": 32.81,
+        "genTokens": 256,
+        "genSec": 39.66,
+        "tokPerSec": 6.46,
+        "ttftApproxSec": 32.82,
+        "sample": "",
+        "full": ""
+      }
+    },
+    "qwen25-coder-15b-opt:latest": {
+      "short_r1": {
+        "wallMs": 3596,
+        "loadSec": 2.73,
+        "promptTokens": 36,
+        "promptEvalSec": 0.21,
+        "genTokens": 22,
+        "genSec": 0.64,
+        "tokPerSec": 34.33,
+        "ttftApproxSec": 2.95,
+        "sample": "复利是指在投资过程中，本金和利息会继续累积，形成一个递增的收益。",
+        "full": "复利是指在投资过程中，本金和利息会继续累积，形成一个递增的收益。"
+      },
+      "short_r2": {
+        "wallMs": 1010,
+        "loadSec": 0,
+        "promptTokens": 36,
+        "promptEvalSec": 0.03,
+        "genTokens": 32,
+        "genSec": 0.97,
+        "tokPerSec": 33.03,
+        "ttftApproxSec": 0.03,
+        "sample": "复利是指在计算利息时，利息收入再作为本金的一部分，继续计算利息，从而在计算利息时，本金也包括了利息。",
+        "full": "复利是指在计算利息时，利息收入再作为本金的一部分，继续计算利息，从而在计算利息时，本金也包括了利息。"
+      },
+      "long_r2": {
+        "wallMs": 18130,
+        "loadSec": 0,
+        "promptTokens": 1037,
+        "promptEvalSec": 8.57,
+        "genTokens": 256,
+        "genSec": 9.54,
+        "tokPerSec": 26.84,
+        "ttftApproxSec": 8.58,
+        "sample": "企业数字化转型是一个复杂而长期的过程，需要从多个维度进行协同推进。以下是一个详细的步骤指南，帮助企业实现数字化转型：\n\n### 1. 策略维度：明确目标与路线图",
+        "full": "企业数字化转型是一个复杂而长期的过程，需要从多个维度进行协同推进。以下是一个详细的步骤指南，帮助企业实现数字化转型：\n\n### 1. 策略维度：明确目标与路线图\n\n- **目标设定**：明确企业数字化转型的目标，包括提高效率、降低成本、增强客户体验、提升市场竞争力等。\n- **路线图制定**：制定详细的数字化转型路线图，明确每个阶段的目标和时间表，确保转型的连续性和可实现性。\n\n### 2. 组织维度：调整人才结构与激励机制\n\n- **人才结构调整**：优化组织结构，增加数字化人才的招聘和培养，确保数字化人才的充足供应。\n- **激励机制设计**：建立激励机制，包括薪酬、福利、晋升机会等，以吸引和留住数字化人才。\n- **培训与发展**：提供数字化培训和发展机会，帮助员工提升技能和知识，适应数字化转型的需求。\n\n### 3. 流程维度：打通端到端价值链\n\n- **流程优化**：优化业务流程，减少冗余，提高效率，降低成本。\n- **集成系统**：集成各种业务系统，实现数据的互联互通，提高决策的准确性和效率。\n- **"
+      }
+    },
+    "qwen35-4b-opt:latest": {
+      "short_r1": {
+        "wallMs": 29778,
+        "loadSec": 5,
+        "promptTokens": 45,
+        "promptEvalSec": 0.84,
+        "genTokens": 256,
+        "genSec": 23.92,
+        "tokPerSec": 10.7,
+        "ttftApproxSec": 5.84,
+        "sample": "",
+        "full": ""
+      },
+      "short_r2": {
+        "wallMs": 23476,
+        "loadSec": 0.01,
+        "promptTokens": 45,
+        "promptEvalSec": 0.13,
+        "genTokens": 256,
+        "genSec": 23.31,
+        "tokPerSec": 10.98,
+        "ttftApproxSec": 0.14,
+        "sample": "",
+        "full": ""
+      },
+      "long_r2": {
+        "wallMs": 39767,
+        "loadSec": 0,
+        "promptTokens": 920,
+        "promptEvalSec": 16.34,
+        "genTokens": 256,
+        "genSec": 23.37,
+        "tokPerSec": 10.95,
+        "ttftApproxSec": 16.34,
+        "sample": "",
+        "full": ""
+      }
+    },
+    "qwen3-vl-4b-opt:latest": {
+      "short_r1": {
+        "wallMs": 24862,
+        "loadSec": 5.68,
+        "promptTokens": 17,
+        "promptEvalSec": 0.25,
+        "genTokens": 256,
+        "genSec": 18.93,
+        "tokPerSec": 13.52,
+        "ttftApproxSec": 5.92,
+        "sample": "",
+        "full": ""
+      },
+      "short_r2": {
+        "wallMs": 19021,
+        "loadSec": 0,
+        "promptTokens": 17,
+        "promptEvalSec": 0.07,
+        "genTokens": 256,
+        "genSec": 18.93,
+        "tokPerSec": 13.52,
+        "ttftApproxSec": 0.08,
+        "sample": "",
+        "full": ""
+      },
+      "long_r2": {
+        "wallMs": 43107,
+        "loadSec": 0.01,
+        "promptTokens": 1018,
+        "promptEvalSec": 20.6,
+        "genTokens": 256,
+        "genSec": 22.47,
+        "tokPerSec": 11.39,
+        "ttftApproxSec": 20.61,
+        "sample": "",
+        "full": ""
+      }
+    }
+  },
+  "quality": {
+    "qwen3-8b-opt:latest": {
+      "json": {
+        "base": {
+          "pass": true,
+          "genTokens": 298,
+          "tokPerSec": 7.05,
+          "answer": "{\"name\": \"飞虹智\", \"year\": 2026}"
+        },
+        "opt": {
+          "pass": true,
+          "genTokens": 276,
+          "tokPerSec": 7.01,
+          "answer": "{\"name\": \"飞虹智\", \"year\": 2026}"
+        }
+      },
+      "instruct3": {
+        "base": {
+          "pass": true,
+          "genTokens": 270,
+          "tokPerSec": 6.59,
+          "answer": "复利以20%的年化收益率为例，可使本金在10年内增长超10倍。其核心在于利息不断产生新利息，形成指数级增长。长期坚持复利投资，财富将随时间呈几何级数累积。"
+        },
+        "opt": {
+          "pass": true,
+          "genTokens": 207,
+          "tokPerSec": 6.63,
+          "answer": "复利能让20%的年利率在十年内使本金翻倍，展现其强大的增值潜力。  \n它通过利息不断再生利息，使资金增长呈指数级而非线性。  \n长期坚持复利投资，即使初始金额较小，也能积累出令人惊喜的财富。"
+        }
+      },
+      "math": {
+        "base": {
+          "pass": true,
+          "genTokens": 375,
+          "tokPerSec": 6.9,
+          "answer": "138"
+        },
+        "opt": {
+          "pass": true,
+          "genTokens": 331,
+          "tokPerSec": 7.13,
+          "answer": "138"
+        }
+      }
+    },
+    "qwen25-coder-15b-opt:latest": {
+      "json": {
+        "base": {
+          "pass": true,
+          "genTokens": 22,
+          "tokPerSec": 34.54,
+          "answer": "```json\n{\"name\": \"飞虹智\", \"year\": 2026}\n```"
+        },
+        "opt": {
+          "pass": false,
+          "genTokens": 1,
+          "tokPerSec": 1000000,
+          "answer": ""
+        }
+      },
+      "instruct3": {
+        "base": {
+          "pass": false,
+          "genTokens": 16,
+          "tokPerSec": 35.31,
+          "answer": "20%年复利率意味着本金在每年增加20%。"
+        },
+        "opt": {
+          "pass": false,
+          "genTokens": 14,
+          "tokPerSec": 35.91,
+          "answer": "20%的复利是财富增长的倍数。"
+        }
+      },
+      "math": {
+        "base": {
+          "pass": false,
+          "genTokens": 3,
+          "tokPerSec": 42.14,
+          "answer": "24"
+        },
+        "opt": {
+          "pass": false,
+          "genTokens": 4,
+          "tokPerSec": 46.55,
+          "answer": "210"
+        }
+      }
+    },
+    "qwen35-4b-opt:latest": {
+      "json": {
+        "base": {
+          "pass": false,
+          "genTokens": 400,
+          "tokPerSec": 10.63,
+          "answer": ""
+        },
+        "opt": {
+          "pass": false,
+          "genTokens": 400,
+          "tokPerSec": 11.26,
+          "answer": "```json\n{\n  \"name\": \"飞虹智\","
+        }
+      },
+      "instruct3": {
+        "base": {
+          "pass": false,
+          "genTokens": 400,
+          "tokPerSec": 11.06,
+          "answer": ""
+        },
+        "opt": {
+          "pass": false,
+          "genTokens": 400,
+          "tokPerSec": 11.39,
+          "answer": ""
+        }
+      },
+      "math": {
+        "base": {
+          "pass": true,
+          "genTokens": 379,
+          "tokPerSec": 11.03,
+          "answer": "138"
+        },
+        "opt": {
+          "pass": false,
+          "genTokens": 400,
+          "tokPerSec": 11.31,
+          "answer": ""
+        }
+      }
+    },
+    "qwen3-vl-4b-opt:latest": {
+      "json": {
+        "base": {
+          "pass": false,
+          "genTokens": 400,
+          "tokPerSec": 13.06,
+          "answer": ""
+        },
+        "opt": {
+          "pass": false,
+          "genTokens": 400,
+          "tokPerSec": 13.29,
+          "answer": ""
+        }
+      },
+      "instruct3": {
+        "base": {
+          "pass": false,
+          "genTokens": 400,
+          "tokPerSec": 13,
+          "answer": ""
+        },
+        "opt": {
+          "pass": false,
+          "genTokens": 400,
+          "tokPerSec": 13.28,
+          "answer": ""
+        }
+      },
+      "math": {
+        "base": {
+          "pass": false,
+          "genTokens": 400,
+          "tokPerSec": 12.85,
+          "answer": ""
+        },
+        "opt": {
+          "pass": true,
+          "genTokens": 175,
+          "tokPerSec": 11.54,
+          "answer": "138"
+        }
+      }
+    }
+  }
+}

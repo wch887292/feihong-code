@@ -1,0 +1,20 @@
+# qwen3-vl:4b 视觉模型语言侧优化 Modelfile
+# 目标：文本推理/对话场景提速（视觉编码不受参数影响）
+# 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 吴赐虹
+
+FROM qwen3-vl:4b
+
+# 4B 模型在 i5-12400 上 8 线程为最佳平衡点
+PARAMETER num_thread 8
+
+# 上下文：与基线测试同档（4096），保证对比公平
+PARAMETER num_ctx 4096
+
+# 低温度：提升事实类问答与指令遵循确定性
+PARAMETER temperature 0.3
+PARAMETER top_k 20
+PARAMETER top_p 0.8
+
+# 停止序列：Qwen3 chatml 标准结束标记
+PARAMETER stop "<|im_end|>"
+PARAMETER stop "<|endoftext|>"

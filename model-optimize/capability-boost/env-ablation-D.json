@@ -1,0 +1,40 @@
+{
+  "label": "D",
+  "startedAt": "2026-10-01T16:26:38.666Z",
+  "qwen3-8b-opt:latest": {
+    "short": {
+      "wallMs": 36287,
+      "loadSec": 0,
+      "promptEvalSec": 0.14,
+      "genTokens": 256,
+      "genSec": 36.14,
+      "tokPerSec": 7.08
+    },
+    "long": {
+      "wallMs": 70700,
+      "loadSec": 0.01,
+      "promptEvalSec": 28.31,
+      "genTokens": 256,
+      "genSec": 42.36,
+      "tokPerSec": 6.04
+    }
+  },
+  "qwen25-coder-15b-opt:latest": {
+    "short": {
+      "wallMs": 1005,
+      "loadSec": 0,
+      "promptEvalSec": 0.03,
+      "genTokens": 34,
+      "genSec": 0.97,
+      "tokPerSec": 35.22
+    },
+    "long": {
+      "wallMs": 14737,
+      "loadSec": 0,
+      "promptEvalSec": 6.17,
+      "genTokens": 256,
+      "genSec": 8.55,
+      "tokPerSec": 29.96
+    }
+  }
+}

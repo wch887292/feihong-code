@@ -1,0 +1,26 @@
+# guozhennianhua/qwen3.5-4b-kimi-k3 通用对话特化 Modelfile
+# 目标：通用对话/理解/指令遵循，平衡质量与速度
+
+FROM guozhennianhua/qwen3.5-4b-kimi-k3
+
+# 线程数：4.2B 模型在 i5-12400 上，8 线程为最佳平衡点
+# 相比 8B 模型，4B 的矩阵运算量减半，8 线程可完全喂饱
+PARAMETER num_thread 8
+
+# 上下文长度：4B 模型 KV cache 占用更小，可支持更长上下文
+PARAMETER num_ctx 8192
+
+# 温度：通用对话用 0.5，兼顾确定性与自然度
+# 代码/逻辑任务可降至 0.2-0.3，创意任务可升至 0.7
+PARAMETER temperature 0.5
+
+# top_k 30：通用对话需要一定的词汇多样性
+PARAMETER top_k 30
+
+# top_p 0.9：通用对话保留较宽的候选分布
+PARAMETER top_p 0.9
+
+# 停止序列：通用对话常用结束标记
+# Qwen3.5 (chatml) 的标准结束标记
+PARAMETER stop "<|im_end|>"
+PARAMETER stop "<|endoftext|>"

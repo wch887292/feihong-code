@@ -1,0 +1,31 @@
+FROM guozhennianhua/qwen3.5-4b-kimi-k3:latest
+
+# ---- 优化后的运行参数 ----
+# 4B 模型在 CPU 推理的推荐配置
+
+# 上下文长度：日常 8K，长文档 32K（256K 是理论最大值，CPU KV cache 吃不消）
+PARAMETER num_ctx 8192
+
+# 线程数 = 物理核心数（i5-12400 为 6C12T）
+PARAMETER num_thread 6
+
+# 纯 CPU 推理（UHD 730 不可用）
+PARAMETER num_gpu 0
+
+# 采样参数：4B 模型需要更低的温度和更宽的 top_k
+PARAMETER temperature 0.7
+PARAMETER top_p 0.9
+PARAMETER top_k 40
+
+# 重复惩罚：1.5 对 4B 过于激进，降到 1.0
+PARAMETER presence_penalty 1.0
+
+# 最大生成 token 数（默认 32768 太长，日常 4096 够用）
+PARAMETER num_predict 4096
+
+# 固定 seed（可复现场景）
+PARAMETER seed 42
+
+# ---- chat template 适配说明 ----
+# 该模型使用 Qwen3.5 架构，Ollama 内置 qwen3.5 renderer/parser 会自动注入正确模板。
+# 模板格式：<|im_start|>system\n{system}

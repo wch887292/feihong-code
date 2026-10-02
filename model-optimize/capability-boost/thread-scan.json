@@ -1,0 +1,69 @@
+{
+  "qwen3-8b-opt:latest": {
+    "thread_4": {
+      "r1": 6.58,
+      "r2": 6.61,
+      "best": 6.61,
+      "genSec": 38.71,
+      "promptEvalSec": 0.15
+    },
+    "thread_6": {
+      "r1": 7.11,
+      "r2": 6.57,
+      "best": 7.11,
+      "genSec": 36.02,
+      "promptEvalSec": 0.14
+    },
+    "thread_8": {
+      "r1": 7.18,
+      "r2": 5.99,
+      "best": 7.18,
+      "genSec": 35.65,
+      "promptEvalSec": 0.15
+    },
+    "thread_10": {
+      "r1": 6.59,
+      "r2": 7.22,
+      "best": 7.22,
+      "genSec": 35.46,
+      "promptEvalSec": 0.14
+    },
+    "thread_12": {
+      "r1": 7,
+      "r2": 7.13,
+      "best": 7.13,
+      "genSec": 24.84,
+      "promptEvalSec": 0.14
+    }
+  },
+  "qwen25-coder-15b-opt:latest": {
+    "thread_2": {
+      "r1": 26.68,
+      "r2": 26.28,
+      "best": 26.68,
+      "genSec": 1.01,
+      "promptEvalSec": 0.04
+    },
+    "thread_4": {
+      "r1": 33.44,
+      "r2": 32.86,
+      "best": 33.44,
+      "genSec": 0.6,
+      "promptEvalSec": 0.03
+    },
+    "thread_6": {
+      "r1": 35.36,
+      "r2": 35.52,
+      "best": 35.52,
+      "genSec": 0.65,
+      "promptEvalSec": 0.03
+    },
+    "thread_8": {
+      "r1": 35.29,
+      "r2": 34.8,
+      "best": 35.29,
+      "genSec": 0.99,
+      "promptEvalSec": 0.03
+    }
+  }
+}

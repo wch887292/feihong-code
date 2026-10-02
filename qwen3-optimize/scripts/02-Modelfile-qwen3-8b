@@ -1,0 +1,32 @@
+# Qwen3 8B 优化配置（CPU 推理 · 编程助手场景）
+# 署名：晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 吴赐虹
+# 用法：ollama create qwen3:8b-opt -f 02-Modelfile-qwen3-8b
+#       ollama run qwen3:8b-opt
+
+FROM qwen3:8b
+
+# ─── 上下文长度 ───
+# Qwen3 原生支持 40960，CPU 下 8192 是务实选择
+# 如果内存紧张（<16GB 可用），设为 4096
+PARAMETER num_ctx 8192
+
+# ─── 线程数 ───
+# i5-12400 是 6C/12T，设 0 让 Ollama 自动检测（通常取 6~8）
+# 也可手动设为 10 以利用超线程
+PARAMETER num_thread 0
+
+# ─── GPU 配置 ───
+# 核显 UHD 730 不可用，纯 CPU 推理；未来加装独显后改为 1
+PARAMETER num_gpu 0
+
+# ─── 采样参数 ───
+# 编程/结构化输出用低温度更稳；闲聊可调回 0.6
+PARAMETER temperature 0.3
+PARAMETER top_p 0.9
+PARAMETER repeat_penalty 1.1
+
+SYSTEM """你是一个专业的中文编程助手。回答要求：
+1. 简洁准确，先给结论再给解释。
+2. 代码必须完整可运行，用 Markdown 代码块并标注语言。
+3. 不确定的 API 或版本号要明确说明"不确定"，禁止编造。
+4. 涉及企业数据时遵守最小化原则，不主动索取敏感信息。"""

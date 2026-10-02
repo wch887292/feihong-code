@@ -1,0 +1,33 @@
+# qwen2.5-coder:1.5b 代码补全特化 Modelfile
+# 目标：代码补全/生成场景，低延迟、高确定性
+
+FROM qwen2.5-coder:1.5b
+
+# 线程数：1.5B 模型对线程不敏感，用默认即可
+# i5-12400 上 6 线程足够，过多线程反而增加同步开销
+PARAMETER num_thread 6
+
+# 上下文：代码场景需要足够上下文容纳 import + 函数签名
+PARAMETER num_ctx 4096
+
+# num_predict 限制 256：代码补全不需要长篇大论
+# 256 token 足够补全一个函数体，同时控制延迟
+# 注意：此参数在 Modelfile 中不可直接设置，需在 API 调用时传 options
+# 此处作为文档说明，实际调用时用：
+#   curl -X POST http://127.0.0.1:11434/api/generate \
+#     -d '{"model":"qwen2.5-coder:1.5b","prompt":"...","options":{"num_predict":256}}'
+
+# 低温度：代码生成需要确定性，0.2 是代码场景的甜点
+PARAMETER temperature 0.2
+
+# 低 top_k：代码词汇表有限，限制候选范围提升准确率
+PARAMETER top_k 15
+
+# top_p 0.85：代码场景可适当放宽以保留多样性
+PARAMETER top_p 0.85
+
+# 停止序列：代码补全常用停止标记
+# \n\n## 表示函数/类之间分隔，遇到即停
+# \n``` 表示 Markdown 代码块结束
+PARAMETER stop "\n\n##"
+PARAMETER stop "```"

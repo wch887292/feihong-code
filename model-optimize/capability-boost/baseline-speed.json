@@ -1,0 +1,142 @@
+{
+  "qwen3:8b": {
+    "short_r1": {
+      "wallMs": 41979,
+      "loadSec": 4.61,
+      "promptTokens": 17,
+      "promptEvalSec": 0.51,
+      "genTokens": 256,
+      "genSec": 36.82,
+      "tokPerSec": 6.95,
+      "ttftApproxSec": 5.12,
+      "sample": ""
+    },
+    "short_r2": {
+      "wallMs": 36322,
+      "loadSec": 0.01,
+      "promptTokens": 17,
+      "promptEvalSec": 0.14,
+      "genTokens": 256,
+      "genSec": 36.16,
+      "tokPerSec": 7.08,
+      "ttftApproxSec": 0.15,
+      "sample": ""
+    },
+    "long_r2": {
+      "wallMs": 71642,
+      "loadSec": 0.01,
+      "promptTokens": 1018,
+      "promptEvalSec": 30.16,
+      "genTokens": 256,
+      "genSec": 41.45,
+      "tokPerSec": 6.18,
+      "ttftApproxSec": 30.17,
+      "sample": ""
+    }
+  },
+  "qwen2.5-coder:1.5b": {
+    "short_r1": {
+      "wallMs": 3146,
+      "loadSec": 2.42,
+      "promptTokens": 36,
+      "promptEvalSec": 0.18,
+      "genTokens": 20,
+      "genSec": 0.54,
+      "tokPerSec": 37.29,
+      "ttftApproxSec": 2.6,
+      "sample": "复利是指在投资过程中，本金和利息会继续累积，从而产生更大的收益。"
+    },
+    "short_r2": {
+      "wallMs": 700,
+      "loadSec": 0,
+      "promptTokens": 36,
+      "promptEvalSec": 0.03,
+      "genTokens": 24,
+      "genSec": 0.66,
+      "tokPerSec": 36.22,
+      "ttftApproxSec": 0.03,
+      "sample": "复利是指在计算利息时，利息可以被计算为本金的倍数，从而产生更多的利息。"
+    },
+    "long_r2": {
+      "wallMs": 14087,
+      "loadSec": 0,
+      "promptTokens": 1037,
+      "promptEvalSec": 5.43,
+      "genTokens": 256,
+      "genSec": 8.64,
+      "tokPerSec": 29.64,
+      "ttftApproxSec": 5.44,
+      "sample": "企业数字化转型是一个复杂的过程，需要从多个维度协同推进，以实现业务的数字化、智能化和可持续发展。以下是一些关键步骤和建议，可以帮助企业成功进行数字化转型：\n\n#"
+    }
+  },
+  "guozhennianhua/qwen3.5-4b-kimi-k3": {
+    "short_r1": {
+      "wallMs": 28962,
+      "loadSec": 4.99,
+      "promptTokens": 45,
+      "promptEvalSec": 0.84,
+      "genTokens": 256,
+      "genSec": 23.11,
+      "tokPerSec": 11.08,
+      "ttftApproxSec": 5.84,
+      "sample": ""
+    },
+    "short_r2": {
+      "wallMs": 22992,
+      "loadSec": 0.01,
+      "promptTokens": 45,
+      "promptEvalSec": 0.12,
+      "genTokens": 256,
+      "genSec": 22.83,
+      "tokPerSec": 11.21,
+      "ttftApproxSec": 0.13,
+      "sample": ""
+    },
+    "long_r2": {
+      "wallMs": 40162,
+      "loadSec": 0,
+      "promptTokens": 920,
+      "promptEvalSec": 16.3,
+      "genTokens": 256,
+      "genSec": 23.81,
+      "tokPerSec": 10.75,
+      "ttftApproxSec": 16.3,
+      "sample": ""
+    }
+  },
+  "qwen3-vl:4b": {
+    "short_r1": {
+      "wallMs": 25941,
+      "loadSec": 5.92,
+      "promptTokens": 17,
+      "promptEvalSec": 0.28,
+      "genTokens": 256,
+      "genSec": 19.73,
+      "tokPerSec": 12.98,
+      "ttftApproxSec": 6.2,
+      "sample": ""
+    },
+    "short_r2": {
+      "wallMs": 19776,
+      "loadSec": 0.01,
+      "promptTokens": 17,
+      "promptEvalSec": 0.09,
+      "genTokens": 256,
+      "genSec": 19.65,
+      "tokPerSec": 13.03,
+      "ttftApproxSec": 0.1,
+      "sample": ""
+    },
+    "long_r2": {
+      "wallMs": 43770,
+      "loadSec": 0.01,
+      "promptTokens": 1018,
+      "promptEvalSec": 17.77,
+      "genTokens": 256,
+      "genSec": 25.97,
+      "tokPerSec": 9.86,
+      "ttftApproxSec": 17.77,
+      "sample": ""
+    }
+  }
+}
