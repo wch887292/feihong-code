@@ -51,6 +51,10 @@ License: Apache-2.0
     "防篡改审计哈希链",
     "多租户物理隔离",
     "配额成本熔断",
+    "Agent 自我认知（运行时工具自省注入，v8.6.0 P1）",
+    "透明记忆（可读/可编辑/可导出+脱敏，v8.6.0 P2）",
+    "Routines 调度（cron/事件/补偿/互斥/退避，v8.6.0 P3）",
+    "三级规则引擎+审批收件箱（硬红线四类不可覆盖，v8.6.0 P4）",
     "自我进化与自愈循环",
     "上下文智能压缩",
     "多子代理并行 (git worktree)",
@@ -85,6 +89,17 @@ License: Apache-2.0
 
 > **终端 AI 编程智能体** · 对标 Meta Muse Code / Claude Code / Cursor CLI · 自研内核实现差异化 · 全功能 M0→M9.1 完成 · 企业级 RBAC/审计/SWE Agent
 > 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
+
+## 🆕 v8.6.0「Always-on 飞虹 dots」（2026-10-02）
+
+借鉴 OpenAI dots 范式完成四期升级，主打全天候 Agent 三块基石：知道自己能干什么、记住发生过什么、按计划自主干活且不越权。
+
+- **P1 Agent 自我认知**：启动时把运行时工具注册表（21 工具）自省注入系统提示词，代码为单一事实源，来源损坏自动回退不阻断；`scripts/gen-tool-schema.ts` 可随时重新生成 schema。
+- **P2 透明记忆**：Agent 记忆可读/可编辑/可导出（JSON/Markdown round-trip），导出默认脱敏，存储层 userId+id 双条件防越权——对比同类产品记忆封闭不可带走。
+- **P3 Routines 调度**：五字段 cron（宏/步进/区间）+ 事件触发 + 错过窗口补偿恰好一次 + 运行中互斥/全局并发上限 + 指数退避重试，任务定义与状态原子写持久化。
+- **P4 三级规则引擎 + 审批收件箱**：allow/ask/deny 三级判定（红线>精确>通配>fail-safe ask）；**硬红线四类任何规则不可放行**（改密码/转账/永久删除/外发）；审批闭环 submit→pending→approved/rejected/expired，裁决幂等、TTL 过期、事件入审计哈希链、落盘脱敏。
+
+**质量终态**：单测 **354/354**；verify 链十项 **165 项**端到端全绿（m4 41 + m6 29 + m7 12 + m8 27 + m9 25 + routines 18 + policy 13）。详见 [CHANGELOG](./CHANGELOG.md) 与 [产品说明书](./docs/产品说明书-v8.6.0.md)。
 
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](./LICENSE)
 [![Node.js >= 22.5.0](https://img.shields.io/badge/node-%3E%3D22.5-brightgreen.svg)](https://nodejs.org)
@@ -222,6 +237,7 @@ export FH_ROLE=developer
 | **M8** | CodeWriter 六步闭环、QualityGate 质量门禁、SelfImprover 自我改进 | ✅ 完成 |
 | **M9** | 全自动软件工程 Agent（swe 命令） | ✅ 完成 |
 | **M9.1** | 真实模型接入（三级 provider 解析）、exec 纪律强化 | ✅ 完成 |
+| **v8.6.0 P1-P4** | Always-on 飞虹 dots：自我认知/透明记忆/Routines/规则引擎+审批 | ✅ 完成 |
 
 ### 🌟 技术亮点
 - **核心依赖轻量**：核心运行时仅依赖 `express` + `zod`，无框架包袱（另含 monaco-editor / playwright-core 等增强依赖）
@@ -551,8 +567,9 @@ npm install
 npm run build      # tsc 编译到 dist/
 npm run dev        # tsx 直接跑源码（免构建）
 npm run typecheck  # 仅类型检查
+npm test           # 全量单元测试（354 项）
 npm run verify:m4  # M4 企业能力断言套件（41 项，全离线）
-npm run verify     # typecheck + build + M4 断言，一条命令过全链路
+npm run verify     # 十项链：typecheck + check:version + build + m4/m6/m7/m8/m9 + routines(18) + policy(13)
 node dist/cli/index.js --version
 ```
 
@@ -611,7 +628,8 @@ node dist/cli/index.js --version
 - [tool-schema.json](./tool-schema.json) — 所有工具的 JSON Schema 定义
 - [GEO-AAO-STRATEGY.md](./GEO-AAO-STRATEGY.md) — 生成式引擎优化与 Agent 优化策略
 
-> **权威文档（稳定版首选）**
+> **稳定版首选**
+- [产品说明书 v8.6.0](./docs/产品说明书-v8.6.0.md) — **超详细一站式**：安装→部署→授权激活→功能使用→v8.6.0 新功能→FAQ
 - [技术说明书](./docs/技术说明书.md) — 架构、企业能力技术细节、数据契约、CLI/Web API、部署架构、安全模型、构建验证
 - [使用说明书](./docs/使用说明书.md) — 安装、快速上手、命令总览、核心工作流、企业版/Web 控制台使用、配置、排错
 
