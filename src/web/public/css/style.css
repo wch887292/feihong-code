@@ -1921,6 +1921,9 @@ pre, code, .code-block, .code-block * {
   display: flex; align-items: center; justify-content: center;
   box-shadow: 0 8px 24px rgba(78,91,255,0.35);
 }
+.doubao-hero img.hero-logo {
+  background: #fff; object-fit: contain;
+}
 .doubao-hero .hero-title { font-size: 22px; font-weight: 700; color: var(--ink); margin-top: 4px; }
 .doubao-hero .hero-sub { font-size: 13px; color: var(--muted); }
 .doubao-chips {
@@ -1943,6 +1946,7 @@ pre, code, .code-block, .code-block * {
 /* ---- 顶栏 / 侧栏豆包化（胶囊导航 + 圆角选中态） ---- */
 .topbar { background: transparent; border-bottom: none; }
 .topbar-brand .logo { background: linear-gradient(135deg, #4e5bff, #7b5bff); border-radius: 9px; }
+.topbar-brand img.logo { background: #fff; object-fit: contain; border-radius: 8px; }
 .topbar-nav-item { border-radius: 999px; padding: 6px 14px; }
 .topbar-nav-item.active { background: var(--brand-soft); color: var(--brand); font-weight: 600; }
 .sidebar-icon { border-radius: 12px; }

@@ -85,6 +85,8 @@ License: Apache-2.0
 > 完整使用见 [docs/使用说明书-v8.0.1.md](docs/使用说明书-v8.0.1.md)；技术细节见 [docs/TECHNICAL-SPECIFICATION.md](docs/TECHNICAL-SPECIFICATION.md)。
 
 
+<img src="docs/assets/feihong-zhi-logo.png" alt="飞虹智" width="96" align="right" />
+
 # 飞虹 Code（fhcode）
 
 > **终端 AI 编程智能体** · 对标 Meta Muse Code / Claude Code / Cursor CLI · 自研内核实现差异化 · 全功能 M0→M9.1 完成 · 企业级 RBAC/审计/SWE Agent
