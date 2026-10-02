@@ -148,3 +148,58 @@ test('TaskQueue: continueTask 边界——未知 id 返回 null，空消息返�
   assert.equal(queue.continueTask(rec.id, '   '), null, '空消息应返回 null');
   assert.ok(!(rec.pendingMessages || []).length, '不应产生待发消息');
 });
+
+test('TaskQueue: appendStep 归一化——plan/tool.call/tool.result/model.response 进入思维链路', () => {
+  const queue = new TaskQueue({ offline: true });
+  const rec = queue.submit('归一化测试');
+  queue.appendStep(rec.id, { type: 'plan', steps: ['先读文件', '再改代码'] });
+  queue.appendStep(rec.id, { type: 'model.response', content: '我打算先读 main.ts', toolCalls: ['read_file'] });
+  queue.appendStep(rec.id, { type: 'tool.call', name: 'read_file', args: { path: 'src/main.ts' } });
+  queue.appendStep(rec.id, { type: 'tool.result', name: 'read_file', ok: true, output: '文件内容很长……'.repeat(20) });
+  const steps = queue.get(rec.id)!.steps!;
+  assert.equal(steps.length, 4, '四类事件都应进入 steps');
+  assert.equal(steps[0].type, 'plan');
+  assert.deepEqual(steps[0].data.steps, ['先读文件', '再改代码']);
+  assert.equal(steps[1].type, 'model.response');
+  assert.equal(steps[1].data.text, '我打算先读 main.ts');
+  assert.deepEqual(steps[1].data.toolCalls, ['read_file']);
+  assert.equal(steps[2].type, 'tool.call');
+  assert.equal(steps[2].data.name, 'read_file');
+  assert.ok((steps[2].data.argsPreview as string).includes('src/main.ts'));
+  assert.equal(steps[3].type, 'tool.result');
+  assert.equal(steps[3].data.ok, true);
+  assert.ok((steps[3].data.outputPreview as string).length <= 200, '结果预览应被截断到 200 字符');
+});
+
+test('TaskQueue: appendStep 过滤——无思考的纯工具调用与无关事件不进入思维链路', () => {
+  const queue = new TaskQueue({ offline: true });
+  const rec = queue.submit('过滤测试');
+  queue.appendStep(rec.id, { type: 'model.response', content: '', toolCalls: [] }); // 无思考无工具 → 跳过
+  queue.appendStep(rec.id, { type: 'session.start', goal: 'x' }); // 无关事件
+  queue.appendStep(rec.id, { type: 'rag.context', keywords: 'x' }); // 无关事件
+  const steps = queue.get(rec.id)!.steps ?? [];
+  assert.equal(steps.length, 0, '无展示价值的事件不应进入 steps');
+});
+
+test('TaskQueue: appendStep 提炼 <think> 思考块（剥离思考标签，只留推理文本）', () => {
+  const queue = new TaskQueue({ offline: true });
+  const rec = queue.submit('think 测试');
+  queue.appendStep(rec.id, {
+    type: 'model.response',
+    content: '<think>用户想要一个登录页，我需要先确认路由</think>然后调用 write_file',
+    toolCalls: [],
+  });
+  const steps = queue.get(rec.id)!.steps!;
+  assert.equal(steps.length, 1);
+  assert.equal(steps[0].data.text, '用户想要一个登录页，我需要先确认路由', '应只提炼 <think> 内文本');
+});
+
+test('TaskQueue: appendStep 纯工具调用（有 toolCalls 无文本）仍入链，展示「准备调用」', () => {
+  const queue = new TaskQueue({ offline: true });
+  const rec = queue.submit('工具调用测试');
+  queue.appendStep(rec.id, { type: 'model.response', content: '', toolCalls: ['write_file'] });
+  const steps = queue.get(rec.id)!.steps!;
+  assert.equal(steps.length, 1, '有工具调用名时应入链');
+  assert.equal(steps[0].data.text, '');
+  assert.deepEqual(steps[0].data.toolCalls, ['write_file']);
+});

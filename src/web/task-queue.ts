@@ -367,20 +367,26 @@ export class TaskQueue {
     return true;
   }
 
-  /** 追加思维链路步骤（编排器事件），只存模型思考内容，过滤工具调用等技术细节 */
+  /**
+   * 追加思维链路步骤（编排器实时事件）。
+   * 只保留「对人类有意义的思考/动作」事件，并归一化为简洁载荷（不存原始大体积 data）：
+   *  - plan          : 执行计划（步骤列表）
+   *  - model.response: 模型思考文本（提炼 <think> 或自然语言推理，剥离工具调用噪音）+ 本次调用的工具名
+   *  - tool.call     : 调用的工具名 + 参数预览（截断）
+   *  - tool.result   : 工具成功/失败 + 结果预览（截断）
+   *  - self-heal     : 自愈类别/策略
+   *  - context.compact: 上下文压缩提示
+   * 归一化后为空（如纯工具调用且无思考文本）则跳过，避免无意义的存储与渲染。
+   */
   appendStep(id: string, ev: { type: string; [k: string]: unknown }): void {
     const record = this.tasks.get(id);
     if (!record) return;
-    // 只保留模型思考内容，工具调用/结果/上下文压缩等内部细节不存储
-    if (ev.type !== 'model.response' && ev.type !== 'self-heal') return;
-    if (ev.type === 'model.response') {
-      const content = (ev as { content?: string }).content;
-      if (!content || !content.trim()) return; // 纯工具调用没有思考文本，跳过
-    }
+    const normalized = normalizeThinkingStep(ev);
+    if (!normalized) return;
     if (!record.steps) record.steps = [];
     // 上限保护，避免超长任务撑爆存储（原来200条太少，长任务思考过程被截断）
     if (record.steps.length >= 500) record.steps.shift();
-    record.steps.push({ seq: record.steps.length, ts: new Date().toISOString(), type: ev.type, data: ev });
+    record.steps.push({ seq: record.steps.length, ts: new Date().toISOString(), type: normalized.type, data: normalized.data });
     // 节流落盘：首步与每 5 步持久化一次（终态时 run() 会再落盘一次完整记录）
     if (record.steps.length === 1 || record.steps.length % 5 === 0) this.persist(record);
   }
@@ -583,4 +589,82 @@ export function publicTask(r: TaskRecord, withSteps = false): TaskRecord {
     conversation?: Array<{ role: string; content: string }>;
   };
   return rest;
+}
+
+/**
+ * 从模型回复文本中提炼「思考内容」：
+ *  - 优先提取推理模型 <think>…</think> 思考块（DeepSeek-R1 / Qwen 思考模式等）
+ *  - 否则剥离 dots 文本工具调用块，保留自然语言推理
+ *  - 若剩余内容几乎就是一段 JSON 工具调用（无自然语言），视为无思考文本
+ * 返回空串表示「此轮没有可展示的思考文本」（如纯工具调用）。
+ */
+function extractThinking(content?: unknown): string {
+  if (typeof content !== 'string') return '';
+  let text = content;
+  const thinkMatch = text.match(/<think>([\s\S]*?)<\/think>/i);
+  if (thinkMatch) {
+    const inner = thinkMatch[1].trim();
+    if (inner) return inner.slice(0, 1500);
+  }
+  // 剥离 dots 文本工具调用块（非思考内容）
+  text = text.replace(/<dots_function_call>[\s\S]*?<\/dots_function_call>/gi, '').trim();
+  if (!text) return '';
+  // 纯 JSON 工具调用（以 { 开头且含 "name"/"arguments"）→ 无自然语言思考
+  const looksLikeToolCall =
+    /^\{[\s\S]*"name"\s*:/.test(text) || /^\{[\s\S]*"arguments"\s*:/.test(text);
+  if (looksLikeToolCall) return '';
+  return text.slice(0, 1500);
+}
+
+/** 将任意参数对象转为截断预览字符串（避免大体积参数撑爆存储） */
+function previewJson(v: unknown): string {
+  try {
+    const s = typeof v === 'string' ? v : JSON.stringify(v);
+    return s.length > 200 ? s.slice(0, 200) + '…' : s;
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * 把编排器事件归一化为「简洁思考步骤」载荷；返回 null 表示该事件不应进入思维链路。
+ * 核心目的：对话流里展示的是「人能读懂的简洁思考」，而非工具调用 JSON / 原始大块输出。
+ */
+function normalizeThinkingStep(ev: { type: string; [k: string]: unknown }): { type: string; data: Record<string, unknown> } | null {
+  switch (ev.type) {
+    case 'plan': {
+      const steps = Array.isArray(ev.steps) ? (ev.steps as unknown[]).map((s) => String(s)).slice(0, 12) : [];
+      if (steps.length === 0) return null;
+      return { type: 'plan', data: { steps } };
+    }
+    case 'model.response': {
+      const text = extractThinking(ev.content).slice(0, 1500);
+      const toolCalls = Array.isArray(ev.toolCalls) ? (ev.toolCalls as unknown[]).map((s) => String(s)) : [];
+      // 既无思考文本又无工具调用 → 无展示价值
+      if (!text && toolCalls.length === 0) return null;
+      return { type: 'model.response', data: { text, toolCalls } };
+    }
+    case 'tool.call': {
+      const name = typeof ev.name === 'string' ? ev.name : 'unknown';
+      return { type: 'tool.call', data: { name, argsPreview: previewJson(ev.args) } };
+    }
+    case 'tool.result': {
+      const name = typeof ev.name === 'string' ? ev.name : 'unknown';
+      const ok = ev.ok !== false;
+      const outputPreview = typeof ev.output === 'string' ? ev.output.slice(0, 200) : '';
+      return { type: 'tool.result', data: { name, ok, outputPreview } };
+    }
+    case 'self-heal': {
+      const category = typeof ev.category === 'string' ? ev.category : 'unknown';
+      const strategy = typeof ev.strategy === 'string' ? ev.strategy : '';
+      return { type: 'self-heal', data: { category, strategy } };
+    }
+    case 'context.compact': {
+      const compressedLength = typeof ev.compressedLength === 'number' ? ev.compressedLength : 0;
+      return { type: 'context.compact', data: { compressedLength } };
+    }
+    default:
+      // 其余事件（session.start/rag.context/error/experience.extracted 等）不进入简洁思考流
+      return null;
+  }
 }

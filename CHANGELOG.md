@@ -1,4 +1,13 @@
 ﻿# 飞虹 Code 更新日志 / Changelog
+## v8.6.2 · 对话流增加简洁文本思考内容（2026-10-02）
+
+**主题**：把编排器的"思维链路"以简洁、可读、可折叠的形式呈现到 Web 控制台对话流，让用户直观看到模型在想什么、做了什么。
+
+- **后端思维链路归一化**（`src/web/task-queue.ts`）：`appendStep()` 重写，只保留对人类有意义的事件并归一化为简洁载荷——`plan`(执行计划) / `model.response`(提炼 `<think>` 思考块与自然语言推理，剥离工具调用 JSON 噪音) / `tool.call`(工具名+参数预览截断) / `tool.result`(成功/失败+结果预览截断) / `self-heal` / `context.compact`；其余事件（session.start/rag.context/error 等）不再进对话流。新增 `extractThinking()` / `normalizeThinkingStep()` 两个纯函数。
+- **编排器补发计划事件**（`src/agent/orchestrator.ts`）：`plan` 步骤通过 `onEvent` 通道同步到 Web 控制台（此前只落盘），并扩展 `OrchestratorEvent` 联合类型。
+- **前端对话流时间线**（`public/js/ui.js`）：新增 `renderThinkingTimeline()`，复用已有 `.thinking-*` 样式，按"model.response 分轮"渲染——📋 执行计划（折叠）+ 💭 思考 N（每轮推理，折叠，展开可见思考文本与本轮 🔧 工具调用/✅ 结果，参数可"查看参数"展开）+ 🛠 自愈 + 🗜 压缩提示。默认折叠仅显示"💭 思考 N — 摘要"，点击展开，符合 Cursor 风格且更简洁。
+- **测试**：`tests/unit/task-queue.test.ts` 新增 4 例（四类事件归一化 / 过滤无关事件 / `<think>` 提炼 / 纯工具调用入链），全量 **361/361 通过**；`typecheck` 零错误；`check:version` 通过。
+
 ## v8.6.1 · 任务执行中可叠加对话（2026-10-02）
 
 **主题**：修复"任务执行中无法继续对话"——同一任务生命周期内随时叠加消息，不新建任务。

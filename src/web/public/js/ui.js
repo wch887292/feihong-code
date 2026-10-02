@@ -1140,23 +1140,10 @@
         html += '<div class="msg sys">消息已排队，当前任务完成后将自动发送</div>';
       }
 
-      // 2. 从 steps 提取思考过程（实时更新，这是关键）
-      const thinkingTexts = [];
-      for (const s of steps) {
-        if (s.type === 'model.response' && s.data && s.data.content && s.data.content.trim()) {
-          thinkingTexts.push(s.data.content.trim());
-        } else if (s.type === 'self-heal') {
-          thinkingTexts.push('刚才遇到点小问题，我调整一下思路再试试。');
-        }
-      }
-      if (thinkingTexts.length > 0) {
-        html += '<div class="msg assistant">'
-          + renderMsgActions()
-          + '<div style="white-space:pre-wrap;word-break:break-word;line-height:1.7;">' + renderPlainText(thinkingTexts.join('\n\n')) + '</div>'
-          + '</div>';
-      }
+      // 2+3. 思维链路时间线：执行计划 + 分轮「思考 → 工具调用 → 结果」，简洁结构化展示
+      html += renderThinkingTimeline(steps);
 
-      // 3. 如果 conversation 中有完整的 assistant 文本回复（任务完成后），也显示出来
+      // 3. 对话历史中的最终文本回复（若与最终答案不同，补展示，避免遗漏）
       if (conv.length > 0) {
         const assistantTexts = [];
         for (const m of conv) {
@@ -1164,11 +1151,9 @@
             assistantTexts.push(m.content.trim());
           }
         }
-        // 避免和 steps 重复：只显示 steps 中没有的最终回复
         if (assistantTexts.length > 0) {
           const lastAssistantText = assistantTexts[assistantTexts.length - 1];
-          const alreadyInSteps = thinkingTexts.some(t => t === lastAssistantText || lastAssistantText.includes(t) || t.includes(lastAssistantText));
-          if (!alreadyInSteps && lastAssistantText !== finalAnswer) {
+          if (lastAssistantText !== finalAnswer) {
             html += '<div class="msg assistant">'
               + renderMsgActions()
               + '<div style="white-space:pre-wrap;word-break:break-word;line-height:1.7;">' + renderPlainText(lastAssistantText) + '</div>'
@@ -1241,6 +1226,114 @@
         + renderMsgActions()
         + '<div style="white-space:pre-wrap;word-break:break-word;line-height:1.7;">' + renderPlainText(textContent) + '</div>'
         + '</div>';
+    }
+
+    // 取文本首行（非空），用于思考面板的简洁摘要
+    function firstLine(text) {
+      const lines = String(text).split('\n');
+      for (const l of lines) { const t = l.trim(); if (t) return t; }
+      return String(text).slice(0, 60);
+    }
+    // 截断到 n 个字符并加省略号
+    function truncate(text, n) {
+      const s = String(text == null ? '' : text);
+      return s.length > n ? s.slice(0, n) + '…' : s;
+    }
+
+    /**
+     * 把编排器思维链路步骤渲染为「简洁思考时间线」：
+     *  - 📋 执行计划（一次性，折叠）
+     *  - 💭 思考 N（每轮模型推理，折叠；展开后可见自然语言思考 + 本轮工具调用/结果）
+     * 模型回复中的 <think> 思考块、自然语言推理被提炼为简洁文本；工具调用/结果以紧凑步骤呈现，
+     * 不再把原始大段输出或工具 JSON 直接塞进对话流。
+     * 默认折叠（仅显示「💭 思考 N — 摘要」），点击标题展开，符合 Cursor 风格且更简洁。
+     */
+    function renderThinkingTimeline(steps) {
+      if (!Array.isArray(steps) || steps.length === 0) return '';
+      let html = '';
+
+      // 1) 执行计划（出现在首轮思考之前，单独成块，默认折叠）
+      const planStep = steps.find(function (s) { return s && s.type === 'plan'; });
+      if (planStep && planStep.data && Array.isArray(planStep.data.steps) && planStep.data.steps.length) {
+        let planInner = '';
+        planStep.data.steps.forEach(function (st) {
+          planInner += '<div class="thinking-step"><span class="thinking-step-icon">📌</span><span class="thinking-step-text">' + escapeHtml(String(st)) + '</span></div>';
+        });
+        html += '<div class="msg assistant thinking-msg">'
+          + '<div class="thinking-header" onclick="toggleThinking(this)">'
+          + '<span class="thinking-arrow">▶</span>'
+          + '<span class="thinking-label">📋 执行计划</span>'
+          + '<span class="thinking-summary">' + planStep.data.steps.length + ' 步</span>'
+          + '</div>'
+          + '<div class="thinking-body" style="display:none;">' + planInner + '</div>'
+          + '</div>';
+      }
+
+      // 2) 按 model.response 分轮：每个 model.response 开启一轮，后续 tool.call/result/self-heal/compact 归属该轮
+      const rounds = [];
+      let cur = null;
+      for (const s of steps) {
+        if (!s || !s.type) continue;
+        if (s.type === 'model.response') {
+          cur = { response: s, tools: [] };
+          rounds.push(cur);
+        } else if (s.type === 'tool.call' || s.type === 'tool.result' || s.type === 'self-heal' || s.type === 'context.compact') {
+          if (!cur) { cur = { response: null, tools: [] }; rounds.push(cur); }
+          cur.tools.push(s);
+        }
+      }
+
+      let n = 0;
+      for (const r of rounds) {
+        n++;
+        const rd = (r.response && r.response.data) || {};
+        const text = (typeof rd.text === 'string' && rd.text) ? rd.text : (typeof rd.content === 'string' ? rd.content : '');
+        const toolCalls = Array.isArray(rd.toolCalls) ? rd.toolCalls : [];
+        const summary = text ? firstLine(text) : (toolCalls.length ? '准备调用 ' + toolCalls.join('、') : '处理中…');
+        let body = '';
+        if (text) {
+          body += '<div class="thinking-reply">' + renderPlainText(text) + '</div>';
+        }
+        for (const t of r.tools) {
+          const td = t.data || {};
+          if (t.type === 'tool.call') {
+            const name = td.name || 'unknown';
+            const argsPreview = typeof td.argsPreview === 'string' ? td.argsPreview : '';
+            body += '<div class="thinking-step"><span class="thinking-step-icon">🔧</span>'
+              + '<span class="thinking-step-text">调用 <code>' + escapeHtml(name) + '</code></span>';
+            if (argsPreview) {
+              body += '<span class="thinking-step-detail" onclick="toggleArgs(this)">查看参数</span></div>'
+                + '<div class="thinking-args">' + escapeHtml(argsPreview) + '</div>';
+            } else {
+              body += '</div>';
+            }
+          } else if (t.type === 'tool.result') {
+            const name = td.name || 'unknown';
+            const ok = td.ok !== false;
+            const preview = typeof td.outputPreview === 'string' ? td.outputPreview : '';
+            body += '<div class="thinking-step"><span class="thinking-step-icon">' + (ok ? '✅' : '❌') + '</span>'
+              + '<span class="thinking-step-text">' + escapeHtml(name) + (ok ? ' 完成' : ' 失败')
+              + (preview ? '：' + escapeHtml(truncate(preview, 80)) : '') + '</span></div>';
+          } else if (t.type === 'self-heal') {
+            const cat = td.category || 'unknown';
+            body += '<div class="thinking-step"><span class="thinking-step-icon">🛠</span>'
+              + '<span class="thinking-step-text">自愈：' + escapeHtml(cat) + (td.strategy ? '（' + escapeHtml(td.strategy) + '）' : '') + '</span></div>';
+          } else if (t.type === 'context.compact') {
+            body += '<div class="thinking-step"><span class="thinking-step-icon">🗜</span>'
+              + '<span class="thinking-step-text">上下文已压缩，继续推进</span></div>';
+          }
+        }
+        html += '<div class="msg assistant thinking-msg">'
+          + renderMsgActions()
+          + '<div class="thinking-header" onclick="toggleThinking(this)">'
+          + '<span class="thinking-arrow">▶</span>'
+          + '<span class="thinking-label">💭 思考 ' + n + '</span>'
+          + '<span class="thinking-summary">' + escapeHtml(truncate(summary, 60)) + '</span>'
+          + '</div>'
+          + '<div class="thinking-body" style="display:none;">' + body + '</div>'
+          + '</div>';
+      }
+      return html;
     }
 
     function toggleArgs(el) {

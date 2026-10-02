@@ -76,6 +76,7 @@ export type OrchestratorEvent =
   | { type: 'self-heal'; category: string; iteration: number; strategy?: 'bypass-and-continue' | 'reflect-retry' | 'loop-break' }
   | { type: 'context.compact'; originalLength: number; compressedLength: number }
   | { type: 'steer'; message: string }
+  | { type: 'plan'; steps: string[] }
   | { type: 'session.end'; iterations: number; costUsd: number; ok: boolean };
 
 export interface OrchestratorDeps {
@@ -240,6 +241,8 @@ export class Orchestrator {
       session.append(messages[0]);
       session.append(messages[1]);
       await eventLog.append('plan', { steps: plan.steps });
+      // P10：把执行计划同步到 Web 控制台思维链路（onEvent 通道），让对话流展示「📋 执行计划」
+      this.deps.onEvent?.({ type: 'plan', steps: plan.steps });
       await eventLog.append('session.start', { goal, cwd });
     }
 

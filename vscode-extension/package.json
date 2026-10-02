@@ -2,7 +2,7 @@
   "name": "feihong-code",
   "displayName": "飞虹 Code",
   "description": "飞虹 Code AI 编程助手 - 对话、代码生成、任务派发",
-  "version": "8.6.1",
+  "version": "8.6.2",
   "publisher": "feihong",
   "engines": {
     "vscode": "^1.80.0"
