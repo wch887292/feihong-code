@@ -126,7 +126,7 @@ class FeihongChatViewProvider {
 
   _clientFromConfig() {
     const cfg = vscode.workspace.getConfiguration('feihong-code');
-    const serverUrl = cfg.get('serverUrl', 'http://127.0.0.1:8082');
+    const serverUrl = cfg.get('serverUrl', 'http://127.0.0.1:8080');
     if (!this._client || this._client.serverUrl !== serverUrl.replace(/\/+$/, '')) {
       this._client = new FhApiClient(serverUrl);
     }
@@ -400,7 +400,7 @@ class FeihongChatViewProvider {
       this._view?.webview.postMessage({
         type: 'error',
         text: (e && e.message ? e.message : String(e)) +
-          '\n\n排查提示：\n1. 确认飞虹 Code 后端已启动（一键启动Web控制台.bat，默认 http://127.0.0.1:8082）\n2. 确认设置中 feihong-code.serverUrl 与实际端口一致\n3. 若服务端重启，任务队列会清空，请点「清空」重新发起',
+          '\n\n排查提示：\n1. 确认飞虹 Code 后端已启动（一键启动Web控制台.bat，默认 http://127.0.0.1:8080）\n2. 确认设置中 feihong-code.serverUrl 与实际端口一致\n3. 若服务端重启，任务队列会清空，请点「清空」重新发起',
       });
     } finally {
       this._busy = false;

@@ -70,7 +70,7 @@ mcp-bridge.js  ──(TCP 127.0.0.1:9599, NDJSON)──►  VS Code 扩展内 mc
 
 ## 安装
 
-1. 启动飞虹 Code 后端：项目根目录运行 `一键启动Web控制台.bat`（或 `node start-web.js --port=8082`）
+1. 启动飞虹 Code 后端：项目根目录运行 `一键启动Web控制台.bat`（或 `node start-web.js --port=8080`）
 2. IDE → 扩展 → `···` → 从 VSIX 安装 → 选择 `feihong-code-8.5.0.vsix`
    （或命令行：`code --install-extension feihong-code-8.5.0.vsix`）
 3. 点击左侧活动栏「飞虹 Code」图标，在设置中填好手机号后即可对话
@@ -81,7 +81,7 @@ IDE 设置中搜索 `feihong-code`：
 
 | 配置项 | 默认值 | 说明 |
 |---|---|---|
-| `feihong-code.serverUrl` | `http://127.0.0.1:8082` | 后端服务地址（云端可填 `https://api.klai.top/fhrelay` 等） |
+| `feihong-code.serverUrl` | `http://127.0.0.1:8080` | 后端服务地址（云端可填 `https://api.klai.top/fhrelay` 等） |
 | `feihong-code.phone` | 空 | 登录手机号（6-20 位数字，本地服务免验证码；首次发消息时也会弹窗询问） |
 | `feihong-code.token` | 空 | 访问令牌（高级：配置后跳过手机号登录） |
 
@@ -99,7 +99,7 @@ POST /api/tasks/:id/stop                        → 中止任务（需 F2 签名
 
 ## 排障
 
-- **连接失败**：确认后端已启动、`serverUrl` 端口与实际一致（curl `http://127.0.0.1:8082/api/health`）
+- **连接失败**：确认后端已启动、`serverUrl` 端口与实际一致（curl `http://127.0.0.1:8080/api/health`）
 - **401 缺少签名**：扩展版本过旧，重新安装本 vsix
 - **409 运行中**：上一任务未结束，等待完成或点「停止」
 - **任务不存在**：服务端重启会清空任务队列，点「清空(新任务)」重新发起

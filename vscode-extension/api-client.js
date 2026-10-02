@@ -2,7 +2,7 @@
  * 飞虹 Code VS Code 扩展 · API 客户端
  * 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
  *
- * 对接 fhcode Web 服务（默认 http://127.0.0.1:8082）真实链路：
+ * 对接 fhcode Web 服务（默认 http://127.0.0.1:8080）真实链路：
  *  - 登录（免签）：POST /api/auth/login {phone} → { token }（手机号须 6-20 位数字）
  *  - 任务：POST /api/tasks（建任务）/ GET /api/tasks/:id（轮询，读请求免签）
  *          POST /api/tasks/:id/messages（多轮续接）/ POST /api/tasks/:id/stop（停止）
@@ -17,7 +17,7 @@ const { URL } = require('url');
 
 class FhApiClient {
   constructor(serverUrl, token = '') {
-    this.serverUrl = (serverUrl || 'http://127.0.0.1:8082').replace(/\/+$/, '');
+    this.serverUrl = (serverUrl || 'http://127.0.0.1:8080').replace(/\/+$/, '');
     this.token = token;
   }
 

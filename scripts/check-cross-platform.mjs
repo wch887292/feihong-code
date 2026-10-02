@@ -106,7 +106,7 @@ if (has(elMain)) {
     errors.push(`D7 electron/main.js 语法错误: ${String(e.stderr || e.message).slice(0, 200)}`);
   }
   const mainSrc = read(elMain);
-  check(/dist['"`]\s*,\s*['"`]cli['"`]\s*,\s*['"`]index\.js|dist\/cli\/index\.js|'dist', 'cli', 'index\.js'/.test(mainSrc),
+  check(/dist[\\/'"]cli[\\/'"]|dist\/cli\/|['"]dist['"]\s*,\s*['"]cli['"]/.test(mainSrc),
     'D8 Electron 引用核心引擎 dist/cli/index.js',
     'D8 electron/main.js 未引用 dist/cli/index.js —— 桌面端可能启动的不是共享内核');
 } else {
@@ -126,7 +126,7 @@ if (extPkg) {
 
   // E10 默认端口一致性：扩展默认 8080 == server.ts 默认 8080
   const apiClient = read(`${extDir}/api-client.js`);
-  const extPort = apiClient.match(/localhost:(\d+)/);
+  const extPort = apiClient.match(/(?:localhost|127\.0\.0\.1):(\d+)/);
   const serverTs = read('src/web/server.ts');
   const srvPort = serverTs.match(/FH_WEB_PORT\s*\?\?\s*(\d+)/);
   check(extPort && srvPort && extPort[1] === srvPort[1],

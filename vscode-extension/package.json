@@ -78,7 +78,7 @@
       "properties": {
         "feihong-code.serverUrl": {
           "type": "string",
-          "default": "http://127.0.0.1:8082",
+          "default": "http://127.0.0.1:8080",
           "description": "飞虹 Code 后端服务地址"
         },
         "feihong-code.phone": {
