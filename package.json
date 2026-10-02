@@ -118,7 +118,7 @@
     "monaco-editor": "^0.56.0",
     "playwright-core": "^1.62.1",
     "ws": "^8.22.0",
-    "zod": "^4.4.3"
+    "zod": "^4.6.5"
   },
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
