@@ -37,7 +37,7 @@
 └──────────────────────────┼──────────────────────────────┘
                            │ HTTPS
 ┌──────────────────────────▼──────────────────────────────┐
-│          腾讯云服务器 111.229.190.132                    │
+│          腾讯云服务器 <SERVER_IP>                    │
 │  ┌───────────────────────────────────────────────────┐  │
 │  │ Nginx 1.28（宝塔面板）                             │  │
 │  │  ├─ /            页面入口    → Basic Auth          │  │
@@ -460,7 +460,7 @@ tsc -p tsconfig.json --outDir dist_tmp      # 编译（dist 被锁时用临时�
 # 同步 dist_tmp → dist（被锁文件跳过）
 # 打包并上传
 tar -czf fhcode-deploy.tar.gz -C deploy_pkg .
-scp fhcode-deploy.tar.gz root@111.229.190.132:/tmp/
+scp fhcode-deploy.tar.gz root@<SERVER_IP>:/tmp/
 # 服务器
 cd /www/dk_project/fhcode && tar -xzf /tmp/fhcode-deploy.tar.gz
 npm install --omit=dev --no-audit --no-fund
@@ -470,8 +470,8 @@ pm2 restart fhcode
 ### 9.3 更新移动版 H5 / APK
 
 ```bash
-scp app-mobile/index.html root@111.229.190.132:/www/dk_project/fhcode-mobile/
-scp fhcode-v1.0.0.apk root@111.229.190.132:/www/dk_project/fhcode-mobile/
+scp app-mobile/index.html root@<SERVER_IP>:/www/dk_project/fhcode-mobile/
+scp fhcode-v1.0.0.apk root@<SERVER_IP>:/www/dk_project/fhcode-mobile/
 ```
 
 ### 9.4 数据备份
