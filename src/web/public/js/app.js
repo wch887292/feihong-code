@@ -884,13 +884,10 @@
           toast('自动新建对话，旧任务保留在历史');
           state.currentTaskId = null;
         }
-        // 已有当前任务 → 多轮续接：消息归属同一任务生命周期
+        // 已有当前任务 → 多轮续接：消息归属同一任务生命周期（执行中发送将排队，本轮结束后自动续跑）
         if (state.currentTaskId) {
           const cur = state.tasks.find((t) => t.id === state.currentTaskId);
-          if (cur && (cur.status === 'queued' || cur.status === 'running')) {
-            toast('当前任务执行中，请等待完成后再继续对话');
-            return;
-          }
+          const executing = !!(cur && (cur.status === 'queued' || cur.status === 'running'));
           const d = await api('/api/tasks/' + state.currentTaskId + '/messages', 'POST', {
             message: goal || '（仅附件）',
             attachments,
@@ -901,7 +898,9 @@
           renderTaskDetail(d.task.id);
           renderTaskThread(d.task);
           await loadTasks();
-          toast(attachments.length ? `已发送（含 ${attachments.length} 个附件），继续当前任务对话` : '已发送，继续当前任务对话');
+          toast(executing
+            ? '消息已加入队列，当前任务完成后将自动发送'
+            : (attachments.length ? `已发送（含 ${attachments.length} 个附件），继续当前任务对话` : '已发送，继续当前任务对话'));
           return;
         }
         const d = await api('/api/tasks', 'POST', {

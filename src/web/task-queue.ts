@@ -70,6 +70,8 @@ export interface TaskRecord {
   conversation?: ChatMessage[];
   /** 附件路径列表（用户在前端暂存区暂存、点发送时统一上传后的文件绝对路径），供执行层读取 */
   attachments?: string[];
+  /** 执行中收到的新消息：本轮结束后自动转正并续跑（任务执行中可继续对话，无需等待） */
+  pendingMessages?: string[];
 }
 
 /**
@@ -273,25 +275,33 @@ export class TaskQueue {
   }
 
   /**
-   * 多轮续接：向已完成/失败的任务追加一条用户消息并重新入队执行。
-   * 仅终态任务（done/failed）可续接；运行中的任务返回 null（由调用方提示）。
-   * 返回更新后的记录（已改为 queued）。
-   * attachments 为本轮新增的附件路径列表（与上一轮合并去重）。
+   * 多轮续接：向任务追加一条用户消息。
+   * - 终态任务（done/failed）：立即重新入队执行（返回更新后的记录，status=queued）。
+   * - 执行中/排队中任务：消息进入 pendingMessages 待发队列（立即落盘），
+   *   本轮结束后由 run() 自动转正并续跑——任务执行中可继续对话，无需等待。
+   * 未知任务返回 null。attachments 为本轮新增的附件路径列表（与已有合并去重）。
    */
   continueTask(id: string, message: string, attachments: string[] = []): TaskRecord | null {
     const record = this.tasks.get(id);
     if (!record) return null;
-    if (record.status === 'queued' || record.status === 'running') return null;
     const text = message.trim();
     if (!text) return null;
-    // 追加用户消息到对话历史（M3 resume 上下文）
-    if (!record.conversation) record.conversation = [];
-    record.conversation.push({ role: 'user', content: text });
     // 合并附件（去重）：新附件追加到已有附件列表，保留顺序
     if (attachments.length) {
       const set = new Set(record.attachments || []);
       for (const a of attachments) if (a && !set.has(a)) { set.add(a); record.attachments?.push(a) || (record.attachments = [a]); }
     }
+    // 执行中/排队中：先挂起，本轮结束后自动转正续跑
+    if (record.status === 'queued' || record.status === 'running') {
+      if (!record.pendingMessages) record.pendingMessages = [];
+      record.pendingMessages.push(text);
+      record.updatedAt = new Date().toISOString();
+      this.persist(record);
+      return record;
+    }
+    // 终态：追加用户消息到对话历史（M3 resume 上下文）并重新入队
+    if (!record.conversation) record.conversation = [];
+    record.conversation.push({ role: 'user', content: text });
     record.status = 'queued';
     record.updatedAt = new Date().toISOString();
     // 保留上一轮 result（供 resume 累计迭代数/成本），终态由 run() 覆盖
@@ -482,6 +492,13 @@ export class TaskQueue {
 
       // 根据模型 ID 查找配置，传递给 executeTask 使用真实模型
       const modelId = record.modelId;
+      // 任务执行/排队期间收到的新消息：启动前合并进对话历史（转正）
+      if (record.pendingMessages && record.pendingMessages.length > 0) {
+        if (!record.conversation) record.conversation = [];
+        for (const m of record.pendingMessages) record.conversation.push({ role: 'user', content: m });
+        record.pendingMessages = [];
+        this.persist(record);
+      }
       // 多轮续接：若已有对话历史，构造 M3 resume 上下文（同一任务内继续对话）
       const history = record.conversation && record.conversation.length > 0 ? record.conversation : undefined;
       const resume = history
@@ -529,10 +546,25 @@ export class TaskQueue {
     } finally {
       this.controllers.delete(id); // 清理中断控制器
       record.updatedAt = new Date().toISOString();
+      this.running--;
+      // 任务执行期间收到的新消息：自动转正并重新入队续跑（无需用户再次操作）
+      if (record.pendingMessages && record.pendingMessages.length > 0) {
+        if (!record.conversation) record.conversation = [];
+        for (const m of record.pendingMessages) record.conversation.push({ role: 'user', content: m });
+        record.pendingMessages = [];
+        record.status = 'queued';
+        record.error = undefined;
+        this.persist(record); // 落盘 queued（续跑）
+        this.queue.push(id);
+        this.pump();
+        void this.fireWebhook(id, 'queued');
+        void this.channels?.notify(record, 'queued');
+        logger.info('task auto-continued with pending messages', { taskId: id, status: 'queued' });
+        return;
+      }
       this.persist(record); // P6-4 落盘终态
       void this.fireWebhook(id, record.status); // done|failed 节点回调
       void this.channels?.notify(record, record.status); // P5-6 消息渠道推送
-      this.running--;
       this.pump();
     }
   }

@@ -532,10 +532,12 @@ export function startWebServer(opts: ServeOptions = {}): {
       : [];
     const record = queue.continueTask(req.params.id, message, attachments);
     if (!record) {
-      res.status(409).json({ ok: false, error: '任务不存在或正在执行中，请等待完成后再继续对话' });
+      res.status(404).json({ ok: false, error: '任务不存在' });
       return;
     }
-    res.status(201).json({ ok: true, task: publicTask(record, true) });
+    // 执行中/排队中发送的消息进入待发队列（本轮结束后自动续跑），messageQueued=true 供前端提示
+    const messageQueued = record.status === 'queued' || record.status === 'running';
+    res.status(201).json({ ok: true, messageQueued, task: publicTask(record, true) });
   });
   app.delete('/api/tasks/:id', (req: Request, res: Response) => {
     const success = queue.delete(req.params.id);

@@ -1117,19 +1117,27 @@
       // 统一处理：先显示用户消息，再从 steps 提取思考过程（实时更新），最后显示最终回复
       // 这样确保思考过程能实时显示，不会因为 conversation 有内容就跳过 steps
 
-      // 1. 显示用户消息
+      // 1. 显示用户消息（多轮对话：每轮用户消息都按顺序显示）
       let userMsgShown = false;
       if (conv.length > 0) {
         for (const m of conv) {
           if (m && m.role === 'user' && m.content) {
             html += '<div class="msg user">' + renderMsgActions() + linkifyArtifacts(m.content) + '</div>';
             userMsgShown = true;
-            break; // 只显示第一条用户消息，后续的在多轮对话中处理
           }
         }
       }
       if (!userMsgShown && task.goal) {
         html += '<div class="msg user">' + renderMsgActions() + linkifyArtifacts(task.goal) + '</div>';
+      }
+
+      // 1.5 执行中收到的新消息（pendingMessages）：显示为待发送气泡，本轮结束后自动续跑
+      const pendingMsgs = Array.isArray(task.pendingMessages) ? task.pendingMessages : [];
+      if (pendingMsgs.length > 0) {
+        for (const p of pendingMsgs) {
+          html += '<div class="msg user" style="opacity:.72;">' + renderMsgActions() + '⏳ ' + linkifyArtifacts(p) + '</div>';
+        }
+        html += '<div class="msg sys">消息已排队，当前任务完成后将自动发送</div>';
       }
 
       // 2. 从 steps 提取思考过程（实时更新，这是关键）
