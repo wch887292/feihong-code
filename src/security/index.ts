@@ -222,3 +222,22 @@ export function securityHeaders(_req: any, res: any, next: any): void {
   res.setHeader('Content-Security-Policy', "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; connect-src 'self' https: http:;");
   next();
 }
+
+/* ==================== P4：三级规则引擎 + 审批收件箱（v8.6.0） ==================== */
+
+export {
+  evaluateRules,
+  detectRedline,
+  REDLINE_LABELS,
+  type RuleEffect,
+  type RedlineKind,
+  type UserRule,
+  type RuleDecision,
+} from './rules-engine';
+
+export {
+  ApprovalInbox,
+  type ApprovalStatus,
+  type ApprovalItem,
+  type ApprovalInboxOptions,
+} from './approval-inbox';
