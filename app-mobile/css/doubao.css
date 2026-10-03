@@ -213,5 +213,6 @@ html.dark .seg-pill { background: #262a33; }
 .attach-btn { padding: 4px 8px; font-size: 11px; border-radius: 10px; }
 .attach-ico { font-size: 14px; }
 
-/* ===== 首页态隐藏附件行（更干净） ===== */
-body.home-mode .input-attach-bar { visibility: hidden; height: 0; padding: 0; margin: 0; overflow: hidden; }
+/* ===== 首页态保留附件行（2026-10-03 修复：空对话也要有图片/文件上传入口） ===== */
+/* 原规则 body.home-mode .input-attach-bar { visibility:hidden; ... } 导致新会话看不到上传按钮，已移除 */
+body.home-mode .input-attach-bar { visibility: visible; }

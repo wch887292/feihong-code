@@ -15,7 +15,7 @@ android {
         applicationId "com.feihong.code"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 57
+        versionCode 58
         versionName "8.6.2"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {

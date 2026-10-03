@@ -26,7 +26,8 @@ if not exist "dist\cli\index.js" (
 )
 
 REM === 2. Clean port ===
-set PORT=8080
+REM 8082 = 飞虹云中转（fh-relay-client）固定上游端口，手机经 api.klai.top/fhrelay 访问本机服务
+set PORT=8082
 for /f "tokens=5" %%i in ('netstat -ano ^| findstr :%PORT% ^| findstr LISTENING') do (
   taskkill /PID %%i /F >nul 2>&1
   echo [Clean] Port %PORT% cleared (PID %%i)

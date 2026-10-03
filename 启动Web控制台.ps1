@@ -1,12 +1,12 @@
 # 飞虹 Code (fhcode) Web 控制台 一键启动脚本
 # 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
 # 用法：
-#   .\启动Web控制台.ps1            # 默认端口 8080
+#   .\启动Web控制台.ps1            # 默认端口 8082（飞虹云中转固定上游）
 #   .\启动Web控制台.ps1 -Port 9000 # 自定义端口
 #   .\启动Web控制台.ps1 -NoBuild   # 跳过编译（dist 已是最新时）
 [CmdletBinding()]
 param(
-    [int]$Port = 0,          # 0 = 使用 FH_WEB_PORT 或默认 8080
+    [int]$Port = 0,          # 0 = 使用 FH_WEB_PORT 或默认 8082（云中转上游）
     [switch]$NoBuild         # 跳过 npm run build
 )
 
@@ -14,7 +14,7 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $root
 
-$env:FH_WEB_PORT = if ($Port -gt 0) { "$Port" } elseif ($env:FH_WEB_PORT) { $env:FH_WEB_PORT } else { '8080' }
+$env:FH_WEB_PORT = if ($Port -gt 0) { "$Port" } elseif ($env:FH_WEB_PORT) { $env:FH_WEB_PORT } else { '8082' }
 $logFile = Join-Path $root 'web-console.log'
 
 # 端口占用检测与自动换端口（避免 EADDRINUSE 导致启动失败）
