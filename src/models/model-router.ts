@@ -20,6 +20,7 @@ import { existsSync } from 'fs';
 import { join } from 'path';
 import type { AppConfig } from '../shared/config';
 import type { CapabilityTag, ModelStrategy } from '../shared/types';
+import { TIERS, type ComputeTier } from './tier';
 import { ModelError } from '../shared/errors';
 import { logger } from '../shared/logger';
 import type { ChatRequest, ChatResponse, ModelProvider } from './model.interface';
@@ -59,6 +60,7 @@ export class ModelRouter {
   private readonly statsHomeDir: string;
   private readonly maxRetries: number;
   private readonly backoffMs: number;
+  private readonly tier: ComputeTier;
   private statsCache: ModelStatsCache | null = null;
 
   constructor(
@@ -69,6 +71,8 @@ export class ModelRouter {
     statsHomeDir: string = '',
     maxRetries: number = 3,
     backoffMs: number = 1000,
+    /** 算力档位（对标纳米Work 轻量/省钱/满血）；light/save 强制 cost 策略并偏好 cheap/local */
+    tier: ComputeTier = 'full',
   ) {
     this.providers = providers;
     this.strategy = strategy;
@@ -77,10 +81,11 @@ export class ModelRouter {
     this.statsHomeDir = statsHomeDir;
     this.maxRetries = Math.max(1, maxRetries);
     this.backoffMs = Math.max(0, backoffMs);
+    this.tier = tier;
   }
 
   /** 从 AppConfig 构建（默认路由，联调真实模型时使用）；homeDir 用于统计自动落盘 */
-  static fromConfig(cfg: AppConfig, statsFile?: string): ModelRouter {
+  static fromConfig(cfg: AppConfig, statsFile?: string, tier: ComputeTier = 'full'): ModelRouter {
     const providers = cfg.models.providers.map((p) =>
       p.type === 'ollama' ? new OllamaProvider(p) : new OpenAICompatibleProvider(p),
     );
@@ -91,6 +96,8 @@ export class ModelRouter {
       statsFile,
       cfg.app.homeDir,
       cfg.runtime.maxRetries,
+      1000,
+      tier,
     );
   }
 
@@ -185,9 +192,16 @@ export class ModelRouter {
   }
 
   private score(p: ModelProvider): number {
+    // 档位优先于策略：light/save 强制 cost 并偏好 cheap/local；full 沿用配置策略
+    const strat = this.tier === 'full' ? this.strategy : TIERS[this.tier].strategy;
     let base = 0;
-    if (this.strategy === 'cost') base = -(p.costPer1k ?? 0);
-    else if (this.strategy === 'latency') base = p.tags.includes('local') ? 1 : 0;
+    if (strat === 'cost') {
+      base = -(p.costPer1k ?? 0);
+      if (this.tier !== 'full') {
+        if (p.tags.includes('cheap')) base += 0.5;
+        if (p.tags.includes('local')) base += 0.3;
+      }
+    } else if (strat === 'latency') base = p.tags.includes('local') ? 1 : 0;
     else base = (p.tags.includes('reasoning') ? 2 : 0) + (p.tags.includes('code-gen') ? 1 : 0);
 
     // M6: 加权历史成功率（最多 0.3 分）；统计按 providerId+model 键控，查找需一致

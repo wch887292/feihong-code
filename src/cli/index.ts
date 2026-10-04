@@ -13,6 +13,10 @@ import { setRunId } from '../shared/logger';
 import { AppError } from '../shared/errors';
 import { loadDotEnv } from '../shared/config';
 import { parseArgs, type SkillCommand, type ManagementCommand } from './commands';
+import { runTierCmd } from './cmds/tier';
+import { runAgentNewCmd } from './cmds/agent-new';
+import { runRoutineCmd } from './cmds/routine';
+import { runMemoryCmd } from './cmds/memory';
 import { startRepl } from './repl';
 import { runTui } from './tui-run';
 
@@ -128,7 +132,7 @@ async function main(): Promise<void> {
         goal += `\n\n<context-file: ${args.flags.contextFile}>\n${content}\n</context-file>`;
       }
     }
-    await runGoal(goal, { offline, stream: args.flags.stream, model: args.flags.model });
+    await runGoal(goal, { offline, stream: args.flags.stream, model: args.flags.model, tier: args.flags.tier });
     return;
   }
 
@@ -187,6 +191,20 @@ async function dispatchManage(m: ManagementCommand): Promise<void> {
       verifyOnly: m.verifyOnly,
       planOnly: m.planOnly,
     }); break;
+    case 'tier': await runTierCmd(m.action, m.value); break;
+    case 'agent-new': await runAgentNewCmd({ name: m.name, prompt: m.prompt, tools: m.tools, category: m.category, tier: m.tier }); break;
+    case 'routine': await runRoutineCmd({
+      action: m.action,
+      id: m.id,
+      cron: m.cron,
+      goal: m.goal,
+      command: m.command,
+      name: m.name,
+      tier: m.tier,
+      workspaceDir: m.workspaceDir,
+      enabled: m.enabled,
+    }); break;
+    case 'memory': await runMemoryCmd(m.action, m.yes); break;
   }
 }
 

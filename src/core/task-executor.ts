@@ -17,6 +17,7 @@ import { t } from '../shared/i18n';
 import { loadConfig, loadConfigFile } from '../shared/config';
 import { AppError } from '../shared/errors';
 import { ModelRouter } from '../models/model-router';
+import { classifyGoalTier, type ComputeTier } from '../models/tier';
 import { ScriptedMockProvider, type MockStep } from '../models/providers/mock.provider';
 import { OpenAICompatibleProvider } from '../models/providers/openai-compatible.provider';
 import { OllamaProvider } from '../models/providers/ollama.provider';
@@ -42,6 +43,7 @@ import {
   type OrchestratorEvent,
   type ResumeContext,
 } from '../agent/orchestrator';
+import { createLayeredMemory } from '../agent/layered-memory';
 import type { ChatMessage } from '../models/model.interface';
 
 export interface RunOptions {
@@ -67,6 +69,10 @@ export interface RunOptions {
   attachments?: string[];
   /** P3-1：文件写入暂存回调（注入 change-manager.stageChange），AI 生成的修改自动记录到变更面板 */
   stageChange?: (path: string, content: string) => void;
+  /** 算力档位（对标纳米Work 轻量/省钱/满血）；缺省按目标复杂度自动分类 */
+  tier?: ComputeTier;
+  /** ④ 工作记忆增强：注入共享分层记忆实例（缺省每次运行新建，自动召回/压缩/持久化项目记忆） */
+  layeredMemory?: import('../agent/layered-memory').LayeredMemory;
 }
 
 /** 离线演示脚本：写文件 → 总结，跑通完整链路 */
@@ -283,11 +289,16 @@ export async function executeTask(goal: string, opts: RunOptions = {}): Promise<
     const providers = opts.modelProviders.map((p) =>
       p.type === 'ollama' ? new OllamaProvider({ id: p.id, type: 'ollama', baseURL: p.baseURL, model: p.model || 'default', tags: ['code-gen', 'reasoning'] }) : new OpenAICompatibleProvider({ id: p.id, type: 'openai-compatible', baseURL: p.baseURL, model: p.model || 'gpt-4o', apiKey: p.apiKey, tags: ['code-gen', 'reasoning'] }),
     );
-    router = new ModelRouter(providers, 'cost', 0);
+    // Web 直连模式不感知档位，固定满血
+    router = new ModelRouter(providers, 'cost', 0, '', '', 3, 1000, 'full');
   } else if (offline) {
-    router = new ModelRouter([new ScriptedMockProvider(buildDemoSteps())], 'cost', 0);
+    // 离线演示固定满血（mock provider）
+    router = new ModelRouter([new ScriptedMockProvider(buildDemoSteps())], 'cost', 0, '', '', 3, 1000, 'full');
   } else {
     const cfg = loadConfig();
+    // 算力档位（对标纳米Work 轻量/省钱/满血）：显式 --tier > 配置 defaultTier 锁定 > 按目标复杂度自动分类
+    const tier = opts.tier ?? cfg.models.defaultTier ?? classifyGoalTier(goal);
+    logger.info('compute tier', { tier, explicit: !!opts.tier, locked: !!cfg.models.defaultTier });
     // --model 覆盖：只保留指定模型对应的 provider，其余一律排除（用户显式指定时不做自动轮换）
     if (opts.model) {
       const matched = cfg.models.providers.filter((p) => p.model === opts.model);
@@ -298,9 +309,9 @@ export async function executeTask(goal: string, opts: RunOptions = {}): Promise<
           400,
         );
       }
-      router = ModelRouter.fromConfig({ ...cfg, models: { ...cfg.models, providers: matched } });
+      router = ModelRouter.fromConfig({ ...cfg, models: { ...cfg.models, providers: matched } }, undefined, tier);
     } else {
-      router = ModelRouter.fromConfig(cfg);
+      router = ModelRouter.fromConfig(cfg, undefined, tier);
     }
     security.shellAllowlist = cfg.security.shellAllowlist;
     security.requireApproval = cfg.security.requireApproval;
@@ -373,6 +384,10 @@ export async function executeTask(goal: string, opts: RunOptions = {}): Promise<
     signal: opts.signal,
     stageChange: opts.stageChange,
     extraSystemPrompt,
+    // ④ 工作记忆增强（对标纳米Work 记忆复用）：默认全局装配分层记忆。
+    // 启动时按 goal 召回项目记忆注入上下文，过程中自动压缩，结束时把决策/产物持久化到项目记忆，
+    // 实现跨会话复用。memoryDir 落 ~/.feihong-code/layered-memory/project-memory.json。
+    layeredMemory: opts.layeredMemory ?? createLayeredMemory(),
   });
 
   if (rt) {

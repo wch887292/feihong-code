@@ -9,7 +9,7 @@ import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 import { VERSION } from '../cli/version';
-import type { CapabilityTag, ModelStrategy } from './types';
+import type { CapabilityTag, ComputeTier, ModelStrategy } from './types';
 import type { SandboxMode } from '../tools/sandbox';
 import { normalizeSandboxMode } from '../tools/sandbox';
 import type { McpServerConfig } from '../tools/mcp/mcp-client';
@@ -63,6 +63,8 @@ export interface AppConfig {
     providers: ProviderConfig[];
     defaultStrategy: ModelStrategy;
     budgetPerTaskUsd: number;
+    /** 算力档位（对标纳米Work 轻量/省钱/满血）；缺省则按任务复杂度自动分类 */
+    defaultTier?: ComputeTier;
   };
   runtime: { logDir: string; maxRetries: number };
   /** P0-3：MCP 服务器列表（外部工具扩展） */
@@ -79,6 +81,8 @@ export interface AppConfig {
     /** P0-2：网络域名规则（allow/deny，作用于 run_shell 命令中的 http(s) 目标） */
     networkAllow: string[];
     networkDeny: string[];
+    /** ③ 三级规则引擎用户规则集（精确/通配 allow·ask·deny），红线不可配置，恒 deny */
+    rules?: import('../security/rules-engine').UserRule[];
   };
 }
 
@@ -212,6 +216,9 @@ export function loadConfig(): AppConfig {
       budgetPerTaskUsd: Number(
         process.env.FH_BUDGET_USD || fileCfg?.models?.budgetPerTaskUsd || '0.5',
       ),
+      // 算力档位：FH_TIER 环境变量优先，其次配置文件；缺省 undefined（运行时按目标复杂度自动分类）
+      defaultTier:
+        (process.env.FH_TIER as ComputeTier) || fileCfg?.models?.defaultTier || undefined,
     },
     runtime: {
       logDir: process.env.FH_LOG_DIR ? expandTilde(process.env.FH_LOG_DIR) : join(resolveHomeDir(), 'sessions'),

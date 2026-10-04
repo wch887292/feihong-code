@@ -13,6 +13,7 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync } from 'fs';
 import { join } from 'path';
 import { logger } from '../shared/logger';
+import type { ComputeTier } from '../shared/types';
 import type { ModelRouter } from '../models/model-router';
 import type { ChatMessage } from '../models/model.interface';
 
@@ -51,6 +52,8 @@ export interface CustomAgentDefinition {
   author?: string;
   /** 版本 */
   version: string;
+  /** 算力档位（对标纳米Work 轻量/省钱/满血），影响专家执行时的模型选择 */
+  tier?: ComputeTier;
 }
 
 /** 自定义 Agent 执行结果 */
@@ -362,7 +365,7 @@ export class CustomAgentManager {
           maxTokens: agent.modelConfig.maxTokens,
           timeoutMs: agent.modelConfig.timeoutMs,
         },
-        ['reasoning', 'code-gen'],
+        agent.tier && agent.tier !== 'full' ? ['cheap'] : ['reasoning', 'code-gen'],
       );
 
       const output = resp.message.content || '';

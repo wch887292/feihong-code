@@ -20,6 +20,9 @@ export type CapabilityTag =
 /** 模型路由策略 */
 export type ModelStrategy = 'cost' | 'capability' | 'latency';
 
+/** 算力档位（对标纳米Work 轻量/省钱/满血）：控制模型选择策略与成本偏好 */
+export type ComputeTier = 'light' | 'save' | 'full';
+
 /** 任意可 JSON 序列化值 */
 export type JSONValue =
   | string

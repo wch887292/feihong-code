@@ -17,6 +17,7 @@ import { scheduleSelfHeal, runSelfHealIfDue } from '../../self-evolve/self-heal-
 import { installPlugin, listPlugins } from '../../plugins/plugin-loader';
 import { runTeam } from '../../agent/team';
 import { executeTask, isOfflineByDefault } from '../../core/task-executor';
+import { ensureScheduler } from '../../runtime/routines/service';
 
 async function probeUrl(base: string): Promise<boolean> {
   const controller = new AbortController();
@@ -207,5 +208,9 @@ export function runServe(port?: number): void {
   // 自我修复调度：每天 00:00 统一执行；常驻进程启动时若今日未做则补做（"第二天第一次开机修复"）
   scheduleSelfHeal();
   void runSelfHealIfDue().catch(() => {});
+  // ③ 自动化任务调度：启动真实 runner（三级规则引擎 + 审批收件箱门控），后台持续执行定时任务
+  const scheduler = ensureScheduler();
+  scheduler.start(60_000);
+  console.log('[routines] 自动化任务调度已启动（每 60s 检查一次 cron；fhcode routine list 查看）');
   // 注意：app.listen 保持事件循环运行，进程持续存活直到收到 SIGINT；本函数返回后 main() 结束不影响服务。
 }

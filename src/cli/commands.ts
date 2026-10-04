@@ -25,6 +25,9 @@
  *  - self-improve     自我改进统计（M8）
  *  - 其余文本          单命令需求
  */
+import type { ComputeTier } from '../shared/types';
+import { normalizeTier } from '../models/tier';
+
 export type SkillCommand = 'plan' | 'grill' | 'goal' | 'self-heal';
 
 export type ManagementCommand =
@@ -63,7 +66,11 @@ export type ManagementCommand =
       maxIterations: number;
       verifyOnly: boolean;
       planOnly: boolean;
-    };
+    }
+  | { kind: 'tier'; action: 'get' | 'set'; value?: ComputeTier }
+  | { kind: 'agent-new'; name?: string; prompt?: string; tools?: string; category?: string; tier?: ComputeTier }
+  | { kind: 'routine'; action: 'list' | 'add' | 'run' | 'enable' | 'rm'; id?: string; cron?: string; goal?: string; command?: string; name?: string; tier?: ComputeTier; workspaceDir?: string; enabled?: boolean }
+  | { kind: 'memory'; action: 'profile' | 'stats' | 'clear'; yes: boolean };
 
 export interface ParsedArgs {
   flags: {
@@ -98,6 +105,24 @@ export interface ParsedArgs {
     /** P7-1: harness 验证器 file|test 与自定义测试命令 */
     verifier?: string;
     testCommand?: string;
+    /** 算力档位（对标纳米Work 轻量/省钱/满血），覆盖自动分类 */
+    tier?: ComputeTier;
+    /** agent-new：专家名称 */
+    name?: string;
+    /** agent-new：专家系统提示 */
+    prompt?: string;
+    /** agent-new：专家工具集（逗号分隔） */
+    tools?: string;
+    /** agent-new：专家分类 */
+    category?: string;
+    /** routine：cron 表达式 */
+    cron?: string;
+    /** routine：AI 目标 */
+    goal?: string;
+    /** routine：shell 命令 */
+    command?: string;
+    /** routine：任务目录（goal/command 工作区） */
+    workspaceDir?: string;
   };
   /** 单命令模式下的需求文本（首个非 flag 参数） */
   command?: string;
@@ -136,6 +161,15 @@ const FLAG_SPECS: Record<string, FlagSpec> = {
   offset: { kind: 'int', min: 0, key: 'offset' },
   mode: { kind: 'str', key: 'mode' },
   report: { kind: 'str', key: 'report' },
+  tier: { kind: 'str', key: 'tier' },
+  name: { kind: 'str', key: 'name' },
+  prompt: { kind: 'str', key: 'prompt' },
+  tools: { kind: 'str', key: 'tools' },
+  category: { kind: 'str', key: 'category' },
+  cron: { kind: 'str', key: 'cron' },
+  goal: { kind: 'str', key: 'goal' },
+  command: { kind: 'str', key: 'command' },
+  'workspace-dir': { kind: 'str', key: 'workspaceDir' },
 };
 
 const SHORT_FLAGS: Record<string, FlagKey> = {
@@ -236,6 +270,33 @@ const MANAGE_BUILDERS: Record<string, ManageBuilder> = {
     json: !!flags.json,
   }),
   swe: ({ flags, rest }) => buildSweCommand(flags, rest),
+  tier: ({ rest }) => ({ kind: 'tier', action: rest[0] === 'set' ? 'set' : 'get', value: normalizeTier(rest[1]) }),
+  'agent-new': ({ flags, rest }) => ({
+    kind: 'agent-new',
+    name: flags.name || rest[0],
+    prompt: flags.prompt,
+    tools: flags.tools,
+    category: flags.category,
+    tier: flags.tier,
+  }),
+  routine: ({ flags, rest }) => ({
+    kind: 'routine',
+    action: (rest[0] as 'list' | 'add' | 'run' | 'enable' | 'rm') ?? 'list',
+    id: rest[1] || flags.name,
+    cron: flags.cron,
+    goal: flags.goal,
+    command: flags.command,
+    name: flags.name,
+    tier: flags.tier,
+    workspaceDir: flags.workspaceDir,
+    // enable 子命令：rest[1] 为 on/off；其余子命令不存在该语义则视为 true
+    enabled: rest[0] === 'enable' ? rest[1] !== 'off' : undefined,
+  }),
+  memory: ({ flags, rest }) => ({
+    kind: 'memory',
+    action: (rest[0] as 'profile' | 'stats' | 'clear') ?? 'profile',
+    yes: !!flags.yes,
+  }),
 };
 
 export function parseArgs(argv: string[]): ParsedArgs {

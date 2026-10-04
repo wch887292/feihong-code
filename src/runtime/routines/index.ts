@@ -18,3 +18,12 @@ export {
   type RoutineRunResult,
   type SchedulerOptions,
 } from './scheduler';
+export {
+  createRoutineRunner,
+  type RoutineRunnerOptions,
+} from './runner';
+export {
+  ensureScheduler,
+  getScheduler,
+  buildRunner,
+} from './service';

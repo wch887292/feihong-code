@@ -9,6 +9,7 @@
  */
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'fs';
 import { join } from 'path';
+import type { ComputeTier } from '../../shared/types';
 
 export type RoutineTrigger =
   | { kind: 'cron'; expr: string }
@@ -16,7 +17,9 @@ export type RoutineTrigger =
 
 export type RoutineAction =
   | { type: 'command'; command: string }
-  | { type: 'noop' };
+  | { type: 'noop' }
+  /** ③ 自动化任务真实执行：AI 目标型动作，经过三级规则引擎 + 审批收件箱门控后由 executeTask 真实执行 */
+  | { type: 'goal'; goal: string; tier?: ComputeTier };
 
 export interface RoutineDef {
   id: string;

@@ -13,6 +13,11 @@ function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// 任务完成轮询上限（1500 × 20ms = 30s）。离线 mock 单独跑通常 <1s，但 `npm test` 会并行跑
+// 30+ 个测试文件，executeTask 内部还要起 git init 子进程，CPU 争用下 6s 预算会偶发超时
+// （表现为"未达终态"的 flaky 失败，而非逻辑错误）。给足预算只放宽等待上限，不改变断言语义。
+const COMPLETE_BUDGET = 1500;
+
 test('TaskQueue: 提交任务后异步执行到 done', async () => {
   const queue = new TaskQueue({ concurrency: 1, offline: true });
   const record = queue.submit('写一个 hello.ts');
@@ -21,7 +26,7 @@ test('TaskQueue: 提交任务后异步执行到 done', async () => {
   assert.ok(record.id);
 
   // 轮询等待执行完成（离线 mock 快，但留足余量）
-  for (let i = 0; i < 100; i++) {
+  for (let i = 0; i < COMPLETE_BUDGET; i++) {
     const cur = queue.get(record.id)!;
     if (cur.status === 'done' || cur.status === 'failed') break;
     await wait(20);
@@ -106,7 +111,7 @@ test('TaskQueue: 执行中发消息进入待发队列，本轮结束后自动续
   assert.ok(['queued', 'running'].includes(r2.status), `状态应保持执行中，实际 ${r2.status}`);
   assert.ok((r2.pendingMessages || []).includes('执行中追加的指令'), '消息应进入 pendingMessages');
   // 等待第一轮结束 → pending 自动转正 → 第二轮续跑 → 终态
-  for (let i = 0; i < 300; i++) {
+  for (let i = 0; i < COMPLETE_BUDGET; i++) {
     const cur = queue.get(rec.id)!;
     const hasPending = (cur.pendingMessages || []).length > 0;
     if (!hasPending && (cur.status === 'done' || cur.status === 'failed')) break;
@@ -122,7 +127,7 @@ test('TaskQueue: 执行中发消息进入待发队列，本轮结束后自动续
 test('TaskQueue: 终态任务续接保持原行为（立即入队）', async () => {
   const queue = new TaskQueue({ concurrency: 1, offline: true });
   const rec = queue.submit('终态续接测试');
-  for (let i = 0; i < 300; i++) {
+  for (let i = 0; i < COMPLETE_BUDGET; i++) {
     const cur = queue.get(rec.id)!;
     if (cur.status === 'done' || cur.status === 'failed') break;
     await wait(20);
@@ -134,7 +139,7 @@ test('TaskQueue: 终态任务续接保持原行为（立即入队）', async () 
   assert.ok(['queued', 'running'].includes(r2.status), `终态续接应立即重新入队，实际 ${r2.status}`);
   assert.ok((r2.conversation || []).some((m) => m.role === 'user' && m.content === '终态后追加的消息'), '消息应进入对话历史');
   // 等待续跑完成
-  for (let i = 0; i < 300; i++) {
+  for (let i = 0; i < COMPLETE_BUDGET; i++) {
     const cur = queue.get(rec.id)!;
     if (cur.status === 'done' || cur.status === 'failed') break;
     await wait(20);

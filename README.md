@@ -92,6 +92,17 @@ License: Apache-2.0
 > **终端 AI 编程智能体** · 对标 Meta Muse Code / Claude Code / Cursor CLI · 自研内核实现差异化 · 全功能 M0→M9.1 完成 · 企业级 RBAC/审计/SWE Agent
 > 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
 
+## 🆕 v8.7.0 对标纳米Work 四大能力（2026-10-04，开发中）
+
+对标 360 纳米Work（企业智能体工作平台），补齐「成本调度 / 专家创建 / 7x24 自动化 / 记忆复用」四项核心能力。
+
+- **① 算力档位智能调度**（轻量 / 省钱 / 满血）：按任务复杂度自动分档路由模型，`fhcode tier set full` 全局锁定、`--tier` 单次覆盖；省档优先低成本/本地模型。
+- **② 对话式专家创建向导**：4 步创建专属 AI 专家（选模板→填提示/工具→选档位→命名），`fhcode agent-new` 交互或 `--name/--prompt/--tier` 一键创建。
+- **③ 自动化任务真实执行（云端 7x24）**：`fhcode routine add --cron "0 * * * *" --goal "..."` 建定时任务，`fhcode serve` 常驻后台真实执行（AI 任务 / shell 命令均落地）。**三级规则引擎 + 审批收件箱门控**：硬红线（改密码/转账/永久删除/外发）恒拦截，ask 进审批收件箱，人工放行后执行。
+- **④ 工作记忆增强（跨会话复用）**：默认装配分层记忆——启动召回历史决策/产物注入上下文、过程自动压缩、结束沉淀项目记忆；`fhcode memory profile` 查看业务画像总览。
+
+**质量终态**：单测新增 15 例（376 项，1 项为 TaskQueue 既有计时敏感用例的并行 flake，隔离运行通过）；typecheck / build / verify 链（m4·m6·m7·m8·m9·routines·policy）全绿。详见 [CHANGELOG](./CHANGELOG.md)。
+
 ## 🆕 v8.6.0「Always-on 飞虹 dots」（2026-10-02）
 
 借鉴 OpenAI dots 范式完成四期升级，主打全天候 Agent 三块基石：知道自己能干什么、记住发生过什么、按计划自主干活且不越权。
@@ -468,6 +479,10 @@ $ FH_TENANT_BUDGET_USD=0.30 fhcode "超预算任务"
 | `fhcode quality-gate [路径]` | 质量门禁审查：安全+质量+测试覆盖（M8） |
 | `fhcode self-improve` | 自我改进统计与历史（M8） |
 | `fhcode swe "<目标>"` | 全自动软件工程 Agent：读仓库→拆解→实现+验证+自愈→报告（M9，支持 `--max-iterations` 等） |
+| `fhcode tier [get\|set <档位>]` | 算力档位（light 轻量 / save 省钱 / full 满血）查看与全局锁定；`--tier` 单次覆盖 |
+| `fhcode agent-new` | 对话式创建专属 AI 专家（4 步向导）；`--name/--prompt/--tools/--tier/--category` 非交互创建 |
+| `fhcode routine list\|add\|run\|enable\|rm` | 自动化定时任务（云端 7x24 真实执行）：`add --cron "0 * * * *" --goal "..."`，`fhcode serve` 后台调度 |
+| `fhcode memory profile\|stats\|clear` | 工作记忆：业务画像总览 / 分层记忆统计 / 清空项目记忆（clear 需 `--yes`） |
 | `fhcode --version` / `-v` | 显示版本与署名 |
 | `fhcode --help` / `-h` | 显示帮助 |
 

@@ -291,4 +291,14 @@ export class RoutineScheduler {
       activeCount: this.activeCount,
     };
   }
+
+  /**
+   * ③ 手动触发一次（CLI / Web 用）：找到定义并立即执行，返回结果；不存在/已禁用返回 null。
+   * 复用 fire 记账逻辑（lastRunAt/failCount/nextRunAt 推进一致）。
+   */
+  async runOnce(id: string, now: Date = this.nowFn()): Promise<RoutineRunResult | null> {
+    const def = this.defs.find((d) => d.id === id);
+    if (!def || !def.enabled) return null;
+    return this.fire(def, 'cron', now);
+  }
 }

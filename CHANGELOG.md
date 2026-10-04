@@ -1,4 +1,24 @@
 ﻿# 飞虹 Code 更新日志 / Changelog
+
+## 🚧 未发布（Unreleased）· 对标纳米Work 四大能力（2026-10-04）
+
+> 本节为已完成并验证的四项能力，发版时用 `node scripts/bump-version.mjs 8.7.0` 落版本号。
+
+**主题**：对标 360 纳米Work（企业智能体工作平台）的四大核心能力，补齐 fhcode 在「成本调度 / 专家创建 / 7x24 自动化 / 记忆复用」上的结构性缺口。四项均已实现并通过 typecheck + 单元测试 + 端到端验证。
+
+- **① 算力档位智能调度（轻量/省钱/满血）**（`src/models/tier.ts`）：新增 `ComputeTier`（light/save/full）与 `TIERS` 元信息（标签/策略/能力标签/成本系数）；`classifyGoalTier()` 按目标复杂度启发式分档（硬关键词→full，长目标→save，否则 light），`normalizeTier()` 过滤非法值。`ModelRouter` 评分改为档位优先——light/save 偏 cheap/local 标签，满血走 reasoning/capability；`config.models.defaultTier`（`FH_TIER` 覆盖）支持全局锁定，`fhcode tier set <档位>` 落盘、`--tier` 单次覆盖。
+- **② 对话式专家创建向导（对标定制AI专家 4 步）**（`src/cli/cmds/agent-new.ts`）：`fhcode agent-new` 交互式 4 步（选模板→填提示/工具→选档位→命名分类），非交互模式 `--name/--prompt/--tools/--tier/--category` 直接创建；复用内置 5 专家模板，专家新增 `tier` 字段联动 ① 档位路由。
+- **③ 自动化任务真实执行（云端 7x24，对标真实执行）**：
+  - `RoutineAction` 新增 `{ type:'goal'; goal; tier? }`（`src/runtime/routines/store.ts`）。
+  - 新增真实 runner（`src/runtime/routines/runner.ts`）：`goal` 经三级规则引擎（`automation:<goal>` 判定）→ `executeTask` 真实执行；`command` 经 `run_shell:<cmd>` 判定 → `runCommand` 真实执行。红线（改密码/转账/永久删除/外发）恒 deny 不可放行；ask 在 `requireApproval=true` 时提交审批收件箱挂起、autonomous（serve 7x24）时直接执行。
+  - `RoutineScheduler` 新增 `runOnce()` 手动触发；`service.ts` 提供进程单例 `ensureScheduler()`（装配 runner + 审批收件箱）。
+  - CLI `fhcode routine list|add|run|enable|rm`（`--cron/--goal/--command/--tier/--name`）；Web 路由 `src/web/routes/routines.ts`（GET/POST /api/routines、run/enable/delete、approvals）；`runServe` 启动 `scheduler.start(60s)` 后台持续调度。
+- **④ 工作记忆增强（对标记忆跨会话复用）**：`executeTask` 默认全局装配 `LayeredMemory`（`src/core/task-executor.ts`）——启动按 goal 召回项目记忆注入上下文、过程自动压缩、结束把决策/产物持久化到项目记忆，实现跨会话复用；新增 `RunOptions.layeredMemory` 允许注入共享实例。新增业务画像出口 `src/memory/profile.ts`（纯函数聚合）+ `fhcode memory profile|stats|clear`。
+
+**新增测试**：`tests/unit/routine-runner.test.ts`（7 例：noop/红线拦截/自主执行/审批挂起/goal 真实离线执行/goal 红线拦截/文件落地）、`tests/unit/memory-profile.test.ts`（5 例：空画像/高频标签/去重/时间跨度/格式化）、`tests/unit/tier.test.ts`（3 例）。verify 链（m4/m6/m7/m8/m9/routines/policy）与 build、typecheck 全绿。
+
+**说明**：`check:cross` 的 D7（`electron/main.js ... EBUSY`）为本机文件锁导致的既有环境问题（未改动 electron/），其余 10 项跨端一致性校验通过。
+
 ## v8.6.2 · 对话流增加简洁文本思考内容（2026-10-02）
 
 **主题**：把编排器的"思维链路"以简洁、可读、可折叠的形式呈现到 Web 控制台对话流，让用户直观看到模型在想什么、做了什么。
