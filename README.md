@@ -488,6 +488,8 @@ $ FH_TENANT_BUDGET_USD=0.30 fhcode "超预算任务"
 | `fhcode routine list\|add\|run\|enable\|rm` | 自动化定时任务（云端 7x24 真实执行）：`add --cron "0 * * * *" --goal "..."`，`fhcode serve` 后台调度 |
 | `fhcode memory profile\|stats\|clear` | 工作记忆：业务画像总览 / 分层记忆统计 / 清空项目记忆（clear 需 `--yes`） |
 | `fhcode approvals list\|show\|approve\|reject` | 审批收件箱：查看待决审批 / 详情 / 批准放行 / 拒绝（`list --all` 含已裁决，`--by<裁决人>`） |
+
+> **Web 控制台同步可视化**（`fhcode serve`）：右侧「⏱ 定时任务」tab可新建/立即执行/启停/删除 cron 任务并直接裁决待审批；左侧「记忆系统」页的「📊 业务画像」区块展示累计任务、时间跨度、高频领域、关键决策与产物——与 CLI 同源数据。
 | `fhcode --version` / `-v` | 显示版本与署名 |
 | `fhcode --help` / `-h` | 显示帮助 |
 

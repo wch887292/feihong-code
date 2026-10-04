@@ -30,6 +30,7 @@ import { registerExtraApis } from './extra-apis';
 import { registerComputerRoutes } from './routes/computer';
 import { registerCapabilitySourceRoutes } from './routes/capability-source';
 import { registerRoutineRoutes } from './routes/routines';
+import { registerMemoryRoutes } from './routes/memory';
 import { registerManagerRoutes } from './routes/managers';
 import { registerModelDomainRoutes, getSharedModelRouter } from './routes/model-domain';
 import { registerFilesystemRoutes } from './routes/filesystem';
@@ -734,6 +735,7 @@ export function startWebServer(opts: ServeOptions = {}): {
   registerCapabilitySourceRoutes(app, { homeDir, queue, loadJsonFile, saveJsonFile });
   /* ========== ③ 自动化任务（云端 7x24 真实执行 + 三级规则引擎门控）→ routes/routines.ts ========== */
   registerRoutineRoutes(app, { homeDir });
+  registerMemoryRoutes(app, { homeDir });
   /* ========== Cline 进程级嫁接 → routes/cline.ts ========== */
   registerClineRoutes(app, { homeDir });
   /* ========== 云桥接（手机指令→电脑执行）+ 授权 → routes/cloud-bridge.ts ========== */

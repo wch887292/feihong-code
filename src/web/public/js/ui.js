@@ -2766,3 +2766,123 @@
   // 兜底：若事件未派发，进入面板时直接绑定
   document.addEventListener('DOMContentLoaded', bindRoutinesUI);
 })();
+
+/* ============================================================
+ * v8.8.0 业务画像可视化
+ * 数据源：GET /api/memory/profile（与 CLI `fhcode memory profile` 同源）
+ * 展示：累计任务 / 时间跨度 / 高频领域（带条形可视化）/ 关键决策 /
+ *       产物 / 用户偏好 / 最近任务
+ * ========================================================== */
+(function () {
+  function esc2(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => (
+      { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+    ));
+  }
+
+  function fmtDate(iso) {
+    if (!iso) return '—';
+    try {
+      return new Date(iso).toLocaleDateString('zh-CN');
+    } catch {
+      return iso;
+    }
+  }
+
+  function listBlock(title, items, empty) {
+    if (!items || !items.length) {
+      return (
+        '<div style="margin-bottom:12px;">' +
+          '<div style="font-size:12px;font-weight:600;margin-bottom:5px;">' + esc2(title) + '</div>' +
+          '<div class="muted" style="font-size:11px;">' + esc2(empty || '暂无') + '</div>' +
+        '</div>'
+      );
+    }
+    return (
+      '<div style="margin-bottom:12px;">' +
+        '<div style="font-size:12px;font-weight:600;margin-bottom:5px;">' + esc2(title) +
+          ' <span class="muted" style="font-weight:400;">(' + items.length + ')</span></div>' +
+        '<ul style="margin:0;padding-left:16px;font-size:11px;line-height:1.7;">' +
+          items.slice(0, 8).map((x) => '<li style="word-break:break-all;">' + esc2(x) + '</li>').join('') +
+        '</ul>' +
+        (items.length > 8 ? '<div class="muted" style="font-size:10px;">+' + (items.length - 8) + ' 条更多</div>' : '') +
+      '</div>'
+    );
+  }
+
+  async function loadBusinessProfile() {
+    const box = document.getElementById('profilePanel');
+    if (!box) return;
+    try {
+      const res = await api('/api/memory/profile');
+      const p = (res && res.profile) || null;
+      if (!res || res.ok === false) throw new Error((res && res.error) || '接口返回失败');
+      if (!p || !p.totalTasks) {
+        box.innerHTML =
+          '<div class="muted" style="text-align:center;padding:20px;font-size:12px;">还没有沉淀任何项目记忆<br/>' +
+          '<span style="font-size:11px;">跑过任务后，AI 的决策与产出会自动沉淀并在这里汇总</span></div>';
+        return;
+      }
+
+      // 高频领域做条形可视化（取前 8，按次数降序）
+      let domainsHtml = '';
+      const doms = (p.topDomains || []).slice(0, 8);
+      if (doms.length) {
+        const max = doms[0].count || 1;
+        domainsHtml =
+          '<div style="margin-bottom:12px;">' +
+            '<div style="font-size:12px;font-weight:600;margin-bottom:5px;">🔥 高频领域' +
+              ' <span class="muted" style="font-weight:400;">(共 ' + (p.topDomains || []).length + ')</span></div>' +
+            '<div style="display:flex;flex-direction:column;gap:3px;">' +
+              doms.map((d) => {
+                const pct = Math.max(4, Math.round(((d.count || 0) / max) * 100));
+                return (
+                  '<div style="display:flex;align-items:center;gap:6px;font-size:11px;">' +
+                    '<span style="width:88px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + esc2(d.tag) + '">' + esc2(d.tag) + '</span>' +
+                    '<span style="flex:1;height:8px;background:rgba(45,90,61,0.12);border-radius:4px;overflow:hidden;">' +
+                      '<span style="display:block;height:100%;width:' + pct + '%;background:#2d5a3d;"></span>' +
+                    '</span>' +
+                    '<span style="width:26px;text-align:right;color:var(--muted,#777);">' + (d.count || 0) + '</span>' +
+                  '</div>'
+                );
+              }).join('') +
+            '</div>' +
+          '</div>';
+      }
+
+      box.innerHTML =
+        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:14px;">' +
+          '<div class="card" style="padding:10px;"><div class="muted" style="font-size:11px;">累计任务</div>' +
+            '<div style="font-size:20px;font-weight:600;">' + p.totalTasks + '</div></div>' +
+          '<div class="card" style="padding:10px;"><div class="muted" style="font-size:11px;">时间跨度</div>' +
+            '<div style="font-size:13px;font-weight:500;margin-top:4px;">' + fmtDate(p.firstAt) + ' → ' + fmtDate(p.lastAt) + '</div></div>' +
+          '<div class="card" style="padding:10px;"><div class="muted" style="font-size:11px;">关键决策</div>' +
+            '<div style="font-size:20px;font-weight:600;">' + ((p.keyDecisions || []).length) + '</div></div>' +
+          '<div class="card" style="padding:10px;"><div class="muted" style="font-size:11px;">产物</div>' +
+            '<div style="font-size:20px;font-weight:600;">' + ((p.artifacts || []).length) + '</div></div>' +
+        '</div>' +
+        domainsHtml +
+        listBlock('💡 关键决策', p.keyDecisions, '暂无沉淀的决策') +
+        listBlock('📦 产物', p.artifacts, '暂无产物记录') +
+        listBlock('🧭 用户偏好', p.userPreferences, '暂无偏好记录') +
+        listBlock('🕐 最近任务', p.recentGoals, '暂无任务记录');
+    } catch (e) {
+      box.innerHTML = '<div class="muted" style="text-align:center;padding:20px;font-size:12px;">画像加载失败：' + esc2(e.message) + '</div>';
+    }
+  }
+
+  function bindProfileUI() {
+    if (window._profileUIInited) return;
+    const btn = document.getElementById('profileRefreshBtn');
+    if (!btn) return;
+    window._profileUIInited = true;
+    btn.addEventListener('click', loadBusinessProfile);
+    loadBusinessProfile();
+  }
+
+  document.addEventListener('DOMContentLoaded', bindProfileUI);
+  // 切到记忆页时刷新
+  window.addEventListener('fhcode:view-shown', (e) => {
+    if (e && e.detail === 'memory') bindProfileUI();
+  });
+})();

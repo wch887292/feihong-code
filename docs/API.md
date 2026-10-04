@@ -694,6 +694,78 @@ POST /api/approvals/:id/decide
 
 ---
 
+## 记忆与业务画像
+
+只读接口，供控制台「记忆系统」页与「📊 业务画像」区块使用。与 CLI
+`fhcode memory profile|stats` 同源（同一份聚合逻辑）。
+
+### 业务画像聚合
+```
+GET /api/memory/profile
+```
+**响应** `200 OK`
+```json
+{
+  "ok": true,
+  "profile": {
+    "totalTasks": 100,
+    "firstAt": "2026-10-04T14:08:12.859Z",
+    "lastAt": "2026-10-04T15:35:09.084Z",
+    "topDomains": [{ "tag": "任务", "count": 23 }],
+    "keyDecisions": [],
+    "artifacts": [],
+    "userPreferences": [],
+    "recentGoals": ["边界测试", "批量任务5"]
+  }
+}
+```
+| 字段 | 说明 |
+|------|------|
+| `totalTasks` | 项目记忆累计条目数 |
+| `firstAt` / `lastAt` | 首末条目时间戳，`null` 表示记忆为空 |
+| `topDomains` | 高频标签倒序（按出现次数） |
+| `keyDecisions` / `artifacts` / `userPreferences` | 从条目中提取的决策 / 产物 / 偏好 |
+| `recentGoals` | 最近目标（倒序） |
+
+### 分层记忆统计
+```
+GET /api/memory/stats
+```
+**响应** `200 OK`
+```json
+{ "ok": true, "shortTermFiles": 1, "longTermNotes": 1, "lastSummarize": null }
+```
+
+### 记忆条目列表
+```
+GET /api/memory/entries?limit=20
+```
+| 参数 | 类型 | 默认 | 说明 |
+|------|------|------|------|
+| `limit` | number | 20 | 返回条数，**自动夹在 1~500**，防一次拉爆 |
+
+**响应** `200 OK`（按 `timestamp` 倒序）
+```json
+{
+  "ok": true,
+  "total": 100,
+  "entries": [
+    {
+      "id": "1791128109084-j2mup6",
+      "goal": "边界测试",
+      "decisions": [], "artifacts": [], "pendingIssues": [], "userPreferences": [],
+      "timestamp": "2026-10-04T15:35:09.084Z",
+      "tags": ["边界测试"]
+    }
+  ]
+}
+```
+
+> 三个端点均为 **GET 只读**，无需 `x-fh-ts/x-fh-nonce/x-fh-sig` 签名头，
+> 但需 `Authorization: Bearer <FH_WEB_TOKEN>`（缺失返回 `401`）。
+
+---
+
 ## 错误响应
 
 ### 错误格式

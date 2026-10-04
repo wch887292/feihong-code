@@ -1,8 +1,8 @@
 ﻿# 飞虹 Code 更新日志 / Changelog
 
-## 🚧 未发布（Unreleased）· 审批收件箱 CLI 出口 + Web 定时任务面板（2026-10-04）
+## 🚧 未发布（Unreleased）· 审批收件箱 CLI 出口 + Web 定时任务面板 + 业务画像可视化（2026-10-04）
 
-**主题**：把 v8.7.0 自动化任务的安全闭环补齐——审批从"只能翻JSON 文件"到"CLI/Web 都能裁决"，定时任务从"只有 API"到"控制台可视化管理"。
+**主题**：把v8.7.0 自动化任务的安全闭环补齐——审批从"只能翻JSON 文件"到"CLI/Web 都能裁决"，定时任务从"只有 API"到"控制台可视化管理"，业务画像从"只有 CLI"到"控制台可视化"。
 
 **背景**：v8.7.0 的`ask` 级动作在 CLI 默认 `requireApproval=true` 时会挂起到审批收件箱，但**只有 Web 的 `GET /api/routines/approvals` 能看，CLI 无出口**——形成"挂起了却看不到、只能手动翻 `approvals.json`"的断链；同时 `/api/routines` 全套接口已文档化但**控制台无 UI**，用户只能拿 curl。
 
@@ -11,10 +11,13 @@
 - **新增控制台「⏱ 定时任务」面板**（右侧tab，`index.html` + `ui.js` + `routes.ts`）：任务列表（cron/类型徽章/档位/上次·下次执行时间/上次错误）、新建表单（cron + goal|command + 档位）、每任务的立即执行/启停/删除按钮、底部内嵌「🔐 待审批」区可直接批准/拒绝。切到该 tab 时按需加载（`fhcode:tab-shown` 自定义事件），避免首屏无谓请求。
   - 命名消歧：既有「⚡ 自动化」页是**指令模板**（手动一键发起），本面板是**cron 定时调度**（需 serve 常驻），故命名为「定时任务」并加title 说明。
 - **CLI 接线**（表驱动三处同改）：`commands.ts` 加 `approvals` 联合成员 + `all`/`by` flag + builder；`index.ts` 加 import 与 `dispatchManage` 分支。命令**主动 `ensureScheduler()`**（`getInbox()` 仅在调度器初始化后非空，否则直接调用会误报"未初始化"）。
+- **新增业务画像 Web 出口与可视化**（`src/web/routes/memory.ts` + `index.html` + `ui.js`）：v8.7.0 的业务画像此前**只有 CLI**（`fhcode memory profile`），控制台完全看不到——补齐第三个出口。
+  - 三个只读 GET 端点：`/api/memory/profile`（聚合画像：累计任务/时间跨度/高频领域/关键决策/产物/用户偏好/最近目标）、`/api/memory/stats`（分层记忆统计：短期文件数/长期笔记数/上次总结时间）、`/api/memory/entries?limit=`（原始条目倒序，`limit` 夹在 1~500 防一次拉爆）。
+  - 记忆页新增「📊 业务画像」区块：4 张统计卡（累计任务 / 时间跨度 / 关键决策 / 产物）+ 高频领域条形可视化 + 关键决策/产物/用户偏好/最近任务列表块，顶部「🔄 刷新」按钮；所有用户可控文本经 `esc()` 转义。
 - **测试**：`tests/unit/approval-inbox.test.ts` 新增 **8 例**——submit→pending 可见、裁决后移出 pending 但全量仍含、decide 幂等（已裁决/不存在均失败）、TTL 过期转 `expired` 且不可裁决、reject 转 `rejected`、Web 裁决端点依赖的 `approve=false` 语义、CLI 解析（子命令/--all/--by/缺省 list）。
-- **文档**：`docs/API.md` 补 `POST /api/approvals/:id/decide`（含"裁决仅解除挂起"提示）；README 命令表补 `fhcode approvals`。
+- **文档**：`docs/API.md` 补 `POST /api/approvals/:id/decide`（含"裁决仅解除挂起"提示）与记忆画像三端点；README 命令表补 `fhcode approvals`。
 
-**验证**：`npm test` **412/412 全绿**（+23）；typecheck 0 错误；build 通过；check:cross 11 项过 10 项（D7 electron EBUSY 为本机文件锁既有项）。真实起 serve 验证：`GET /api/routines` 与 `/api/routines/approvals` 返回真实数据、首页含新面板元素、裁决端点路由匹配且错误语义正确（400/401）。
+**验证**：`npm test` **412/412 全绿**（+23）；typecheck 0 错误；build 通过；check:version / check:compliance 过。真实起 serve（8124）验证：`GET /api/memory/profile` 返回真实画像（100 条任务、8 个高频领域）、`/api/memory/stats` 返回分层统计、`/api/memory/entries?limit=3` 正确倒序且 `limit=9999` 自动夹到上限、无 token 返回 401、首页含 `profilePanel`/`profileRefreshBtn`；`GET /api/routines` 与 `/api/routines/approvals` 返回真实数据、裁决端点路由匹配且错误语义正确（400/401）。
 
 ## v8.7.0 · 对标纳米Work 四大能力（2026-10-04）
 

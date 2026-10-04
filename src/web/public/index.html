@@ -427,6 +427,15 @@
             </div>
           </div>
 
+          <!-- v8.8.0: 业务画像（跨会话记忆聚合可视化） -->
+          <div class="section-title" style="display:flex;align-items:center;justify-content:space-between;">
+            <span>📊 业务画像<span class="muted" style="font-size:11px;font-weight:400;margin-left:6px;">AI 跨会话记住的东西</span></span>
+            <button id="profileRefreshBtn" class="ghost" style="font-size:11px;padding:3px 8px;">🔄 刷新画像</button>
+          </div>
+          <div id="profilePanel" style="margin-top:10px;">
+            <div class="muted" style="text-align:center;padding:20px;font-size:12px;">加载中…</div>
+          </div>
+
           <!-- 总结历史面板 -->
           <div class="mem-panel" id="memHistoryPanel" style="display:none;">
             <div class="card memory-content" id="memHistoryContent">
