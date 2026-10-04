@@ -17,6 +17,7 @@ import { runTierCmd } from './cmds/tier';
 import { runAgentNewCmd } from './cmds/agent-new';
 import { runRoutineCmd } from './cmds/routine';
 import { runMemoryCmd } from './cmds/memory';
+import { runApprovalsCmd } from './cmds/approvals';
 import { startRepl } from './repl';
 import { runTui } from './tui-run';
 
@@ -205,6 +206,7 @@ async function dispatchManage(m: ManagementCommand): Promise<void> {
       enabled: m.enabled,
     }); break;
     case 'memory': await runMemoryCmd(m.action, m.yes); break;
+    case 'approvals': await runApprovalsCmd({ action: m.action, id: m.id, all: m.all, by: m.by }); break;
   }
 }
 

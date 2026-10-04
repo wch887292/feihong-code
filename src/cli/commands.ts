@@ -70,7 +70,8 @@ export type ManagementCommand =
   | { kind: 'tier'; action: 'get' | 'set'; value?: ComputeTier }
   | { kind: 'agent-new'; name?: string; prompt?: string; tools?: string; category?: string; tier?: ComputeTier }
   | { kind: 'routine'; action: 'list' | 'add' | 'run' | 'enable' | 'rm'; id?: string; cron?: string; goal?: string; command?: string; name?: string; tier?: ComputeTier; workspaceDir?: string; enabled?: boolean }
-  | { kind: 'memory'; action: 'profile' | 'stats' | 'clear'; yes: boolean };
+  | { kind: 'memory'; action: 'profile' | 'stats' | 'clear'; yes: boolean }
+  | { kind: 'approvals'; action: 'list' | 'show' | 'approve' | 'reject'; id?: string; all: boolean; by?: string };
 
 export interface ParsedArgs {
   flags: {
@@ -78,6 +79,8 @@ export interface ParsedArgs {
     help?: boolean;
     parallel?: boolean;
     yes?: boolean;
+    all?: boolean;
+    by?: string;
     stream?: boolean;
     limit?: number;
     port?: number;
@@ -144,6 +147,8 @@ const FLAG_SPECS: Record<string, FlagSpec> = {
   help: { kind: 'bool', key: 'help' },
   parallel: { kind: 'bool', key: 'parallel' },
   yes: { kind: 'bool', key: 'yes' },
+  all: { kind: 'bool', key: 'all' },
+  by: { kind: 'str', key: 'by' },
   stream: { kind: 'bool', key: 'stream' },
   'verify-only': { kind: 'bool', key: 'verifyOnly' },
   'plan-only': { kind: 'bool', key: 'planOnly' },
@@ -296,6 +301,13 @@ const MANAGE_BUILDERS: Record<string, ManageBuilder> = {
     kind: 'memory',
     action: (rest[0] as 'profile' | 'stats' | 'clear') ?? 'profile',
     yes: !!flags.yes,
+  }),
+  approvals: ({ flags, rest }) => ({
+    kind: 'approvals',
+    action: (rest[0] as 'list' | 'show' | 'approve' | 'reject') ?? 'list',
+    id: rest[1],
+    all: !!flags.all,
+    by: flags.by,
   }),
 };
 

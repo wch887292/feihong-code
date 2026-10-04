@@ -1,5 +1,13 @@
 ﻿# 飞虹 Code 更新日志 / Changelog
 
+## 🚧 未发布（Unreleased）· 审批收件箱 CLI 出口（2026-10-04）
+
+**主题**：把 v8.7.0 的自动化任务安全闭环补上最后一块——此前 `ask` 级动作在 CLI 默认 `requireApproval=true` 时会挂起到审批收件箱，但**只有 Web 的 `GET /api/routines/approvals` 能看，CLI 没有任何出口**，导致"挂起了却看不到、只能去翻 `approvals.json`"。
+
+- **新增命令 `fhcode approvals list|show|approve|reject`**（`src/cli/cmds/approvals.ts`）：`list` 默认只看待决、`--all` 含已裁决/已过期；`show <id>` 看详情；`approve/reject <id>` 裁决（`--by <裁决人>` 署名，默认 `cli`）。裁决后明确提示"批准仅解除挂起，需重新触发 `routine run` 或等下个 cron 窗口"，避免用户误以为批准后会自动补跑。
+- **CLI 接线**（表驱动三处同改）：`src/cli/commands.ts` 加 `approvals` 联合成员 + `all`/`by` flag + `MANAGE_BUILDERS` builder；`src/cli/index.ts` 加 import 与 `dispatchManage` 分支。命令主动 `ensureScheduler()` 以确保收件箱单例存在（`getInbox()` 只在调度器初始化后非空）。
+- **测试**：`tests/unit/approval-inbox.test.ts` 新增 7 例——submit→pending 可见、裁决后移出 pending 但全量仍含、decide 幂等（已裁决/不存在均失败）、TTL 过期转 `expired` 且不可裁决、reject 转 `rejected`、CLI 解析（子命令/--all/--by/缺省 list）。
+
 ## v8.7.0 · 对标纳米Work 四大能力（2026-10-04）
 
 **主题**：对标 360 纳米Work（企业智能体工作平台）的四大核心能力，补齐 fhcode 在「成本调度 / 专家创建 / 7x24 自动化 / 记忆复用」上的结构性缺口。四项均已实现并通过 typecheck + 单元测试 + 端到端验证。本次为纯新增能力，全量向后兼容，既有 CLI / Web 行为不变。
