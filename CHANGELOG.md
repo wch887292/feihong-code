@@ -17,6 +17,10 @@
 
 **新增测试**：`tests/unit/routine-runner.test.ts`（7 例：noop/红线拦截/自主执行/审批挂起/goal 真实离线执行/goal 红线拦截/文件落地）、`tests/unit/memory-profile.test.ts`（5 例：空画像/高频标签/去重/时间跨度/格式化）、`tests/unit/tier.test.ts`（3 例）。verify 链（m4/m6/m7/m8/m9/routines/policy）与 build、typecheck 全绿。
 
+**验证终态**：`npm test` **376/376 全绿**（54.3s），零失败零跳过；typecheck 0 错误；build 通过；verify 链（m4 41 / m6 29 / m7 12 / m8 27 / m9 25 / routines 18 / policy 13）全绿。
+
+> **测试环境坑（非项目 bug）**：在 WorkBuddy IDE 内跑 `npm test` 需先 `NODE_OPTIONS="" npm test`。IDE 注入的 `node-language-shim.cjs` 会拦截 `fs.unlink`，M4 审计锁 `.audit.lock` 删不掉→互相死锁→用例报「审计写入锁等待超时」，整轮挂死 20+ 分钟。绕过 shim 后 54 秒跑完全绿。附带副作用：`~/.feihong-code/tenants/default/audit/` 堆积数百个 `.audit.lock.stale-*`（4–5 字节 pid 标记），不影响逻辑，未清理。
+
 **说明**：`check:cross` 的 D7（`electron/main.js ... EBUSY`）为本机文件锁导致的既有环境问题（未改动 electron/），其余 10 项跨端一致性校验通过。
 
 ## v8.6.2 · 对话流增加简洁文本思考内容（2026-10-02）

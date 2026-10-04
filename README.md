@@ -101,7 +101,11 @@ License: Apache-2.0
 - **③ 自动化任务真实执行（云端 7x24）**：`fhcode routine add --cron "0 * * * *" --goal "..."` 建定时任务，`fhcode serve` 常驻后台真实执行（AI 任务 / shell 命令均落地）。**三级规则引擎 + 审批收件箱门控**：硬红线（改密码/转账/永久删除/外发）恒拦截，ask 进审批收件箱，人工放行后执行。
 - **④ 工作记忆增强（跨会话复用）**：默认装配分层记忆——启动召回历史决策/产物注入上下文、过程自动压缩、结束沉淀项目记忆；`fhcode memory profile` 查看业务画像总览。
 
-**质量终态**：单测新增 15 例（376 项，1 项为 TaskQueue 既有计时敏感用例的并行 flake，隔离运行通过）；typecheck / build / verify 链（m4·m6·m7·m8·m9·routines·policy）全绿。详见 [CHANGELOG](./CHANGELOG.md)。
+**质量终态**：单测 **376/376 全绿**（54.3s），typecheck / build / verify 链（m4·m6·m7·m8·m9·routines·policy）全绿。详见 [CHANGELOG](./CHANGELOG.md)。
+
+> 在 WorkBuddy IDE 内跑测试请用 `NODE_OPTIONS="" npm test`：IDE 注入的 shim 会拦截 `fs.unlink`，导致审计锁死锁、整轮挂死 20+ 分钟；绕过 shim 后 54 秒跑完全绿。
+
+**Web API**：`/api/routines` 系列（增删查改 + 手动触发 + 审批收件箱），详见 [API 文档](./docs/API.md)。
 
 ## 🆕 v8.6.0「Always-on 飞虹 dots」（2026-10-02）
 

@@ -578,6 +578,106 @@ DELETE /api/plugins/:id
 
 ---
 
+### 14. 自动化任务（Routines）
+
+管理云端 7x24 定时任务。任务分 `goal`（交AI 智能体真实执行）与 `command`（shell 命令）两类，
+**每次执行都会过三级规则引擎门控**：硬红线（改密码 / 转账 / 永久删除 / 外发）恒拦截不可放行；
+命中 `ask` 时提交审批收件箱挂起，人工放行后才执行。
+
+`fhcode serve` 启动时调度器常驻（每 60s 检查一次 cron），接口与 CLI 共享同一进程单例。
+
+**获取任务列表**
+```
+GET /api/routines
+```
+
+**响应** `200 OK`
+```json
+{
+  "ok": true,
+  "routines": [
+    {
+      "id": "rt_1759000000000_a3f1",
+      "name": "每日代码巡检",
+      "trigger": { "kind": "cron", "expr": "0 9 * * *" },
+      "action": { "type": "goal", "goal": "巡检 src 目录并输出报告", "tier": "save" },
+      "enabled": true,
+      "maxRetries": 2,
+      "state": { "status": "idle", "lastRunAt": null, "nextRunAt": "2026-10-05T01:00:00.000Z" }
+    }
+  ]
+}
+```
+
+**创建任务**
+```
+POST /api/routines
+```
+**请求体**
+```json
+{
+  "name": "每日代码巡检",
+  "cron": "0 9 * * *",
+  "goal": "巡检 src 目录并输出报告",
+  "tier": "save",
+  "enabled": true
+}
+```
+- `cron` 必填（五字段）；`goal` 与 `command` 二选一，优先取 `command`
+- `tier` 可选（`light` / `save` / `full`），缺省按目标复杂度自动分档
+
+**响应** `201 Created`；缺少 `cron` 或任务内容时 `400`
+```json
+{ "ok": false, "error": "缺少 cron 与任务内容（goal 或 command）" }
+```
+
+**手动触发一次**
+```
+POST /api/routines/:id/run
+```
+**响应** `200 OK`（任务不存在 `404`，已停用 `409`）
+```json
+{
+  "ok": true,
+  "result": {
+    "ok": true,
+    "output": "巡检完成：发现 0 个问题"
+  }
+}
+```
+
+**启用/停用**
+```
+POST /api/routines/:id/enable
+```
+**请求体** `{ "enabled": false }` — 省略或 `true` 即启用。
+
+**删除任务**
+```
+DELETE /api/routines/:id
+```
+
+**查询审批收件箱待决项**
+```
+GET /api/routines/approvals
+```
+**响应** `200 OK`（落盘前已脱敏）
+```json
+{
+  "ok": true,
+  "approvals": [
+    {
+      "id": "ap_1759000000000",
+      "label": "routine(rt_1759000000000_a3f1/cron) 命中默认 ask，已挂起待审批",
+      "status": "pending",
+      "createdAt": "2026-10-04T10:00:00.000Z"
+    }
+  ]
+}
+```
+
+---
+
 ## 错误响应
 
 ### 错误格式
