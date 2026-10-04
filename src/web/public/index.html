@@ -645,6 +645,7 @@
           <div class="right-tab" data-tab="git" id="gitTab">🔀 Git</div>
           <div class="right-tab" data-tab="team" id="teamTab">👥 团队</div>
           <div class="right-tab" data-tab="capabilities" id="capabilitiesTab">🧪 能力中心</div>
+          <div class="right-tab" data-tab="routines" id="routinesTab" title="cron 定时任务（需 fhcode serve 常驻）">⏱ 定时任务</div>
           <div class="right-tab" data-tab="computer" id="computerTab" style="display:none;">🖥 电脑操作</div>
         </div>
         <div class="right-body">
@@ -681,6 +682,47 @@
                 <button class="pill" data-key="^v">粘贴</button>
                 <button class="pill" data-key="^a">全选</button>
               </div>
+            </div>
+          </div>
+          <!-- v8.8.0: 自动化任务（Routines）面板 -->
+          <div class="preview-panel" id="routinesPanel">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+              <div style="font-size:13px;font-weight:600;">⏱ 定时任务 <span id="routinesCount" class="badge" style="margin-left:4px;">0</span></div>
+              <div style="display:flex;gap:6px;">
+                <button id="routinesNewBtn" class="ghost-btn" style="font-size:11px;padding:3px 8px;background:#2d5a3d;color:#fff;">+ 新建</button>
+                <button id="routinesRefreshBtn" class="ghost-btn" style="font-size:11px;padding:3px 8px;">🔄</button>
+              </div>
+            </div>
+            <div id="routinesNewForm" style="display:none;margin-bottom:10px;padding:10px;border:1px solid var(--border);border-radius:6px;">
+              <div style="display:flex;flex-direction:column;gap:6px;">
+                <input type="text" id="routineName" placeholder="任务名称（如：每日代码巡检）" style="padding:5px 8px;font-size:11px;border:1px solid var(--border);border-radius:4px;background:var(--card);color:var(--ink);" />
+                <input type="text" id="routineCron" placeholder="cron 表达式（如 0 9 * * *，五字段）" value="0 9 * * *" style="padding:5px 8px;font-size:11px;border:1px solid var(--border);border-radius:4px;background:var(--card);color:var(--ink);" />
+                <select id="routineKind" style="padding:5px 8px;font-size:11px;border:1px solid var(--border);border-radius:4px;background:var(--card);color:var(--ink);">
+                  <option value="goal">AI 任务（goal）</option>
+                  <option value="command">Shell 命令（command）</option>
+                </select>
+                <textarea id="routineContent" rows="2" placeholder="AI 目标，例：巡检 src 目录并输出问题清单" style="padding:5px 8px;font-size:11px;border:1px solid var(--border);border-radius:4px;background:var(--card);color:var(--ink);resize:vertical;"></textarea>
+                <select id="routineTier" style="padding:5px 8px;font-size:11px;border:1px solid var(--border);border-radius:4px;background:var(--card);color:var(--ink);">
+                  <option value="">算力档位：自动判定</option>
+                  <option value="light">轻量（省钱优先）</option>
+                  <option value="save">省钱</option>
+                  <option value="full">满血（最强推理）</option>
+                </select>
+                <div style="display:flex;gap:6px;">
+                  <button id="routineSaveBtn" class="ghost-btn" style="flex:1;font-size:11px;padding:4px;background:#2d5a3d;color:#fff;">✓ 保存</button>
+                  <button id="routineCancelBtn" class="ghost-btn" style="flex:1;font-size:11px;padding:4px;">取消</button>
+                </div>
+                <div class="muted" style="font-size:10px;line-height:1.5;">
+                  执行受三级规则引擎门控：硬红线（改密码/转账/永久删除/外发）恒拦截；中间档需人工批准后才执行。
+                </div>
+              </div>
+            </div>
+            <div id="routinesList" style="overflow-y:auto;max-height:calc(100vh - 280px);">
+              <div class="muted" style="text-align:center;padding:30px;font-size:12px;">暂无自动化任务<br/><span style="font-size:11px;">点「+ 新建」创建定时任务，需 fhcode serve 常驻才会自动触发</span></div>
+            </div>
+            <div id="routinesApprovals" style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);">
+              <div style="font-size:12px;font-weight:600;margin-bottom:6px;">🔐 待审批 <span id="approvalsCount" class="badge" style="margin-left:4px;">0</span></div>
+              <div id="approvalsList"><div class="muted" style="font-size:11px;text-align:center;padding:12px;">无待审批</div></div>
             </div>
           </div>
           <!-- P3: 多文件变更面板 -->

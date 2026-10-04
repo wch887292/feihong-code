@@ -128,3 +128,18 @@ test('CLI：approvals 缺省动作为 list（可直接 fhcode approvals）', () 
   if (r.manage?.kind !== 'approvals') throw new Error('kind 应为 approvals');
   assert.equal(r.manage.action, 'list', '未指定子命令时应默认 list');
 });
+
+test('Web 路由：审批裁决端点所需能力（decide 的 approve=false 走拒绝分支）', () => {
+  // Web 与 CLI 共用 ApprovalInbox.decide，此例锁定「省略 approve 或传 false → 拒绝」语义，
+  // 供 POST /api/approvals/:id/decide 的 body.approve !== false 逻辑依赖。
+  const { inbox, dir } = tmpInbox();
+  try {
+    const it = inbox.submit('automation:需拒绝', 'r', { ttlMs: 60_000 });
+    const rejected = inbox.decide(it.id, false, 'web');
+    assert.equal(rejected.ok, true);
+    assert.equal(rejected.item!.status, 'rejected');
+    assert.equal(rejected.item!.decidedBy, 'web', '裁决人应记录来源');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

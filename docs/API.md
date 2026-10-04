@@ -676,6 +676,22 @@ GET /api/routines/approvals
 }
 ```
 
+**审批裁决**
+```
+POST /api/approvals/:id/decide
+```
+**请求体**（`approve` 省略或 `false` 即拒绝）
+```json
+{ "approve": true, "by": "张三" }
+```
+**响应** `200 OK`（收件箱未初始化 `503`，裁决失败 `400`）
+```json
+{ "ok": true, "item": { "id": "ap_1759000000000", "status": "approved", "decidedBy": "张三" } }
+```
+
+> 裁决**仅解除挂起**：被挂起的自动化任务需重新 `POST /api/routines/:id/run`
+> 或等下一个 cron 窗口才会真正执行。与 CLI `fhcode approvals approve` 同源。
+
 ---
 
 ## 错误响应

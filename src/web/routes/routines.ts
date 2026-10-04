@@ -9,6 +9,7 @@
  *   POST   /api/routines/:id/enable 启用/停用（{enabled}）
  *   DELETE /api/routines/:id        删除
  *   GET    /api/routines/approvals  审批收件箱待决项
+ *   POST   /api/approvals/:id/decide审批裁决（{approve, by?}；与 CLI approvals 同源）
  *
  * 调度器与审批收件箱为进程单例（service.ensureScheduler），serve 启动时 start()。
  */
@@ -114,5 +115,23 @@ export function registerRoutineRoutes(app: ExpressApp, _deps: RoutineRouteDeps):
       return;
     }
     res.json({ ok: true, approvals: inbox.list() });
+  });
+
+  // 审批裁决（与 CLI `fhcode approvals approve|reject` 同一底层能力）
+  app.post('/api/approvals/:id/decide', (req: Request, res: Response) => {
+    const inbox = getInbox();
+    if (!inbox) {
+      res.status(503).json({ ok: false, error: '审批收件箱未初始化' });
+      return;
+    }
+    const body = (req.body ?? {}) as Record<string, any>;
+    const approve = body.approve !== false;
+    const by = typeof body.by === 'string' && body.by.trim() ? body.by.trim() : 'web';
+    const r = inbox.decide(req.params.id, approve, by);
+    if (!r.ok) {
+      res.status(400).json({ ok: false, error: r.error, item: r.item });
+      return;
+    }
+    res.json({ ok: true, item: r.item });
   });
 }

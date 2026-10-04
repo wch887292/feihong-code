@@ -849,6 +849,11 @@
       document.getElementById('gitPanel')?.classList.toggle('active', name === 'git');
       document.getElementById('teamPanel')?.classList.toggle('active', name === 'team');
       document.getElementById('capabilitiesPanel')?.classList.toggle('active', name === 'capabilities');
+      document.getElementById('routinesPanel')?.classList.toggle('active', name === 'routines');
+      // v8.8.0：切到「定时任务」时按需加载列表（避免首屏无谓请求）
+      if (name === 'routines') {
+        window.dispatchEvent(new CustomEvent('fhcode:tab-shown', { detail: 'routines' }));
+      }
       if (name === 'changes') {
         bindChangesButtonsOnce();
         loadChanges();
@@ -2504,4 +2509,260 @@
   } else {
     bind();
   }
+})();
+
+/* ============================================================
+ * v8.8.0 定时任务（Routines）面板
+ * 与「自动化」页（指令模板，手动一键发起）不同：这里管的是
+ * cron 定时调度任务，需 `fhcode serve` 常驻才会自动触发。
+ * 执行受三级规则引擎门控：硬红线恒拦截，ask 级挂起到待审批。
+ * ========================================================== */
+(function () {
+  const ROUTINE_STATE_LABEL = {
+    idle: '空闲',
+    running: '执行中',
+    failed: '上次失败',
+    done: '已完成',
+  };
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => (
+      { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+    ));
+  }
+
+  function fmtTime(iso) {
+    if (!iso) return '—';
+    try {
+      return new Date(iso).toLocaleString('zh-CN', { hour12: false });
+    } catch {
+      return iso;
+    }
+  }
+
+  function renderRoutines(routines) {
+    const list = document.getElementById('routinesList');
+    const count = document.getElementById('routinesCount');
+    if (!list) return;
+    if (count) count.textContent = String(routines.length);
+
+    if (!routines.length) {
+      list.innerHTML =
+        '<div class="muted" style="text-align:center;padding:30px;font-size:12px;">暂无定时任务<br/>' +
+        '<span style="font-size:11px;">点「+ 新建」创建 cron 任务，需 fhcode serve 常驻才会自动触发</span></div>';
+      return;
+    }
+
+    list.innerHTML = routines
+      .map((r) => {
+        const st = r.state || {};
+        const status = st.status || 'idle';
+        const label = ROUTINE_STATE_LABEL[status] || status;
+        const act = r.action || {};
+        const content = act.type === 'command' ? act.command : act.goal;
+        const kindBadge =
+          act.type === 'command'
+            ? '<span class="badge" style="background:#4a6fa5;">shell</span>'
+            : `<span class="badge" style="background:#2d5a3d;">AI${act.tier ? ' · ' + esc(act.tier) : ''}</span>`;
+        return (
+          '<div class="card" data-routine-id="' + esc(r.id) + '" style="padding:9px;margin-bottom:8px;border:1px solid var(--border);border-radius:6px;">' +
+            '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">' +
+              '<div style="flex:1;min-width:0;">' +
+                '<div style="font-size:12px;font-weight:600;display:flex;align-items:center;gap:6px;">' +
+                  esc(r.name || '未命名') + kindBadge +
+                  (r.enabled ? '' : '<span class="badge" style="background:#888;">已停用</span>') +
+                '</div>' +
+                '<div class="muted" style="font-size:10px;margin-top:3px;font-family:var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + esc(content) + '">' +
+                  esc(content || '') +
+                '</div>' +
+                '<div class="muted" style="font-size:10px;margin-top:3px;">' +
+                  'cron <code>' + esc((r.trigger || {}).expr || '') + '</code> · ' +
+                  '上次 ' + fmtTime(st.lastRunAt) + ' · 下次 ' + fmtTime(st.nextRunAt) +
+                '</div>' +
+                (st.lastError
+                  ? '<div style="font-size:10px;color:#c0392b;margin-top:3px;">⚠ ' + esc(String(st.lastError).slice(0, 120)) + '</div>'
+                  : '') +
+              '</div>' +
+              '<div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;">' +
+                '<button class="ghost-btn r-run" style="font-size:10px;padding:3px 7px;" title="立即执行一次">▶</button>' +
+                '<button class="ghost-btn r-toggle" style="font-size:10px;padding:3px 7px;" title="' + (r.enabled ? '停用' : '启用') + '">' + (r.enabled ? '⏸' : '▶') + '</button>' +
+                '<button class="ghost-btn r-del" style="font-size:10px;padding:3px 7px;color:#c0392b;" title="删除">🗑</button>' +
+              '</div>' +
+            '</div>' +
+          '</div>'
+        );
+      })
+      .join('');
+
+    list.querySelectorAll('[data-routine-id]').forEach((card) => {
+      const id = card.getAttribute('data-routine-id');
+      const on = (sel, fn) => {
+        const el = card.querySelector(sel);
+        if (el) el.addEventListener('click', (e) => { e.stopPropagation(); fn(); });
+      };
+      on('.r-run', () => runRoutineNow(id));
+      on('.r-toggle', () => toggleRoutine(id));
+      on('.r-del', () => deleteRoutine(id));
+    });
+  }
+
+  function renderApprovals(items) {
+    const box = document.getElementById('approvalsList');
+    const count = document.getElementById('approvalsCount');
+    if (!box) return;
+    const pendings = (items || []).filter((i) => i.status === 'pending');
+    if (count) count.textContent = String(pendings.length);
+
+    if (!pendings.length) {
+      box.innerHTML = '<div class="muted" style="font-size:11px;text-align:center;padding:12px;">无待审批</div>';
+      return;
+    }
+    box.innerHTML = pendings
+      .map(
+        (a) =>
+          '<div data-approval-id="' + esc(a.id) + '" style="padding:6px;margin-bottom:5px;border:1px solid var(--border);border-radius:5px;font-size:11px;">' +
+            '<div style="display:flex;justify-content:space-between;gap:6px;align-items:flex-start;">' +
+              '<div style="flex:1;min-width:0;">' +
+                '<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + esc(a.reason) + '">' + esc(a.reason || a.action) + '</div>' +
+                '<div class="muted" style="font-size:10px;margin-top:2px;">' + fmtTime(a.requestedAt) + '</div>' +
+              '</div>' +
+              '<div style="display:flex;gap:4px;flex-shrink:0;">' +
+                '<button class="ghost-btn a-ok" style="font-size:10px;padding:2px 6px;background:#2d5a3d;color:#fff;">批准</button>' +
+                '<button class="ghost-btn a-no" style="font-size:10px;padding:2px 6px;">拒绝</button>' +
+              '</div>' +
+            '</div>' +
+          '</div>',
+      )
+      .join('');
+
+    box.querySelectorAll('[data-approval-id]').forEach((row) => {
+      const id = row.getAttribute('data-approval-id');
+      const ok = row.querySelector('.a-ok');
+      const no = row.querySelector('.a-no');
+      if (ok) ok.addEventListener('click', () => decideApproval(id, true));
+      if (no) no.addEventListener('click', () => decideApproval(id, false));
+    });
+  }
+
+  async function loadRoutines() {
+    try {
+      const res = await api('/api/routines');
+      renderRoutines((res && res.routines) || []);
+    } catch (e) {
+      const list = document.getElementById('routinesList');
+      if (list) list.innerHTML = '<div class="muted" style="text-align:center;padding:20px;font-size:11px;">加载失败：' + esc(e.message) + '</div>';
+    }
+    try {
+      const res = await api('/api/routines/approvals');
+      renderApprovals((res && res.approvals) || []);
+    } catch {
+      /* 审批箱不可用时静默 */
+    }
+  }
+
+  async function runRoutineNow(id) {
+    toast('正在执行…');
+    try {
+      const res = await api('/api/routines/' + id + '/run', 'POST');
+      const out = (res && res.result && res.result.output) || '';
+      toast(out ? '执行完成：' + String(out).slice(0, 80) : '执行完成');
+    } catch (e) {
+      toast('执行失败：' + e.message);
+    }
+    loadRoutines();
+  }
+
+  async function toggleRoutine(id) {
+    try {
+      const list = document.getElementById('routinesList');
+      const card = list && list.querySelector('[data-routine-id="' + id + '"]');
+      const cur = card && card.querySelector('.r-toggle');
+      const title = cur ? cur.getAttribute('title') : '';
+      const enable = title === '启用';
+      const res = await api('/api/routines/' + id + '/enable', 'POST', { enabled: enable });
+      toast(res && res.enabled ? '已启用' : '已停用');
+    } catch (e) {
+      toast('操作失败：' + e.message);
+    }
+    loadRoutines();
+  }
+
+  async function deleteRoutine(id) {
+    if (!confirm('确定删除该定时任务？此操作不可撤销。')) return;
+    try {
+      await api('/api/routines/' + id, 'DELETE');
+      toast('已删除');
+    } catch (e) {
+      toast('删除失败：' + e.message);
+    }
+    loadRoutines();
+  }
+
+  async function decideApproval(id, approve) {
+    try {
+      const res = await api('/api/approvals/' + id + '/decide', 'POST', { approve });
+      if (res && res.ok === false) toast('裁决失败：' + (res.error || '未知原因'));
+      else toast(approve ? '已批准' : '已拒绝');
+    } catch (e) {
+      toast('裁决失败：' + e.message);
+    }
+    loadRoutines();
+  }
+
+  async function saveRoutine() {
+    const name = document.getElementById('routineName').value.trim();
+    const cron = document.getElementById('routineCron').value.trim();
+    const kind = document.getElementById('routineKind').value;
+    const content = document.getElementById('routineContent').value.trim();
+    const tier = document.getElementById('routineTier').value;
+
+    if (!cron) return toast('请填写 cron 表达式');
+    if (!content) return toast('请填写任务内容');
+
+    const body = { name: name || '未命名任务', cron };
+    if (kind === 'command') body.command = content;
+    else { body.goal = content; if (tier) body.tier = tier; }
+
+    try {
+      const res = await api('/api/routines', 'POST', body);
+      if (res && res.ok === false) {
+        toast('创建失败：' + (res.error || '未知原因'));
+        return;
+      }
+      toast('已创建定时任务');
+      document.getElementById('routinesNewForm').style.display = 'none';
+      document.getElementById('routineContent').value = '';
+      document.getElementById('routineName').value = '';
+      loadRoutines();
+    } catch (e) {
+      toast('创建失败：' + e.message);
+    }
+  }
+
+  function bindRoutinesUI() {
+    if (window._routinesUIInited) return;
+    const newBtn = document.getElementById('routinesNewBtn');
+    if (!newBtn) return;
+    window._routinesUIInited = true;
+
+    newBtn.addEventListener('click', () => {
+      const form = document.getElementById('routinesNewForm');
+      form.style.display = form.style.display === 'none' ? 'block' : 'none';
+    });
+    document.getElementById('routinesRefreshBtn').addEventListener('click', loadRoutines);
+    document.getElementById('routineSaveBtn').addEventListener('click', saveRoutine);
+    document.getElementById('routineCancelBtn').addEventListener('click', () => {
+      document.getElementById('routinesNewForm').style.display = 'none';
+    });
+  }
+
+  // 切到该 tab 时才加载，避免首屏无谓请求
+  window.addEventListener('fhcode:tab-shown', (e) => {
+    if (e && e.detail === 'routines') {
+      bindRoutinesUI();
+      loadRoutines();
+    }
+  });
+  // 兜底：若事件未派发，进入面板时直接绑定
+  document.addEventListener('DOMContentLoaded', bindRoutinesUI);
 })();
