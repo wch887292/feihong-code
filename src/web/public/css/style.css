@@ -308,7 +308,12 @@
     }
     .task-item .task-actions button:hover { background: var(--border); }
     .task-item .task-actions .delete-btn:hover { background: #fee2e2; color: var(--err); }
+    .task-item .task-actions .stop-btn:hover { background: #fff3cd; color: var(--warn); }
     .task-pinned { color: var(--warn); }
+    /* 触屏设备无 hover：任务操作按钮（置顶/停止/删除）始终可见，否则手机上无法停止/删除任务 */
+    @media (hover: none) {
+      .task-item .task-actions { display: flex; }
+    }
 
     /* ========== 涓棿瀵硅瘽鍖?========== */
     .chat-area {

@@ -74,8 +74,10 @@ test('TaskQueue: 注入 channels 后任务状态变化触发 notify（mock 渠�
   const ch = { enabled: true, notify: async () => { notified++; } };
   const queue = new TaskQueue({ concurrency: 1, channels: ch as never, offline: true });
   const record = queue.submit('渠道推送测试');
-  // 等待完成
-  for (let i = 0; i < 100; i++) {
+  // 等待完成。轮询预算 30s（1500 × 20ms）：离线 mock 单独跑 <1s，但 `npm test` 并行跑
+  // 30+ 个文件时CPU 争用会让 2s 预算偶发不够（表现为通知次数少 1 次的 flaky 失败，
+  // 而非逻辑错误）。只放宽等待上限，不改变断言语义。
+  for (let i = 0; i < 1500; i++) {
     const cur = queue.get(record.id)!;
     if (cur.status === 'done' || cur.status === 'failed') break;
     await new Promise((r) => setTimeout(r, 20));

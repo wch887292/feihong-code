@@ -138,6 +138,8 @@ export interface TaskQueueOptions {
   offline?: boolean;
   /** P3-1：文件写入暂存回调（注入 change-manager.stageChange），AI 生成的修改自动记录到变更面板 */
   stageChange?: (path: string, content: string) => void;
+  /** 单任务最大执行时长（毫秒）：看门狗超时后强制中断，防止僵尸任务。缺省读 env FH_TASK_MAX_MINUTES（默认 30 分钟） */
+  maxDurationMs?: number;
 }
 
 export class TaskQueue {
@@ -158,6 +160,8 @@ export class TaskQueue {
   private readonly controllers = new Map<string, AbortController>();
   /** 全局停止标志：cancel() 后清空队列并阻止新任务启动；标记的任务在 run() 入口即失败 */
   private stopAll = false;
+  /** 单任务最大执行时长（毫秒）：看门狗超时后强制中断，防止模型挂起/死循环导致永久 running 的僵尸任务 */
+  private readonly maxDurationMs: number;
 
   constructor(opts: TaskQueueOptions = {}) {
     // 并发默认 2：executeTask 已移除 process.chdir，所有工具通过 ctx.cwd 传参，
@@ -168,6 +172,9 @@ export class TaskQueue {
     this.persistDir = opts.persistDir;
     this.offline = opts.offline ?? false;
     this.stageChange = opts.stageChange;
+    // 看门狗时长：优先 opts，其次环境变量 FH_TASK_MAX_MINUTES（默认 30 分钟）
+    const envMin = Number(process.env.FH_TASK_MAX_MINUTES);
+    this.maxDurationMs = opts.maxDurationMs ?? (Number.isFinite(envMin) && envMin > 0 ? envMin : 30) * 60000;
     if (this.persistDir) this.recover();
   }
 
@@ -484,6 +491,13 @@ export class TaskQueue {
     // 为当前任务创建 AbortController，供 cancelTask 精准中止进行中的执行（含模型请求）
     const controller = new AbortController();
     this.controllers.set(id, controller);
+    // 看门狗：运行超过最大时长则强制中断，防止僵尸任务（模型挂起/死循环导致永久 running）
+    let watchdogFired = false;
+    const watchdog = setTimeout(() => {
+      watchdogFired = true;
+      logger.warn('task watchdog triggered', { taskId: id, maxMinutes: Math.round(this.maxDurationMs / 60000) });
+      controller.abort();
+    }, this.maxDurationMs);
     this.running++;
     record.status = 'running';
     record.updatedAt = new Date().toISOString();
@@ -546,10 +560,22 @@ export class TaskQueue {
       };
       logger.info('task finished', { taskId: id, status: record.status, iterations: result.iterations });
     } catch (e) {
-      record.status = 'failed';
-      record.error = e instanceof Error ? e.message : String(e);
+      // 已在运行中被 cancelTask 标记失败（用户主动停止）的任务保留原错误文案，避免被 AbortError 覆盖
+      if (!record.error) {
+        record.status = 'failed';
+        if (watchdogFired) {
+          record.error = `执行超时（已超过 ${Math.round(this.maxDurationMs / 60000)} 分钟），已自动停止。如确需更长耗时，请在服务端设置 FH_TASK_MAX_MINUTES 后重启`;
+        } else if (controller.signal.aborted) {
+          record.error = '任务已被手动停止';
+        } else {
+          record.error = e instanceof Error ? e.message : String(e);
+        }
+      } else {
+        record.status = 'failed';
+      }
       logger.error('task failed', { taskId: id, error: record.error });
     } finally {
+      clearTimeout(watchdog); // 清理看门狗定时器
       this.controllers.delete(id); // 清理中断控制器
       record.updatedAt = new Date().toISOString();
       this.running--;

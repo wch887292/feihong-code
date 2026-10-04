@@ -208,3 +208,84 @@ test('TaskQueue: appendStep 纯工具调用（有 toolCalls 无文本）仍入�
   assert.equal(steps[0].data.text, '');
   assert.deepEqual(steps[0].data.toolCalls, ['write_file']);
 });
+
+test('TaskQueue: 看门狗默认时长为 30 分钟', () => {
+  const queue = new TaskQueue({ offline: true });
+  const anyQ = queue as unknown as { maxDurationMs: number };
+  assert.equal(anyQ.maxDurationMs, 30 * 60_000, '缺省应为 30分钟');
+  queue.cancel();
+});
+
+test('TaskQueue: 看门狗时长可用 opts.maxDurationMs 覆盖', () => {
+  const queue = new TaskQueue({ offline: true, maxDurationMs: 5_000 });
+  const anyQ = queue as unknown as { maxDurationMs: number };
+  assert.equal(anyQ.maxDurationMs, 5_000, 'opts 显式传值应优先');
+  queue.cancel();
+});
+
+test('TaskQueue: 看门狗时长可用 FH_TASK_MAX_MINUTES 环境变量覆盖', () => {
+  const prev = process.env.FH_TASK_MAX_MINUTES;
+  process.env.FH_TASK_MAX_MINUTES = '7';
+  try {
+    const queue = new TaskQueue({ offline: true });
+    const anyQ = queue as unknown as { maxDurationMs: number };
+    assert.equal(anyQ.maxDurationMs, 7 * 60_000, '环境变量应换算为分钟');
+    queue.cancel();
+  } finally {
+    if (prev === undefined) delete process.env.FH_TASK_MAX_MINUTES;
+    else process.env.FH_TASK_MAX_MINUTES = prev;
+  }
+});
+
+test('TaskQueue: 看门狗中断的任务不会停留在 running（防僵尸）', async () => {
+  // 极短看门狗（1ms）+ 离线 mock：无论 executeTask 内部如何消化 abort，
+  // 任务都必须在预算内落到终态，绝不能永久 running（这正是看门狗要解决的问题）
+  const queue = new TaskQueue({ offline: true, maxDurationMs: 1 });
+  const record = queue.submit('看门狗超时测试');
+  for (let i = 0; i < COMPLETE_BUDGET; i++) {
+    const cur = queue.get(record.id)!;
+    if (cur.status === 'done' || cur.status === 'failed') break;
+    await wait(20);
+  }
+  const final = queue.get(record.id)!;
+  assert.notEqual(final.status, 'running', '看门狗应保证任务不永久停留 running');
+  assert.ok(['done', 'failed'].includes(final.status), `应为终态，实际 ${final.status}`);
+  queue.cancel();
+});
+
+test('TaskQueue: 看门狗触发的中断不产生原始 AbortError 泄漏给用户', async () => {
+  const queue = new TaskQueue({ offline: true, maxDurationMs: 1 });
+  const record = queue.submit('看门狗错误文案测试');
+  for (let i = 0; i < COMPLETE_BUDGET; i++) {
+    const cur = queue.get(record.id)!;
+    if (cur.status === 'done' || cur.status === 'failed') break;
+    await wait(20);
+  }
+  const final = queue.get(record.id)!;
+  // 无论走正常结束还是 catch 分支，都不应把裸 AbortError 抛给用户看
+  assert.ok(
+    !/AbortError|aborted/i.test(final.error ?? ''),
+    `不应泄漏 AbortError 原文，实际：${final.error}`,
+  );
+  queue.cancel();
+});
+
+test('TaskQueue: cancelTask 主动停止后错误文案不被 AbortError 覆盖', async () => {
+  const queue = new TaskQueue({ offline: true });
+  const record = queue.submit('主动停止测试');
+  // 运行中主动停止
+  const ok = queue.cancelTask(record.id);
+  assert.equal(ok, true, '运行中任务应可停止');
+  for (let i = 0; i < COMPLETE_BUDGET; i++) {
+    const cur = queue.get(record.id)!;
+    if (cur.status === 'done' || cur.status === 'failed') break;
+    await wait(20);
+  }
+  const final = queue.get(record.id)!;
+  assert.equal(final.status, 'failed', '主动停止后应为 failed');
+  assert.ok(
+    !/AbortError|aborted/i.test(final.error ?? ''),
+    `不应被 AbortError 覆盖，实际：${final.error}`,
+  );
+  queue.cancel();
+});

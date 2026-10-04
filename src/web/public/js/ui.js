@@ -1418,6 +1418,7 @@
           ${isPinned ? '<span class="task-pinned">📌</span>' : ''}
           <div class="task-actions">
             <button class="pin-btn" data-id="${t.id}" data-pinned="${isPinned}" title="${isPinned ? '取消置顶' : '置顶'}">${isPinned ? '📌' : '📍'}</button>
+            ${(t.status === 'running' || t.status === 'queued') ? '<button class="stop-btn" data-id="' + t.id + '" title="停止任务">⏹</button>' : ''}
             ${t.status === 'done' || t.status === 'failed' ? '<button class="delete-btn" data-id="' + t.id + '" title="删除任务">🗑️</button>' : ''}
           </div>
         </div>`;
@@ -1459,6 +1460,51 @@
           deleteTask(id);
         });
       });
+
+      // 绑定停止按钮（运行中/排队中的任务）：调用后端精准停止，解救卡死/无法继续的任务
+      container.querySelectorAll('.stop-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const id = btn.getAttribute('data-id');
+          if (!confirm('确定停止该任务？执行中已产生的步骤不会回滚。')) return;
+          try {
+            await api('/api/tasks/' + id + '/stop', 'POST');
+            toast('已发送停止指令，任务即将终止');
+            await loadTasks();
+          } catch (err) {
+            toast('停止失败：' + (err && err.message ? err.message : err));
+          }
+        });
+      });
+    }
+
+    /**
+     * 轻量刷新任务列表的运行态（status/result/error），不重渲染对话流，避免打扰用户。
+     * 让「运行中→已完成/失败/停止」的状态变化在列表上及时可见（原本只有手动刷新或切换任务才更新）。
+     */
+    async function refreshTaskListStatuses() {
+      if (!state.token) return;
+      // 无活动任务时跳过轮询，减少请求
+      const hasActive = state.tasks.some(t => t.status === 'running' || t.status === 'queued');
+      if (!hasActive) return;
+      try {
+        const d = await api('/api/tasks');
+        const latest = d.tasks || [];
+        const map = new Map(latest.map(t => [t.id, t]));
+        for (const t of state.tasks) {
+          const u = map.get(t.id);
+          if (!u) continue;
+          t.status = u.status;
+          t.result = u.result;
+          t.error = u.error;
+          t.updatedAt = u.updatedAt;
+          if (u.steps) t.steps = u.steps;
+        }
+        for (const u of latest) {
+          if (!state.tasks.find(x => x.id === u.id)) state.tasks.push(u);
+        }
+        renderSidebarTaskList();
+      } catch (_) { /* 忽略瞬时失败 */ }
     }
 
     function switchView(nav) {
@@ -2449,6 +2495,8 @@
     // 启动检测 + 30s 心跳
     checkAll();
     setInterval(checkAll, 30000);
+    // 任务列表状态轻量轮询：有活动任务时每 5 秒增量刷新，让运行/完成/停止及时可见
+    setInterval(refreshTaskListStatuses, 5000);
   }
 
   if (document.readyState === 'loading') {
