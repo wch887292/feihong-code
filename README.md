@@ -23,7 +23,7 @@ License: Apache-2.0
     "name": "TypeScript"
   },
   "operatingSystem": "Cross-platform (Windows, Linux, macOS)",
-  "softwareVersion": "8.6.2",
+  "softwareVersion": "8.7.0",
   "dateCreated": "2026-08-12",
   "datePublished": "2026-08-22",
   "author": {
@@ -92,9 +92,9 @@ License: Apache-2.0
 > **终端 AI 编程智能体** · 对标 Meta Muse Code / Claude Code / Cursor CLI · 自研内核实现差异化 · 全功能 M0→M9.1 完成 · 企业级 RBAC/审计/SWE Agent
 > 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
 
-## 🆕 v8.7.0 对标纳米Work 四大能力（2026-10-04，开发中）
+## 🆕 v8.7.0 对标纳米Work 四大能力（2026-10-04）
 
-对标 360 纳米Work（企业智能体工作平台），补齐「成本调度 / 专家创建 / 7x24 自动化 / 记忆复用」四项核心能力。
+对标 360 纳米Work（企业智能体工作平台），补齐「成本调度 / 专家创建 / 7x24 自动化 / 记忆复用」四项核心能力。**运行模式从「工具等人用」升级为「系统按规则自己跑，人只管审批和纠偏」**。
 
 - **① 算力档位智能调度**（轻量 / 省钱 / 满血）：按任务复杂度自动分档路由模型，`fhcode tier set full` 全局锁定、`--tier` 单次覆盖；省档优先低成本/本地模型。
 - **② 对话式专家创建向导**：4 步创建专属 AI 专家（选模板→填提示/工具→选档位→命名），`fhcode agent-new` 交互或 `--name/--prompt/--tier` 一键创建。

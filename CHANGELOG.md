@@ -1,10 +1,8 @@
 ﻿# 飞虹 Code 更新日志 / Changelog
 
-## 🚧 未发布（Unreleased）· 对标纳米Work 四大能力（2026-10-04）
+## v8.7.0 · 对标纳米Work 四大能力（2026-10-04）
 
-> 本节为已完成并验证的四项能力，发版时用 `node scripts/bump-version.mjs 8.7.0` 落版本号。
-
-**主题**：对标 360 纳米Work（企业智能体工作平台）的四大核心能力，补齐 fhcode 在「成本调度 / 专家创建 / 7x24 自动化 / 记忆复用」上的结构性缺口。四项均已实现并通过 typecheck + 单元测试 + 端到端验证。
+**主题**：对标 360 纳米Work（企业智能体工作平台）的四大核心能力，补齐 fhcode 在「成本调度 / 专家创建 / 7x24 自动化 / 记忆复用」上的结构性缺口。四项均已实现并通过 typecheck + 单元测试 + 端到端验证。本次为纯新增能力，全量向后兼容，既有 CLI / Web 行为不变。
 
 - **① 算力档位智能调度（轻量/省钱/满血）**（`src/models/tier.ts`）：新增 `ComputeTier`（light/save/full）与 `TIERS` 元信息（标签/策略/能力标签/成本系数）；`classifyGoalTier()` 按目标复杂度启发式分档（硬关键词→full，长目标→save，否则 light），`normalizeTier()` 过滤非法值。`ModelRouter` 评分改为档位优先——light/save 偏 cheap/local 标签，满血走 reasoning/capability；`config.models.defaultTier`（`FH_TIER` 覆盖）支持全局锁定，`fhcode tier set <档位>` 落盘、`--tier` 单次覆盖。
 - **② 对话式专家创建向导（对标定制AI专家 4 步）**（`src/cli/cmds/agent-new.ts`）：`fhcode agent-new` 交互式 4 步（选模板→填提示/工具→选档位→命名分类），非交互模式 `--name/--prompt/--tools/--tier/--category` 直接创建；复用内置 5 专家模板，专家新增 `tier` 字段联动 ① 档位路由。
