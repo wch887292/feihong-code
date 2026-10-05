@@ -171,3 +171,12 @@ archive-*/
 
 release-8.5.0/
 release-*/
+
+# 本地开发配置（fhcode MCP servers 含真实密钥，严禁入库）
+fhcode.config.json
+# 本地备份文件
+*.bak-*
+# WorkBuddy/运行本地产物
+.wbapp_*.genie
+outputs/
+*.err
