@@ -204,7 +204,7 @@ export class Orchestrator {
             systemPrompt += '\n\n' + memoryPrompt;
           }
         } catch (e) {
-          logger.warn('layered memory recall failed', { error: e instanceof Error ? e.message : String(e) });
+          logger.warn('layered memory recall failed', { error: e instanceof Error ? (e.stack || e.message) : String(e) });
         }
       }
 
@@ -227,7 +227,7 @@ export class Orchestrator {
             await eventLog.append('rag.context', { keywords: goal.slice(0, 100), tokens: ragContext.length });
           }
         } catch (e) {
-          logger.warn('RAG context build failed', { error: e instanceof Error ? e.message : String(e) });
+          logger.warn('RAG context build failed', { error: e instanceof Error ? (e.stack || e.message) : String(e) });
         }
       }
 
@@ -519,7 +519,7 @@ export class Orchestrator {
         this.deps.layeredMemory.appendAll(messages);
         this.deps.layeredMemory.persistToProjectMemory(goal, []);
       } catch (e) {
-        logger.warn('layered memory persist failed', { error: e instanceof Error ? e.message : String(e) });
+        logger.warn('layered memory persist failed', { error: e instanceof Error ? (e.stack || e.message) : String(e) });
       }
     }
 
@@ -643,7 +643,7 @@ export class Orchestrator {
                 this.deps.stageChange(absPath, content);
               }
             } catch (e) {
-              logger.warn('stageChange failed', { error: e instanceof Error ? e.message : String(e) });
+              logger.warn('stageChange failed', { error: e instanceof Error ? (e.stack || e.message) : String(e) });
             }
           }
         }

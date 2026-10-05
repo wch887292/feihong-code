@@ -26,7 +26,7 @@ export interface Skill {
 }
 
 /** 索引预算上限（对齐 Codex：≤8KB 或上下文 2%，此处固定 8KB 保守值） */
-export const SKILL_INDEX_BUDGET = 8192;
+export const SKILL_INDEX_BUDGET = 32768;
 
 /** 解析 SKILL.md：frontmatter（--- name / description ---）+ 正文 */
 export function parseSkillMd(content: string, file = ''): Omit<Skill, 'name'> & { name?: string } {
