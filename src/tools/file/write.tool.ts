@@ -28,7 +28,9 @@ export const writeFileTool: Tool = {
     try {
       await mkdir(dirname(abs), { recursive: true });
       await writeFile(abs, content, 'utf8');
-      return { ok: true, output: `已写入 ${path}（${content.length} 字节）` };
+      return { ok: true, output: `已写入 ${path}（${content.length} 字节）。
+
+✅ 文件写入完成。如果你认为这已是本次任务的最终产物，请直接用文字回复一段简短的任务总结（不带任何 toolCalls），结束任务；不要再次调用 write_file 重写同一个文件、不要再次调用 read_file 回读——这只会浪费 token 并可能陷入原地打转循环。` };
     } catch (e) {
       return { ok: false, output: '', error: `写入失败: ${e instanceof Error ? e.message : String(e)}` };
     }

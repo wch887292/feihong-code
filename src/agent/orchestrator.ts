@@ -73,7 +73,7 @@ export type OrchestratorEvent =
   | { type: 'model.response'; provider: string; model: string; content: string; toolCalls: string[] }
   | { type: 'tool.call'; name: string; args: Record<string, unknown> }
   | { type: 'tool.result'; name: string; ok: boolean; output: string }
-  | { type: 'self-heal'; category: string; iteration: number; strategy?: 'bypass-and-continue' | 'reflect-retry' | 'loop-break' }
+  | { type: 'self-heal'; category: string; iteration: number; strategy?: 'bypass-and-continue' | 'reflect-retry' | 'loop-break' | 'loop-break-fortified' }
   | { type: 'context.compact'; originalLength: number; compressedLength: number }
   | { type: 'steer'; message: string }
   | { type: 'plan'; steps: string[] }
@@ -391,24 +391,38 @@ export class Orchestrator {
         lastAssistantText = '';
       }
       if (sameTextStreak >= 3) {
+        // P1 修复（2026-10-05 第二次事故回归）：强化同文循环 prompt。
+        // 原提示模型会忽略并继续重复；现在列出最近连续成功执行的工具 + 强令换工具或直接结束。
+        const recentTools = (messages.slice(-6).filter((m) => m.role === 'tool' && !m.content.startsWith('错误:')) as { content: string }[])
+          .map((m) => m.content.split('\n')[0].slice(0, 60))
+          .filter(Boolean);
+        const toolHint = recentTools.length > 0
+          ? `\n\n你最近已经成功执行过的工具（不要再重复调用相同的工具/相同参数）：\n${recentTools.map((t, i) => `  ${i + 1}. ${t}`).join('\n')}`
+          : '';
         const loopPrompt = `⚠️ **检测到你连续 ${sameTextStreak + 1} 轮输出了完全相同的内容「${textNow.slice(0, 120)}」，而任务目标尚未完成——这说明你在原地打转、没有任何进展。**
+${toolHint}
 
-请立即停止当前做法，重新审视任务目标，换一种完全不同的执行方式：
-1. 先 read_file 读回你刚才写入/修改的文件，确认磁盘上的真实内容；
-2. 如果目标文件已经生成，不要再重复生成，直接运行它（run_shell / build_check）验证是否生效；
-3. 如果某个动作已经成功执行过，不要再重复执行，直接进入下一步；
-4. 如果确实遇到无法绕开的障碍，明确说出障碍，并先交付一个能跑的最小版本或阶段成果。`;
+🚨 **现在你必须从下面两个选项中严格二选一，不要再继续原地打转**：
+
+**选项 A（推荐）**：如果你认为目标已达成（例如文件已写入），请用一段简短文字总结成果并结束任务（**不要调用任何工具**，只输出 assistant content）。
+
+**选项 B**：如果目标确实未达成，请**换一个完全不同的工具**重试。比如：
+  - 反复 write_file 失败 → 改用 run_shell 或其他方式；
+  - 反复 read_file 同一个文件 → 改用 run_shell 或 grep 查找差异；
+  - 不要用相同参数再调任何工具。
+
+**绝对不要**：再用相同的工具+相同的参数调用第二次；不要继续输出与刚才完全相同的文本思考。`;
         const loopMsg: ChatMessage = { role: 'user', content: loopPrompt };
         messages.push(loopMsg);
         session.append(loopMsg);
         loopBreaks++;
         sameTextStreak = 0;
         lastAssistantText = '';
-        await eventLog.append('self-heal', { category: 'loop-detected', iteration: calls, totalHeals: loopBreaks, strategy: 'loop-break' });
-        this.deps.onEvent?.({ type: 'self-heal', category: 'loop-detected', iteration: calls, strategy: 'loop-break' });
-        logger.warn('orchestrator detected same-text loop, injected break prompt', { runId: session.runId, streak: sameTextStreak + 1, loopBreaks });
+        await eventLog.append('self-heal', { category: 'loop-detected', iteration: calls, totalHeals: loopBreaks, strategy: 'loop-break-fortified' });
+        this.deps.onEvent?.({ type: 'self-heal', category: 'loop-detected', iteration: calls, strategy: 'loop-break-fortified' });
+        logger.warn('orchestrator detected same-text loop, injected fortified break prompt', { runId: session.runId, streak: sameTextStreak + 1, loopBreaks });
         if (loopBreaks >= 3) {
-          finalAnswer = `检测到任务连续在原地打转（已注入卡死提示 ${loopBreaks} 次仍无进展），已自动终止，避免无限空转。请重新描述目标、换一种思路，或在对话区细化指令后重新发起任务。`;
+          finalAnswer = `检测到任务连续在原地打转（已注入强化卡死提示 ${loopBreaks} 次仍无进展），已自动终止，避免无限空转。请重新描述目标、换一种思路，或在对话区细化指令后重新发起任务。`;
           abnormalEnd = true;
           await eventLog.append('error', { reason: 'loop-abort', loopBreaks });
           break;

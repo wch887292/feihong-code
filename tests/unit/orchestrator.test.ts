@@ -270,3 +270,44 @@ test('run: 累计自愈达到上限时自动终止且不虚报计数（2026-10-0
   assert.ok(!/最大迭代/.test(result.finalAnswer), '不应耗尽迭代上限');
   assert.ok(result.iterations < 40, `应在远早于迭代上限处停止，实际 ${result.iterations}`);
 });
+
+test('run: 同文原地打转时注入强化提示并列出已成功工具（2026-10-05 第二次事故回归）', async () => {
+  // 模型连续输出同一段文本 + 同一 write_file 调用，且每次 write_file 都成功
+  // → 同文检测应在第 4 次触发时注入强化提示（含「选项 A/选项 B」与已成功工具列表）
+  const appendedMessages: ChatMessage[] = [];
+  const orch = new Orchestrator(
+    baseDeps({
+      maxIterations: 30,
+      session: {
+        runId: randomUUID(),
+        append: (m: ChatMessage) => appendedMessages.push(m),
+        snapshot: () => ({ runId: randomUUID(), createdAt: new Date().toISOString(), messages: appendedMessages }),
+      } as unknown as OrchestratorDeps['session'],
+      router: {
+        chat: async () => ({
+          providerId: 'mock',
+          model: 'mock',
+          costUsd: 0,
+          message: {
+            role: 'assistant',
+            content: '试 write_file 直接写 .md，看沙箱是否放行：', // 完全相同的文本
+            toolCalls: [{ id: 'w1', name: 'write_file', arguments: { path: 'C盘清理计划.md', content: '# plan' } }],
+          },
+        }),
+        getStats: () => [],
+      } as unknown as OrchestratorDeps['router'],
+      tools: {
+        definitions: () => [{ name: 'write_file', description: '', inputSchema: {} }],
+        execute: async () => ({ ok: true, output: '已写入 C盘清理计划.md' }), // 每次都成功
+      } as unknown as OrchestratorDeps['tools'],
+    }),
+  );
+  const result = await orch.run('C盘清理');
+  // 应在 loopBreaks >= 3 时终止
+  assert.match(result.finalAnswer, /原地打转/);
+  // 注入过的强化提示应被 append 到 session
+  const fortified = appendedMessages.find((m) => m.role === 'user' && m.content.includes('选项 A'));
+  assert.ok(fortified, '应注入强化卡死提示（含「选项 A」）');
+  assert.ok(fortified.content.includes('write_file'), '强化提示应列出最近成功执行的工具名');
+  assert.ok(fortified.content.includes('不要调用任何工具'), '强化提示应明确禁止再调用工具（选项 A）');
+});
