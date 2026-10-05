@@ -120,3 +120,28 @@
 ## 验证
 
 已用最小 MCP 客户端走 `initialize → tools/list → tools/call` 端到端验证：git（12 工具，含写操作护栏）、db（SQLite 实跑，含只读护栏）、figma（无 token 优雅报错，协议通）全部 PASS。
+
+---
+
+## 五平台 MCP（豆包 / 企业微信 / 飞书 / 钉钉 / WorkBuddy）
+
+### 文件
+- `lib/mcp-framework.js` — 共享框架（协议层 + HTTP 封装 + 环境变量校验）
+- `doubao-mcp.js` — 豆包（火山方舟）：对话、模型列表、配置查看
+- `wecom-mcp.js` — 企业微信：发文本/Markdown、部门列表、成员详情
+- `feishu-mcp.js` — 飞书：发消息、建文档、多维表格读写、日历查询
+- `dingtalk-mcp.js` — 钉钉：发工作通知、用户/部门查询
+- `workbuddy-mcp.js` — 腾讯 WorkBuddy：对话、代码审查、代码生成
+- `test-mcp.js` — 连通性测试：`node mcp-servers/test-mcp.js [name]`
+
+### 配置
+编辑项目根目录 `fhcode.config.json` 的 `mcp.servers`，在各平台 `env` 中填入 API 密钥即可。fhcode 启动时自动连接，工具以 `<平台名>_<工具名>` 注册（如 `feishu_send_message`）。
+
+### 密钥获取
+| 平台 | 地址 | 关键环境变量 |
+|------|------|-------------|
+| 豆包 | console.volcengine.com/ark | `DOUBAO_API_KEY` |
+| 企业微信 | developer.work.weixin.qq.com | `WECOM_CORP_ID` / `WECOM_AGENT_ID` / `WECOM_SECRET` |
+| 飞书 | open.feishu.cn/app | `FEISHU_APP_ID` / `FEISHU_APP_SECRET` |
+| 钉钉 | open-dev.dingtalk.com | `DINGTALK_APP_KEY` / `DINGTALK_APP_SECRET` / `DINGTALK_AGENT_ID` |
+| WorkBuddy | 腾讯云 | `WORKBUDDY_API_KEY` |

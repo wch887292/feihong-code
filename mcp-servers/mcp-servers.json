@@ -1,0 +1,59 @@
+{
+  "description": "飞虹 Code MCP 服务器配置 - 5大平台接入",
+  "mcpServers": {
+    "doubao": {
+      "name": "doubao",
+      "command": "node",
+      "args": ["mcp-servers/doubao-mcp.js"],
+      "env": {
+        "DOUBAO_API_KEY": "",
+        "DOUBAO_BASE_URL": "https://ark.cn-beijing.volces.com/api/v3",
+        "DOUBAO_MODEL": "doubao-1-5-pro-32k"
+      },
+      "tools": ["doubao_chat", "doubao_models", "doubao_config"]
+    },
+    "wecom": {
+      "name": "wecom",
+      "command": "node",
+      "args": ["mcp-servers/wecom-mcp.js"],
+      "env": {
+        "WECOM_CORP_ID": "",
+        "WECOM_AGENT_ID": "",
+        "WECOM_SECRET": ""
+      },
+      "tools": ["wecom_send_text", "wecom_send_markdown", "wecom_department_list", "wecom_user_get"]
+    },
+    "feishu": {
+      "name": "feishu",
+      "command": "node",
+      "args": ["mcp-servers/feishu-mcp.js"],
+      "env": {
+        "FEISHU_APP_ID": "",
+        "FEISHU_APP_SECRET": ""
+      },
+      "tools": ["feishu_send_message", "feishu_create_doc", "feishu_base_list_tables", "feishu_base_add_record", "feishu_calendar_events", "feishu_config"]
+    },
+    "dingtalk": {
+      "name": "dingtalk",
+      "command": "node",
+      "args": ["mcp-servers/dingtalk-mcp.js"],
+      "env": {
+        "DINGTALK_APP_KEY": "",
+        "DINGTALK_APP_SECRET": "",
+        "DINGTALK_AGENT_ID": ""
+      },
+      "tools": ["dingtalk_send_text", "dingtalk_send_markdown", "dingtalk_user_get", "dingtalk_department_list", "dingtalk_config"]
+    },
+    "workbuddy": {
+      "name": "workbuddy",
+      "command": "node",
+      "args": ["mcp-servers/workbuddy-mcp.js"],
+      "env": {
+        "WORKBUDDY_API_KEY": "",
+        "WORKBUDDY_BASE_URL": "https://api.workbuddy.tencent.com/v1",
+        "WORKBUDDY_MODEL": "workbuddy-pro"
+      },
+      "tools": ["workbuddy_chat", "workbuddy_code_review", "workbuddy_code_generate", "workbuddy_models", "workbuddy_config"]
+    }
+  }
+}
