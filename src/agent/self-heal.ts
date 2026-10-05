@@ -62,12 +62,12 @@ const ERROR_RULES: ErrorRule[] = [
   {
     category: 'permission-denied',
     keywords: ['permission denied', 'eacces', 'eperm', '权限', '拒绝'],
-    fixHint: '文件权限不足或路径不存在。检查文件权限和目录结构。',
+    fixHint: '权限不足或被沙箱拦截。若是在访问工作区外的系统路径（如 C:\\Windows、其他用户目录），这是沙箱 workspace-write 保护而非文件损坏：改为在当前工作区内编写探测脚本（如 probe.js）并用命令运行它来采集信息，或用 list_dir 确认可访问范围；不要反复直接读/写受保护路径。',
   },
   {
     category: 'file-not-found',
-    keywords: ['enoent', 'no such file', '读取失败', '文件不存在', 'not found', 'eisdir', '不存在'],
-    fixHint: '目标文件或目录不存在。先用 list_dir 勘察当前目录结构，确认正确路径后再操作；不要反复尝试同一不存在的路径。',
+    keywords: ['enoent', 'no such file', '读取失败', '文件不存在', 'not found', 'eisdir', '不存在', '未找到 oldtext'],
+    fixHint: '目标文件或目录不存在。先用 list_dir 勘察当前目录结构，确认正确路径后再操作；不要反复尝试同一不存在的路径。若是 edit_file 报「未找到 oldText」，先用 read_file 读取文件真实内容，基于实际内容提供精确 oldText，或直接用 write_file 整体重写。',
   },
   {
     category: 'build-error',

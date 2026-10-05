@@ -240,3 +240,33 @@ test('run: 经验目录写入经验条目', async () => {
     rmSync(experienceDir, { recursive: true, force: true });
   }
 });
+
+test('run: 累计自愈达到上限时自动终止且不虚报计数（2026-10-05 事故回归）', async () => {
+  let round = 0;
+  const orch = new Orchestrator(
+    baseDeps({
+      maxIterations: 40, // 上限 10 应远早于迭代上限触发
+      router: {
+        chat: async () => {
+          round++;
+          // 每轮发出 round+1 个失败工具调用（args 唯一，避免触发重复调用/打转检测）
+          const toolCalls = Array.from({ length: round + 1 }, (_, i) => ({
+            id: `t${round}-${i}`,
+            name: 'run_shell',
+            arguments: { command: `fail-${round}-${i}` },
+          }));
+          return { providerId: 'mock', model: 'mock', costUsd: 0, message: { role: 'assistant', content: '', toolCalls } };
+        },
+        getStats: () => [],
+      } as unknown as OrchestratorDeps['router'],
+      tools: {
+        definitions: () => [{ name: 'run_shell', description: '', inputSchema: {} }],
+        execute: async () => ({ ok: false, output: '', error: 'boom failed' }),
+      } as unknown as OrchestratorDeps['tools'],
+    }),
+  );
+  const result = await orch.run('必败任务');
+  assert.match(result.finalAnswer, /自动终止/, '应因自愈上限终止，而非迭代上限');
+  assert.ok(!/最大迭代/.test(result.finalAnswer), '不应耗尽迭代上限');
+  assert.ok(result.iterations < 40, `应在远早于迭代上限处停止，实际 ${result.iterations}`);
+});

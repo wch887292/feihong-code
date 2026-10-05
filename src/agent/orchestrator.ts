@@ -699,22 +699,30 @@ export class Orchestrator {
     }
 
     // 对新增的错误进行分类并记录
+    // P1 修复（2026-10-05）：审计日志全量留痕，但 errorHistory 只计入上限内——
+    // 防止单轮大批量错误一次性击穿 MAX_TOTAL_SELF_HEALS，导致计数虚高（实测曾一轮推到 19 > 10）。
     const newErrors = consecutiveErrorMsgs.slice(input.consecutiveErrors);
+    let truncated = 0;
     for (const errMsg of newErrors) {
       const analysis = classifyError(errMsg.content || '', '');
-      input.errorHistory.push(analysis);
       await logRecoveryAttempt(input.eventLog, input.iteration, analysis, false);
+      if (input.errorHistory.length >= Orchestrator.MAX_TOTAL_SELF_HEALS) {
+        truncated++;
+        continue;
+      }
+      input.errorHistory.push(analysis);
     }
 
-    // 累计自愈上限：errorHistory.length 即为累计错误/自愈次数（每次自愈 push 一条）
+    // 累计自愈上限：errorHistory.length 即为累计错误/自愈次数（每次自愈 push 一条，上限内）
     const totalHeals = input.errorHistory.length;
     if (totalHeals >= Orchestrator.MAX_TOTAL_SELF_HEALS) {
       const errorTypes = input.errorHistory.map((e) => e.category).join(', ');
       const lastError = input.errorHistory[input.errorHistory.length - 1];
+      const truncNote = truncated > 0 ? `\n**补充**: 本轮另有 ${truncated} 条错误因达到记录上限未计入统计（已全量写入审计日志）。` : '';
       const finalAnswer = `任务已累计自我修复 ${totalHeals} 次仍未解决问题，已自动终止。
 
 **问题分析**：当前思路或方法可能根本走不通，反复修复同一个问题没有意义。
-**错误类型分布**: ${errorTypes}
+**错误类型分布**: ${errorTypes}${truncNote}
 **最后错误**: ${lastError?.message || '未知'}
 
 **建议**：
