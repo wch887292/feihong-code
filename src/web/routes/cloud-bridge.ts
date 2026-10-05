@@ -12,7 +12,18 @@ import express, { type Request, type Response } from 'express';
 import { randomUUID } from 'crypto';
 import { join } from 'path';
 import { BruteForceGuard } from '../../security';
-import { licenseState, licenseText, activateLicense } from '../../license';
+import {
+  licenseState,
+  licenseText,
+  activateLicense,
+  onlineEnabled,
+  onlineState,
+  onlineText,
+  activateOnline,
+  heartbeatOnline,
+  heartbeatDue,
+  licenseServerUrl,
+} from '../../license';
 
 type ExpressApp = ReturnType<typeof express>;
 
@@ -164,13 +175,26 @@ export function registerCloudBridgeRoutes(app: ExpressApp, deps: CloudBridgeDeps
     res.json({ ok: true, removed: devices.length - next.length });
   });
 
-  // 授权状态查询（Web/手机端展示）
+  // 授权状态查询（Web/手机端展示）— 在线模式下自动区分离线/在线
   app.get('/api/license', (_req: Request, res: Response) => {
+    if (onlineEnabled()) {
+      const st = onlineState();
+      // 查询即触发一次心跳（异步，不阻塞响应），保证后台能看到在线状态
+      if (heartbeatDue()) void heartbeatOnline().catch(() => undefined);
+      res.json({
+        ok: st.valid,
+        mode: 'online',
+        license: st,
+        text: onlineText(st),
+        serverUrl: licenseServerUrl(),
+      });
+      return;
+    }
     const state = licenseState();
-    res.json({ ok: true, license: state, text: licenseText(state) });
+    res.json({ ok: true, mode: 'offline', license: state, text: licenseText(state) });
   });
 
-  // 激活（手机端/Web 输入激活码）
+  // 激活（手机端/Web 输入激活码）— 在线模式走授权服务
   app.post('/api/license/activate', (req: Request, res: Response) => {
     const body = (req.body ?? {}) as Record<string, any>;
     const key = String(body.text ?? body.key ?? '').trim();
@@ -182,14 +206,52 @@ export function registerCloudBridgeRoutes(app: ExpressApp, deps: CloudBridgeDeps
       res.status(429).json({ ok: false, error: '激活尝试过于频繁，请 15 分钟后再试' });
       return;
     }
+
+    if (onlineEnabled()) {
+      // 在线激活需要网络 IO，用异步处理避免阻塞事件循环
+      void (async () => {
+        const result = await activateOnline(key);
+        if (!result.ok) {
+          bruteForce.recordFailure(guardKey);
+          res.status(400).json({ ok: false, mode: 'online', error: result.error || '在线激活失败' });
+          return;
+        }
+        bruteForce.clear(guardKey);
+        res.json({ ok: true, mode: 'online', license: result.state, text: onlineText(result.state!) });
+      })();
+      return;
+    }
+
     const result = activateLicense(key);
     if (!result.ok) {
       bruteForce.recordFailure(guardKey);
-      res.status(400).json({ ok: false, error: result.error || '激活失败' });
+      res.status(400).json({ ok: false, mode: 'offline', error: result.error || '激活失败' });
       return;
     }
     bruteForce.clear(guardKey);
-    res.json({ ok: true, license: result.state, text: licenseText(result.state!) });
+    res.json({ ok: true, mode: 'offline', license: result.state, text: licenseText(result.state!) });
+  });
+
+  // 手动心跳（在线模式，Web/手机端可主动触发一次校验）
+  app.post('/api/license/heartbeat', (_req: Request, res: Response) => {
+    if (!onlineEnabled()) {
+      res.json({ ok: true, mode: 'offline', skipped: true, text: '离线模式无需心跳' });
+      return;
+    }
+    void (async () => {
+      const r = await heartbeatOnline();
+      const st = onlineState();
+      res.status(r.ok ? 200 : 409).json({
+        ok: r.ok,
+        mode: 'online',
+        status: r.status ?? null,
+        configUpdated: Boolean(r.configUpdated),
+        graceHoursLeft: r.graceHoursLeft ?? 0,
+        license: st,
+        text: onlineText(st),
+        ...(r.error ? { error: r.error } : {}),
+      });
+    })();
   });
 
   // 电脑端：列出本设备的全部指令（含状态/结果，供管理面板查看）

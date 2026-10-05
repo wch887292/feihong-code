@@ -19,6 +19,29 @@ import { createHash, randomBytes, createPublicKey, createPrivateKey, sign, verif
 import { homedir, hostname, networkInterfaces, platform } from 'os';
 import { join } from 'path';
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
+import {
+  onlineEnabled,
+  onlineBlocked,
+  onlineState,
+  heartbeatDue,
+  heartbeatOnline,
+} from './online';
+
+export {
+  onlineEnabled,
+  onlineText,
+  onlineState,
+  heartbeatDue,
+  heartbeatOnline,
+  activateOnline,
+  clearOnlineRecord,
+  onlineFingerprint,
+  licenseServerUrl,
+  type OnlineState,
+  type OnlineLicenseRecord,
+  type ActivateResult,
+  type HeartbeatResult,
+} from './online';
 
 export type LicenseType = 'standard' | 'pro' | 'enterprise';
 
@@ -259,6 +282,24 @@ export function licenseText(state: LicenseState): string {
 
 /** 服务端鉴权门：未激活且试用过期时返回 true（表示需拦截） */
 export function licenseBlocked(): boolean {
+  // 在线模式优先：一旦配置了 FH_LICENSE_SERVER，判定权交给在线授权服务
+  // （支持远程吊销 / 席位管控 / 心跳存活），离线逻辑作为未启用在线时的回退。
+  if (onlineEnabled()) return onlineBlocked();
   const s = licenseState();
   return !s.activated && (!s.trial || s.trialDaysLeft <= 0);
+}
+
+/**
+ * 启动时调用（惰性、不阻塞）：
+ *  - 在线模式且已到心跳时间 → 异步发一次心跳（失败不抛，交给宽限期兜底）
+ *  - 返回是否检测到"硬失效"（吊销/换机/超宽限），供启动期快速提示
+ */
+export function licenseStartupCheck(): { online: boolean; blocked: boolean; message?: string } {
+  if (!onlineEnabled()) return { online: false, blocked: licenseBlocked() };
+  const st = onlineState();
+  if (heartbeatDue()) {
+    // 故意不 await：CLI 启动路径不能被网络阻塞
+    void heartbeatOnline().catch(() => undefined);
+  }
+  return { online: true, blocked: !st.valid, message: st.error };
 }

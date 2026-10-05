@@ -44,6 +44,7 @@ import {
   type TaskPermissions,
 } from './task-queue';
 import { VERSION, PRODUCT, SIGNATURE } from '../cli/version';
+import { onlineEnabled, heartbeatDue, heartbeatOnline } from '../license';
 import { t, getLang } from '../shared/i18n';
 import { isEnterpriseEnabled } from '../enterprise';
 import { resolveHomeDir } from '../shared/config';
@@ -138,6 +139,16 @@ export function startWebServer(opts: ServeOptions = {}): {
   // 第二层·暴力破解防护（登录/激活）
   setInterval(() => bruteForce.cleanup(), 60 * 1000).unref();
   const bruteForce = new BruteForceGuard();
+  // 在线授权心跳守护（仅在配置了 FH_LICENSE_SERVER 时启用；离线模式完全不上网）
+  // 目的：常驻服务场景下自动维持心跳，使发行方后台能看到真实在线状态并能远程吊销。
+  if (onlineEnabled()) {
+    const tick = () => {
+      if (!heartbeatDue()) return;
+      void heartbeatOnline().catch(() => undefined);
+    };
+    setInterval(tick, 60 * 1000).unref();   // 每分钟检查一次，到期才发
+    setTimeout(tick, 10_000).unref();     // 启动 10 秒后补一次首检
+  }
   // 微信回调使用 XML body，单独路由用 text 解析
   app.use('/api/wechat/callback', (express as any).text({ type: ['*/xml', 'text/xml', 'application/xml'], limit: '1mb' }));
   // 元宝回调需要原始 body 用于 HMAC 签名校验
