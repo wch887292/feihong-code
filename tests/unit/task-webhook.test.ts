@@ -66,7 +66,8 @@ test('TaskQueue: webhook 在任务生命周期触发状态回调', async () => {
 
 test('TaskQueue: setWebhookUrl 动态注册后生效', async () => {
   received.length = 0;
-  const queue = new TaskQueue({ concurrency: 1 }); // 初始无 webhook
+  // 离线 mock 模型：本用例只验证 webhook 注册与回调时序，禁止真实 LLM 调用
+  const queue = new TaskQueue({ concurrency: 1, offline: true }); // 初始无 webhook
   queue.submit('未注册阶段');
   await new Promise((r) => setTimeout(r, 50));
   assert.equal(received.length, 0, '未注册 webhook 时不应回调');

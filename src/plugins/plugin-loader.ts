@@ -8,7 +8,7 @@
  *  - fhcode plugin install <source>：从本地目录复制或 git clone 安装
  *  - fhcode plugin list：列出已安装插件
  */
-import { existsSync, readFileSync, readdirSync, mkdirSync, cpSync, rmSync } from 'fs';
+import { existsSync, readFileSync, readdirSync, mkdirSync, cpSync, rmSync, renameSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 import type { HookConfig } from '../runtime/hooks';
@@ -161,11 +161,29 @@ export async function installPlugin(source: string): Promise<{ name: string; dir
     if (!manifest) throw new Error('插件缺少合法 plugin.json（需含 name 与 version）');
     // 3) 覆盖安装（删除旧目录后移动）
     const dest = join(destRoot, manifest.name);
-    rmSync(dest, { recursive: true, force: true });
+    try {
+      rmSync(dest, { recursive: true, force: true });
+    } catch (e) {
+      // 宿主 safe-delete shim 可能拦截批量 rm（SAFE_DELETE_BULK_CONFIRM_REQUIRED）：
+      // 降级为覆盖合并安装（cpSync 同名覆盖，旧独有文件残留），不阻塞安装结果
+      logger.warn('插件旧版本目录删除失败，降级为覆盖合并安装', {
+        dest,
+        error: e instanceof Error ? e.message : String(e),
+      });
+    }
     cpSync(tmp, dest, { recursive: true });
     return { name: manifest.name, dir: dest };
   } finally {
-    rmSync(tmp, { recursive: true, force: true });
+    try {
+      rmSync(tmp, { recursive: true, force: true });
+    } catch {
+      // 临时目录清理失败不阻断安装/校验错误传播；尝试 rename 挪开，仍失败则留待后续清理
+      try {
+        renameSync(tmp, `${tmp}.stale-${process.pid}-${Date.now()}`);
+      } catch {
+        /* 留待后续清理 */
+      }
+    }
   }
 }
 

@@ -178,6 +178,19 @@ function pidAlive(pid: number): boolean {
 }
 
 /**
+ * P1 降噪（2026-10-05）：safe-delete shim 宿主（如 WorkBuddy）会把 fs.unlink
+ * 重定向到回收站并按 turn 计数触发批量确认（SAFE_DELETE_BULK_CONFIRM_REQUIRED），
+ * 审计锁的释放/stale 清理 unlink 因此「必然失败但必然被 rename/覆写兜底自愈」。
+ * 该类告警同进程只提示一次，避免每轮审计写入刷屏；真故障（双清理失败）仍逐次上报。
+ */
+let lockShimWarned = false;
+function warnLockOnce(msg: string, detail: Record<string, unknown>): void {
+  if (lockShimWarned) return;
+  lockShimWarned = true;
+  logger.warn(`${msg}（同进程仅提示一次；宿主 safe-delete shim 拦截属预期，兜底已自愈）`, detail);
+}
+
+/**
  * C 修复(2026-09-27)：stale 锁清理的 unlink 失败兜底。
  * 部分宿主环境（如 safe-delete shim 把 fs.unlink 重定向到回收站）会让 unlinkSync
  * 对 stale 锁持续失败，导致所有写入者等待超时。此时改用 renameSync 把锁改名挪开
@@ -192,7 +205,7 @@ function tryRemoveStaleLock(lockPath: string): boolean {
     const asidePath = `${lockPath}.stale-${process.pid}-${Date.now()}`;
     try {
       renameSync(lockPath, asidePath);
-      logger.warn('审计锁 unlink 失败，已用 rename 挪开 stale 锁', {
+      warnLockOnce('审计锁 unlink 失败，已用 rename 挪开 stale 锁', {
         lockPath,
         asidePath,
         error: ue instanceof Error ? ue.message : String(ue),
@@ -238,8 +251,8 @@ function withAuditLock(dir: string, fn: () => void): void {
         try {
           unlinkSync(lockPath);
         } catch (e) {
-          // 释放锁失败：保留文件，下个写入者会按 stale 逻辑清理；记录告警便于排查
-          logger.warn('审计锁释放失败（将按过期锁由下个写入者清理）', {
+          // 释放锁失败：保留文件，下个写入者会按 stale 逻辑清理；同进程仅告警一次（shim 环境属预期自愈路径）
+          warnLockOnce('审计锁释放失败（将按过期锁由下个写入者清理）', {
             lockPath,
             error: e instanceof Error ? e.message : String(e),
           });
@@ -260,6 +273,33 @@ function withAuditLock(dir: string, fn: () => void): void {
         } catch {
           /* 锁已消失，重试 */
         }
+        // P1 修复（2026-10-05）：同进程残留锁直接接管。
+        // withAuditLock 是同步函数，单线程内不可重入：EEXIST 且锁内 PID === 本进程，
+        // 只可能是本进程上一次写入释放失败（如宿主 safe-delete shim 拦截 unlink）留下的残留锁。
+        // 此前会傻等 stale 超时（AUDIT_LOCK_TIMEOUT_MS）并拖垮同进程后续所有审计写入；
+        // 现改为覆写接管立即执行，与下方 stale 覆写路径同语义。
+        if (lockPid === process.pid) {
+          try {
+            const fd = openSync(lockPath, 'w'); // 'w' 截断覆写，绕过删除拦截
+            try {
+              writeSync(fd, String(process.pid));
+            } finally {
+              closeSync(fd);
+            }
+          } catch {
+            /* 覆写失败（极端宿主拦截写入）：按原 stale/超时路径处理 */
+          }
+          try {
+            fn();
+            return;
+          } finally {
+            try {
+              unlinkSync(lockPath);
+            } catch {
+              warnLockOnce('审计锁释放失败（将按过期锁由下个写入者清理）', { lockPath });
+            }
+          }
+        }
         if (stale) {
           if (tryRemoveStaleLock(lockPath)) {
             backoffMs = 10; // 锁已清理，重置退避
@@ -268,7 +308,7 @@ function withAuditLock(dir: string, fn: () => void): void {
           // 清理失败（unlink/rename 被 safe-delete shim 拦截）：
           // 若已确认持有进程已死，直接覆写锁文件声明所有权，不再等待。
           if (lockPid !== null && !pidAlive(lockPid)) {
-            logger.warn('stale 锁清理失败但持有进程已死，覆写锁文件继续执行', {
+            warnLockOnce('stale 锁清理失败但持有进程已死，覆写锁文件继续执行', {
               lockPath,
               stalePid: lockPid,
             });

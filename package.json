@@ -35,7 +35,7 @@
     "check:compliance": "node scripts/check-compliance-claims.mjs",
     "bump": "node scripts/bump-version.mjs",
     "eval": "node scripts/eval.mjs",
-    "test": "tsx --test tests/unit/*.test.ts",
+    "test": "node --import tsx --import ./tests/helpers/force-offline.mjs --test tests/unit/*.test.ts",
     "verify": "npm run typecheck && npm run check:version && npm run build && npm run verify:m4 && npm run verify:m6 && npm run verify:m7 && npm run verify:m8 && npm run verify:m9 && npm run verify:routines && npm run verify:policy",
     "prepublishOnly": "npm run build",
     "electron": "electron .",
