@@ -104,29 +104,94 @@ function expandTilde(p: string): string {
 let cached: AppConfig | null = null;
 
 /**
+ * 字段级配置合并（纯函数，便于单测）：
+ * files 按「优先级从高到低」排列，逐字段取第一个非空值。
+ * 非空判定：数组 length>0、字符串 length>0、对象键数>0、数字/布尔非 undefined 非 null。
+ * 对象深度递归合并（如 models.providers 与 models.defaultStrategy 互不影响）。
+ */
+export function mergeConfigFiles(files: Array<Partial<AppConfig> | null>): Partial<AppConfig> {
+  const filtered = files.filter(Boolean) as Array<Partial<AppConfig>>;
+  if (filtered.length === 0) return {};
+  if (filtered.length === 1) return filtered[0];
+
+  const isEmpty = (v: unknown): boolean => {
+    if (v === undefined || v === null) return true;
+    if (Array.isArray(v)) return v.length === 0;
+    if (typeof v === 'string') return v.length === 0;
+    if (typeof v === 'object' && !(v instanceof Date) && !(v instanceof RegExp)) {
+      return Object.keys(v as object).length === 0;
+    }
+    return false; // number / boolean 视为非空
+  };
+
+  const deepMerge = (target: Record<string, unknown>, source: Record<string, unknown>): void => {
+    for (const key of Object.keys(source)) {
+      const sv = source[key];
+      const tv = target[key];
+      if (isEmpty(sv)) continue;
+      if (!isEmpty(tv) && typeof sv === 'object' && typeof tv === 'object' && !Array.isArray(sv) && !Array.isArray(tv)) {
+        deepMerge(tv as Record<string, unknown>, sv as Record<string, unknown>);
+      } else {
+        target[key] = sv;
+      }
+    }
+  };
+
+  // 从最低优先级打底，逐层覆盖 → 高优先级非空值最终生效
+  const result: Record<string, unknown> = { ...filtered[filtered.length - 1] };
+  for (let i = filtered.length - 2; i >= 0; i--) {
+    deepMerge(result, filtered[i]);
+  }
+  return result as Partial<AppConfig>;
+}
+
+/**
  * 读取 fhcode 配置文件（JSON），按优先级：
- *   1) 显式 path
+ *   1) 显式 path（单文件语义，不合并）
  *   2) FH_CONFIG 环境变量
  *   3) cwd/fhcode.config.json
  *   4) FH_HOME/fhcode.config.json
- * 文件缺失或 JSON 损坏时返回 null（不抛错，便于离线/默认配置）。
+ * 无显式 path 时字段级合并所有存在的候选文件（高优先级覆盖低优先级）；
+ * 单文件 JSON 损坏时跳过继续读下一个；全部缺失/损坏返回 null。
  */
 export function loadConfigFile(path?: string): Partial<AppConfig> | null {
+  // 显式 path：保持单文件语义
+  if (path) {
+    if (!existsSync(path)) return null;
+    try {
+      return JSON.parse(readFileSync(path, 'utf8')) as Partial<AppConfig>;
+    } catch {
+      return null;
+    }
+  }
+
   const candidates = [
-    path,
     process.env.FH_CONFIG,
     join(process.cwd(), 'fhcode.config.json'),
     join(resolveHomeDir(), 'fhcode.config.json'),
   ].filter(Boolean) as string[];
-  for (const f of candidates) {
-    if (!existsSync(f)) continue;
+
+  // 去重（cwd 与 FH_HOME 可能指向同一文件）
+  const seen = new Set<string>();
+  const unique: string[] = [];
+  for (const c of candidates) {
+    if (!seen.has(c)) {
+      seen.add(c);
+      unique.push(c);
+    }
+  }
+
+  const parsed: Array<Partial<AppConfig> | null> = unique.map((f) => {
+    if (!existsSync(f)) return null;
     try {
       return JSON.parse(readFileSync(f, 'utf8')) as Partial<AppConfig>;
     } catch {
-      /* 忽略损坏的配置文件 */
+      return null; // 忽略损坏的配置文件
     }
-  }
-  return null;
+  });
+
+  const merged = mergeConfigFiles(parsed);
+  return Object.keys(merged).length > 0 ? merged : null;
 }
 
 /**

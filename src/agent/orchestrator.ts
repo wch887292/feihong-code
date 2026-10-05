@@ -43,6 +43,12 @@ import {
   logRecoveryAttempt,
   type ErrorAnalysis,
 } from './self-heal';
+
+/** 全局空转熔断阈值（2026-10-05 第三次事故修复）：
+ *  跨工具累计「重复调用强制失败」达 WARN 次注入强指令，达 ABORT 次硬终止。
+ *  覆盖「read_file 循环 → 换 list_dir 继续循环」这类绕过单 cacheKey 检测的打转。 */
+const NO_PROGRESS_WARN = 5;
+const NO_PROGRESS_ABORT = 8;
 import { compactContext, shouldCompact, getCompactionThreshold } from './context-compactor';
 import {
   extractExperience,
@@ -53,6 +59,62 @@ import {
   extractFixPattern,
   type Experience,
 } from './experience';
+
+/**
+ * 完成协议（2026-10-05「叙述即完成」缺陷修复）：
+ * 免费小模型首轮常输出计划性文字（如「我将创建项目…」）而不调工具，
+ * 旧逻辑直接把纯文本当最终答案结束任务，实际未做任何工作。
+ */
+
+/** 剥离思考模型的 think 标签与 FINAL: 前缀，得到干净最终答案 */
+export function extractFinalAnswer(raw: string): string {
+  let text = (raw || '').trim();
+  // 思考模型兼容：移除成对 think 标签（多段全剥）
+  text = text.replace(/<think[\s\S]*?<\/think\s*>/gi, '').trim();
+  // 某些模型输出被截断只留未闭合的开头标签
+  text = text.replace(/^<think[^>]*>/i, '').trim();
+  // 完成协议：剥离 FINAL: 前缀（大小写不敏感）
+  text = text.replace(/^final\s*:\s*\n?/i, '').trim();
+  return text;
+}
+
+export type NoToolCallDecision =
+  | { action: 'finish'; finalAnswer: string }
+  | { action: 'nudge' };
+
+/**
+ * 无工具调用轮次的完成协议判定（纯函数，供主循环与单测复用）：
+ * - 已有文件改动（touchedCount > 0）→ 维持原「视为完成」语义
+ * - 文本以 FINAL: 开头 → 显式最终答案
+ * - 纯文本连击达到 maxNudges → 防死循环兜底，接受为最终答案
+ * - 否则 → 注入 nudge 引导模型实际调用工具
+ */
+export function resolveNoToolCall(
+  text: string,
+  touchedCount: number,
+  textOnlyStreak: number,
+  maxNudges = 3
+): NoToolCallDecision {
+  const t = (text || '').trim();
+  const isFinal = /^final\s*:/i.test(t);
+  const isDeadLoop = textOnlyStreak >= maxNudges;
+  if (touchedCount > 0 || isFinal || isDeadLoop) {
+    return { action: 'finish', finalAnswer: extractFinalAnswer(t) };
+  }
+  return { action: 'nudge' };
+}
+
+/** nudge 引导消息文案（完成协议说明，主循环注入与单测断言共用） */
+export function buildTextOnlyNudgeMessage(text: string): string {
+  return `⚠️ 你只输出了文字说明（"${text.slice(0, 200)}"），但**没有调用任何工具**，任务目标尚未开始执行。\n\n`
+    + `请立即调用 write_file、run_shell、read_file 等工具实际推进任务，**不要只输出计划性文字**。\n`
+    + `执行期间**每轮都必须调用工具**，禁止只输出文字；只有全部完成后，最后一条回复才允许不调用工具，且必须以 FINAL: 开头输出总结。`;
+}
+
+/** 系统提示中的完成协议段落 */
+export const COMPLETION_PROTOCOL_PROMPT = `\n\n## 任务完成协议（必须遵守）\n`
+  + `- 执行期间每一轮都必须调用工具推进任务（write_file / run_shell / read_file 等），禁止只输出计划性或说明性文字。\n`
+  + `- 全部完成后，最后一条回复**不要调用任何工具**，且必须以「FINAL:」开头输出成果总结；此后任务即结束。`;
 
 export interface OrchestratorSecurity {
   shellAllowlist: string[];
@@ -73,7 +135,7 @@ export type OrchestratorEvent =
   | { type: 'model.response'; provider: string; model: string; content: string; toolCalls: string[] }
   | { type: 'tool.call'; name: string; args: Record<string, unknown> }
   | { type: 'tool.result'; name: string; ok: boolean; output: string }
-  | { type: 'self-heal'; category: string; iteration: number; strategy?: 'bypass-and-continue' | 'reflect-retry' | 'loop-break' | 'loop-break-fortified' }
+  | { type: 'self-heal'; category: string; iteration: number; strategy?: 'bypass-and-continue' | 'reflect-retry' | 'loop-break' | 'loop-break-fortified' | 'text-only-nudge' | 'no-progress-warn' | 'no-progress-abort' }
   | { type: 'context.compact'; originalLength: number; compressedLength: number }
   | { type: 'steer'; message: string }
   | { type: 'plan'; steps: string[] }
@@ -152,6 +214,12 @@ export class Orchestrator {
   private toolResultCache = new Map<string, { ok: boolean; output: string; error?: string }>();
   /** 相同工具+相同参数命中缓存的次数：用于把"重复成功调用"升级为强制失败，交回大模型重新决策 */
   private repeatCallHits = new Map<string, number>();
+  /** 全局空转熔断计数（2026-10-05 第三次事故修复）：跨工具累计的「重复调用强制失败」次数，
+   *  有新的成功工具执行时清零。单 cacheKey 检测可被「换一个工具继续循环」绕过，
+   *  此计数覆盖 read_file 循环 → list_dir 循环这类跨工具打转。 */
+  private noProgressStreak = 0;
+  /** 全局空转警告是否已注入（每次 run 只注入一次，避免刷屏） */
+  private noProgressWarned = false;
 
   async run(goal: string, resume?: ResumeContext): Promise<RunResult> {
     const {
@@ -166,6 +234,8 @@ export class Orchestrator {
     // 每次 run 重置工具结果缓存与重复调用计数
     this.toolResultCache.clear();
     this.repeatCallHits.clear();
+    this.noProgressStreak = 0;
+    this.noProgressWarned = false;
 
     let messages: ChatMessage[];
     let loadedExperiences: Experience[] = [];
@@ -206,6 +276,8 @@ export class Orchestrator {
           + `- 默认 shell：${shellHint}\n`
           + `所有 run_shell / read_file / write_file 操作默认相对当前 cwd 执行；除非用户明确给出其他绝对路径，禁止 cd 切换或假设其他目录。`;
       }
+      // 完成协议（2026-10-05「叙述即完成」缺陷修复）：执行期必须调工具，收尾用 FINAL:
+      systemPrompt += COMPLETION_PROTOCOL_PROMPT;
       if (repoPrompt) systemPrompt += repoPrompt;
       if (skillIndex) systemPrompt += skillIndex;
 
@@ -270,6 +342,7 @@ export class Orchestrator {
     let lastAssistantText = '';
     let sameTextStreak = 0;
     let loopBreaks = 0;
+    let textOnlyStreak = 0;
 
     // 检查点落盘（闭包引用最新 calls/cost/touchedFiles）
     const emitCheckpoint = async (status: SessionStatus): Promise<void> => {
@@ -377,11 +450,27 @@ export class Orchestrator {
       });
       await emitCheckpoint('running');
 
-      // 无工具调用 → 视为任务完成
+      // 无工具调用 → 完成协议判定（resolveNoToolCall 纯函数）：
+      // 已有文件改动 / FINAL: 前缀 / 连续 3 轮纯文本 → 接受为最终答案；
+      // 否则注入 nudge 引导消息，强制模型实际调用工具推进任务
       if (!msg.toolCalls || msg.toolCalls.length === 0) {
-        finalAnswer = msg.content;
-        break;
+        const decision = resolveNoToolCall(msg.content || '', touchedFiles.length, textOnlyStreak);
+        if (decision.action === 'finish') {
+          finalAnswer = decision.finalAnswer;
+          break;
+        }
+        textOnlyStreak++;
+        const nudgeMsg: ChatMessage = { role: 'user', content: buildTextOnlyNudgeMessage((msg.content || '').trim()) };
+        messages.push(nudgeMsg);
+        session.append(nudgeMsg);
+        await eventLog.append('self-heal', { category: 'text-only-nudge', iteration: calls, streak: textOnlyStreak });
+        this.deps.onEvent?.({ type: 'self-heal', category: 'text-only-nudge', iteration: calls, strategy: 'text-only-nudge' });
+        logger.info('orchestrator: injected text-only nudge', { runId: session.runId, streak: textOnlyStreak, iteration: calls });
+        continue;
       }
+
+      // 有工具调用 → 重置纯文本连击计数
+      textOnlyStreak = 0;
 
       // M4：单任务成本熔断（超预算立即停手，避免失控烧钱）
       if (maxCost > 0 && cost >= maxCost) {
@@ -444,6 +533,32 @@ ${toolHint}
       }
 
       const roundErrors = await this.executeToolRound(msg, { tools, eventLog, session, cwd, security, approve, guard }, messages);
+
+      // 全局空转熔断（2026-10-05 第三次事故修复）：单 cacheKey 重复检测可被
+      // 「换一个工具继续循环」绕过（read_file 循环 → list_dir 循环 → ...），
+      // 跨工具累计空转达阈值时：先注入强指令给模型最后机会，仍空转则硬终止。
+      if (this.noProgressStreak >= NO_PROGRESS_ABORT) {
+        finalAnswer = `检测到跨工具连续空转（探测类动作反复执行 ${this.noProgressStreak} 次无实质进展），已自动终止以避免无限循环。已采集的信息保留在会话中，请细化指令、缩小任务范围或换一种思路后重新发起任务。`;
+        abnormalEnd = true;
+        await eventLog.append('error', { reason: 'no-progress-abort', streak: this.noProgressStreak });
+        this.deps.onEvent?.({ type: 'self-heal', category: 'loop-detected', iteration: calls, strategy: 'no-progress-abort' });
+        logger.warn('orchestrator no-progress abort', { runId: session.runId, streak: this.noProgressStreak });
+        calls++;
+        break;
+      }
+      if (this.noProgressStreak >= NO_PROGRESS_WARN && !this.noProgressWarned) {
+        this.noProgressWarned = true;
+        const stallMsg: ChatMessage = {
+          role: 'user',
+          content: `【全局空转警告】你已跨多个工具连续 ${this.noProgressStreak} 次重复执行之前成功过的调用（如 read_file 循环后又 list_dir 循环）——这是跨工具打转，任务没有任何进展。\n\n立即停止一切探测类调用（read_file / list_dir / search 等），改为：\n1) 复盘会话中已收集到的全部信息；\n2) 基于已有信息直接推进核心产出（写目标文件 / 执行真正需要的命令 / 输出最终答案）。\n\n若再空转，任务将被强制终止。`,
+        };
+        messages.push(stallMsg);
+        session.append(stallMsg);
+        await eventLog.append('self-heal', { category: 'loop-detected', iteration: calls, totalHeals: loopBreaks, strategy: 'no-progress-warn' });
+        this.deps.onEvent?.({ type: 'self-heal', category: 'loop-detected', iteration: calls, strategy: 'no-progress-warn' });
+        logger.warn('orchestrator no-progress warning injected', { runId: session.runId, streak: this.noProgressStreak });
+        continue; // 跳过本轮自愈/压缩，让模型基于强指令重新决策
+      }
 
       // M6: 错误检测与自愈循环
       if (roundErrors > 0) {
@@ -634,6 +749,7 @@ ${toolHint}
           // 第 3 次及以上相同调用：不再缓存放行，强制失败并交回大模型（计入 roundErrors → 触发反思）
           const forceError = `工具 ${tc.name} 用相同参数已被重复调用 ${hits + 1} 次，任务没有任何进展。请立即停止重复操作，重新规划策略：先 read_file 读回实际文件内容确认现状，再决定下一步；换用其他工具、其他参数或完全不同的实现方式推进任务。`;
           result = { ok: false, output: '', error: forceError };
+          this.noProgressStreak++;
           await ctx.eventLog.append('tool.result', { name: tc.name, ok: false, output: forceError.slice(0, 500) });
           this.deps.onEvent?.({ type: 'tool.result', name: tc.name, ok: false, output: forceError.slice(0, 500) });
         } else {
@@ -653,6 +769,8 @@ ${toolHint}
         // 成功结果写入缓存（失败的不缓存，允许模型重试修复）
         if (result.ok) {
           this.toolResultCache.set(cacheKey, { ok: result.ok, output: result.output, error: result.error });
+          // 有新的成功执行（非缓存命中）→ 视为有进展，清零全局空转计数
+          this.noProgressStreak = 0;
           // P3-1: write_file/edit_file 工具执行成功后自动暂存到变更面板
           if (this.deps.stageChange && (tc.name === 'write_file' || tc.name === 'edit_file')) {
             try {
