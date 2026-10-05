@@ -9,6 +9,7 @@
   "files": [
     "agent-team",
     "dist",
+    "skills",
     "templates/skills",
     "README.md",
     "CHANGELOG.md",

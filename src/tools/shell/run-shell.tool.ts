@@ -6,7 +6,7 @@
  */
 import { z } from 'zod';
 import type { Tool, ToolContext, ToolResult } from '../tool.interface';
-import { runCommand, runCommandInContainer, commandHead } from './exec';
+import { runCommand, runCommandInContainer, commandHead, defaultShellTimeoutMs } from './exec';
 
 /**
  * 真正危险的 shell 模式（命令注入/任意代码执行/破坏性操作/提权）。
@@ -71,14 +71,14 @@ export const runShellTool: Tool = {
         ? await runCommandInContainer(command, ctx.cwd)
         : await runCommand(command, ctx.cwd);
     const combined = `${res.stdout}${res.stderr}`;
-    const isTimeout = res.code === 124 || /\[超时\]|\[强制结束\]/.test(res.stderr || '');
+    const isTimeout = res.timedOut === true || res.code === 124 || /\[超时\]|\[强制结束\]/.test(res.stderr || '');
     return {
       ok: res.code === 0,
       output: smartTruncate(combined),
       error: res.code === 0
         ? undefined
         : isTimeout
-          ? `命令超时（超过60秒未完成）。该命令可能是长时间运行的服务（如 dev server），请改用后台启动方式，或拆分为更短的命令。exit code ${res.code}`
+          ? `命令超时被终止（超时上限 ${Math.round(defaultShellTimeoutMs() / 1000)} 秒，可用 FH_SHELL_TIMEOUT_MS 调整，或拆分/后台化命令）。下方已附输出尾部供诊断。exit code ${res.code}`
           : `exit code ${res.code}`,
     };
   },

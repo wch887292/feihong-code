@@ -668,7 +668,13 @@ ${toolHint}
         });
         this.deps.onEvent?.({ type: 'tool.result', name: tc.name, ok: result.ok, output: result.output.slice(0, 500) });
       }
-      const content = result.ok ? result.output : `错误: ${result.error}`;
+      // P-fix：失败时附带输出尾部（stdout/stderr 中通常含真实报错如 [超时]/编译错误行），
+      // 否则 agent 只看到 "exit code 1" 无法自诊断，会反复盲试直至自愈上限（2026-10-05 复盘实测）
+      const content = result.ok
+        ? result.output
+        : `错误: ${result.error ?? 'unknown'}${
+            result.output ? `\n[输出尾部] ${result.output.slice(-1500)}` : '[无输出]'
+          }`;
       const toolMsg: ChatMessage = { role: 'tool', content, toolCallId: tc.id };
       messages.push(toolMsg);
       ctx.session.append(toolMsg);

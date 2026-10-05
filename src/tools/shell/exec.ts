@@ -11,6 +11,14 @@ export interface ExecResult {
   code: number;
   stdout: string;
   stderr: string;
+  /** 命令因超时被终止（比在 stderr 里匹配标记更可靠） */
+  timedOut?: boolean;
+}
+
+/** 默认 shell 超时：60s 对完整测试套件（tsx 冷启动 60s+）与构建太紧，提到 180s；FH_SHELL_TIMEOUT_MS 可覆盖 */
+export function defaultShellTimeoutMs(): number {
+  const env = Number(process.env.FH_SHELL_TIMEOUT_MS);
+  return Number.isFinite(env) && env > 0 ? env : 180000;
 }
 
 /** 容器镜像（FH_SANDBOX_IMAGE 可覆盖；默认 node:22-alpine 轻量且覆盖常见工具） */
@@ -30,7 +38,7 @@ export function containerImage(): string {
  *  - FH_SANDBOX_PIDS    pids 上限（默认 256）
  *  - FH_SANDBOX_NETWORK none|host（默认 none）
  */
-export function runCommandInContainer(cmd: string, cwd: string, timeoutMs = 60000): Promise<ExecResult> {
+export function runCommandInContainer(cmd: string, cwd: string, timeoutMs = defaultShellTimeoutMs()): Promise<ExecResult> {
   const image = containerImage();
   // 挂载工作区到 /workspace，容器内 cwd=/workspace；--rm 用完即删
   const dockerArgs = [
@@ -59,7 +67,7 @@ export function runCommandInContainer(cmd: string, cwd: string, timeoutMs = 6000
   return runCommand('docker ' + dockerArgs.map((a) => `"${a.replace(/"/g, '\\"')}"`).join(' '), cwd, timeoutMs);
 }
 
-export function runCommand(cmd: string, cwd: string, timeoutMs = 60000): Promise<ExecResult> {
+export function runCommand(cmd: string, cwd: string, timeoutMs = defaultShellTimeoutMs()): Promise<ExecResult> {
   return new Promise((resolve) => {
     // 不用内置 timeout 选项：它只杀 shell 进程，不杀 shell 启动的子进程（如 npm/node）。
     // 手动实现超时：先 SIGTERM，宽限期后 SIGKILL，并尝试杀整个进程树。
@@ -87,9 +95,9 @@ export function runCommand(cmd: string, cwd: string, timeoutMs = 60000): Promise
     // spawn 启动失败时只会触发 error 且不再触发 close，必须在此 resolve，否则调用方 await 永久挂起
     child.on('error', (e) => {
       stderr += e.message;
-      finish({ code: 1, stdout, stderr });
+      finish({ code: 1, stdout, stderr, timedOut });
     });
-    child.on('close', (code) => finish({ code: code ?? 1, stdout, stderr }));
+    child.on('close', (code) => finish({ code: code ?? 1, stdout, stderr, timedOut }));
 
     /** Windows 专用：用 taskkill /T /F 杀整个进程树（含子进程），避免 npm/node 子进程残留持有管道 */
     function killProcessTreeWindows(pid: number): void {
@@ -99,6 +107,7 @@ export function runCommand(cmd: string, cwd: string, timeoutMs = 60000): Promise
     }
 
     // 超时处理：先 SIGTERM（Windows 用 taskkill /T），5 秒后 SIGKILL
+    let timedOut = false;
     const killTimer = setTimeout(() => {
       if (settled) return;
       try {
@@ -116,6 +125,7 @@ export function runCommand(cmd: string, cwd: string, timeoutMs = 60000): Promise
 
     const timer = setTimeout(() => {
       if (settled) return;
+      timedOut = true;
       stderr += `\n[超时] 命令执行超过 ${Math.round(timeoutMs / 1000)} 秒，正在终止（长时间运行的服务如 dev server 请改用后台启动）…`;
       try {
         if (isWindows && child.pid) {
@@ -133,8 +143,9 @@ export function runCommand(cmd: string, cwd: string, timeoutMs = 60000): Promise
     // 最终兜底：超时后 10 秒如果还没 settle（子进程残留持有管道），强制 resolve，避免永久挂起
     const forceTimer = setTimeout(() => {
       if (settled) return;
+      timedOut = true;
       stderr += '\n[强制结束] 进程树未能正常终止，已强制返回结果。';
-      finish({ code: 124, stdout, stderr });
+      finish({ code: 124, stdout, stderr, timedOut });
     }, timeoutMs + 10000);
   });
 }
