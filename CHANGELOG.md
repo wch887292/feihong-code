@@ -1,6 +1,6 @@
 ﻿# 飞虹 Code 更新日志 / Changelog
 
-## 🚧 未发布（Unreleased）· 审批收件箱 CLI 出口 + Web 定时任务面板 + 业务画像可视化（2026-10-04）
+## v8.8.0 · 审批收件箱 CLI 出口 + Web 定时任务面板 + 业务画像可视化 + 任务停止与僵尸治理（2026-10-05）
 
 **主题**：把v8.7.0 自动化任务的安全闭环补齐——审批从"只能翻JSON 文件"到"CLI/Web 都能裁决"，定时任务从"只有 API"到"控制台可视化管理"，业务画像从"只有 CLI"到"控制台可视化"。
 
@@ -18,6 +18,11 @@
 - **文档**：`docs/API.md` 补 `POST /api/approvals/:id/decide`（含"裁决仅解除挂起"提示）与记忆画像三端点；README 命令表补 `fhcode approvals`。
 
 **验证**：`npm test` **412/412 全绿**（+23）；typecheck 0 错误；build 通过；check:version / check:compliance 过。真实起 serve（8124）验证：`GET /api/memory/profile` 返回真实画像（100 条任务、8 个高频领域）、`/api/memory/stats` 返回分层统计、`/api/memory/entries?limit=3` 正确倒序且 `limit=9999` 自动夹到上限、无 token 返回 401、首页含 `profilePanel`/`profileRefreshBtn`；`GET /api/routines` 与 `/api/routines/approvals` 返回真实数据、裁决端点路由匹配且错误语义正确（400/401）。
+
+**任务停止与僵尸治理（2026-10-05 收尾，双端）**：手机端反馈「任务一直显示执行中、无停止入口」的根因是服务端任务无超时（模型推理挂起即永久 running）+ 双端前端均无停止入口。三项修复：
+- **Web 控制台**（commit 8308624）：任务列表为运行中/排队中任务新增「⏹ 停止」按钮（`POST /api/tasks/:id/stop`，停止后刷新列表）；修复触屏无 hover 导致操作按钮不可见（`@media (hover:none)` 常显 `.task-actions`）；新增活动任务状态 5 秒轻量轮询（`refreshTaskListStatuses`，不重渲染对话流）。
+- **服务端看门狗**（commit 8308624）：`TaskQueue.run()` 加最大执行时长（`FH_TASK_MAX_MINUTES`，默认 30 分钟，`TaskQueueOptions.maxDurationMs` 可覆盖），超时强制 abort 并标记 failed，错误文案区分「用户主动停止 / 执行超时」，cancelTask 已设的友好错误不再被 AbortError 覆盖。
+- **手机 App**（`app-mobile/`）：`callComputer` 云端轮询加取消控制（`state.pcCtl`），停止后所有迟到回调（onDone/onError/poll）被拦截，不再把「已停止」改回「已完成/执行中」；新增 `stopTask` 统一停止（对话页 ⏹ 与任务列表「⏹ 停止」按钮共用，写入停止说明消息）；`appendAssistantMessage` 空内容保护（防停止后空气泡与状态回跳 done）。
 
 ## v8.7.0 · 对标纳米Work 四大能力（2026-10-04）
 

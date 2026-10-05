@@ -27,7 +27,7 @@ import { buildToolSecurity, normalizeWorkspace, pathInsideWorkspace } from './po
 
 export const MCP_PROTOCOL_VERSION = '2024-11-05';
 export const MCP_SERVER_NAME = 'feihong-code';
-export const MCP_SERVER_VERSION = '8.7.0-tunnel';
+export const MCP_SERVER_VERSION = '8.8.0-tunnel';
 
 interface JsonRpcMessage {
   jsonrpc: '2.0';

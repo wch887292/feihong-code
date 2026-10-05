@@ -539,6 +539,8 @@ function trimContext(messages) {
 }
 function stopStreaming() {
   if (state.abortController) { try { state.abortController.abort(); } catch (e) {} }
+  // 同步取消电脑任务（云端桥接轮询/直连等待），否则电脑任务会一直等到 90 秒轮询超时
+  if (state.pcCtl) { try { state.pcCtl.cancelled = true; } catch (e) {} state.pcCtl = null; }
   state.streaming = false;
 }
 
@@ -883,6 +885,8 @@ function renderTaskList() {
   var list = state.tasks.slice(0, 100);
   if (!list.length) { box.innerHTML = '<div class="empty">暂无任务，去对话页发起一个吧</div>'; return; }
   box.innerHTML = list.map(function (t) {
+    var stopBtn = (t.status === 'running' || t.status === 'queued')
+      ? '<button class="btn sm ghost" data-stop="' + esc(t.id) + '" style="color:var(--warn);">⏹ 停止</button>' : '';
     return '<div class="card task-card" data-id="' + esc(t.id) + '">' +
       '<div class="row">' +
         '<span class="task-icon">' + (TYPE_ICON[t.type] || '💬') + '</span>' +
@@ -890,11 +894,33 @@ function renderTaskList() {
         statusBadge(t.status) +
       '</div>' +
       '<div class="muted" style="margin-top:6px;">' + fmtTime(t.createdAt) + ' · ' + (t.messages ? t.messages.length : 0) + ' 条消息</div>' +
-      '<div class="task-ops"><button class="btn sm ghost" data-open="' + esc(t.id) + '">打开</button><button class="btn sm ghost" data-del="' + esc(t.id) + '" style="color:var(--err);">删除</button></div>' +
+      '<div class="task-ops"><button class="btn sm ghost" data-open="' + esc(t.id) + '">打开</button>' + stopBtn + '<button class="btn sm ghost" data-del="' + esc(t.id) + '" style="color:var(--err);">删除</button></div>' +
     '</div>';
   }).join('');
   box.querySelectorAll('[data-open]').forEach(function (b) { b.addEventListener('click', function () { openTask(b.dataset.open); }); });
   box.querySelectorAll('[data-del]').forEach(function (b) { b.addEventListener('click', function () { deleteTask(b.dataset.del); }); });
+  box.querySelectorAll('[data-stop]').forEach(function (b) { b.addEventListener('click', function () { stopTask(b.dataset.stop); }); });
+}
+
+/* 统一停止任务：对话页 ⏹ 与任务列表「停止」按钮共用。
+ * - 中止本地模型流式请求 + 电脑任务云端轮询（stopStreaming）
+ * - 标记任务失败并写入停止说明，防止「一直显示执行中」的假死状态 */
+function stopTask(id) {
+  var t = getTask(id);
+  if (!t) return;
+  if (t.status !== 'running' && t.status !== 'queued') { toast('任务已结束，无需停止'); return; }
+  var wasPc = !!state.pcCtl; // 是否为电脑遥控任务（停止前判断，stopStreaming 会清掉）
+  stopStreaming();
+  t.status = 'failed';
+  t.error = '用户手动停止';
+  t.messages.push({ role: 'assistant', content: wasPc
+    ? '⏹ 已手动停止。电脑端任务如仍在执行，将由服务端超时看门狗自动终止。'
+    : '⏹ 已手动停止。' });
+  saveTasks();
+  renderTaskList();
+  if (state.currentTaskId === id) renderThread(t);
+  updateSendBtn(false);
+  toast('已停止');
 }
 function openTask(id) {
   state.currentTaskId = id;
@@ -964,6 +990,9 @@ function renderThread(task) {
 function appendAssistantMessage(taskId, content) {
   var task = getTask(taskId);
   if (!task) return;
+  // 空内容保护：用户手动停止后 xhr.onabort 会以空内容回调 onDone，
+  // 若不拦截会把「已停止(failed)」覆盖回「已完成(done)」并产生空气泡
+  if (!content || !String(content).trim()) return;
   task.messages.push({ role: 'assistant', content: content });
   task.status = 'done';
   saveTasks();
@@ -1302,43 +1331,54 @@ function fetchCloudDevices(onDone) {
     function (data) { onDone(data && data.devices ? data.devices : []); },
     function () { onDone([]); });
 }
-/* 调用电脑：云端桥接（入队→轮询结果）或直连（POST /api/computer/nl） */
+/* 调用电脑：云端桥接（入队→轮询结果）或直连（POST /api/computer/nl）
+ * 取消机制：state.pcCtl = { cancelled } 由 stopStreaming/stopTask 置位——
+ * 轮询发现 cancelled 立即停手，所有回调（onDone/onError）也被拦截，
+ * 避免停止后迟到的回调把任务状态改回 done/running（假死根源）。 */
 function callComputer(text, onDone, onError) {
+  var ctl = { cancelled: false };
+  state.pcCtl = ctl;
+  var done = function (fn, arg) { if (ctl.cancelled) return; state.pcCtl = null; fn(arg); };
   var mode = getPcMode();
   if (mode === 'direct') {
     // 直连模式：同局域网，直接调电脑端（带内置 token，匹配 FH_WEB_TOKEN 启动的直连服务）
     var pcToken = getCloudToken();
     var pcHeaders = pcToken ? { Authorization: 'Bearer ' + pcToken } : {};
-    postJson(getPcUrl().replace(/\/+$/, '') + '/api/computer/nl', { text: text }, pcHeaders, onDone, onError);
+    postJson(getPcUrl().replace(/\/+$/, '') + '/api/computer/nl', { text: text }, pcHeaders,
+      function (data) { done(onDone, data); },
+      function (e) { done(onError, e); });
     return;
   }
   // 云端桥接模式
   var deviceId = getPcDeviceId();
-  if (!deviceId) { onError(new Error('未配置目标电脑（deviceId）。请在设置中填写电脑端设备 ID，或用「fhcode bridge id」查看')); return; }
+  if (!deviceId) { done(onError, new Error('未配置目标电脑（deviceId）。请在设置中填写电脑端设备 ID，或用「fhcode bridge id」查看')); return; }
   var cloudBase = getCloudUrl().replace(/\/+$/, '');
   var token = getCloudToken();
   var headers = token ? { Authorization: 'Bearer ' + token } : {};
   postJson(cloudBase + '/api/bridge/command', { deviceId: deviceId, text: text }, headers,
     function (data) {
-      if (!data || !data.ok) { onError(new Error((data && data.error) || '云端下发失败')); return; }
+      if (ctl.cancelled) return;
+      if (!data || !data.ok) { done(onError, new Error((data && data.error) || '云端下发失败')); return; }
       // 轮询结果
       var cmdId = data.cmdId;
       var tries = 0;
       (function poll() {
+        if (ctl.cancelled) return;
         tries++;
         getJson(cloudBase + '/api/bridge/command/' + cmdId, headers,
           function (d) {
-            if (!d || !d.ok || !d.command) { onError(new Error('查询指令状态失败')); return; }
+            if (ctl.cancelled) return;
+            if (!d || !d.ok || !d.command) { done(onError, new Error('查询指令状态失败')); return; }
             var c = d.command;
-            if (c.status === 'done') { onDone({ ok: true, action: 'bridge', app: c.text, message: '已在' + getExecEndLabel() + '执行完成', bridge: c }); }
-            else if (c.status === 'failed') { onError(new Error(c.error || getExecEndLabel() + '执行失败')); }
-            else if (tries > 60) { onError(new Error('等待电脑执行超时（60 次轮询）')); }
+            if (c.status === 'done') { done(onDone, { ok: true, action: 'bridge', app: c.text, message: '已在' + getExecEndLabel() + '执行完成', bridge: c }); }
+            else if (c.status === 'failed') { done(onError, new Error(c.error || getExecEndLabel() + '执行失败')); }
+            else if (tries > 60) { done(onError, new Error('等待电脑执行超时（60 次轮询）')); }
             else { setTimeout(poll, 1500); }
           },
-          function (e) { onError(e); });
+          function (e) { done(onError, e); });
       })();
     },
-    onError);
+    function (e) { done(onError, e); });
 }
 /* 渲染电脑执行结果到对话流 */
 /* 电脑/云端执行动作名映射（共用） */
@@ -1712,9 +1752,10 @@ function updateSendBtn(streaming) {
     btn.textContent = '⏹';
     btn.title = '停止生成';
     btn.onclick = function () {
+      // 统一走 stopTask：中止流式/轮询 + 标记任务失败，避免「一直执行中」假死
       stopStreaming();
+      if (state.currentTaskId) stopTask(state.currentTaskId);
       updateSendBtn(false);
-      toast('已停止生成');
     };
   } else {
     btn.textContent = '➤';
