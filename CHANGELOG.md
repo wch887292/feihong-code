@@ -1,5 +1,20 @@
 ﻿# 飞虹 Code 更新日志 / Changelog
 
+## v8.8.1 · 复盘暴露 bug 修复 + 技能打包分发（2026-10-05）
+
+**主题**：v8.8.0 复盘实测暴露的三项 agent 行为 bug 根治，配合新增的 `geo-faq-deploy` 技能落地「技能随 npm 包分发」的能力。纯修复与增强，全量向后兼容，既有 CLI / Web / 工具行为不变。
+
+- **shell 超时修复**（`src/tools/shell/exec.ts`）：默认超时 60s → 180s——此前 `npm test` 这类完整测试套件（tsx 冷启动 60s+）必被误杀，导致复盘实测 agent 反复空转。新增 `defaultShellTimeoutMs()` 支持 `FH_SHELL_TIMEOUT_MS` 环境变量覆盖，未配置时默认 180000。
+- **失败输出可见性根治**（`src/tools/shell/exec.ts` + `src/tools/shell/run-shell.tool.ts` + `src/agent/orchestrator.ts`）：
+  - `ExecResult` 新增 `timedOut` 字段，替代此前「在 stderr 里正则匹配 `[超时]` 标记」的脆弱判定，`isTimeout` 优先读 `timedOut === true`。
+  - 超时文案动态化：`run-shell.tool.ts` 提示里直接带上当前超时上限秒数与 `FH_SHELL_TIMEOUT_MS` 调整入口，不再写死 60s。
+  - `orchestrator.ts` 在工具失败时把输出尾部（stdout/stderr 最后 1500 字）附进 `tool` 消息——此前 agent 只看到 `exit code 1` 无法自诊断，是复盘实测 10 轮空转的根因。
+- **git MCP 权限放开**：配套 `policy.json` developer 角色补 12 个 git MCP 工具权限（`git_git_status / add / commit / checkout / create_branch / diff / log / show / branch_list / current_branch / remote_list / stash_list`），使 git MCP 工具在 developer 档位可被 agent 直接调用而不需逐次审批。此项为配置层变更，不入 `package.json` 文件树。
+- **技能打包分发**（`package.json` files + `skills/geo-faq-deploy/`）：`files` 白名单新增 `skills` 目录（此前 npm 包不携带内置技能，`load_skill` 对打包技能命中失败）；`skills/geo-faq-deploy/SKILL.md` 随包分发，与仓库级 `.agents/skills/geo-faq-deploy/` 构成双层安装（打包目录走 npm，仓库级走运行时技能索引）。`geo-faq-deploy` 为 FAQ 批量生成 + GEO 投喂三通道（sitemap / llms.txt / IndexNow）的部署执行型技能，含引号治理、FAQPage JSON-LD 实体引用、保护性合并等 7 步流水线与验证矩阵。
+- **版本**：package.json / src/cli/version.ts / android versionCode(62→63) + versionName / README JSON-LD / src/tunnel/mcp-server.ts / vscode-extension 全量同步至 8.8.1（`npm run bump` 一键，`check:version` 全绿）。
+
+**验证**：`npm test` 基线 422/422 全绿；`npm run typecheck` 0 错误；`npm run build` 通过；`npm run check:version` / `check:compliance` 过。`fhcode computer`、`run_shell` 超时文案与失败输出尾部已在复盘实测中验证生效。
+
 ## v8.8.0 · 审批收件箱 CLI 出口 + Web 定时任务面板 + 业务画像可视化 + 任务停止与僵尸治理（2026-10-05）
 
 **主题**：把v8.7.0 自动化任务的安全闭环补齐——审批从"只能翻JSON 文件"到"CLI/Web 都能裁决"，定时任务从"只有 API"到"控制台可视化管理"，业务画像从"只有 CLI"到"控制台可视化"。
