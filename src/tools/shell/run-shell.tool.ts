@@ -39,6 +39,19 @@ function smartTruncate(text: string, maxLen = 6000, headLen = 2000, tailLen = 30
   return `${head}\n…[已省略中间 ${omitted} 字符]…\n${tail}`;
 }
 
+/**
+ * P-fix（2026-10-05 复盘第二轮）：stdout/stderr 分段截断。
+ * 此前两者拼接后整体截断，stderr 的日志行（JSON/event log）会占据尾部窗口，
+ * 把 stdout 末尾的测试汇总行（# pass / # fail）挤出视野——agent 看不到汇总就误判
+ * 失败反复重跑（实测 44 轮空转的根因之一）。分段后各流独立保留头尾，互不挤占。
+ */
+function buildOutput(stdout: string, stderr: string): string {
+  const parts: string[] = [];
+  if (stdout.trim()) parts.push(smartTruncate(stdout, 7000, 2000, 4000));
+  if (stderr.trim()) parts.push(`--- stderr ---\n${smartTruncate(stderr, 4000, 500, 3000)}`);
+  return parts.join('\n') || '(无输出)';
+}
+
 export const runShellTool: Tool = {
   name: 'run_shell',
   description: '执行 shell 命令（受白名单约束，需审批时会被拦截）',
@@ -77,11 +90,10 @@ export const runShellTool: Tool = {
       ctx.security.sandboxMode === 'container'
         ? await runCommandInContainer(command, ctx.cwd, timeoutMs)
         : await runCommand(command, ctx.cwd, timeoutMs);
-    const combined = `${res.stdout}${res.stderr}`;
     const isTimeout = res.timedOut === true || res.code === 124 || /\[超时\]|\[强制结束\]/.test(res.stderr || '');
     return {
       ok: res.code === 0,
-      output: smartTruncate(combined),
+      output: buildOutput(res.stdout, res.stderr),
       error: res.code === 0
         ? undefined
           : isTimeout

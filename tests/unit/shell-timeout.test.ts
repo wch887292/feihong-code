@@ -8,6 +8,9 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { writeFileSync, mkdtempSync, rmSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
 import { defaultShellTimeoutMs, runCommand } from '../../src/tools/shell/exec';
 import { runShellTool } from '../../src/tools/shell/run-shell.tool';
 
@@ -68,4 +71,33 @@ test('run_shell: timeout 参数 schema 校验（合法值通过 / 低于 5000 �
   assert.throws(() => runShellTool.schema.parse({ command: 'echo hi', timeout: 100 }));
   assert.throws(() => runShellTool.schema.parse({ command: 'echo hi', timeout: 900001 }));
   assert.throws(() => runShellTool.schema.parse({ command: '' }));
+});
+
+test('run_shell: 长输出分段截断——stdout 尾部汇总行不被 stderr 日志挤掉', async () => {
+  // 复盘第二轮实测根因：stdout(测试汇总) + stderr(JSON 日志) 拼接后整体截断，
+  // stderr 行占据尾部窗口，# pass/# fail 汇总被挤出视野 → agent 误判反复重跑
+  const dir = mkdtempSync(join(tmpdir(), 'fh-shell-out-'));
+  const script = join(dir, 'gen.js');
+  writeFileSync(
+    script,
+    [
+      `console.log('x'.repeat(9000));`,
+      `console.log('# pass 422');`,
+      `console.error('{"level":"info","msg":"noise-log-line"}');`,
+      `console.error('{"level":"info","msg":"noise-log-line-2"}');`,
+    ].join('\n'),
+    'utf8',
+  );
+  try {
+    const res = await runShellTool.execute(
+      { command: `node "${script}"` },
+      { security: { shellAllowlist: [], requireApproval: false, sandboxMode: 'danger-full-access' }, cwd: process.cwd() } as never,
+    );
+    assert.equal(res.ok, true);
+    assert.ok(res.output.includes('# pass 422'), 'stdout 末尾汇总行必须保留在输出中');
+    assert.ok(res.output.includes('--- stderr ---'), 'stderr 应有独立分段标记');
+    assert.ok(res.output.includes('noise-log-line'), 'stderr 内容应保留');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
