@@ -193,6 +193,19 @@ export class Orchestrator {
       let systemPrompt = experiencePrompt
         ? `${introspection.prompt}\n\n${experiencePrompt}`
         : introspection.prompt;
+      // P-fix（2026-10-05 复盘）：注入运行环境上下文（cwd/平台/shell），根治 agent 幻觉出
+      // 不存在的路径（如 Windows 上使用 /root/fhcode）导致命令 exit 1 反复空转
+      {
+        const isWin = process.platform === 'win32';
+        const shellHint = isWin
+          ? (process.env.COMSPEC || 'cmd.exe')
+          : (process.env.SHELL || '/bin/bash');
+        systemPrompt += `\n\n## 运行环境（必须遵守）\n`
+          + `- 当前工作目录（cwd）：${cwd}\n`
+          + `- 操作系统/平台：${process.platform}${isWin ? '（Windows：路径用反斜杠或正斜杠均可，但禁止使用 /root、/home、/usr 等 POSIX 系统路径——它们不存在）' : ''}\n`
+          + `- 默认 shell：${shellHint}\n`
+          + `所有 run_shell / read_file / write_file 操作默认相对当前 cwd 执行；除非用户明确给出其他绝对路径，禁止 cd 切换或假设其他目录。`;
+      }
       if (repoPrompt) systemPrompt += repoPrompt;
       if (skillIndex) systemPrompt += skillIndex;
 

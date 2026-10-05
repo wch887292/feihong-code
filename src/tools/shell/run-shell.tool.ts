@@ -44,12 +44,19 @@ export const runShellTool: Tool = {
   description: '执行 shell 命令（受白名单约束，需审批时会被拦截）',
   jsonSchema: {
     type: 'object',
-    properties: { command: { type: 'string', description: '要执行的完整命令' } },
+    properties: {
+      command: { type: 'string', description: '要执行的完整命令' },
+      timeout: { type: 'number', description: '可选，超时毫秒数（5000~900000）；不传则用 FH_SHELL_TIMEOUT_MS 或默认 180000。长命令（完整测试套件/构建发布）建议显式传更大的值' },
+    },
     required: ['command'],
   },
-  schema: z.object({ command: z.string().min(1) }),
+  schema: z.object({
+    command: z.string().min(1),
+    timeout: z.number().int().min(5000).max(900000).optional(),
+  }),
   async execute(args, ctx: ToolContext): Promise<ToolResult> {
-    const { command } = args as { command: string };
+    const { command, timeout } = args as { command: string; timeout?: number };
+    const timeoutMs = timeout ?? defaultShellTimeoutMs();
     const head = commandHead(command);
     // 白名单检查（仅当配置了白名单时约束首词）
     if (ctx.security.shellAllowlist.length > 0) {
@@ -68,8 +75,8 @@ export const runShellTool: Tool = {
     // P5-4：container 沙箱模式下命令在 Docker 容器内执行（挂载工作区）
     const res =
       ctx.security.sandboxMode === 'container'
-        ? await runCommandInContainer(command, ctx.cwd)
-        : await runCommand(command, ctx.cwd);
+        ? await runCommandInContainer(command, ctx.cwd, timeoutMs)
+        : await runCommand(command, ctx.cwd, timeoutMs);
     const combined = `${res.stdout}${res.stderr}`;
     const isTimeout = res.timedOut === true || res.code === 124 || /\[超时\]|\[强制结束\]/.test(res.stderr || '');
     return {
@@ -77,8 +84,8 @@ export const runShellTool: Tool = {
       output: smartTruncate(combined),
       error: res.code === 0
         ? undefined
-        : isTimeout
-          ? `命令超时被终止（超时上限 ${Math.round(defaultShellTimeoutMs() / 1000)} 秒，可用 FH_SHELL_TIMEOUT_MS 调整，或拆分/后台化命令）。下方已附输出尾部供诊断。exit code ${res.code}`
+          : isTimeout
+          ? `命令超时被终止（超时上限 ${Math.round(timeoutMs / 1000)} 秒，可在调用时传 timeout 参数、设 FH_SHELL_TIMEOUT_MS，或拆分/后台化命令）。下方已附输出尾部供诊断。exit code ${res.code}`
           : `exit code ${res.code}`,
     };
   },
