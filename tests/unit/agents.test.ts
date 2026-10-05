@@ -12,13 +12,15 @@ import { __resetConfigForTest } from '../../src/shared/config';
 let tmpDir: string;
 let tmpCfg: string;
 
-/** 隔离环境：FH_CONFIG 指向「存在的空配置」，阻断读到本机真实模型 key */
+/** 隔离环境：FH_CONFIG 指向「存在的空配置」，同时清掉 FH_HOME 避免分层合并读到真实全局配置 */
 function isolated() {
   for (const k of [
     'LLM_PROVIDER',
     'DOUBAO_API_KEY',
     'DOUBAO_MODEL',
     'DOUBAO_BASE_URL',
+    // FH_HOME 必须清理，否则配置分层合并会读到真实全局 fhcode.config.json 里的 provider
+    'FH_HOME',
     // FH_PROVIDERS 优先级高于 FH_CONFIG，本机若残留该变量会带上真实 key，导致隔离失效
     'FH_PROVIDERS',
     'FH_MODEL_NAME',
@@ -33,6 +35,9 @@ function isolated() {
   tmpCfg = join(tmpDir, 'empty-config.json');
   writeFileSync(tmpCfg, JSON.stringify({ models: { providers: [] } }), 'utf8');
   process.env.FH_CONFIG = tmpCfg;
+  // FH_HOME 指向不存在的目录，彻底阻断全局 fhcode.config.json 被合并进来
+  // （配置分层合并修复后 loadConfigFile 会读取所有候选文件，必须同时隔离 FH_HOME）
+  process.env.FH_HOME = join(tmpDir, 'nonexistent-home');
   // 防止其它测试文件先触发了 loadConfig() 缓存，导致这里读到脏 providers
   __resetConfigForTest();
 }

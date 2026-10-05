@@ -123,6 +123,12 @@ export class LayeredMemory {
 
   /** 批量添加消息 */
   appendAll(messages: ChatMessage[]): void {
+    // P1-fix: 自引用防御——若传入数组就是 workingMemory 本尊，for-of 遍历+push 会无限自增长
+    // 直至 RangeError: Invalid array length（2026-10-05 实测 1.12 亿条崩溃）
+    if (messages === this.workingMemory) {
+      console.error('[LM-GUARD] appendAll refused: messages IS workingMemory (self-reference blocked)');
+      return;
+    }
     for (const m of messages) this.workingMemory.push(m);
     this.stats.workingMemoryCount = this.workingMemory.length;
   }
@@ -313,7 +319,7 @@ export class LayeredMemory {
     }
 
     const systemPrompt = parts.join('\n');
-    return { systemPrompt, messages: this.workingMemory };
+    return { systemPrompt, messages: [...this.workingMemory] };
   }
 
   /**
