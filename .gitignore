@@ -180,3 +180,49 @@ fhcode.config.json
 .wbapp_*.genie
 outputs/
 *.err
+
+# —— 本地工作文件归档（2026-10-06 复盘清理，不入公开仓库，文件保留本地）——
+# 爬虫数据与接口参数碎片
+records.json
+search_contents.jsonl
+perm_data.json
+perm_params.json
+list_params.json
+base_fields.json
+# 一次性调试/探针脚本
+_c.ts
+_final_check.ts
+_test_tongling_final.ts
+fix_models.py
+test_agnes.py
+test_write.py
+read_env.py
+read_local_models.py
+read_task.py
+verify_env.py
+diag_url.py
+get_app_openid.py
+set_cookie.py
+set_keywords.py
+inspect_db.py
+process_records.py
+gen_manual.py
+clear_table.py
+sync_to_feishu.py
+# 大体积本地项目 / 构建产物 / 评测数据集
+feihong-browser/
+vscode-extension/*.vsix
+bench/humaneval/HumanEvalPlus.jsonl
+# 内部文档（复盘/检查报告/说明书/软著材料，文件保留本地）
+软著申请/
+复盘报告_2026-09-27.html
+复盘分析_2026-09-30.html
+复盘纪要_2026-09-27.md.bak
+三端联通诊断与升级手册_2026-09-29.html
+云电脑实例编排手册_2026-09-29.html
+腾讯云LiveKit接入检查报告_2026-09-27.html
+腾讯云部署检查报告_2026-09-27.html
+主流IDE横向测评报告_2026-10-01.html
+主流IDE横向测评报告_2026-10-01.docx
+飞虹Code使用说明书_纯小白版.docx
+飞虹Code使用说明书_纯小白版.pdf
