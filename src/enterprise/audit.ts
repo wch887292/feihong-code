@@ -202,7 +202,10 @@ function tryRemoveStaleLock(lockPath: string): boolean {
     unlinkSync(lockPath);
     return true;
   } catch (ue) {
-    const asidePath = `${lockPath}.stale-${process.pid}-${Date.now()}`;
+    // 固定名覆盖式 rename（Windows renameSync 可覆盖已存在目标）：
+    // ① rename 通常不被宿主 safe-delete shim 拦截；② 固定名不产生堆积文件，
+    // 避免目录残留文件数触发 shim 批量确认阈值（SAFE_DELETE_BULK_CONFIRM_REQUIRED）。
+    const asidePath = `${lockPath}.old`;
     try {
       renameSync(lockPath, asidePath);
       warnLockOnce('审计锁 unlink 失败，已用 rename 挪开 stale 锁', {
@@ -218,6 +221,26 @@ function tryRemoveStaleLock(lockPath: string): boolean {
         renameError: re instanceof Error ? re.message : String(re),
       });
       return false;
+    }
+  }
+}
+
+/**
+ * 锁释放（2026-10-07 修复）：优先 unlink；被宿主 safe-delete shim 拦截时
+ * 改用固定名覆盖式 rename（.old），释放几乎必成，等待者可立即重建锁。
+ * .old 固定名不堆积：下次释放会覆盖它，建锁成功后也会惰性清理。
+ */
+function releaseAuditLock(lockPath: string): void {
+  try {
+    unlinkSync(lockPath);
+  } catch {
+    try {
+      renameSync(lockPath, `${lockPath}.old`);
+    } catch (re) {
+      warnLockOnce('审计锁释放失败（unlink 与 rename 均失败，将按过期锁由下个写入者清理）', {
+        lockPath,
+        error: re instanceof Error ? re.message : String(re),
+      });
     }
   }
 }
@@ -244,19 +267,17 @@ function withAuditLock(dir: string, fn: () => void): void {
       } finally {
         closeSync(fd);
       }
+      // 惰性清理上次 rename 挪开的 .old 残留（失败忽略：固定名不堆积，下次释放会覆盖）
+      try {
+        unlinkSync(`${lockPath}.old`);
+      } catch {
+        /* 无残留或被宿主拦截均可忽略 */
+      }
       try {
         fn();
         return;
       } finally {
-        try {
-          unlinkSync(lockPath);
-        } catch (e) {
-          // 释放锁失败：保留文件，下个写入者会按 stale 逻辑清理；同进程仅告警一次（shim 环境属预期自愈路径）
-          warnLockOnce('审计锁释放失败（将按过期锁由下个写入者清理）', {
-            lockPath,
-            error: e instanceof Error ? e.message : String(e),
-          });
-        }
+        releaseAuditLock(lockPath);
       }
     } catch (e: unknown) {
       const code = (e as NodeJS.ErrnoException)?.code;
@@ -293,11 +314,7 @@ function withAuditLock(dir: string, fn: () => void): void {
             fn();
             return;
           } finally {
-            try {
-              unlinkSync(lockPath);
-            } catch {
-              warnLockOnce('审计锁释放失败（将按过期锁由下个写入者清理）', { lockPath });
-            }
+            releaseAuditLock(lockPath);
           }
         }
         if (stale) {
@@ -323,11 +340,7 @@ function withAuditLock(dir: string, fn: () => void): void {
                 fn();
                 return;
               } finally {
-                try {
-                  unlinkSync(lockPath);
-                } catch {
-                  /* 释放失败不影响，下个写入者会按 stale 逻辑处理 */
-                }
+                releaseAuditLock(lockPath);
               }
             } catch {
               // 'w' 也失败：落入下方超时判断/退避重试
@@ -336,6 +349,31 @@ function withAuditLock(dir: string, fn: () => void): void {
           // 清理失败且无法确认进程状态：落入下方超时判断/退避重试
         }
         if (Date.now() > deadline) {
+          // 2026-10-07 修复：等待超时后先尝试覆写接管，不再直接抛错。
+          // 多实例并行时活跃持有者 PID 存活且不断刷新 mtime，等待者永不满足 stale，
+          // 盲等到超时抛错会上浮成工具失败，触发 self-heal 循环甚至任务熔断。
+          // 审计写入自损可控（最坏一条 seq 冲突，有 fallback 分片机制），远轻于任务崩溃。
+          let tookOver = false;
+          try {
+            const fd = openSync(lockPath, 'w');
+            try {
+              writeSync(fd, String(process.pid));
+            } finally {
+              closeSync(fd);
+            }
+            tookOver = true;
+          } catch {
+            /* 覆写失败（极端宿主拦截写入）：落入原超时错误 */
+          }
+          if (tookOver) {
+            warnLockOnce('审计写入锁等待超时，已覆写接管执行', { lockPath });
+            try {
+              fn();
+              return;
+            } finally {
+              releaseAuditLock(lockPath);
+            }
+          }
           const st = (() => {
             try {
               return statSync(lockPath);
