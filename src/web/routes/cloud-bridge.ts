@@ -32,6 +32,8 @@ export interface CloudBridgeDeps {
   loadJsonFile: <T>(file: string, fallback: T) => T;
   saveJsonFile: (file: string, data: unknown) => boolean;
   bruteForce: BruteForceGuard;
+  /** v8.9.0：手机指令完成时同步注入 Web 任务队列，桌面端对话流可见 */
+  queue?: import('../task-queue').TaskQueue;
 }
 
 export function registerCloudBridgeRoutes(app: ExpressApp, deps: CloudBridgeDeps): void {
@@ -146,6 +148,22 @@ export function registerCloudBridgeRoutes(app: ExpressApp, deps: CloudBridgeDeps
     if (okFlag) cmd.result = result ?? {};
     else cmd.error = error || '执行失败';
     saveBridgeCommands(list);
+    // v8.9.0：同步注入 Web 任务队列（桌面端对话流实时显示手机任务）
+    try {
+      const resultText =
+        typeof result?.text === 'string' && result.text ? result.text
+        : (okFlag ? (JSON.stringify(result ?? {}).slice(0, 500) || '执行成功') : error || '执行失败');
+      deps.queue?.importBridgeCommand({
+        bridgeCmdId: cmdId,
+        goal: cmd.text,
+        resultText: resultText.slice(0, 2000),
+        ok: okFlag,
+        executedAt: cmd.executedAt,
+      });
+    } catch (e) {
+      // 同步失败不阻断回传
+      console.warn('[bridge] 同步桌面端任务失败:', e instanceof Error ? e.message : String(e));
+    }
     res.json({ ok: true, status: cmd.status });
   });
 

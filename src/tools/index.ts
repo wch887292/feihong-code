@@ -11,6 +11,7 @@ import { editFileTool } from './file/edit.tool';
 import { listDirTool } from './file/list.tool';
 import { grepTool } from './search/grep.tool';
 import { runShellTool } from './shell/run-shell.tool';
+import { shellJobTool } from './shell/shell-job.tool';
 import { runTestsTool } from './verify/test-run.tool';
 import { buildCheckTool } from './verify/build-check.tool';
 import { loadSkillTool } from './skills/load-skill.tool';
@@ -27,6 +28,7 @@ export function createDefaultRegistry(): ToolRegistry {
     listDirTool,
     grepTool,
     runShellTool,
+    shellJobTool,
     runTestsTool,
     buildCheckTool,
     loadSkillTool,

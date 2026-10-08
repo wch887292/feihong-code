@@ -7,6 +7,7 @@
 import { z } from 'zod';
 import type { Tool, ToolContext, ToolResult } from '../tool.interface';
 import { runCommand, runCommandInContainer, commandHead, defaultShellTimeoutMs } from './exec';
+import { processManager } from './process-manager';
 
 /**
  * 真正危险的 shell 模式（命令注入/任意代码执行/破坏性操作/提权）。
@@ -60,15 +61,48 @@ export const runShellTool: Tool = {
     properties: {
       command: { type: 'string', description: '要执行的完整命令' },
       timeout: { type: 'number', description: '可选，超时毫秒数（5000~900000）；不传则用 FH_SHELL_TIMEOUT_MS 或默认 180000。长命令（完整测试套件/构建发布）建议显式传更大的值' },
+      background: { type: 'boolean', description: '后台运行模式：true 时立即返回 job_id，不等待命令结束。适用于 dev server / watch 模式 / 长时服务。启动后用 shell_job 工具查询日志、状态或停止。' },
     },
     required: ['command'],
   },
   schema: z.object({
     command: z.string().min(1),
     timeout: z.number().int().min(5000).max(900000).optional(),
+    background: z.boolean().optional(),
   }),
   async execute(args, ctx: ToolContext): Promise<ToolResult> {
-    const { command, timeout } = args as { command: string; timeout?: number };
+    const { command, timeout, background } = args as { command: string; timeout?: number; background?: boolean };
+    // 后台模式：启动后立即返回 job_id，不阻塞（dev server / watch / 长时服务）
+    if (background) {
+      const head = commandHead(command);
+      if (ctx.security.shellAllowlist.length > 0 && !ctx.security.shellAllowlist.includes(head)) {
+        return { ok: false, output: '', error: `命令不在白名单: ${head}` };
+      }
+      if (isDangerousShellCommand(command)) {
+        return { ok: false, output: '', error: `命令含高风险操作，已被拦截: ${command.slice(0, 100)}` };
+      }
+      if (ctx.security.requireApproval) {
+        const approved = ctx.approve ? await ctx.approve(`run_shell(background): ${command}`) : false;
+        if (!approved) return { ok: false, output: '', error: '已拒绝执行（需审批）' };
+      }
+      const job = processManager.start(command, ctx.cwd);
+      const initialOut = job.stdoutTail.slice(-5).join('\n');
+      const initialErr = job.stderrTail.slice(-5).join('\n');
+      return {
+        ok: true,
+        output: [
+          `[后台任务已启动] job_id=${job.jobId} pid=${job.pid ?? 'unknown'}`,
+          `命令: ${command}`,
+          `工作目录: ${ctx.cwd}`,
+          initialOut ? `\n初始输出:\n${initialOut}` : '',
+          initialErr ? `\n初始 stderr:\n${initialErr}` : '',
+          `\n后续用 shell_job 工具查询：`,
+          `  shell_job(action:"logs", job_id:"${job.jobId}")  — 查看最新日志`,
+          `  shell_job(action:"status", job_id:"${job.jobId}") — 查看运行状态`,
+          `  shell_job(action:"stop", job_id:"${job.jobId}")   — 停止任务`,
+        ].filter(Boolean).join('\n'),
+      };
+    }
     const timeoutMs = timeout ?? defaultShellTimeoutMs();
     const head = commandHead(command);
     // 白名单检查（仅当配置了白名单时约束首词）

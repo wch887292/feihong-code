@@ -1417,9 +1417,11 @@
         const title = t.goal.slice(0, 18) + (t.goal.length > 18 ? '…' : '');
         const isPinned = state.pinnedTasks.has(t.id);
         const activeClass = state.currentTaskId === t.id ? 'active' : '';
+        const bridgeBadge = t.bridgeCmdId ? '<span class="task-bridge" title="手机云电脑任务">☁️</span>' : '';
         html += `<div class="task-item ${activeClass}" data-task-id="${t.id}" data-pinned="${isPinned}">
           <span class="task-icon">${icon}</span>
           <span class="task-title">${title}</span>
+          ${bridgeBadge}
           ${isPinned ? '<span class="task-pinned">📌</span>' : ''}
           <div class="task-actions">
             <button class="pin-btn" data-id="${t.id}" data-pinned="${isPinned}" title="${isPinned ? '取消置顶' : '置顶'}">${isPinned ? '📌' : '📍'}</button>
@@ -2387,7 +2389,10 @@
 
   async function checkCloud() {
     try {
-      const base = get(LS.cloudUrl, 'https://api.klai.top/fhcode').replace(/\/+$/, '');
+      // v8.8.2：默认走自研云中转 fhrelay；历史版本误存 /fhcode（另一条需鉴权链路）自动迁移纠正
+      let base = get(LS.cloudUrl, 'https://api.klai.top/fhrelay');
+      if (/api\.klai\.top\/fhcode(\/|$)/.test(base)) { base = 'https://api.klai.top/fhrelay'; set(LS.cloudUrl, base); }
+      base = base.replace(/\/+$/, '');
       const token = get(LS.token, '');
       const ctrl = new AbortController();
       const t = setTimeout(() => ctrl.abort(), 6000);
@@ -2396,7 +2401,12 @@
         headers: token ? { Authorization: 'Bearer ' + token } : {}
       });
       clearTimeout(t);
-      if (!res.ok) { state.cloud = false; return; }
+      if (!res.ok) {
+        // 401 = 请求已穿透到家里电脑 fhcode（仅 Token 鉴权未过），通道本身是通的；
+        // relay 隧道断开时返回 502/503「家里电脑未连接」——只有这两种才算未连接
+        state.cloud = res.status === 401;
+        return;
+      }
       const data = await res.json().catch(() => null);
       state.cloud = !!(data && Array.isArray(data.devices));
     } catch (e) { state.cloud = false; }

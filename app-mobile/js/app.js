@@ -1,5 +1,5 @@
 ﻿/* ============================================================
- * 飞虹 Code 移动版 v7.6.4
+ * 飞虹 Code 移动版 v8.8.1
  * 主聊天页 + 左侧导航 + 右侧设置抽屉 + 技能中心 + 小游戏创作 + 附件栏 + 流式对话
  * ============================================================ */
 
@@ -1023,7 +1023,13 @@ function getPcUrl() {
 }
 function setPcUrl(u) { try { localStorage.setItem('fh.pc.pcUrl', u); } catch (e) {} }
 function getCloudUrl() {
-  try { return localStorage.getItem('fh.pc.cloudUrl') || 'https://api.klai.top/fhcode'; } catch (e) { return 'https://api.klai.top/fhcode'; }
+  // v8.8.2：默认走自研云中转 fhrelay；旧版本误存 /fhcode（需鉴权的服务端链路）一次性迁移纠正
+  var fallback = 'https://api.klai.top/fhrelay';
+  try {
+    var saved = localStorage.getItem('fh.pc.cloudUrl');
+    if (saved && /api\.klai\.top\/fhcode(\/|$)/.test(saved)) { localStorage.setItem('fh.pc.cloudUrl', fallback); return fallback; }
+    return saved || fallback;
+  } catch (e) { return fallback; }
 }
 function setCloudUrl(u) { try { localStorage.setItem('fh.pc.cloudUrl', u); } catch (e) {} }
 function getPcDeviceId() {

@@ -72,6 +72,10 @@ export interface TaskRecord {
   attachments?: string[];
   /** 执行中收到的新消息：本轮结束后自动转正并续跑（任务执行中可继续对话，无需等待） */
   pendingMessages?: string[];
+  /** 开发模式：interactive=交互开发（豆包式），autonomous=单命令自主开发 */
+  mode?: 'interactive' | 'autonomous';
+  /** 云端桥接来源（手机经 fhrelay 下发），用于桌面端区分任务来源 */
+  bridgeCmdId?: string;
 }
 
 /**
@@ -257,7 +261,7 @@ export class TaskQueue {
   /** 提交任务，立即返回任务 id（后台异步执行）；opts 可覆盖本次任务的 modelId / workspaceDir / agentType / permissions / attachments */
   submit(
     goal: string,
-    opts: { modelId?: string; workspaceDir?: string; agentType?: AgentType; permissions?: TaskPermissions; attachments?: string[] } = {},
+    opts: { modelId?: string; workspaceDir?: string; agentType?: AgentType; permissions?: TaskPermissions; attachments?: string[]; mode?: 'interactive' | 'autonomous' } = {},
   ): TaskRecord {
     const now = new Date().toISOString();
     const record: TaskRecord = {
@@ -271,6 +275,7 @@ export class TaskQueue {
       agentType: opts.agentType,
       permissions: opts.permissions,
       attachments: opts.attachments && opts.attachments.length ? opts.attachments : undefined,
+      mode: opts.mode ?? 'interactive',
     };
     this.tasks.set(record.id, record);
     this.persist(record); // P6-4 落盘
@@ -318,6 +323,57 @@ export class TaskQueue {
     this.pump();
     void this.fireWebhook(id, 'queued');
     void this.channels?.notify(record, 'queued');
+    return record;
+  }
+
+  /**
+   * v8.9.0：手机经云桥接（fhrelay → bridge）下发并完成的指令，同步注入 Web 任务队列，
+   * 使桌面端任务列表/对话流实时显示手机任务。
+   * - 目标文本入队（复用 submit 逻辑），带来源标记 bridgeCmdId
+   * - 执行前把「用户指令」写入对话历史；执行后把「执行结果」写入对话历史
+   * - 仅当对应任务尚未同步过（幂等，按 bridgeCmdId 查重）
+   */
+  importBridgeCommand(opts: {
+    bridgeCmdId: string;
+    goal: string;
+    resultText: string;
+    ok: boolean;
+    executedAt?: string;
+    workspaceDir?: string;
+  }): TaskRecord | null {
+    const { bridgeCmdId, goal, resultText, ok, executedAt, workspaceDir } = opts;
+    if (!bridgeCmdId || !goal) return null;
+    // 幂等：已存在该桥接来源任务则不再重复创建
+    const existed = [...this.tasks.values()].find((t) => t.bridgeCmdId === bridgeCmdId);
+    if (existed) return existed;
+
+    const now = new Date().toISOString();
+    const id = randomUUID();
+    const finalAnswer = `[手机云电脑任务] ${goal}\n\n${ok ? '✅ 执行成功' : '❌ 执行失败'}: ${resultText || '（无返回）'}`;
+    const record: TaskRecord = {
+      id,
+      goal: `[云电脑] ${goal}`,
+      status: ok ? 'done' : 'failed',
+      createdAt: executedAt || now,
+      updatedAt: now,
+      bridgeCmdId,
+      workspaceDir,
+      conversation: [
+        { role: 'user', content: goal },
+        { role: 'assistant', content: resultText || (ok ? '执行成功' : '执行失败') },
+      ],
+      result: {
+        ok,
+        finalAnswer,
+        iterations: 1,
+        costUsd: 0,
+        logFile: '',
+      },
+    };
+    this.tasks.set(id, record);
+    this.persist(record);
+    void this.fireWebhook(id, record.status);
+    void this.channels?.notify(record, record.status);
     return record;
   }
 
@@ -544,6 +600,7 @@ export class TaskQueue {
         signal: controller.signal, // P9：中断信号——停止按钮触发时中止模型请求与编排循环
         attachments: record.attachments, // 用户本轮上传的附件（截图/文件/图片），执行层可读取
         stageChange: this.stageChange, // P3-1：AI 生成的文件修改自动暂存到变更面板
+        mode: record.mode ?? 'interactive', // 开发模式：交互/自主
       });
       // 多轮续接：持久化本轮完整消息历史（含上一轮），供下一轮 resume 与前端对话流展示
       if (Array.isArray(result.messages) && result.messages.length > 0) {

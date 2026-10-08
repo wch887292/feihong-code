@@ -101,6 +101,19 @@ if (existsSync(p(vsePath))) {
   console.log(`✓ vscode-extension/package.json version = '${next}'`);
 }
 
+// 4.7 app-mobile/index.html 关于页版本号（移动版 APK 显示用）
+const amPath = 'app-mobile/index.html';
+if (existsSync(p(amPath))) {
+  let am = read(amPath);
+  if (/<span id="appVersion">v[\d.]+<\/span>/.test(am)) {
+    am = am.replace(/<span id="appVersion">v[\d.]+<\/span>/, `<span id="appVersion">v${next}</span>`);
+    write(amPath, am);
+    console.log(`✓ app-mobile/index.html  appVersion = 'v${next}'`);
+  } else {
+    console.warn(`⚠ app-mobile/index.html 未找到 <span id="appVersion"> 落点，请人工修改`);
+  }
+}
+
 // 5. 提示人工事项
 console.log(`
 下一步（人工）:

@@ -207,6 +207,10 @@
                 <span>🛡️</span>
                 <span id="workspacePermLabel" data-i18n="perm.default">默认权限</span>
               </div>
+              <div class="wb-mode" id="devModeBadge" title="点击切换开发模式：交互模式（豆包式，每轮驱动）/ 自主模式（单命令全自动）">
+                <span id="devModeIcon">💬</span>
+                <span id="devModeLabel">交互模式</span>
+              </div>
             </div>
             <div class="call-bar">
               <span class="call-hint" data-i18n="call.hint">通话</span>
@@ -321,7 +325,7 @@
               <div>
                 <div style="font-weight:600;margin-bottom:6px;">☁️ 云电脑（云端桥接）</div>
                 <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:2px;">云端地址</label>
-                <input id="cloudUrlInput" placeholder="https://api.klai.top/fhcode" style="width:100%;margin-bottom:6px;">
+                <input id="cloudUrlInput" placeholder="https://api.klai.top/fhrelay" style="width:100%;margin-bottom:6px;">
                 <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:2px;">Token（可选）</label>
                 <input id="cloudTokenInput" type="password" placeholder="fh-web token" style="width:100%;margin-bottom:6px;">
                 <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:2px;">设备 ID（目标电脑）</label>

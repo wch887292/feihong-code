@@ -84,8 +84,30 @@ export const DEFAULT_POLICY: Policy = {
         'edit_file',
         'run_tests',
         'build_check',
+        // 长任务托管：shell_job 查询/停止 background job（查询刚需，stop 随 background 启动一并授权）
+        'shell_job',
+        // desktop-touch MCP：只读/观察类工具（内部命名 = server 名 + 工具名）
+        'desktop_desktop_state',
+        'desktop_screenshot',
+        'desktop_server_status',
+        'desktop_desktop_discover',
+        'desktop_wait_until',
+        'desktop_excel',
+        // feihong-desktop 三件套：观察与验证
+        'feihong_desktop_see',
+        'feihong_desktop_verify',
       ],
-      approvalTools: ['run_shell'],
+      approvalTools: [
+        'run_shell',
+        // desktop-touch MCP：写操作类，需审批（FH_REQUIRE_APPROVAL=false 时自动批准）
+        'desktop_workspace_launch',
+        'desktop_focus_window',
+        'desktop_click_element',
+        'desktop_keyboard',
+        'desktop_terminal',
+        'feihong_desktop_act',
+        'feihong_agents_submit',
+      ],
       maxCostUsd: 1,
     },
     operator: {

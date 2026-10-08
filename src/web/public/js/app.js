@@ -455,6 +455,7 @@
       installed: new Set(),
       agentType: 'general',
       directMode: false,
+      devMode: 'interactive', // 开发模式：interactive=交互开发（豆包式），autonomous=单命令自主开发
       permissions: {
         readScope: 'workspace',
         readPath: '',
@@ -910,6 +911,7 @@
           workspaceDir: state.workspaceDir || undefined,
           modelId: state.modelId || undefined,
           attachments: attachments.length ? attachments : undefined,
+          mode: state.devMode,
         });
         input.value = '';
         clearStagedFiles();
@@ -969,6 +971,34 @@
     }
     document.getElementById('sendBtn').addEventListener('click', sendTask);
     document.getElementById('goalInput').addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) sendTask(); });
+    // 开发模式切换：交互模式（豆包式）↔ 自主模式（单命令全自动）
+    const devModeBadge = document.getElementById('devModeBadge');
+    if (devModeBadge) {
+      const savedMode = localStorage.getItem('fhcode.devMode');
+      if (savedMode === 'autonomous' || savedMode === 'interactive') state.devMode = savedMode;
+      const updateDevModeUI = () => {
+        const label = document.getElementById('devModeLabel');
+        const icon = document.getElementById('devModeIcon');
+        if (state.devMode === 'autonomous') {
+          devModeBadge.classList.add('autonomous');
+          if (label) label.textContent = '自主模式';
+          if (icon) icon.textContent = '🚀';
+          devModeBadge.title = '自主模式：给一个目标，AI 全自动跑完（最多100轮，$2成本上限）。点击切换为交互模式';
+        } else {
+          devModeBadge.classList.remove('autonomous');
+          if (label) label.textContent = '交互模式';
+          if (icon) icon.textContent = '💬';
+          devModeBadge.title = '交互模式（豆包式）：每轮用户驱动，危险操作需确认。点击切换为自主模式';
+        }
+      };
+      updateDevModeUI();
+      devModeBadge.addEventListener('click', () => {
+        state.devMode = state.devMode === 'autonomous' ? 'interactive' : 'autonomous';
+        localStorage.setItem('fhcode.devMode', state.devMode);
+        updateDevModeUI();
+        toast(state.devMode === 'autonomous' ? '已切换为自主模式：AI 将全自动执行（$2成本上限）' : '已切换为交互模式：每轮驱动，危险操作需确认');
+      });
+    }
     // 豆包式欢迎卡片：点击推荐提示词 → 填入输入框并聚焦（事件委托，任务渲染覆盖后依然有效）
     document.getElementById('messages').addEventListener('click', (e) => {
       const chip = e.target.closest ? e.target.closest('[data-fill]') : null;
@@ -1145,6 +1175,7 @@
           agentType: document.getElementById('ntAgentType').value || state.agentType,
           permissions: state.permissions,
           modelId: state.modelId || undefined,
+          mode: state.devMode,
         };
         // 工作区：仅在明确选择了目录时覆盖
         const d = await api('/api/tasks', 'POST', wsVal ? Object.assign(payload, { workspaceDir: wsVal }) : payload);

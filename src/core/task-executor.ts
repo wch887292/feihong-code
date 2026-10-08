@@ -73,6 +73,8 @@ export interface RunOptions {
   tier?: ComputeTier;
   /** ④ 工作记忆增强：注入共享分层记忆实例（缺省每次运行新建，自动召回/压缩/持久化项目记忆） */
   layeredMemory?: import('../agent/layered-memory').LayeredMemory;
+  /** 开发模式：interactive=交互开发（豆包式，每轮驱动+需审批），autonomous=单命令自主开发（全自动+成本上限） */
+  mode?: 'interactive' | 'autonomous';
 }
 
 /** 离线演示脚本：写文件 → 总结，跑通完整链路 */
@@ -269,6 +271,15 @@ export async function executeTask(goal: string, opts: RunOptions = {}): Promise<
     security.sandboxMode = opts.security.sandboxMode ?? security.sandboxMode;
   }
 
+  // 开发模式：交互模式（豆包式）vs 自主模式（单命令全自动）
+  const mode = opts.mode ?? 'interactive';
+  const modeConfig = mode === 'autonomous'
+    ? { maxIterations: 100, maxCostUsd: 2.0, requireApproval: false }
+    : { maxIterations: 20, maxCostUsd: 0, requireApproval: true };
+  // 自主模式强制关闭审批（全自动执行），交互模式保持审批
+  if (mode === 'autonomous') security.requireApproval = false;
+  logger.info('开发模式', { mode, maxIterations: modeConfig.maxIterations, maxCostUsd: modeConfig.maxCostUsd });
+
   // M4：企业上下文（租户隔离 / RBAC / 审计 / 配额），配额超限在此 fail-fast
   const rt = getEnterprise();
   if (rt) assertQuota(rt);
@@ -377,7 +388,8 @@ export async function executeTask(goal: string, opts: RunOptions = {}): Promise<
     security,
     approve,
     guard,
-    maxCostUsd: resolveMaxCostUsd(rt?.maxCostUsd),
+    maxIterations: modeConfig.maxIterations,
+    maxCostUsd: mode === 'autonomous' ? modeConfig.maxCostUsd : resolveMaxCostUsd(rt?.maxCostUsd),
     persist: (cp: SessionCheckpoint) => saveCheckpoint(logDir, cp),
     onEvent: opts.renderer ?? (opts.stream ? streamRenderer() : undefined),
     pluginSkillDirs,

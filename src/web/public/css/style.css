@@ -292,6 +292,7 @@
       color: var(--ink-2);
     }
     .task-item.active .task-title { color: var(--brand); }
+    .task-item .task-bridge { color: var(--brand); font-size: 12px; margin-left: 2px; flex-shrink: 0; }
     .task-item .task-actions {
       display: none;
       gap: 4px;
@@ -732,6 +733,27 @@
       transition: border-color 0.15s;
     }
     .wb-perm:hover { border-color: var(--brand); }
+    .wb-mode {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+      padding: 5px 10px;
+      border-radius: 8px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      font-size: 13px;
+      color: var(--ink);
+      transition: border-color 0.15s, background 0.15s;
+      user-select: none;
+    }
+    .wb-mode:hover { border-color: var(--brand); }
+    .wb-mode.autonomous {
+      border-color: #f59e0b;
+      background: rgba(245, 158, 11, 0.08);
+      color: #d97706;
+    }
+    .wb-mode.autonomous:hover { border-color: #f59e0b; background: rgba(245, 158, 11, 0.15); }
 
     /* 閫氳瘽鏍?*/
     .call-bar {

@@ -517,7 +517,9 @@ export function startWebServer(opts: ServeOptions = {}): {
     const attachments: string[] = Array.isArray(body?.attachments)
       ? (body.attachments as unknown[]).filter((x) => typeof x === 'string' && x.trim()).map((x) => (x as string).trim())
       : [];
-    const record = queue.submit(goal, { modelId, workspaceDir, agentType, permissions, attachments });
+    // 开发模式：interactive（默认）/ autonomous
+    const mode = body?.mode === 'autonomous' ? 'autonomous' : 'interactive';
+    const record = queue.submit(goal, { modelId, workspaceDir, agentType, permissions, attachments, mode });
     res.status(201).json({ ok: true, task: publicTask(record, true) });
   });
   app.get('/api/tasks', (_req: Request, res: Response) => {
@@ -750,11 +752,15 @@ export function startWebServer(opts: ServeOptions = {}): {
   /* ========== Cline 进程级嫁接 → routes/cline.ts ========== */
   registerClineRoutes(app, { homeDir });
   /* ========== 云桥接（手机指令→电脑执行）+ 授权 → routes/cloud-bridge.ts ========== */
-  registerCloudBridgeRoutes(app, { homeDir, loadJsonFile, saveJsonFile, bruteForce });
+  registerCloudBridgeRoutes(app, { homeDir, loadJsonFile, saveJsonFile, bruteForce, queue });
   /* ========== P-7 自建商城（支付 + 自动发码闭环）→ routes/shop.ts ========== */
   registerShopRoutes(app, { token, sessions });
   const server = app.listen(port, () => {
     console.log(t('serve.started', { port }));
+    /* 云中转保活（显式开关 FH_CLOUD_KEEPALIVE=1 启用；独立常驻用 node dist/web/cloud-keepalive.js） */
+    if (process.env.FH_CLOUD_KEEPALIVE === '1') {
+      import('./cloud-keepalive').then((m) => m.startCloudKeepalive()).catch(() => { /* ignore */ });
+    }
   });
   return {
     port,
