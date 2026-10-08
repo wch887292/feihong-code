@@ -105,9 +105,17 @@ async function tick(): Promise<void> {
     await new Promise((r) => setTimeout(r, 6000));
   }
 
-  // bridge 双保险：云端 devices 里设备在线才视为正常
+  // bridge 双保险：云端 devices 含目标设备且 lastSeenAt 心跳新鲜（< 5 分钟）才视为在线
   const body2 = tunnelDown ? probe(CLOUD_URL, 10) : body;
-  const bridgeOnline = body2.includes(BRIDGE_DEVICE);
+  let bridgeOnline = false;
+  try {
+    const parsed = JSON.parse(body2) as { devices?: Array<{ deviceId?: string; lastSeenAt?: string }> };
+    const dev = (parsed.devices ?? []).find((d) => d.deviceId === BRIDGE_DEVICE);
+    if (dev?.lastSeenAt) {
+      const age = Date.now() - new Date(dev.lastSeenAt).getTime();
+      bridgeOnline = age >= 0 && age < 5 * 60 * 1000;
+    }
+  } catch { /* 解析失败按离线处理 */ }
   if (!bridgeOnline) {
     log('bridge 未在线，重拉...');
     if (bridgeChild) { try { bridgeChild.kill(); } catch { /* ignore */ } bridgeChild = null; }
