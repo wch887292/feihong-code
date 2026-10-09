@@ -49,11 +49,13 @@ export interface TaskCheckpoint {
 function extractSummary(messages: ChatMessage[]): {
   decisionPoints: string[];
   modifiedFiles: string[];
+  readFiles: string[];
   keyInsights: string[];
   errorFixes: string[];
   toolResults: string[];
 } {
   const modifiedFiles = new Set<string>();
+  const readFiles = new Set<string>();
   const decisionPoints: string[] = [];
   const keyInsights: string[] = [];
   const errorFixes: string[] = [];
@@ -68,14 +70,18 @@ function extractSummary(messages: ChatMessage[]): {
           const path = (tc.arguments as { path?: string })?.path;
           if (path) modifiedFiles.add(path);
         }
+        if (tc.name === 'read_file' || tc.name === 'list_dir' || tc.name === 'grep' || tc.name === 'search' || tc.name === 'glob') {
+          // 记录关键的信息收集动作：已读取/勘察的文件或目录路径
+          const p = (tc.arguments as { path?: string; pattern?: string })?.path
+            ?? (tc.arguments as { path?: string })?.path
+            ?? '';
+          if (p) readFiles.add(p);
+        }
         if (tc.name === 'run_shell') {
           const cmd = (tc.arguments as { command?: string })?.command || '';
           if (cmd.includes('npm test') || cmd.includes('npm run build') || cmd.includes('tsc')) {
             decisionPoints.push(`执行验证: ${cmd.slice(0, 60)}`);
           }
-        }
-        if (tc.name === 'read_file' || tc.name === 'list_dir') {
-          // 记录关键的信息收集动作
         }
       }
     }
@@ -105,6 +111,7 @@ function extractSummary(messages: ChatMessage[]): {
   return {
     decisionPoints: [...new Set(decisionPoints)].slice(0, 8),
     modifiedFiles: [...modifiedFiles].slice(0, 15),
+    readFiles: [...readFiles].slice(0, 20),
     keyInsights: [...new Set(keyInsights)].slice(0, 5),
     errorFixes: [...new Set(errorFixes)].slice(0, 5),
     toolResults: [...new Set(toolResults)].slice(0, 5),
@@ -115,6 +122,7 @@ function extractSummary(messages: ChatMessage[]): {
 function generateCompactionPrompt(summary: {
   decisionPoints: string[];
   modifiedFiles: string[];
+  readFiles: string[];
   keyInsights: string[];
   errorFixes: string[];
   toolResults: string[];
@@ -123,6 +131,13 @@ function generateCompactionPrompt(summary: {
 
   if (summary.modifiedFiles.length > 0) {
     parts.push(`\n**已修改文件** (${summary.modifiedFiles.length} 个):\n${summary.modifiedFiles.map((f: string) => `- ${f}`).join('\n')}`);
+  }
+
+  // P-fix (2026-10-09)：压缩时保留已读取/勘察过的文件路径清单，
+  // 避免 agent 压缩后「忘记已读过哪些文件」而反复 read_file/list_dir/grep，
+  // 触发重复调用熔断（长任务多轮压缩后曾实测反复重读同一路径）。
+  if (summary.readFiles.length > 0) {
+    parts.push(`\n**已读取/勘察的文件**:\n${summary.readFiles.map((f: string) => `- ${f}`).join('\n')}`);
   }
 
   if (summary.decisionPoints.length > 0) {
@@ -347,9 +362,18 @@ export function smartCompact(
       if (hasFileOp) score += 30;
       const hasVerify = msg.toolCalls.some((tc) => tc.name === 'run_shell');
       if (hasVerify) score += 15;
+      // P-fix (2026-10-09)：信息收集类工具（勘察动作）同样重要——
+      // 压缩时若丢弃这些记录，agent 会忘记已读文件而反复重读（触发重复调用熔断）。
+      const hasRecon = msg.toolCalls.some((tc) =>
+        ['read_file', 'list_dir', 'grep', 'search', 'glob'].includes(tc.name),
+      );
+      if (hasRecon) score += 20;
     }
     // 工具错误结果
     if (msg.role === 'tool' && msg.content?.startsWith('错误:')) score += 25;
+    // P-fix (2026-10-09)：成功的工具结果也保留基础分——它们是 agent 已获取信息的证据，
+    // 压缩后据此判断「这个文件已经读过了」，避免重复读取。
+    if (msg.role === 'tool' && msg.content && !msg.content.startsWith('错误:')) score += 10;
     // 包含总结性内容的 assistant 消息
     if (msg.role === 'assistant' && msg.content && /(完成|成功|注意|关键|决策)/.test(msg.content)) score += 20;
     // 最近的消息权重更高

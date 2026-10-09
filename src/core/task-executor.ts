@@ -273,9 +273,12 @@ export async function executeTask(goal: string, opts: RunOptions = {}): Promise<
 
   // 开发模式：交互模式（豆包式）vs 自主模式（单命令全自动）
   const mode = opts.mode ?? 'interactive';
+  // 2026-10-09 修复：交互模式默认 20 轮上限过低，导致「项目复盘+安全审计」等大任务
+  // 在已有实际产出/进展时被 max-iterations-reached 误熔断（空转死循环另有 NO_PROGRESS 熔断兜底）。
+  // 提升到 100 轮，与自主模式看齐，兼顾大任务与防呆。
   const modeConfig = mode === 'autonomous'
     ? { maxIterations: 100, maxCostUsd: 2.0, requireApproval: false }
-    : { maxIterations: 20, maxCostUsd: 0, requireApproval: true };
+    : { maxIterations: 100, maxCostUsd: 0, requireApproval: true };
   // 自主模式强制关闭审批（全自动执行），交互模式保持审批
   if (mode === 'autonomous') security.requireApproval = false;
   logger.info('开发模式', { mode, maxIterations: modeConfig.maxIterations, maxCostUsd: modeConfig.maxCostUsd });

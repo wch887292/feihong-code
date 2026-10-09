@@ -140,13 +140,15 @@ export function runCommand(cmd: string, cwd: string, timeoutMs = defaultShellTim
       // killTimer 会在 5 秒后发 SIGKILL
     }, timeoutMs);
 
-    // 最终兜底：超时后 10 秒如果还没 settle（子进程残留持有管道），强制 resolve，避免永久挂起
+    // 最终兜底：超时后 5 秒如果还没 settle（子进程残留持有管道），强制 resolve，避免永久挂起
+    // （2026-10-09 实测：Windows 上 npm test | tail 的子进程树偶发杀不干净，close 不触发，
+    //   原 timeoutMs+10000 会让 orchestrator 卡死 ~10 分钟；缩短为 +5000 并强制 finish）
     const forceTimer = setTimeout(() => {
       if (settled) return;
       timedOut = true;
       stderr += '\n[强制结束] 进程树未能正常终止，已强制返回结果。';
       finish({ code: 124, stdout, stderr, timedOut });
-    }, timeoutMs + 10000);
+    }, timeoutMs + 5000);
   });
 }
 

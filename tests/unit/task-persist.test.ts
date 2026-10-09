@@ -22,7 +22,10 @@ test('TaskQueue: 提交任务后落盘（每任务一文件，原子写）', asy
     const queue = new TaskQueue({ concurrency: 1, persistDir: dir, offline: true });
     const record = queue.submit('持久化任务');
     // 等待终态
-    for (let i = 0; i < 100; i++) {
+    // 2026-10-09 修复：原 100×20ms=2 秒轮询窗口在全量并行测试（12 核）下偶发超时——
+    // 多个 executeTask 并发写共享会话目录时，Windows 文件锁竞争可能使任务落盘超过 2 秒。
+    // 放宽到 750×20ms=15 秒，消除偶发失败（并发 1/2/8 实测均 <1 秒完成，放宽无副作用）。
+    for (let i = 0; i < 750; i++) {
       if (queue.get(record.id)!.status !== 'queued' && queue.get(record.id)!.status !== 'running') break;
       await wait(20);
     }
