@@ -28,14 +28,21 @@ try { WebSocket = require('ws'); } catch (e) {
   process.exit(1);
 }
 
-// ============ 配置 ============
-const SERVER_IP = process.env.RELAY_SERVER_IP || '111.229.190.132';
+// ============ 配置（敏感值一律从环境变量读取，仓库不含真实 IP/令牌） ============
+const SERVER_IP = process.env.RELAY_SERVER_IP || ''; // 服务器地址由启动脚本注入，仓库不含真实 IP
 const SSH_KEY = process.env.RELAY_SSH_KEY || path.join(process.env.USERPROFILE || '', '.ssh', 'id_ed25519');
 const CTRL_LOCAL_PORT = Number(process.env.RELAY_CTRL_LOCAL_PORT || 18081);
-const TOKEN = process.env.RELAY_TOKEN || 'fhqy-relay-7Qm2xK9vLp4Rd8Wh3Ns6Tb1Yc5Ae0Zf';
+const TOKEN = process.env.RELAY_TOKEN || ''; // 中转令牌由启动脚本注入，仓库不含真实值
 const TUNNEL_NAME = process.env.RELAY_TUNNEL || 'home-pc';
 const TARGET = process.env.FH_PC_TARGET || 'http://127.0.0.1:8082';
 const LOG_FILE = path.join(__dirname, 'fh-relay-client.log');
+
+// 安全校验：敏感配置必须由环境变量注入，缺失时明确报错退出（防止空值静默运行）
+if (!SERVER_IP || !TOKEN) {
+  console.error('[fatal] 缺少必需环境变量：RELAY_SERVER_IP（服务器地址）、RELAY_TOKEN（中转令牌）。');
+  console.error('        敏感配置已从源码移除，请由启动脚本/计划任务注入后再运行。');
+  process.exit(1);
+}
 
 function log(msg) {
   const line = `[${new Date().toISOString()}] ${msg}`;

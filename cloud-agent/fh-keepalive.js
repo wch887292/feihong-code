@@ -19,13 +19,30 @@ const path = require('path');
 const os = require('os');
 
 const ROOT = path.resolve(__dirname, '..');
-const SSH_EXE = 'C:/Windows/System32/OpenSSH/ssh.exe';
-const SSH_KEY = 'C:/Users/Administrator/.ssh/id_ed25519';
-const CLOUD_URL = 'https://api.klai.top/fhrelay/api/bridge/devices';
-const TOKEN = '30587308defe825b6c59526355d6f7c3ba5e9323f787e074c9d962646c68f77a';
-const BRIDGE_DEVICE = 'pc-mtx94tmu-fwqja0';
+const SSH_EXE = process.env.FH_SSH_EXE || 'C:/Windows/System32/OpenSSH/ssh.exe';
+const SSH_KEY = process.env.FH_SSH_KEY || path.join(process.env.USERPROFILE || '', '.ssh', 'id_ed25519');
+const CLOUD_URL = process.env.FH_CLOUD_URL || 'https://api.klai.top/fhrelay/api/bridge/devices';
+const BRIDGE_DEVICE = process.env.FH_BRIDGE_DEVICE || ''; // 设备 ID 由启动脚本注入，仓库不含真实值
+const SERVER_IP = process.env.FH_SERVER_IP || ''; // SSH 转发目标服务器，由启动脚本注入，仓库不含真实 IP
 const LOCK_PORT = 18777;
 const LOG = path.join(os.tmpdir(), 'fhrelay_keepalive.log');
+
+// 敏感令牌不从源码读取：优先环境变量，其次 ~/.feihong-code/web-token.json（服务端持久化文件）
+function resolveToken() {
+  if (process.env.FH_BRIDGE_TOKEN || process.env.FH_KEEPALIVE_TOKEN) {
+    return process.env.FH_BRIDGE_TOKEN || process.env.FH_KEEPALIVE_TOKEN;
+  }
+  try {
+    const home = process.env.FH_HOME || os.homedir();
+    const tokenFile = path.join(home, '.feihong-code', 'web-token.json');
+    if (fs.existsSync(tokenFile)) {
+      const saved = JSON.parse(fs.readFileSync(tokenFile, 'utf8'));
+      if (saved && saved.token) return saved.token;
+    }
+  } catch (e) {}
+  return '';
+}
+const TOKEN = resolveToken();
 
 function log(msg) {
   try { fs.appendFileSync(LOG, `[${new Date().toLocaleString('zh-CN')}] ${msg}\n`); } catch (e) {}
@@ -57,12 +74,13 @@ function killPort(port) {
 }
 
 function spawnSsh() {
+  if (!SERVER_IP) { log('[安全] 未配置 FH_SERVER_IP，跳过 ssh 转发'); return; }
   const ch = spawn(SSH_EXE, ['-N', '-L', '18081:127.0.0.1:18081',
     '-o', 'StrictHostKeyChecking=accept-new',
     '-o', 'ServerAliveInterval=20',
     '-o', 'ServerAliveCountMax=3',
     '-o', 'ExitOnForwardFailure=yes',
-    '-i', SSH_KEY, 'root@111.229.190.132'], {
+    '-i', SSH_KEY, `root@${SERVER_IP}`], {
     detached: true, stdio: ['pipe', 'ignore', 'ignore'], windowsHide: true,
   });
   ch.unref();

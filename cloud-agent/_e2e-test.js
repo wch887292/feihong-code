@@ -1,8 +1,14 @@
 // 端到端验证 v2：公网 → 腾讯云 fhcode → 云端执行体（服务器上真实执行）→ 回传
+// 注意：令牌从环境变量读取，仓库不含敏感值。
 const https = require('https');
 const crypto = require('crypto');
-const TOKEN = '25dacff5349f22fe4354f8ab34d6beaf9390e119b55fe1ad';
-const BASE = 'https://api.klai.top/fhcode';
+const TOKEN = process.env.FH_TEST_TOKEN || '';
+const BASE = process.env.FH_TEST_BASE || 'https://api.klai.top/fhcode';
+
+if (!TOKEN) {
+  console.error('[fatal] 缺少 FH_TEST_TOKEN 环境变量（敏感配置已从源码移除）');
+  process.exit(1);
+}
 
 function req(method, path, body) {
   return new Promise((resolve, reject) => {

@@ -63,3 +63,15 @@ const cliDst = join(root, 'dist', 'cli', 'self-evolve-cli.js');
 if (copyOne(cliSrc, cliDst)) {
   console.log('[copy-web] 已复制 self-evolve-cli.js -> ' + cliDst);
 }
+
+// 4. 移动端默认令牌注入（构建期专用）：从 ~/.feihong-code/web-token.json 读取真实令牌，
+//    替换 app-mobile 与 android assets 中的 <FH_DEFAULT_TOKEN> 占位符。
+//    源码仓库只含占位符，真实令牌仅出现在本地构建产物（已被 .gitignore 排除）。
+try {
+  const injectScript = join(root, 'scripts', 'inject-mobile-token.cjs');
+  if (existsSync(injectScript)) {
+    require(injectScript);
+  }
+} catch (e) {
+  console.warn('[copy-web] 移动端令牌注入失败（不影响构建）: ' + (e instanceof Error ? e.message : String(e)));
+}

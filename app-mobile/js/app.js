@@ -1047,15 +1047,25 @@ function setPcDeviceId(id) { try { localStorage.setItem('fh.pc.deviceId', id); }
 function isDevicePinned() { try { return localStorage.getItem('fh.pc.devicePinned') === '1'; } catch (e) { return false; } }
 function setDevicePinned() { try { localStorage.setItem('fh.pc.devicePinned', '1'); } catch (e) {} }
 function getCloudToken() {
-  // 预置云端令牌（与服务端固定 FH_WEB_TOKEN 一致，v8.8.3 起 token 持久化不再随重启变化）
-  var DEFAULT_TOKEN = '30587308defe825b6c59526355d6f7c3ba5e9323f787e074c9d962646c68f77a';
-  // 旧版内置令牌（已失效）自动迁移，避免 localStorage 残留导致一直 401
-  var LEGACY_TOKENS = ['25dacff5349f22fe4354f8ab34d6beaf9390e119b55fe1ad'];
+  // 预置云端令牌：真实值由构建脚本 scripts/inject-mobile-token.cjs 从本机
+  // ~/.feihong-code/web-token.json 注入并替换下方占位符，源码仓库不含真实令牌。
+  // 若占位符未被替换（如未执行注入），则回退到用户手动保存的 token。
+  var DEFAULT_TOKEN = (typeof window !== 'undefined' && window.FH_DEFAULT_TOKEN) ||
+    '<FH_DEFAULT_TOKEN>' ||
+    '';
+  // 旧版内置令牌迁移：历史版本曾内置固定令牌，若 localStorage 残留失效旧值，
+  // 在检测到服务端返回 401 时会引导用户在设置中重新填写（具体旧令牌值已从源码移除）。
+  var LEGACY_TOKENS = [];
   try {
     var saved = localStorage.getItem('fh.pc.token');
+    // 占位符未被替换时，不覆盖用户已保存的 token
+    if (DEFAULT_TOKEN && DEFAULT_TOKEN.indexOf('<FH_DEFAULT_TOKEN>') >= 0) DEFAULT_TOKEN = '';
     if (saved && LEGACY_TOKENS.indexOf(saved) >= 0) {
-      localStorage.setItem('fh.pc.token', DEFAULT_TOKEN);
-      return DEFAULT_TOKEN;
+      if (DEFAULT_TOKEN) {
+        localStorage.setItem('fh.pc.token', DEFAULT_TOKEN);
+        return DEFAULT_TOKEN;
+      }
+      return saved; // 无注入值则保留旧值，由用户在设置中更新
     }
     return saved || DEFAULT_TOKEN;
   } catch (e) { return DEFAULT_TOKEN; }

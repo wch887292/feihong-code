@@ -1,9 +1,15 @@
 // 本地电脑端 bridge 新指令能力验证：手机模拟 → 云端 → 本地电脑执行 → 回传
+// 注意：本脚本为内部联调工具，令牌与设备 ID 一律从环境变量读取，仓库不含敏感值。
 const https = require('https');
 const crypto = require('crypto');
-const TOKEN = '25dacff5349f22fe4354f8ab34d6beaf9390e119b55fe1ad';
-const BASE = 'https://api.klai.top/fhcode';
-const DEVICE = 'pc-mtx94tmu-fwqja0';
+const TOKEN = process.env.FH_TEST_TOKEN || ''; // 例：25dacf...，由调用方注入
+const BASE = process.env.FH_TEST_BASE || 'https://api.klai.top/fhcode';
+const DEVICE = process.env.FH_TEST_DEVICE || ''; // 设备 ID 由调用方注入，仓库不含真实值
+
+if (!TOKEN || !DEVICE) {
+  console.error('[fatal] 缺少 FH_TEST_TOKEN 或 FH_TEST_DEVICE 环境变量（敏感配置已从源码移除）');
+  process.exit(1);
+}
 
 function req(method, path, body) {
   return new Promise((resolve, reject) => {

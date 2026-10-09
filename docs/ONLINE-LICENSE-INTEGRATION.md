@@ -18,7 +18,7 @@ fhcode 内置**双模授权**，通过环境变量切换，互不干扰：
 
 ### 1. 部署授权服务端
 
-已在 `111.229.190.132` 部署完成：
+已在 `<SERVER_IP>` 部署完成（实际服务器 IP 由部署环境变量注入，不写入公开仓库）：
 
 ```
 /www/wwwroot/license-manager/
@@ -52,7 +52,7 @@ curl http://127.0.0.1:18888/health
 
 ```bash
 # 必需：授权服务地址（启用在线模式的开关）
-export FH_LICENSE_SERVER=http://111.229.190.132:18888
+export FH_LICENSE_SERVER=http://<SERVER_IP>:18888
 
 # 必需：服务端 RSA 公钥（用于本地验签，支持 PEM 原文或 base64）
 export FH_LICENSE_PUBLIC_KEY="$(cat /path/to/rsa_public_key.pem)"
@@ -83,7 +83,7 @@ fhcode license fingerprint  # 打印本机指纹（后台绑定设备用）
 输出示例（在线模式）：
 ```
 在线 · pro · 授权给 XX公司 · 剩余 365 天 · 宽限剩余 71.5h
-模式: 在线授权 | 服务地址: http://111.229.190.132:18888
+模式: 在线授权 | 服务地址: http://<SERVER_IP>:18888
 许可证密钥: LK-XXXXXXXX
 设备指纹: a1b2c3d4e5f6a7b8
 服务端状态: active

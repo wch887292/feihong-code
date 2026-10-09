@@ -16,9 +16,13 @@
 # ============================================================================
 set -e
 
-CLOUD_HOST="111.229.190.132"
+CLOUD_HOST="${CLOUD_HOST:-}"   # 云端服务器 IP，由部署环境变量注入，仓库不含真实 IP
 CLOUD_USER="root"
 SSH_KEY="$HOME/.ssh/id_ed25519"
+if [ -z "$CLOUD_HOST" ]; then
+  echo "[ERROR] 缺少 CLOUD_HOST 环境变量（敏感配置已从源码移除，请注入后重试）" >&2
+  exit 1
+fi
 FHCODE_DIR="/www/dk_project/fhcode-v843"
 REMOTE_DIR="/www/dk_project/fhcode-cloud-pcs"
 IMAGE_TAR="${1:-}"
@@ -108,4 +112,4 @@ echo "  1) 在设备列表找到「☁️ 云电脑管理器」"
 echo "  2) 对它说：创建云电脑 / 列出云电脑 / 连接云电脑 1 / 销毁云电脑 1"
 echo "  3) 创建成功后，在设备列表会出现「云电脑 1」等实例，可对其单独下发指令/截图"
 echo "  本地 HTTP API（云端 127.0.0.1:18100，Bearer=$TOKEN）："
-echo "    curl -H 'Authorization: Bearer $TOKEN' http://111.229.190.132:18100/api/cloudpc/list"
+echo "    curl -H 'Authorization: Bearer $TOKEN' http://${CLOUD_HOST}:18100/api/cloudpc/list"
