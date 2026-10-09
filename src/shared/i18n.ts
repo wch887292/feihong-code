@@ -239,6 +239,8 @@ Web 控制台 (M5):
   'serve.stop': '[飞虹 Code] 按 Ctrl+C 停止',
   'serve.tokenAuto':
     '[飞虹 Code] Web 控制台令牌已自动生成（FH_WEB_TOKEN）: {token}',
+  'serve.tokenReused':
+    '[飞虹 Code] Web 控制台令牌复用已持久化的（重启不变）: {token}',
   'serve.started': '[飞虹 Code] Web 控制台已启动: http://localhost:{port}',
 
   'codewrite.resultTitle': '===== M8 自主编写结果 =====',
@@ -512,6 +514,8 @@ Signature: {signature}`,
   'serve.stop': '[fhcode] press Ctrl+C to stop',
   'serve.tokenAuto':
     '[fhcode] Web console token auto-generated (FH_WEB_TOKEN): {token}',
+  'serve.tokenReused':
+    '[fhcode] Web console token reused from persisted store (stable across restarts): {token}',
   'serve.started': '[fhcode] Web console started: http://localhost:{port}',
 
   'codewrite.resultTitle': '===== M8 Autonomous Write Result =====',

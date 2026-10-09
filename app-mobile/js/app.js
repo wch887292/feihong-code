@@ -1037,8 +1037,18 @@ function getPcDeviceId() {
 }
 function setPcDeviceId(id) { try { localStorage.setItem('fh.pc.deviceId', id); } catch (e) {} }
 function getCloudToken() {
-  // 预置云端令牌（产品内置默认执行端），用户可在设置中覆盖
-  try { return localStorage.getItem('fh.pc.token') || '25dacff5349f22fe4354f8ab34d6beaf9390e119b55fe1ad'; } catch (e) { return '25dacff5349f22fe4354f8ab34d6beaf9390e119b55fe1ad'; }
+  // 预置云端令牌（与服务端固定 FH_WEB_TOKEN 一致，v8.8.3 起 token 持久化不再随重启变化）
+  var DEFAULT_TOKEN = '30587308defe825b6c59526355d6f7c3ba5e9323f787e074c9d962646c68f77a';
+  // 旧版内置令牌（已失效）自动迁移，避免 localStorage 残留导致一直 401
+  var LEGACY_TOKENS = ['25dacff5349f22fe4354f8ab34d6beaf9390e119b55fe1ad'];
+  try {
+    var saved = localStorage.getItem('fh.pc.token');
+    if (saved && LEGACY_TOKENS.indexOf(saved) >= 0) {
+      localStorage.setItem('fh.pc.token', DEFAULT_TOKEN);
+      return DEFAULT_TOKEN;
+    }
+    return saved || DEFAULT_TOKEN;
+  } catch (e) { return DEFAULT_TOKEN; }
 }
 function setCloudToken(t) { try { localStorage.setItem('fh.pc.token', t); } catch (e) {} }
 
@@ -1083,6 +1093,8 @@ function testCloudConn(cb) {
       connState.cloud = false;
       var msg = (e && e.message) || '';
       var reason = st ? String(st) : (msg.indexOf('超时') >= 0 ? 'timeout' : 'network');
+      if (reason === 'unauthorized' || msg.indexOf('unauthorized') >= 0) reason = '令牌错误（Token 无效，请核对云端令牌）';
+      else if (/^\d+$/.test(reason)) reason = '服务返回 HTTP ' + reason;
       cb && cb(false, reason);
     }, 10000);
 }
@@ -1170,10 +1182,11 @@ function initPcConnPanel() {
     m.textContent = '📡 检测中…'; m.className = 'form-msg';
     testCloudConn(function (ok, reason) {
       var msg = ok ? '✅ 云电脑通道可用（顶栏变蓝色）'
-        : reason === '401' ? '❌ Token 错误或已过期（云服务在线，但鉴权失败，请检查 Token）'
         : reason === 'empty' ? '❌ 请填写云电脑地址'
         : reason === 'timeout' ? '❌ 云服务响应超时（检查网络或地址）'
         : reason === 'network' ? '❌ 无法连接云服务（网络不通或地址错误）'
+        : (reason && reason.indexOf('令牌错误') === 0) ? '❌ ' + reason
+        : reason === 'empty-devices' ? '❌ 云服务可达但设备列表为空（电脑端 bridge 未在线，稍等 1 分钟后重试）'
         : '❌ 云服务返回错误（HTTP ' + reason + '）';
       m.textContent = msg; m.className = 'form-msg ' + (ok ? 'ok' : 'err');
       renderConnStatus();
@@ -1245,6 +1258,13 @@ function postJson(url, body, headers, onDone, onError, timeoutMs) {
   xhr.onload = function () {
     try {
       var data = JSON.parse(xhr.responseText);
+      // v8.8.3：4xx/5xx 一律走 onError，带状态码；401/403 标记 unauthorized 供上层精准报「令牌错误」
+      if (xhr.status >= 400) {
+        var emsg = (data && data.error) ? String(data.error) : ('HTTP ' + xhr.status);
+        if (xhr.status === 401 || xhr.status === 403) emsg = 'unauthorized';
+        onError(new Error(emsg), xhr.status === 401 || xhr.status === 403 ? 'unauthorized' : String(xhr.status));
+        return;
+      }
       onDone(data);
     } catch (e) { onError(new Error('响应解析失败（HTTP ' + xhr.status + '）'), xhr.status || undefined); }
   };
@@ -1263,6 +1283,13 @@ function getJson(url, headers, onDone, onError, timeoutMs) {
   xhr.onload = function () {
     try {
       var data = JSON.parse(xhr.responseText);
+      // v8.8.3：4xx/5xx 一律走 onError，带状态码；401/403 标记 unauthorized 供上层精准报「令牌错误」
+      if (xhr.status >= 400) {
+        var emsg = (data && data.error) ? String(data.error) : ('HTTP ' + xhr.status);
+        if (xhr.status === 401 || xhr.status === 403) emsg = 'unauthorized';
+        onError(new Error(emsg), xhr.status === 401 || xhr.status === 403 ? 'unauthorized' : String(xhr.status));
+        return;
+      }
       onDone(data);
     } catch (e) { onError(new Error('响应解析失败（HTTP ' + xhr.status + '）'), xhr.status || undefined); }
   };

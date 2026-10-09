@@ -107,8 +107,27 @@ export function startWebServer(opts: ServeOptions = {}): {
   const port = opts.port ?? Number(process.env.FH_WEB_PORT ?? 8080);
   let token = opts.token ?? process.env.FH_WEB_TOKEN ?? '';
   if (!token) {
-    token = randomBytes(24).toString('hex');
-    console.log(t('serve.tokenAuto', { token }));
+    // 令牌持久化：自动生成后落盘 ~/.feihong-code/web-token.json，重启复用，
+    // 避免每次重启换 token 导致手机端预置令牌失配（v8.8.3）
+    try {
+      const tokenFile = join(process.env.FH_HOME?.trim() || join(require('os').homedir(), '.feihong-code'), 'web-token.json');
+      if (existsSync(tokenFile)) {
+        const saved = JSON.parse(readFileSync(tokenFile, 'utf-8')) as { token?: string };
+        if (saved.token && typeof saved.token === 'string') {
+          token = saved.token;
+          console.log(t('serve.tokenReused', { token: token.slice(0, 8) + '…' }));
+        }
+      }
+      if (!token) {
+        token = randomBytes(24).toString('hex');
+        mkdirSync(dirname(tokenFile), { recursive: true });
+        writeFileSync(tokenFile, JSON.stringify({ token, createdAt: new Date().toISOString() }, null, 2), 'utf-8');
+        console.log(t('serve.tokenAuto', { token }));
+      }
+    } catch {
+      token = randomBytes(24).toString('hex');
+      console.log(t('serve.tokenAuto', { token }));
+    }
   }
 
   const app = express();

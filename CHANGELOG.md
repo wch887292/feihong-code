@@ -1,5 +1,15 @@
 ﻿# 飞虹 Code 更新日志 / Changelog
 
+## v8.8.3 · 云端令牌固定化 + 401 报错精准化（2026-10-09）
+
+**主题**：根治「手机云电脑连不上（HTTP empty-devices）」——APK 预置令牌与服务端运行时令牌失配的结构性问题。
+
+- **根因**：服务端主令牌此前每次启动自动生成（重启即变），APK 内置的旧令牌在某次服务重启后失效；手机请求 devices 返回 401 JSON（`{"ok":false,"error":"unauthorized"}`），被 v8.8.2 的解析逻辑误判为「设备列表为空」。
+- **令牌固定化三件套**：① `server.ts` 主令牌持久化——未显式指定时落盘 `~/.feihong-code/web-token.json`，重启复用不再漂移（i18n 新增 `serve.tokenReused`）；② `cloud-agent/restart-web.cmd` 服务重启脚本（纯 ASCII 规避中文路径编码问题，固定 `FH_WEB_TOKEN`）；③ APK 预置令牌统一为固定值 `30587308…`，与 cloud-keepalive 三方一致。
+- **401 报错精准化**（`app-mobile/js/app.js`）：`getJson` 对 4xx/5xx 一律走 onError 并带状态码，401/403 标记 `unauthorized`；云测试 UI 新增「令牌错误（Token 无效，请核对云端令牌）」「设备列表为空（bridge 未在线）」两类精准文案，不再出现误导性的 `HTTP empty-devices`。
+- **旧令牌自动迁移**：App 启动时检测 localStorage 残留的失效旧令牌，自动替换为新的固定令牌，升级 APK 无需手动清数据。
+- **服务重启通道**：新增计划任务 `FHWebCore`（登录自启 + 立即执行），与 `FHKeepalive` 同为系统级常驻；Startup vbs 改为纯 ASCII 存根（自动启动职责移交计划任务，规避 VBS 中文编码雷）。
+
 ## v8.8.2 · 移动端连接诊断精准化 + 设备 ID 自动纠偏（2026-10-09）
 
 **主题**：手机 App「云电脑/本地电脑」测试报错只显示 `HTTP undefined` 掩盖真实原因的体验 bug 根治，配合长链路超时放宽与设备 ID 自动纠偏。纯移动端修复，服务端行为不变。
