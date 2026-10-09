@@ -35,8 +35,10 @@ const LOCK_PORT = 18777;
 const STALE_MS = 5 * 60 * 1000;
 const ROOT = path.resolve(__dirname, '..', '..');
 const LOG_FILE = path.join(process.env.TEMP || 'C:/Users/Administrator/AppData/Local/Temp', 'fhrelay_keepalive.log');
-// 本机 FH_HOME：serve 与 bridge 复用本机 ~/.feihong-code（含 web-token.json 与 provider 配置）
-const HOME = process.env.FH_HOME?.trim() || os.homedir();
+// 本机数据目录：明确使用 os.homedir() 派生，不读取可能被启动环境（启动器/IDE/计划任务）覆盖污染的 FH_HOME。
+// 否则 web-token.json / fhcode.config.json 会被定位到错误路径，导致令牌为空、serve 自动生成新令牌、bridge 注册 401。
+const USER_HOME = os.homedir();
+const FH_DATA_HOME = path.join(USER_HOME, '.feihong-code');
 
 function log(msg: string): void {
   try { fs.appendFileSync(LOG_FILE, new Date().toISOString() + ' ' + msg + '\n'); } catch { /* 忽略日志失败 */ }
@@ -66,17 +68,17 @@ function fetchJson(url: string, headers: Record<string, string>, cb: (data: unkn
 // 敏感令牌不从源码读取：优先环境变量，其次 ~/.feihong-code/web-token.json（服务端持久化文件），
 // 两者均无则置空并在日志告警（bridge 无法注册，等待管理员配置后重启）。
 function resolveCloudToken(): string {
-  const fromEnv = process.env.FH_KEEPALIVE_TOKEN || process.env.FH_BRIDGE_TOKEN || '';
-  if (fromEnv) return fromEnv;
+  // 令牌权威来源：本机 ~/.feihong-code/web-token.json（与云端 serve、APK 三方统一的固定值）。
+  // 不使用 FH_KEEPALIVE_TOKEN / FH_BRIDGE_TOKEN 等环境变量：运行环境（启动器/IDE/计划任务）可能注入
+  // 错误或过期的令牌，导致 bridge 注册 401、serve 自动生成新令牌，三者令牌不一致而全部失联。
   try {
-    const home = HOME;
-    const tokenFile = path.join(home, '.feihong-code', 'web-token.json');
+    const tokenFile = path.join(FH_DATA_HOME, 'web-token.json');
     if (fs.existsSync(tokenFile)) {
       const saved = JSON.parse(fs.readFileSync(tokenFile, 'utf8')) as { token?: string };
       if (saved.token) return saved.token;
     }
   } catch { /* 读取失败则走空 token */ }
-  log('[安全] 未找到 FH_KEEPALIVE_TOKEN 或 web-token.json，bridge 无法注册云端设备，请配置令牌后重启');
+  log('[安全] 未找到 web-token.json，bridge 无法注册云端设备，请配置令牌后重启');
   return '';
 }
 const CLOUD_TOKEN = resolveCloudToken();
@@ -96,26 +98,32 @@ function spawnServe(): void {
   killChild(serveChild); serveChild = null;
   const env = Object.assign({}, process.env, {
     FH_WEB_PORT: String(LOCAL_SERVE_PORT),
-    FH_HOME: HOME,
+    FH_HOME: USER_HOME,
+    // 强制注入本机 web-token.json 的稳定令牌，覆盖可能被运行环境注入的错误 FH_WEB_TOKEN / FH_SIGN_SECRET
+    FH_WEB_TOKEN: CLOUD_TOKEN,
     FH_SIGN_SECRET: CLOUD_TOKEN
   });
   serveChild = spawn(process.execPath,
     [path.join(ROOT, 'dist', 'cli', 'index.js'), 'serve', '--port', String(LOCAL_SERVE_PORT)],
-    { cwd: ROOT, detached: false, stdio: ['ignore', 'ignore', 'ignore'], env });
+    { cwd: ROOT, detached: false, stdio: ['ignore', 'pipe', 'pipe'], env });
   log('本地 serve 已拉起 pid=' + serveChild.pid + ' port=' + LOCAL_SERVE_PORT);
+  serveChild.stderr?.on('data', (d) => log('[serve stderr] ' + d.toString().slice(0, 400)));
   serveChild.on('exit', (c) => { log('本地 serve 退出 code=' + c); serveChild = null; });
 }
 
 function spawnBridge(url: string, name: string): ReturnType<typeof spawn> {
   const child = spawn(process.execPath,
     [path.join(ROOT, 'dist', 'cli', 'index.js'), 'bridge', 'start'],
-    { cwd: ROOT, detached: false, stdio: ['pipe', 'ignore', 'ignore'],
+    { cwd: ROOT, detached: false, stdio: ['pipe', 'pipe', 'pipe'],
       env: Object.assign({}, process.env, {
         FH_BRIDGE_URL: url,
         FH_BRIDGE_TOKEN: CLOUD_TOKEN,
         FH_BRIDGE_NAME: name
       }) });
-  log('bridge 已拉起「' + name + '」-> ' + url + ' pid=' + child.pid);
+  log('bridge 已拉起「' + name + '」-> ' + url + ' token8=' + (CLOUD_TOKEN ? CLOUD_TOKEN.slice(0, 8) : 'EMPTY') + ' pid=' + child.pid);
+  const tag = '[bridge ' + name + '] ';
+  child.stdout?.on('data', (d) => log(tag + d.toString().replace(/\r?\n/g, ' ').slice(0, 400)));
+  child.stderr?.on('data', (d) => log(tag + 'STDERR ' + d.toString().slice(0, 400)));
   child.on('exit', (c) => { log('bridge「' + name + '」退出 code=' + c); });
   return child;
 }
@@ -155,6 +163,7 @@ function main(): void {
   acquireLock(LOCK_PORT, (ok) => {
     if (!ok) { log('已有保活实例（锁 18777 被占），退出'); return; }
     log('=== 保活启动（双注册 + 本地 serve v8.8.7）===');
+    log('启动上下文：USER_HOME=' + USER_HOME + ' dataHome=' + FH_DATA_HOME + ' token8=' + (CLOUD_TOKEN ? CLOUD_TOKEN.slice(0, 8) : 'EMPTY'));
     spawnServe();
     cloudBridgeChild = spawnBridge(CLOUD_URL, HOME_DEVICE_NAME);
     localBridgeChild = spawnBridge(LOCAL_SERVE_URL, LOCAL_DEVICE_NAME);
