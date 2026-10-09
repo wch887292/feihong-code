@@ -23,7 +23,7 @@ License: Apache-2.0
     "name": "TypeScript"
   },
   "operatingSystem": "Cross-platform (Windows, Linux, macOS)",
-  "softwareVersion": "8.8.1",
+  "softwareVersion": "8.8.2",
   "dateCreated": "2026-08-12",
   "datePublished": "2026-08-22",
   "author": {

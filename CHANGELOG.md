@@ -1,5 +1,14 @@
 ﻿# 飞虹 Code 更新日志 / Changelog
 
+## v8.8.2 · 移动端连接诊断精准化 + 设备 ID 自动纠偏（2026-10-09）
+
+**主题**：手机 App「云电脑/本地电脑」测试报错只显示 `HTTP undefined` 掩盖真实原因的体验 bug 根治，配合长链路超时放宽与设备 ID 自动纠偏。纯移动端修复，服务端行为不变。
+
+- **连接测试报错精准化**（`app-mobile/js/app.js`）：`getJson` 的 onError 回调新增第二参数 `status`（HTTP 状态码 / `timeout` 标记）；`testCloudConn` / `testLocalConn` 将状态码与错误类型（401 鉴权失败 / timeout 超时 / network 网络不通）透传到 UI，替代恒为 `undefined` 的旧文案。云电脑测试已区分「Token 错误」「响应超时」「无法连接」「HTTP 状态码」四类提示。
+- **长链路超时放宽**：云电脑/本地电脑测试超时 6s/8s → 统一 10s——手机 → 云端中转 → ssh 隧道 → 本机服务的链路 RTT 较长，旧超时在隧道冷启动时易误报。
+- **设备 ID 自动纠偏**：云电脑测试成功后，若当前填写的设备 ID 不在云端设备列表中，自动改为列表第一台在线设备并回填输入框——避免默认值（`pc-cloud-agent-01`）与实际注册设备（`pc-*`）不一致导致的"测试通过但指令无人执行"。
+- **版本**：全量同步 8.8.2（package.json / version.ts / android / README JSON-LD / mcp-server / vscode-extension / app-mobile 关于页）。
+
 ## v8.8.1 · 复盘暴露 bug 修复 + 技能打包分发（2026-10-05）
 
 **主题**：v8.8.0 复盘实测暴露的三项 agent 行为 bug 根治，配合新增的 `geo-faq-deploy` 技能落地「技能随 npm 包分发」的能力。纯修复与增强，全量向后兼容，既有 CLI / Web / 工具行为不变。

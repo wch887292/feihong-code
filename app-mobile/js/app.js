@@ -1050,16 +1050,41 @@ function testLocalConn(cb) {
   var url = getPcUrl().replace(/\/+$/, '');
   getJson(url + '/api/health', {},
     function (d) { connState.local = !!(d && d.ok !== false); cb && cb(connState.local); },
-    function () { connState.local = false; cb && cb(false); }, 8000);
+    function (e, st) {
+      connState.local = false;
+      var msg = (e && e.message) || '';
+      var reason = st ? String(st) : (msg.indexOf('超时') >= 0 ? 'timeout' : 'network');
+      cb && cb(false, reason);
+    }, 10000);
 }
 
 /* 检测云电脑（云端桥接）：GET {cloudUrl}/api/bridge/devices，带 token，6s 超时 */
 function testCloudConn(cb) {
   var url = getCloudUrl().replace(/\/+$/, '');
   var token = getCloudToken();
+  if (!url) { connState.cloud = false; cb && cb(false, 'empty'); return; }
+  var fired = false;
   getJson(url + '/api/bridge/devices', token ? { Authorization: 'Bearer ' + token } : {},
-    function (d) { connState.cloud = !!(d && d.devices && d.devices.length >= 0); cb && cb(connState.cloud); },
-    function () { connState.cloud = false; cb && cb(false); }, 6000);
+    function (d) {
+      if (fired) return; fired = true;
+      var devs = d && Array.isArray(d.devices) ? d.devices : null;
+      connState.cloud = !!(d && devs);
+      // 设备 ID 自动纠偏：当前填的 ID 不在设备列表里 → 自动改为第一台在线设备
+      try {
+        if (devs && devs.length && !devs.some(function (x) { return x && x.deviceId === getPcDeviceId(); })) {
+          setPcDeviceId(devs[0].deviceId);
+          var inp = $('cloudDeviceInput'); if (inp) inp.value = devs[0].deviceId;
+        }
+      } catch (e) { /* ignore */ }
+      cb && cb(connState.cloud, connState.cloud ? 'ok' : 'empty-devices');
+    },
+    function (e, st) {
+      if (fired) return; fired = true;
+      connState.cloud = false;
+      var msg = (e && e.message) || '';
+      var reason = st ? String(st) : (msg.indexOf('超时') >= 0 ? 'timeout' : 'network');
+      cb && cb(false, reason);
+    }, 10000);
 }
 
 /* 同时检测两个通道，完成后刷新 UI */
@@ -1114,8 +1139,12 @@ function initPcConnPanel() {
   if (pcTest) pcTest.onclick = function () {
     var m = $('pcMsg'); if (!m) return;
     m.textContent = '📡 检测中…'; m.className = 'form-msg';
-    testLocalConn(function (ok) {
-      m.textContent = ok ? '✅ 本地电脑已连接' : '❌ 无法连接本地电脑（请确认同一 WiFi 且 fhcode 服务已启动）';
+    testLocalConn(function (ok, reason) {
+      var msg = ok ? '✅ 本地电脑已连接'
+        : reason === 'timeout' ? '❌ 连接超时（通道响应慢，请稍后重试）'
+        : reason === 'network' ? '❌ 无法连接（请确认地址正确且 fhcode 服务已启动）'
+        : '❌ 连接失败（HTTP ' + reason + '）';
+      m.textContent = msg;
       m.className = 'form-msg ' + (ok ? 'ok' : 'err');
       renderConnStatus();
     });
@@ -1217,10 +1246,10 @@ function postJson(url, body, headers, onDone, onError, timeoutMs) {
     try {
       var data = JSON.parse(xhr.responseText);
       onDone(data);
-    } catch (e) { onError(new Error('响应解析失败')); }
+    } catch (e) { onError(new Error('响应解析失败（HTTP ' + xhr.status + '）'), xhr.status || undefined); }
   };
-  xhr.onerror = function () { onError(new Error('网络错误，无法连接 ' + url)); };
-  xhr.ontimeout = function () { onError(new Error('连接超时（' + url + '）')); };
+  xhr.onerror = function () { onError(new Error('网络错误，无法连接 ' + url), xhr.status || undefined); };
+  xhr.ontimeout = function () { onError(new Error('连接超时（' + url + '）'), 'timeout'); };
   xhr.send(JSON.stringify(body || {}));
 }
 function getJson(url, headers, onDone, onError, timeoutMs) {
@@ -1235,10 +1264,10 @@ function getJson(url, headers, onDone, onError, timeoutMs) {
     try {
       var data = JSON.parse(xhr.responseText);
       onDone(data);
-    } catch (e) { onError(new Error('响应解析失败')); }
+    } catch (e) { onError(new Error('响应解析失败（HTTP ' + xhr.status + '）'), xhr.status || undefined); }
   };
-  xhr.onerror = function () { onError(new Error('网络错误，无法连接 ' + url)); };
-  xhr.ontimeout = function () { onError(new Error('连接超时（' + url + '）')); };
+  xhr.onerror = function () { onError(new Error('网络错误，无法连接 ' + url), xhr.status || undefined); };
+  xhr.ontimeout = function () { onError(new Error('连接超时（' + url + '）'), 'timeout'); };
   xhr.send();
 }
 /* 请求签名（第二层安全·防重放）：HMAC-SHA256(timestamp|nonce|body)，密钥 = 云端 token */
