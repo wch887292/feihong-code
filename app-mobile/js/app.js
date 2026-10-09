@@ -253,28 +253,35 @@ function getDefaultModel() {
 }
 
 /* ========== 思考等待计时器：让"正在思考…"有实时反馈（耗时秒数 + 阶段提示） ========== */
-var THINK_EL = null, THINK_T0 = 0, THINK_TIMER = null, THINK_ACTIVE = false, THINK_FALLBACK = false;
+var THINK_EL = null, THINK_T0 = 0, THINK_TIMER = null, THINK_ACTIVE = false, THINK_FALLBACK = false, THINK_LABEL = null, THINK_STATUS = '';
 function thinkingText() {
   var s = Math.round((Date.now() - THINK_T0) / 1000);
+  // v8.8.5：自定义标签（如电脑端任务执行中）不被通用文案覆盖，且不受 90 秒超时话术影响
+  if (THINK_LABEL) {
+    var at = s < 12 ? THINK_LABEL + '…' : THINK_LABEL + '（已执行 ' + s + ' 秒）…';
+    if (THINK_STATUS) at += '\n' + THINK_STATUS;
+    return at;
+  }
   var base = THINK_FALLBACK ? '⏳ 流式无响应，已改用整段接收' : '正在思考';
   if (s < 12) return base + '…';
   if (s < 45) return base + '（已等待 ' + s + ' 秒）…';
   if (s < 75) return base + '（已等待 ' + s + ' 秒，较慢可点 ⏹ 停止或到设置换模型）…';
   return '⌛ 已等待 ' + s + ' 秒，即将达到超时上限（最迟约 90 秒），建议停止后换更快模型…';
 }
-function startThinking(el) {
+function startThinking(el, label) {
   stopThinking();
-  THINK_EL = el; THINK_T0 = Date.now(); THINK_ACTIVE = true; THINK_FALLBACK = false;
+  THINK_EL = el; THINK_T0 = Date.now(); THINK_ACTIVE = true; THINK_FALLBACK = false; THINK_LABEL = label || null;
   var tick = function () {
     if (!THINK_ACTIVE || !THINK_EL) return;
-    THINK_EL.innerHTML = '<span style="color:var(--ink-2);">' + thinkingText() + '</span> <span class="think-dots"><i></i><i></i><i></i></span>';
+    THINK_EL.innerHTML = '<span style="color:var(--ink-2);white-space:pre-wrap;">' + esc(thinkingText()) + '</span> <span class="think-dots"><i></i><i></i><i></i></span>';
   };
   tick();
   THINK_TIMER = setInterval(tick, 1000);
 }
+function setThinkingStatus(txt) { THINK_STATUS = txt || ''; }
 function stopThinking() {
   if (THINK_TIMER) { clearInterval(THINK_TIMER); THINK_TIMER = null; }
-  THINK_ACTIVE = false; THINK_EL = null;
+  THINK_ACTIVE = false; THINK_EL = null; THINK_LABEL = null; THINK_STATUS = '';
 }
 
 /* ========== 大模型 API 调用（流式 SSE） ========== */
@@ -1447,6 +1454,28 @@ function callComputer(text, onDone, onError) {
 /* v8.8.4：开放性任务（写代码/生成内容）发往电脑端 fhcode TaskQueue 执行
  * POST /api/tasks 建任务 → 轮询 GET /api/tasks/:id 取 conversation 增量与 finalAnswer
  * direct 模式走 getPcUrl()，cloud 模式走 getCloudUrl()（fhrelay 全量穿透到 8082） */
+/* v8.8.5：把电脑端任务最新一步翻译成手机上的实况文案 */
+function stepStatusText(s) {
+  try {
+    if (!s || !s.type) return '';
+    var d = s.data || {};
+    if (s.type === 'model.response') {
+      var tx = String(d.text || '').replace(/\s+/g, ' ').trim();
+      return tx ? '💭 ' + (tx.length > 60 ? tx.slice(0, 60) + '…' : tx) : '';
+    }
+    if (s.type === 'tool.call') {
+      var n = String(d.name || '');
+      var arg = '';
+      var ap = d.argsPreview;
+      if (ap) { try { var a = typeof ap === 'string' ? JSON.parse(ap) : ap; arg = a.path || a.file_path || a.command || a.query || ''; } catch (e) { arg = String(ap); } }
+      var map = { list_dir: '📂 正在查看目录', read_file: '📖 正在读取文件', write_file: '✏️ 正在写入文件', edit_file: '✏️ 正在修改文件', run_shell: '⚙️ 正在执行命令', run_command: '⚙️ 正在执行命令', search_files: '🔍 正在搜索', glob: '🔍 正在查找文件' };
+      var base = map[n] || ('🔧 正在调用 ' + n);
+      return base + (arg ? '：' + (String(arg).length > 40 ? String(arg).slice(0, 40) + '…' : String(arg)) : '');
+    }
+  } catch (e) {}
+  return '';
+}
+
 function callComputerAgent(text, onDone, onError, onProgress) {
   var ctl = { cancelled: false };
   state.pcCtl = ctl;
@@ -1468,6 +1497,11 @@ function callComputerAgent(text, onDone, onError, onProgress) {
             if (ctl.cancelled) return;
             if (!d || !d.ok || !d.task) { done(onError, new Error('查询任务状态失败')); return; }
             var t = d.task;
+            var st = t.steps || [];
+            if (st.length) {
+              var stx = stepStatusText(st[st.length - 1]);
+              if (stx) setThinkingStatus(stx);
+            }
             var cv = t.conversation || [];
             if (onProgress && cv.length > seen) { seen = cv.length; onProgress(cv); }
             if (t.status === 'done') {
@@ -1790,7 +1824,7 @@ function sendMessage() {
     agentMsgEl.className = 'msg assistant';
     agentMsgEl.innerHTML = '<span style="color:var(--ink-2);">🤖 已下发到' + (getExecEndLabel() === '云端执行体' ? '云端执行体' : '电脑端 fhcode') + '，正在执行（创作类任务约 1-3 分钟）…</span> <span class="typing-cursor">▋</span>';
     agentBox.appendChild(agentMsgEl);
-    startThinking(agentMsgEl);
+    startThinking(agentMsgEl, '🤖 电脑端执行中');
     agentBox.scrollTop = agentBox.scrollHeight;
     callComputerAgent(finalText,
       function (data) {
