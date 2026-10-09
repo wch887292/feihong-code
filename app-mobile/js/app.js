@@ -1443,6 +1443,79 @@ function callComputer(text, onDone, onError) {
     function (e) { done(onError, e); });
 }
 /* 渲染电脑执行结果到对话流 */
+
+/* v8.8.4：开放性任务（写代码/生成内容）发往电脑端 fhcode TaskQueue 执行
+ * POST /api/tasks 建任务 → 轮询 GET /api/tasks/:id 取 conversation 增量与 finalAnswer
+ * direct 模式走 getPcUrl()，cloud 模式走 getCloudUrl()（fhrelay 全量穿透到 8082） */
+function callComputerAgent(text, onDone, onError, onProgress) {
+  var ctl = { cancelled: false };
+  state.pcCtl = ctl;
+  var done = function (fn, arg) { if (ctl.cancelled) return; state.pcCtl = null; fn(arg); };
+  var base = (getPcMode() === 'direct' ? getPcUrl() : getCloudUrl()).replace(/\/+$/, '');
+  var token = getCloudToken();
+  var headers = token ? { Authorization: 'Bearer ' + token } : {};
+  postJson(base + '/api/tasks', { goal: text }, headers,
+    function (data) {
+      if (ctl.cancelled) return;
+      if (!data || !data.ok || !data.task) { done(onError, new Error((data && data.error) || '任务创建失败')); return; }
+      var taskId = data.task.id;
+      var tries = 0, seen = 0;
+      (function poll() {
+        if (ctl.cancelled) return;
+        tries++;
+        getJson(base + '/api/tasks/' + taskId, headers,
+          function (d) {
+            if (ctl.cancelled) return;
+            if (!d || !d.ok || !d.task) { done(onError, new Error('查询任务状态失败')); return; }
+            var t = d.task;
+            var cv = t.conversation || [];
+            if (onProgress && cv.length > seen) { seen = cv.length; onProgress(cv); }
+            if (t.status === 'done') {
+              var ans = (t.result && t.result.finalAnswer) || (cv.length ? cv[cv.length - 1].content : '') || '（电脑端已完成，无文本输出）';
+              done(onDone, { ok: true, action: 'agent-task', taskId: taskId, text: ans });
+            } else if (t.status === 'failed') {
+              done(onError, new Error((t.result && t.result.error) || '电脑端任务执行失败'));
+            } else if (t.status === 'stopped') {
+              done(onError, new Error('任务已停止'));
+            } else if (tries > 300) {
+              done(onError, new Error('等待电脑端任务完成超时（10 分钟）'));
+            } else { setTimeout(poll, 2000); }
+          },
+          function (e) {
+            if (ctl.cancelled) return;
+            if (tries > 3) { done(onError, e); } else { setTimeout(poll, 2000); }
+          });
+      })();
+    },
+    function (e) { done(onError, e); });
+}
+
+/* v8.8.4：结果中含 SVG 时附「点击预览」，WebView 直接渲染动画（SMIL/CSS 动画均可） */
+function attachSvgPreview(container, text) {
+  try {
+    var t = String(text || '').replace(/```[a-z]*/gi, '');
+    var m = /<svg[\s\S]*<\/svg>/i.exec(t);
+    if (!m) return;
+    var svg = m[0].replace(/<script[\s\S]*?<\/script>/gi, '');
+    var wrap = document.createElement('div');
+    wrap.style.marginTop = '8px';
+    var label = document.createElement('div');
+    label.textContent = '▶ 点击预览动画效果';
+    label.style.cssText = 'color:#4a7dff;font-size:13px;cursor:pointer;padding:4px 0;';
+    var holder = document.createElement('div');
+    holder.style.cssText = 'display:none;background:#fff;border-radius:8px;padding:8px;overflow:auto;';
+    holder.innerHTML = svg;
+    var sv = holder.querySelector('svg');
+    if (sv) { sv.removeAttribute('width'); sv.removeAttribute('height'); sv.style.cssText = 'width:100%;height:auto;'; }
+    label.onclick = function () {
+      var open = holder.style.display !== 'none';
+      holder.style.display = open ? 'none' : 'block';
+      label.textContent = open ? '▶ 点击预览动画效果' : '▼ 收起预览';
+    };
+    wrap.appendChild(label); wrap.appendChild(holder);
+    container.appendChild(wrap);
+  } catch (e) { /* 预览失败不影响正文 */ }
+}
 /* 电脑/云端执行动作名映射（共用） */
 var PC_ACTION_NAMES = {
   'app/open': '📂 打开应用',
@@ -1692,6 +1765,70 @@ function sendMessage() {
         updateSendBtn(false);
       }
     );
+    updateSendBtn(true);
+    return;
+  }
+
+  // v8.8.4：连接电脑时，非系统快指令的消息一律作为 AI 任务发往电脑端 fhcode 执行
+  // （修复：此前白名单未命中的创作类指令被手机端大模型代答，电脑端收不到）
+  if (getPcMode() !== 'phone') {
+    var aTask;
+    if (!state.currentTaskId || !getTask(state.currentTaskId)) {
+      aTask = createTask(finalText.slice(0, 30), 'chat');
+      state.currentTaskId = aTask.id;
+    } else {
+      aTask = getTask(state.currentTaskId);
+    }
+    aTask.messages.push({ role: 'user', content: finalText });
+    aTask.status = 'running';
+    saveTasks();
+    input.value = '';
+    input.style.height = 'auto';
+    renderThread(aTask);
+    var agentBox = $('convMessages');
+    var agentMsgEl = document.createElement('div');
+    agentMsgEl.className = 'msg assistant';
+    agentMsgEl.innerHTML = '<span style="color:var(--ink-2);">🤖 已下发到' + (getExecEndLabel() === '云端执行体' ? '云端执行体' : '电脑端 fhcode') + '，正在执行（创作类任务约 1-3 分钟）…</span> <span class="typing-cursor">▋</span>';
+    agentBox.appendChild(agentMsgEl);
+    startThinking(agentMsgEl);
+    agentBox.scrollTop = agentBox.scrollHeight;
+    callComputerAgent(finalText,
+      function (data) {
+        stopThinking();
+        agentMsgEl.innerHTML = '';
+        var pre = document.createElement('div');
+        pre.style.whiteSpace = 'pre-wrap';
+        pre.style.wordBreak = 'break-word';
+        pre.textContent = data.text;
+        agentMsgEl.appendChild(pre);
+        attachSvgPreview(agentMsgEl, data.text);
+        appendAssistantMessage(aTask.id, data.text);
+        updateSendBtn(false);
+      },
+      function (err) {
+        stopThinking();
+        agentMsgEl.innerHTML = '<div style="color:var(--err);white-space:pre-wrap;">❌ 电脑端执行失败：' + esc(friendlyError(err)) + '</div>';
+        aTask.status = 'failed'; aTask.error = err.message; saveTasks();
+        updateSendBtn(false);
+      },
+      function (cv) {
+        // 进度：电脑端对话流最新 assistant 输出实时上屏（最多显示末尾 1200 字）
+        var last = cv && cv.length ? cv[cv.length - 1] : null;
+        if (last && last.role === 'assistant' && last.content) {
+          stopThinking();
+          agentMsgEl.innerHTML = '';
+          var pre2 = document.createElement('div');
+          pre2.style.whiteSpace = 'pre-wrap';
+          pre2.style.wordBreak = 'break-word';
+          pre2.style.maxHeight = '260px';
+          pre2.style.overflow = 'hidden';
+          pre2.textContent = last.content.length > 1200 ? '…' + last.content.slice(-1200) : last.content;
+          agentMsgEl.appendChild(pre2);
+          var cur2 = document.createElement('span'); cur2.className = 'typing-cursor'; cur2.textContent = '▋';
+          agentMsgEl.appendChild(cur2);
+          agentBox.scrollTop = agentBox.scrollHeight;
+        }
+      });
     updateSendBtn(true);
     return;
   }
