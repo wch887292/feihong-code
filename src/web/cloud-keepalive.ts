@@ -1,147 +1,93 @@
 /**
- * 飞虹云中转隧道保活（常驻版）
- * 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 吴赐虹
+ * 云中转保活（v8.8.6 直连架构）
  *
- * 链路：手机 → api.klai.top/fhrelay → 云端 18082 →(WS)→ ssh 本地转发 18081 → relay 客户端 → 本机 fhcode(8082)
- * 每 60 秒探测云端通道；断线自动重建 ssh 转发 + relay 客户端；bridge 未在线自动重拉。
+ * 架构变更（2026-10-09）：
+ * - 云端 api.klai.top/fhrelay 现在直接指向服务器本机的 fhcode v8.8.5 实例（PM2 fhcode-v885）
+ * - 家里电脑不再需要 ssh 隧道 + fh-relay-client，改为 bridge start 出站直连云端注册设备
+ * - 本保活职责：确保「家里电脑」设备在云端设备表中心跳新鲜；掉线则重拉本地 bridge
  *
- * 关键点：
- *  1. RELAY_NO_SSH=1 只是不让 relay 自建 ssh，ssh 18081 本地转发仍必须存在；
- *  2. fhcode bridge start 依赖 stdin 存活（stdin EOF 即退出），
- *     必须由本常驻父进程以 stdio:['pipe',...] 持有其 stdin，不能 stdio:'ignore'；
- *  3. 独立运行：node dist/web/cloud-keepalive.js（开机自启 vbs 拉起，脱离任何会话沙箱）；
- *  4. 服务内置：serve 进程设 FH_CLOUD_KEEPALIVE=1 后随 listen 自动启动。
+ * 常驻方式：Windows 计划任务 FHKeepalive（每 5 分钟触发 + 登录自启）拉起本脚本；
+ * 脚本自身每 60 秒巡检。bridge 的 stdin 管道由本常驻进程持有（EOF 会导致 bridge 退出）。
  */
-import { execSync, spawn, type ChildProcess } from 'child_process';
-import fs from 'fs';
-import net from 'net';
-import os from 'os';
-import path from 'path';
+import { spawn } from 'child_process';
+import * as net from 'net';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as http from 'http';
+import * as https from 'https';
 
-const ROOT = path.resolve(__dirname, '..', '..');
-const SSH_EXE = 'C:/Windows/System32/OpenSSH/ssh.exe';
-const SSH_KEY = path.join(os.homedir(), '.ssh', 'id_ed25519');
-const CLOUD_URL = 'https://api.klai.top/fhrelay/api/bridge/devices';
-const TOKEN = '30587308defe825b6c59526355d6f7c3ba5e9323f787e074c9d962646c68f77a';
-const BRIDGE_DEVICE = 'pc-mtx94tmu-fwqja0';
+const CLOUD_URL = process.env.FH_KEEPALIVE_CLOUD_URL || 'https://api.klai.top/fhrelay';
+const CLOUD_TOKEN = process.env.FH_KEEPALIVE_TOKEN || '30587308defe825b6c59526355d6f7c3ba5e9323f787e074c9d962646c68f77a';
+const HOME_DEVICE_NAME = '家里电脑';
 const LOCK_PORT = 18777;
-const TICK_MS = 60_000;
-const LOG = path.join(os.tmpdir(), 'fhrelay_keepalive.log');
+const STALE_MS = 5 * 60 * 1000;
+const ROOT = path.resolve(__dirname, '..', '..');
+const LOG_FILE = path.join(process.env.TEMP || 'C:/Users/Administrator/AppData/Local/Temp', 'fhrelay_keepalive.log');
 
 function log(msg: string): void {
-  try { fs.appendFileSync(LOG, `[${new Date().toLocaleString('zh-CN')}] ${msg}\n`); } catch { /* ignore */ }
+  try { fs.appendFileSync(LOG_FILE, new Date().toISOString() + ' ' + msg + '\n'); } catch { /* 忽略日志失败 */ }
 }
 
-let relayChild: ChildProcess | null = null;
-let bridgeChild: ChildProcess | null = null;
-
-function killPort(port: number): number {
-  try {
-    const out = execSync(`netstat -ano | findstr :${port}`, { encoding: 'utf8' });
-    const pids = new Set<string>();
-    out.split('\n').forEach((l) => {
-      const m = l.trim().split(/\s+/);
-      if (m.length >= 5 && /LISTENING|ESTABLISHED/i.test(l)) pids.add(m[4]);
-    });
-    pids.forEach((pid) => { try { process.kill(Number(pid), 'SIGTERM'); } catch { /* ignore */ } });
-    return pids.size;
-  } catch { return 0; }
+function acquireLock(port: number, cb: (ok: boolean) => void): void {
+  const srv = net.createServer();
+  srv.once('error', () => cb(false));
+  srv.listen(port, () => { srv.unref(); cb(true); });
 }
 
-function spawnSsh(): void {
-  const ch = spawn(SSH_EXE, ['-N', '-L', '18081:127.0.0.1:18081',
-    '-o', 'StrictHostKeyChecking=accept-new',
-    '-o', 'ServerAliveInterval=20',
-    '-o', 'ServerAliveCountMax=3',
-    '-o', 'ExitOnForwardFailure=yes',
-    '-i', SSH_KEY, 'root@111.229.190.132'], {
-    detached: true, stdio: ['pipe', 'ignore', 'ignore'], windowsHide: true,
+interface DeviceInfo { deviceId: string; name?: string; lastSeenAt?: string; status?: string; }
+
+function fetchJson(url: string, headers: Record<string, string>, cb: (data: unknown, err?: Error) => void): void {
+  const u = new URL(url);
+  const mod = u.protocol === 'https:' ? https : http;
+  const req = mod.request(u, { method: 'GET', headers }, (res) => {
+    let d = '';
+    res.on('data', (c) => { d += c; });
+    res.on('end', () => { try { cb(JSON.parse(d)); } catch (e) { cb(null, e as Error); } });
   });
-  ch.unref();
-  log(`ssh 转发已拉起 pid=${ch.pid}`);
+  req.on('error', (e) => cb(null, e));
+  req.setTimeout(10000, () => { req.destroy(new Error('timeout')); });
+  req.end();
 }
 
-function spawnRelay(): void {
-  relayChild = spawn(process.execPath, ['cloud-agent/fh-relay-client.js'], {
-    cwd: ROOT, detached: true, stdio: ['pipe', 'ignore', 'ignore'], windowsHide: true,
-    env: Object.assign({}, process.env, { RELAY_NO_SSH: '1' }),
-  });
-  relayChild.unref();
-  relayChild.on('exit', () => { relayChild = null; });
-  log(`relay 已拉起 pid=${relayChild.pid}`);
-}
+let bridgeChild: ReturnType<typeof spawn> | null = null;
 
 function spawnBridge(): void {
-  bridgeChild = spawn(process.execPath, ['dist/cli/index.js', 'bridge', 'start'], {
-    cwd: ROOT, detached: true, stdio: ['pipe', 'ignore', 'ignore'], windowsHide: true,
-    env: Object.assign({}, process.env, {
-      FH_BRIDGE_URL: 'http://127.0.0.1:8082',
-      FH_BRIDGE_TOKEN: TOKEN,
-    }),
-  });
-  bridgeChild.unref();
-  bridgeChild.on('exit', () => { bridgeChild = null; });
-  log(`bridge 已拉起 pid=${bridgeChild.pid}`);
+  if (bridgeChild) { try { bridgeChild.kill(); } catch { /* 忽略 */ } bridgeChild = null; }
+  bridgeChild = spawn(process.execPath,
+    [path.join(ROOT, 'dist', 'cli', 'index.js'), 'bridge', 'start'],
+    { cwd: ROOT, detached: false, stdio: ['pipe', 'ignore', 'ignore'],
+      env: Object.assign({}, process.env, {
+        FH_BRIDGE_URL: CLOUD_URL,
+        FH_BRIDGE_TOKEN: CLOUD_TOKEN,
+        FH_BRIDGE_NAME: HOME_DEVICE_NAME
+      }) });
+  log('bridge 已拉起 pid=' + bridgeChild.pid);
+  bridgeChild.on('exit', (c) => { log('bridge 退出 code=' + c); bridgeChild = null; });
 }
 
-function probe(url: string, timeoutSec: number): string {
-  try {
-    return execSync(`curl -s -m ${timeoutSec} -H "Authorization: Bearer ${TOKEN}" "${url}"`, { encoding: 'utf8' }) || '';
-  } catch { return ''; }
-}
-
-async function tick(): Promise<void> {
-  const body = probe(CLOUD_URL, 10);
-  const tunnelDown = !body || body.includes('家里电脑未连接') || body.includes('隧道未建立');
-
-  if (tunnelDown) {
-    log('通道断开，重建隧道（ssh 转发 + relay）...');
-    if (relayChild) { try { relayChild.kill(); } catch { /* ignore */ } relayChild = null; }
-    killPort(18081);
-    await new Promise((r) => setTimeout(r, 2000));
-    spawnSsh();
-    await new Promise((r) => setTimeout(r, 4000));
-    spawnRelay();
-    await new Promise((r) => setTimeout(r, 6000));
-  }
-
-  // bridge 双保险：云端 devices 含目标设备且 lastSeenAt 心跳新鲜（< 5 分钟）才视为在线
-  const body2 = tunnelDown ? probe(CLOUD_URL, 10) : body;
-  let bridgeOnline = false;
-  try {
-    const parsed = JSON.parse(body2) as { devices?: Array<{ deviceId?: string; lastSeenAt?: string }> };
-    const dev = (parsed.devices ?? []).find((d) => d.deviceId === BRIDGE_DEVICE);
-    if (dev?.lastSeenAt) {
-      const age = Date.now() - new Date(dev.lastSeenAt).getTime();
-      bridgeOnline = age >= 0 && age < 5 * 60 * 1000;
+function ensureHomeDevice(): void {
+  fetchJson(CLOUD_URL + '/api/bridge/devices', { Authorization: 'Bearer ' + CLOUD_TOKEN }, (data, err) => {
+    if (err || !data) { log('云端查询失败（网络或云端故障），下轮重试'); return; }
+    const devices = (data as { devices?: DeviceInfo[] })?.devices || [];
+    const mine = devices.find((d) => (d.name || '').indexOf(HOME_DEVICE_NAME) >= 0);
+    if (mine && mine.lastSeenAt && (Date.now() - new Date(mine.lastSeenAt).getTime()) < STALE_MS) {
+      log('巡检正常：「' + HOME_DEVICE_NAME + '」心跳新鲜'); return;
     }
-  } catch { /* 解析失败按离线处理 */ }
-  if (!bridgeOnline) {
-    log('bridge 未在线，重拉...');
-    if (bridgeChild) { try { bridgeChild.kill(); } catch { /* ignore */ } bridgeChild = null; }
+    log(mine ? '「' + HOME_DEVICE_NAME + '」心跳过期，重拉 bridge' : '云端设备表缺「' + HOME_DEVICE_NAME + '」，拉起 bridge');
     spawnBridge();
-  }
-
-  log(`巡检: ${tunnelDown ? '隧道已重建' : '链路正常'} bridge=${bridgeOnline ? '在线' : '重拉'}`);
-}
-
-/** 启动保活循环（带单实例锁，重复启动自动退出） */
-export function startCloudKeepalive(): void {
-  const lock = net.createServer();
-  lock.on('error', () => { log('另一实例已运行（锁端口占用），本实例退出'); });
-  lock.listen(LOCK_PORT, '127.0.0.1', () => {
-    log('=== fh-keepalive 启动（每 60 秒巡检） ===');
-    const loop = async (): Promise<void> => {
-      for (;;) {
-        try { await tick(); } catch (e) { log('巡检异常: ' + (e as Error).message); }
-        await new Promise((r) => setTimeout(r, TICK_MS));
-      }
-    };
-    void loop();
   });
 }
 
-// 直接运行（node dist/web/cloud-keepalive.js）时无条件启动
-if (require.main === module) {
-  startCloudKeepalive();
+/** serve 内置集成已弃用：直连架构下保活由 Windows 计划任务 FHKeepalive 独立常驻 */
+export function startCloudKeepalive(): void { /* no-op，保留导出兼容 server.ts */ }
+
+function main(): void {
+  acquireLock(LOCK_PORT, (ok) => {
+    if (!ok) { log('已有保活实例（锁 18777 被占），退出'); return; }
+    log('=== 保活启动（直连架构 v2）===');
+    spawnBridge();
+    setInterval(() => ensureHomeDevice(), 60 * 1000);
+  });
 }
+
+main();

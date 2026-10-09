@@ -1040,9 +1040,12 @@ function getCloudUrl() {
 }
 function setCloudUrl(u) { try { localStorage.setItem('fh.pc.cloudUrl', u); } catch (e) {} }
 function getPcDeviceId() {
-  try { return localStorage.getItem('fh.pc.deviceId') || 'pc-cloud-agent-01'; } catch (e) { return 'pc-cloud-agent-01'; }
+  // v8.8.6：云电脑默认指向云端服务器（api.klai.top 直连实例）
+  try { return localStorage.getItem('fh.pc.deviceId') || 'pc-cloud-server-01'; } catch (e) { return 'pc-cloud-server-01'; }
 }
 function setPcDeviceId(id) { try { localStorage.setItem('fh.pc.deviceId', id); } catch (e) {} }
+function isDevicePinned() { try { return localStorage.getItem('fh.pc.devicePinned') === '1'; } catch (e) { return false; } }
+function setDevicePinned() { try { localStorage.setItem('fh.pc.devicePinned', '1'); } catch (e) {} }
 function getCloudToken() {
   // 预置云端令牌（与服务端固定 FH_WEB_TOKEN 一致，v8.8.3 起 token 持久化不再随重启变化）
   var DEFAULT_TOKEN = '30587308defe825b6c59526355d6f7c3ba5e9323f787e074c9d962646c68f77a';
@@ -1086,11 +1089,20 @@ function testCloudConn(cb) {
       if (fired) return; fired = true;
       var devs = d && Array.isArray(d.devices) ? d.devices : null;
       connState.cloud = !!(d && devs);
-      // 设备 ID 自动纠偏：当前填的 ID 不在设备列表里 → 自动改为第一台在线设备
+      // v8.8.6 设备校准：未手动固定时优选「云端服务器」；固定过则尊重用户选择
       try {
-        if (devs && devs.length && !devs.some(function (x) { return x && x.deviceId === getPcDeviceId(); })) {
-          setPcDeviceId(devs[0].deviceId);
-          var inp = $('cloudDeviceInput'); if (inp) inp.value = devs[0].deviceId;
+        if (devs && devs.length) {
+          var online = devs.filter(function (x) { return x && x.status === 'online'; });
+          var server = online.find(function (x) { return (x.name || '').indexOf('云端') >= 0; }) ||
+                       devs.find(function (x) { return (x.name || '').indexOf('云端') >= 0; });
+          var cur = devs.some(function (x) { return x && x.deviceId === getPcDeviceId(); });
+          var target = null;
+          if (!isDevicePinned() && server) target = server;
+          else if (!cur) target = server || online[0] || devs[0];
+          if (target && target.deviceId !== getPcDeviceId()) {
+            setPcDeviceId(target.deviceId);
+            var inp = $('cloudDeviceInput'); if (inp) inp.value = target.deviceId;
+          }
         }
       } catch (e) { /* ignore */ }
       cb && cb(connState.cloud, connState.cloud ? 'ok' : 'empty-devices');
@@ -1208,6 +1220,7 @@ function initPcConnPanel() {
     setCloudUrl(u);
     setCloudToken(cloudTokenInput ? cloudTokenInput.value.trim() : '');
     setPcDeviceId(cloudDeviceInput ? cloudDeviceInput.value.trim() : '');
+    setDevicePinned();
     setPcMode('cloud');
     m.textContent = '已切换云电脑，正在检测…'; m.className = 'form-msg';
     testCloudConn(function (ok, reason) {

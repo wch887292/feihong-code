@@ -1,6 +1,6 @@
 {
   "name": "feihong-code",
-  "version": "8.8.5",
+  "version": "8.8.6",
   "description": "fhcode（飞虹 Code）— 终端 AI 编程智能体：多模型路由（DeepSeek/通义/Ollama/OpenAI）、企业级 RBAC 审计、全自动 SWE Agent、支持离线私有化。源代码 Apache-2.0 开源自托管，企业版增值能力（激活码、完全私有化部署与商业支持）采用商业授权双轨模式。",
   "bin": {
     "fhcode": "dist/cli/index.js"

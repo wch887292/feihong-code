@@ -2372,7 +2372,7 @@
 
 /* ========== 电脑连接状态（v8.4.0：未连接灰 / 本地电脑绿 / 云电脑蓝） ========== */
 (function () {
-  const LS = { mode: 'fh.pc.mode', cloudUrl: 'fh.pc.cloudUrl', token: 'fh.pc.token', deviceId: 'fh.pc.deviceId' };
+  const LS = { mode: 'fh.pc.mode', cloudUrl: 'fh.pc.cloudUrl', token: 'fh.pc.token', deviceId: 'fh.pc.deviceId', devicePinned: 'fh.pc.devicePinned' };
   function get(k, d) { try { return localStorage.getItem(k) || d; } catch (e) { return d; } }
   function set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
   const state = { local: false, cloud: false, checking: false };
@@ -2409,6 +2409,23 @@
       }
       const data = await res.json().catch(() => null);
       state.cloud = !!(data && Array.isArray(data.devices));
+      // v8.8.6 设备校准：未手动固定时优选「云端服务器」设备
+      try {
+        const devs = data && Array.isArray(data.devices) ? data.devices : [];
+        if (devs.length) {
+          const online = devs.filter((x) => x && x.status === 'online');
+          const server = online.find((x) => (x.name || '').indexOf('云端') >= 0) ||
+                         devs.find((x) => (x.name || '').indexOf('云端') >= 0);
+          const cur = devs.some((x) => x && x.deviceId === get(LS.deviceId, ''));
+          const pinned = get(LS.devicePinned, '') === '1';
+          const target = (!pinned && server) || (!cur ? (server || online[0] || devs[0]) : null);
+          const devEl = document.getElementById('cloudDeviceInput');
+          if (target && target.deviceId !== get(LS.deviceId, '')) {
+            set(LS.deviceId, target.deviceId);
+            if (devEl) devEl.value = target.deviceId;
+          }
+        }
+      } catch (e) { /* ignore */ }
     } catch (e) { state.cloud = false; }
   }
 
@@ -2463,6 +2480,7 @@
       set(LS.cloudUrl, u);
       set(LS.token, tokEl ? tokEl.value.trim() : '');
       set(LS.deviceId, devEl ? devEl.value.trim() : '');
+      set(LS.devicePinned, '1');
       const cs = document.getElementById('pcCloudState');
       if (cs) cs.textContent = '检测中…';
       await checkCloud(); render();
