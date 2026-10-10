@@ -1,0 +1,35 @@
+{
+  "name": "@fhcode/theone-enhance",
+  "version": "0.1.0",
+  "description": "fhcode 内置 TheOne 增强引擎：复杂任务拆解、项目长期中文记忆、多子Agent编排、MCP 工具路由（可开关，低侵入嵌入式插件）",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "keywords": [
+    "fhcode",
+    "theone",
+    "aios",
+    "agent",
+    "mcp",
+    "planner",
+    "memory"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {},
+  "peerDependencies": {
+    "typescript": ">=5.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  }
+}

@@ -745,7 +745,14 @@ ${toolHint}
       // 去重检测：相同工具+相同参数如果之前已成功，返回缓存并警告；若多次重复仍不推进，
       // 则升级为「强制失败」，把问题交回大模型重新决策，避免模型在成功动作上原地空转刷屏。
       const cacheKey = tc.name + '::' + JSON.stringify(tc.arguments ?? {});
-      const cached = this.toolResultCache.get(cacheKey);
+      // 豁免：run_shell 的状态/幂等敏感命令（stop/status/restart/kill/taskkill/reset/clean/start/mano-cua/docker 等）
+      // 不进入结果缓存，避免 stop 这类命令在第二次以相同参数调用时被旧缓存吞掉、不再真正执行。
+      const isShellStateCmd =
+        tc.name === 'run_shell' &&
+        /(\bstop\b|\bstatus\b|\brestart\b|\bkill\b|\btaskkill\b|\breset\b|\bclean\b|\bstart\b|\bmano-cua\b|\bdocker\b)/i.test(
+          String((tc.arguments as Record<string, unknown> | undefined)?.command ?? ''),
+        );
+      const cached = isShellStateCmd ? undefined : this.toolResultCache.get(cacheKey);
       let result: { ok: boolean; output: string; error?: string };
       if (cached && cached.ok) {
         const hits = (this.repeatCallHits.get(cacheKey) ?? 0) + 1;
@@ -771,9 +778,11 @@ ${toolHint}
           approve: ctx.approve,
           guard: ctx.guard,
         });
-        // 成功结果写入缓存（失败的不缓存，允许模型重试修复）
+        // 成功结果写入缓存（失败的不缓存，允许模型重试修复）；状态/幂等敏感命令豁免缓存
         if (result.ok) {
-          this.toolResultCache.set(cacheKey, { ok: result.ok, output: result.output, error: result.error });
+          if (!isShellStateCmd) {
+            this.toolResultCache.set(cacheKey, { ok: result.ok, output: result.output, error: result.error });
+          }
           // 有新的成功执行（非缓存命中）→ 视为有进展，清零全局空转计数
           this.noProgressStreak = 0;
           // P3-1: write_file/edit_file 工具执行成功后自动暂存到变更面板

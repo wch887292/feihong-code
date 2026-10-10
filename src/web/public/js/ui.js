@@ -1146,7 +1146,7 @@
       }
 
       // 2+3. 思维链路时间线：执行计划 + 分轮「思考 → 工具调用 → 结果」，简洁结构化展示
-      html += renderThinkingTimeline(steps);
+      html += renderThinkingTimeline(steps, task.id);
 
       // 3. 对话历史中的最终文本回复（若与最终答案不同，补展示，避免遗漏）
       if (conv.length > 0) {
@@ -1253,8 +1253,14 @@
      * 不再把原始大段输出或工具 JSON 直接塞进对话流。
      * 默认折叠（仅显示「💭 思考 N — 摘要」），点击标题展开，符合 Cursor 风格且更简洁。
      */
-    function renderThinkingTimeline(steps) {
+    function renderThinkingTimeline(steps, taskId) {
       if (!Array.isArray(steps) || steps.length === 0) return '';
+      // 展开状态持久化：按 taskId 记录哪些块被用户展开，轮询重渲染时恢复，避免"松开鼠标就回弹"
+      const tid = taskId || 'global';
+      if (!window._fhThinkingOpen) window._fhThinkingOpen = {};
+      if (!window._fhThinkingOpen[tid]) window._fhThinkingOpen[tid] = new Set();
+      const openSet = window._fhThinkingOpen[tid];
+      const isOpen = (k) => openSet.has(k);
       let html = '';
 
       // 1) 执行计划（出现在首轮思考之前，单独成块，默认折叠）
@@ -1264,13 +1270,14 @@
         planStep.data.steps.forEach(function (st) {
           planInner += '<div class="thinking-step"><span class="thinking-step-icon">📌</span><span class="thinking-step-text">' + escapeHtml(String(st)) + '</span></div>';
         });
+        const planOpen = isOpen('plan');
         html += '<div class="msg assistant thinking-msg">'
-          + '<div class="thinking-header" onclick="toggleThinking(this)">'
-          + '<span class="thinking-arrow">▶</span>'
+          + '<div class="thinking-header" data-task="' + tid + '" data-tkey="plan" onclick="toggleThinking(this)">'
+          + '<span class="thinking-arrow">' + (planOpen ? '▼' : '▶') + '</span>'
           + '<span class="thinking-label">📋 执行计划</span>'
           + '<span class="thinking-summary">' + planStep.data.steps.length + ' 步</span>'
           + '</div>'
-          + '<div class="thinking-body" style="display:none;">' + planInner + '</div>'
+          + '<div class="thinking-body" style="display:' + (planOpen ? 'block' : 'none') + ';">' + planInner + '</div>'
           + '</div>';
       }
 
@@ -1296,6 +1303,7 @@
         const toolCalls = Array.isArray(rd.toolCalls) ? rd.toolCalls : [];
         const summary = text ? firstLine(text) : (toolCalls.length ? '准备调用 ' + toolCalls.join('、') : '处理中…');
         let body = '';
+        let argIdx = 0;
         if (text) {
           body += '<div class="thinking-reply">' + renderPlainText(text) + '</div>';
         }
@@ -1307,8 +1315,11 @@
             body += '<div class="thinking-step"><span class="thinking-step-icon">🔧</span>'
               + '<span class="thinking-step-text">调用 <code>' + escapeHtml(name) + '</code></span>';
             if (argsPreview) {
-              body += '<span class="thinking-step-detail" onclick="toggleArgs(this)">查看参数</span></div>'
-                + '<div class="thinking-args">' + escapeHtml(argsPreview) + '</div>';
+              argIdx++;
+              const akey = 'think-' + n + '-args-' + argIdx;
+              const argsOpen = isOpen(akey);
+              body += '<span class="thinking-step-detail" data-task="' + tid + '" data-akey="' + akey + '" onclick="toggleArgs(this)">' + (argsOpen ? '收起参数' : '查看参数') + '</span></div>'
+                + '<div class="thinking-args' + (argsOpen ? ' show' : '') + '">' + escapeHtml(argsPreview) + '</div>';
             } else {
               body += '</div>';
             }
@@ -1328,14 +1339,16 @@
               + '<span class="thinking-step-text">上下文已压缩，继续推进</span></div>';
           }
         }
+        const tkey = 'think-' + n;
+        const thinkOpen = isOpen(tkey);
         html += '<div class="msg assistant thinking-msg">'
           + renderMsgActions()
-          + '<div class="thinking-header" onclick="toggleThinking(this)">'
-          + '<span class="thinking-arrow">▶</span>'
+          + '<div class="thinking-header" data-task="' + tid + '" data-tkey="' + tkey + '" onclick="toggleThinking(this)">'
+          + '<span class="thinking-arrow">' + (thinkOpen ? '▼' : '▶') + '</span>'
           + '<span class="thinking-label">💭 思考 ' + n + '</span>'
           + '<span class="thinking-summary">' + escapeHtml(truncate(summary, 60)) + '</span>'
           + '</div>'
-          + '<div class="thinking-body" style="display:none;">' + body + '</div>'
+          + '<div class="thinking-body" style="display:' + (thinkOpen ? 'block' : 'none') + ';">' + body + '</div>'
           + '</div>';
       }
       return html;
@@ -1344,21 +1357,30 @@
     function toggleArgs(el) {
       const args = el.parentElement.querySelector('.thinking-args');
       if (!args) return;
-      args.classList.toggle('show');
-      el.textContent = args.classList.contains('show') ? '收起参数' : '查看参数';
+      const tid = el.getAttribute('data-task') || 'global';
+      const akey = el.getAttribute('data-akey');
+      if (!window._fhThinkingOpen) window._fhThinkingOpen = {};
+      if (!window._fhThinkingOpen[tid]) window._fhThinkingOpen[tid] = new Set();
+      const openSet = window._fhThinkingOpen[tid];
+      const willShow = !args.classList.contains('show');
+      args.classList.toggle('show', willShow);
+      el.textContent = willShow ? '收起参数' : '查看参数';
+      if (akey) { willShow ? openSet.add(akey) : openSet.delete(akey); }
     }
 
     function toggleThinking(header) {
       const body = header.parentElement.querySelector('.thinking-body');
       if (!body) return;
       const arrow = header.querySelector('.thinking-arrow');
-      if (body.style.display === 'none' || body.style.display === '') {
-        body.style.display = 'block';
-        if (arrow) arrow.textContent = '▼';
-      } else {
-        body.style.display = 'none';
-        if (arrow) arrow.textContent = '▶';
-      }
+      const tid = header.getAttribute('data-task') || 'global';
+      const tkey = header.getAttribute('data-tkey');
+      if (!window._fhThinkingOpen) window._fhThinkingOpen = {};
+      if (!window._fhThinkingOpen[tid]) window._fhThinkingOpen[tid] = new Set();
+      const openSet = window._fhThinkingOpen[tid];
+      const willOpen = body.style.display === 'none' || body.style.display === '';
+      body.style.display = willOpen ? 'block' : 'none';
+      if (arrow) arrow.textContent = willOpen ? '▼' : '▶';
+      if (tkey) { willOpen ? openSet.add(tkey) : openSet.delete(tkey); }
     }
 
     function renderTaskDetail(id) {
@@ -2409,23 +2431,28 @@
       }
       const data = await res.json().catch(() => null);
       state.cloud = !!(data && Array.isArray(data.devices));
-      // v8.8.6 设备校准：未手动固定时优选「云端服务器」设备
-      try {
-        const devs = data && Array.isArray(data.devices) ? data.devices : [];
-        if (devs.length) {
-          const online = devs.filter((x) => x && x.status === 'online');
-          const server = online.find((x) => (x.name || '').indexOf('云端') >= 0) ||
-                         devs.find((x) => (x.name || '').indexOf('云端') >= 0);
-          const cur = devs.some((x) => x && x.deviceId === get(LS.deviceId, ''));
-          const pinned = get(LS.devicePinned, '') === '1';
-          const target = (!pinned && server) || (!cur ? (server || online[0] || devs[0]) : null);
-          const devEl = document.getElementById('cloudDeviceInput');
-          if (target && target.deviceId !== get(LS.deviceId, '')) {
-            set(LS.deviceId, target.deviceId);
-            if (devEl) devEl.value = target.deviceId;
+      // v8.8.7：本地访问（localhost/127）时不做云端设备覆盖，避免本地控制台误选云端设备；
+      // 本地任务经相对地址由本机 serve 执行，无需云端设备选择。
+      const isLocalAccess = /^(localhost|127\.0\.0\.1|\[::1\])(:|$)/.test(location.host);
+      if (!isLocalAccess) {
+        // v8.8.6 设备校准：未手动固定时优选「云端服务器」设备
+        try {
+          const devs = data && Array.isArray(data.devices) ? data.devices : [];
+          if (devs.length) {
+            const online = devs.filter((x) => x && x.status === 'online');
+            const server = online.find((x) => (x.name || '').indexOf('云端') >= 0) ||
+                           devs.find((x) => (x.name || '').indexOf('云端') >= 0);
+            const cur = devs.some((x) => x && x.deviceId === get(LS.deviceId, ''));
+            const pinned = get(LS.devicePinned, '') === '1';
+            const target = (!pinned && server) || (!cur ? (server || online[0] || devs[0]) : null);
+            const devEl = document.getElementById('cloudDeviceInput');
+            if (target && target.deviceId !== get(LS.deviceId, '')) {
+              set(LS.deviceId, target.deviceId);
+              if (devEl) devEl.value = target.deviceId;
+            }
           }
-        }
-      } catch (e) { /* ignore */ }
+        } catch (e) { /* ignore */ }
+      }
     } catch (e) { state.cloud = false; }
   }
 

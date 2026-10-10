@@ -213,8 +213,17 @@ sync_to_feishu.py
 feihong-browser/
 vscode-extension/*.vsix
 bench/humaneval/HumanEvalPlus.jsonl
+# 云中转隧道脚本（含真实服务器IP/Bearer token/SSH 私钥路径等凭据，绝不入库）
+cloud-agent/隧道保活.cmd
+cloud-agent/隧道保活自启.vbs
+cloud-agent/隧道保活*.cmd
+cloud-agent/隧道保活*.vbs
+
 # 内部文档（复盘/检查报告/说明书/软著材料，文件保留本地）
 软著申请/
+docs/审批挂起核查记录.md
+sanitization-audit-*.md
+全面分析复盘_*.md
 复盘报告_2026-09-27.html
 复盘分析_2026-09-30.html
 复盘纪要_2026-09-27.md.bak
