@@ -49,7 +49,7 @@ import {
  *  覆盖「read_file 循环 → 换 list_dir 继续循环」这类绕过单 cacheKey 检测的打转。 */
 const NO_PROGRESS_WARN = 5;
 const NO_PROGRESS_ABORT = 8;
-import { compactContext, shouldCompact, getCompactionThreshold } from './context-compactor';
+import { compactContext, shouldCompact, getCompactionThreshold, shouldCompactByTokens } from './context-compactor';
 import {
   extractExperience,
   upsertExperience,
@@ -160,6 +160,8 @@ export interface OrchestratorDeps {
   maxRetryErrors?: number;
   /** M6：上下文压缩触发阈值（默认 30 条消息） */
   contextCompactEvery?: number;
+  /** 上下文 token 预算上限（默认 200000；环境变量 FH_CONTEXT_MAX_TOKENS 可覆盖） */
+  contextMaxTokens?: number;
   /** M6：经验目录 */
   experienceDir?: string;
   /** P0-1：流式事件回调（实时输出进度，可选） */
@@ -230,7 +232,9 @@ export class Orchestrator {
     } = this.deps;
     const maxIter = this.deps.maxIterations ?? 50;
     const maxCost = this.deps.maxCostUsd ?? 0;
+    // 上下文长度控制：消息条数阈值（默认 30）+ token 预算（默认 200000，可经 FH_CONTEXT_MAX_TOKENS 调大）
     const compactThreshold = getCompactionThreshold({ compactEvery: contextCompactEvery });
+    const contextMaxTokens = this.deps.contextMaxTokens ?? (process.env.FH_CONTEXT_MAX_TOKENS ? Number(process.env.FH_CONTEXT_MAX_TOKENS) : undefined);
     // 每次 run 重置工具结果缓存与重复调用计数
     this.toolResultCache.clear();
     this.repeatCallHits.clear();
@@ -591,8 +595,9 @@ ${toolHint}
 
       await emitCheckpoint('running');
 
-      // M6: 上下文压缩
-      if (shouldCompact(messages, compactThreshold)) {
+      // M6: 上下文压缩（消息条数阈值 或 token 预算超限 均触发）
+      if (shouldCompact(messages, compactThreshold) ||
+          (contextMaxTokens && shouldCompactByTokens(messages, contextMaxTokens))) {
         // P1-2: 如果启用了分层记忆，先同步消息并尝试智能压缩
         if (this.deps.layeredMemory) {
           this.deps.layeredMemory.appendAll(messages);

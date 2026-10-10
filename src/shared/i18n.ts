@@ -103,6 +103,12 @@ Web 控制台 (M5):
   fhcode --help                      显示帮助 (-h)
   fhcode --lang <zh|en>              设置界面语言（中文/英文）
 
+上下文长度:
+  --context-compact-every N          压缩触发阈值（消息条数，默认30；调大如60/100/200
+                                     可让模型记住更长的对话再压缩）
+  --context-max-tokens N             token预算上限（默认200000；调大如1000000可承载更长上下文）
+                                     也可用环境变量 FH_CONTEXT_COMPACT_EVERY / FH_CONTEXT_MAX_TOKENS
+
 说明: 未配置 FH_PROVIDERS 时自动进入离线模式（脚本化 Mock 驱动闭环验证）。
 配置 FH_PROVIDERS（OpenAI 兼容 / Ollama）后，将调用真实大模型执行任务。
 企业模式默认开启（租户隔离 + RBAC + 审计链 + 配额），可用 FH_ENTERPRISE=false 关闭。
@@ -376,6 +382,14 @@ Autonomous SWE Agent (M9):
   fhcode --version                   Show version (-v)
   fhcode --help                      Show help (-h)
   fhcode --lang <zh|en>              Set UI language (Chinese / English)
+
+Context length:
+  --context-compact-every N          Compaction trigger threshold (messages; default 30.
+                                     Increase to 60/100/200 to let the model remember more
+                                     conversation before compacting)
+  --context-max-tokens N             Token budget cap (default 200000; increase e.g. 1000000
+                                     for much longer context). Env vars
+                                     FH_CONTEXT_COMPACT_EVERY / FH_CONTEXT_MAX_TOKENS also work.
 
 Notes: offline mode is used automatically when FH_PROVIDERS is unset (scripted Mock drives the loop).
 With FH_PROVIDERS (OpenAI-compatible / Ollama) configured, real LLMs run the tasks.

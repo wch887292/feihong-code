@@ -133,7 +133,14 @@ async function main(): Promise<void> {
         goal += `\n\n<context-file: ${args.flags.contextFile}>\n${content}\n</context-file>`;
       }
     }
-    await runGoal(goal, { offline, stream: args.flags.stream, model: args.flags.model, tier: args.flags.tier });
+    await runGoal(goal, {
+      offline,
+      stream: args.flags.stream,
+      model: args.flags.model,
+      tier: args.flags.tier,
+      contextCompactEvery: args.flags.contextCompactEvery,
+      contextMaxTokens: args.flags.contextMaxTokens,
+    });
     return;
   }
 

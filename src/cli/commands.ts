@@ -126,6 +126,10 @@ export interface ParsedArgs {
     command?: string;
     /** routine：任务目录（goal/command 工作区） */
     workspaceDir?: string;
+    /** 上下文压缩触发阈值（消息条数）。默认 30；调大（如 60/100/200）可让模型记住更长的对话再压缩。 */
+    contextCompactEvery?: number;
+    /** 上下文 token 预算上限（默认 200000）。调大（如 200000/1000000）可承载更长的上下文。 */
+    contextMaxTokens?: number;
   };
   /** 单命令模式下的需求文本（首个非 flag 参数） */
   command?: string;
@@ -175,6 +179,8 @@ const FLAG_SPECS: Record<string, FlagSpec> = {
   goal: { kind: 'str', key: 'goal' },
   command: { kind: 'str', key: 'command' },
   'workspace-dir': { kind: 'str', key: 'workspaceDir' },
+  'context-compact-every': { kind: 'int', min: 1, key: 'contextCompactEvery' },
+  'context-max-tokens': { kind: 'int', min: 1000, key: 'contextMaxTokens' },
 };
 
 const SHORT_FLAGS: Record<string, FlagKey> = {

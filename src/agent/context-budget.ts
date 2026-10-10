@@ -30,9 +30,21 @@ export interface ContextBudget {
   availableForContext: number;
 }
 
+/** 默认上下文窗口上限：200000（较早期 128000 提升，适配主流长上下文模型；可用 FH_CONTEXT_MAX_TOKENS 覆盖） */
+export const DEFAULT_CONTEXT_MAX_TOKENS = 200000;
+
+/** 默认预留输出 token */
+export const DEFAULT_RESERVED_FOR_OUTPUT = 8192;
+
+/** 读取环境变量覆盖（CLI/Web 均可通过 FH_CONTEXT_MAX_TOKENS 调整） */
+export function resolveContextMaxTokens(fallback = DEFAULT_CONTEXT_MAX_TOKENS): number {
+  const env = Number(process.env.FH_CONTEXT_MAX_TOKENS);
+  return Number.isFinite(env) && env >= 1000 ? env : fallback;
+}
+
 export function allocateBudget(
-  maxTokens = 128000,
-  reservedForOutput = 8192,
+  maxTokens = resolveContextMaxTokens(),
+  reservedForOutput = DEFAULT_RESERVED_FOR_OUTPUT,
 ): ContextBudget {
   return {
     maxTokens,

@@ -13,7 +13,7 @@
 import type { ChatMessage } from '../models/model.interface';
 import { logger } from '../shared/logger';
 import { runSkillHooks } from '../runtime/hooks';
-import { routeContext, allocateBudget, exceedsBudget, estimateTokens } from './context-budget';
+import { routeContext, allocateBudget, exceedsBudget, estimateTokens, resolveContextMaxTokens } from './context-budget';
 
 export interface CompactionStats {
   originalLength: number;
@@ -423,7 +423,7 @@ function estimateTokensSafe(m: ChatMessage): number {
 /** 是否因超出 token 预算而需要路由（O3） */
 export function shouldCompactByTokens(
   messages: ChatMessage[],
-  maxTokens = 128000,
+  maxTokens = resolveContextMaxTokens(),
   reservedForOutput = 8192,
 ): boolean {
   return exceedsBudget(messages, allocateBudget(maxTokens, reservedForOutput));
@@ -442,7 +442,7 @@ export function compactContextByTokens(
   focus: string,
   opts: { maxTokens?: number; reservedForOutput?: number; recentRounds?: number; preservedCount?: number } = {},
 ): { messages: ChatMessage[]; tokens: number; routed: boolean; compacted: boolean } {
-  const budget = allocateBudget(opts.maxTokens ?? 128000, opts.reservedForOutput ?? 8192);
+  const budget = allocateBudget(opts.maxTokens ?? resolveContextMaxTokens(), opts.reservedForOutput ?? 8192);
   if (!exceedsBudget(messages, budget)) {
     return {
       messages,

@@ -75,6 +75,12 @@ export interface RunOptions {
   layeredMemory?: import('../agent/layered-memory').LayeredMemory;
   /** 开发模式：interactive=交互开发（豆包式，每轮驱动+需审批），autonomous=单命令自主开发（全自动+成本上限） */
   mode?: 'interactive' | 'autonomous';
+  /** 上下文压缩触发阈值（消息条数）。默认 30；调大（如 60/100/200）可让模型记住更长的对话再压缩。
+   *  对应环境变量 FH_CONTEXT_COMPACT_EVERY。 */
+  contextCompactEvery?: number;
+  /** 上下文 token 预算上限（默认 200000）。调大（如 200000/1000000）可承载更长的上下文。
+   *  对应环境变量 FH_CONTEXT_MAX_TOKENS。 */
+  contextMaxTokens?: number;
 }
 
 /** 离线演示脚本：写文件 → 总结，跑通完整链路 */
@@ -393,6 +399,10 @@ export async function executeTask(goal: string, opts: RunOptions = {}): Promise<
     guard,
     maxIterations: modeConfig.maxIterations,
     maxCostUsd: mode === 'autonomous' ? modeConfig.maxCostUsd : resolveMaxCostUsd(rt?.maxCostUsd),
+    // 上下文长度可配置：CLI --context-compact-every / --context-max-tokens 优先，
+    // 环境变量 FH_CONTEXT_COMPACT_EVERY / FH_CONTEXT_MAX_TOKENS 兜底（Web/API 场景可用）。
+    contextCompactEvery: opts.contextCompactEvery ?? (process.env.FH_CONTEXT_COMPACT_EVERY ? Number(process.env.FH_CONTEXT_COMPACT_EVERY) : undefined),
+    contextMaxTokens: opts.contextMaxTokens ?? (process.env.FH_CONTEXT_MAX_TOKENS ? Number(process.env.FH_CONTEXT_MAX_TOKENS) : undefined),
     persist: (cp: SessionCheckpoint) => saveCheckpoint(logDir, cp),
     onEvent: opts.renderer ?? (opts.stream ? streamRenderer() : undefined),
     pluginSkillDirs,
