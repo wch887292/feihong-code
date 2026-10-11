@@ -106,7 +106,12 @@ export function runCommand(cmd: string, cwd: string, timeoutMs = defaultShellTim
       } catch { /* 忽略 taskkill 失败，退化为 child.kill */ }
     }
 
-    // 超时处理：先 SIGTERM（Windows 用 taskkill /T），5 秒后 SIGKILL
+    // 超时处理：先 SIGTERM（Windows 用 taskkill /T），超时后再等 5 秒 SIGKILL
+    // ⚠ 修复 2026-10-11：此处原为固定 5000ms，导致任何耗时 >5 秒的命令在启动约 5 秒后
+    //   就被 taskkill /T /F 强杀进程树（无任何输出、退出码 1）。npm run build /
+    //   npm publish / npm test / npm run verify 这类长命令因此必挂，且传入多大的
+    //   timeout 参数都无效（因为宽限期是从启动时刻起算，而非锚定 timeoutMs）。
+    //   正确语义：宽限期必须锚定在 timeoutMs 之后。
     let timedOut = false;
     const killTimer = setTimeout(() => {
       if (settled) return;
@@ -121,7 +126,7 @@ export function runCommand(cmd: string, cwd: string, timeoutMs = defaultShellTim
           child.kill('SIGKILL');
         }
       } catch { /* 忽略 kill 失败 */ }
-    }, 5000);
+    }, timeoutMs + 5000);
 
     const timer = setTimeout(() => {
       if (settled) return;
@@ -148,7 +153,7 @@ export function runCommand(cmd: string, cwd: string, timeoutMs = defaultShellTim
       timedOut = true;
       stderr += '\n[强制结束] 进程树未能正常终止，已强制返回结果。';
       finish({ code: 124, stdout, stderr, timedOut });
-    }, timeoutMs + 5000);
+    }, timeoutMs + 10000);
   });
 }
 
