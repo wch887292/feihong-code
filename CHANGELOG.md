@@ -1,5 +1,16 @@
 ﻿# 飞虹 Code 更新日志 / Changelog
 
+## 待发布 · 企业集成预置模板（P9-1 系统集成增强）
+
+**新增**：把零散的集成能力收敛为「开箱即用」的预置模板，显著提升系统集成维度的开箱落地能力。
+
+- 新增 `src/integrations/templates.ts`：7 个预置集成模板（飞书、企微、GitHub Actions、GitLab CI、Jenkins、Jira、禅道），含真实可运行的配置文件 + 部署脚本 + 后续步骤
+- 新增 CLI 命令 `fhcode integrations list` / `fhcode integrations init <type>`：一键把模板渲染到工作区（已存在文件不覆盖），并打印部署步骤
+- 命令注册：`commands.ts` ManagementCommand 加 `integrations` kind + MANAGE_BUILDERS 条目；`index.ts` dispatchManage 加 case 分发
+- 补全 `.env.example` 的企微 / CI/CD / 工单配置段
+- 新增 `docs/企业集成模板指南.md`：三类集成（IM / CI/CD / 工单）的场景化落地步骤
+- 设计原则：密钥零硬编码（走 env / secrets）、失败 fail-closed、不覆盖既有文件、离线 mock 友好
+
 ## v8.8.6 · 云电脑指向云端服务器（直连架构）
 
 **架构变更**：云电脑执行体从「家里电脑（经云中转隧道）」切换为「腾讯云服务器 fhcode v8.8.5 实例」——电脑关机也能用云电脑。

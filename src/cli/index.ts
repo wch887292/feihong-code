@@ -43,6 +43,7 @@ import {
   runTenants,
   runDoctor,
   runPluginCmd,
+  runIntegrationsInit,
   runSkillMarketCmd,
 runSkillNewCmd,
   runReviewCmd,
@@ -167,6 +168,7 @@ async function dispatchManage(m: ManagementCommand): Promise<void> {
     case 'doctor': await runDoctor(); break;
     case 'tui': runTui(); break;
     case 'plugin': await runPluginCmd(m.action, m.source); break;
+    case 'integrations': await runIntegrationsInit(m.action, m.type, m.targetDir); break;
     case 'skill-market': await runSkillMarketCmd(m.action, m.query, m.market); break;
     case 'skill-new': await runSkillNewCmd(m.name, { template: m.template, global: m.global }); break;
     case 'review': runReviewCmd(m.path, m.json); break;

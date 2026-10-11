@@ -71,7 +71,8 @@ export type ManagementCommand =
   | { kind: 'agent-new'; name?: string; prompt?: string; tools?: string; category?: string; tier?: ComputeTier }
   | { kind: 'routine'; action: 'list' | 'add' | 'run' | 'enable' | 'rm'; id?: string; cron?: string; goal?: string; command?: string; name?: string; tier?: ComputeTier; workspaceDir?: string; enabled?: boolean }
   | { kind: 'memory'; action: 'profile' | 'stats' | 'clear'; yes: boolean }
-  | { kind: 'approvals'; action: 'list' | 'show' | 'approve' | 'reject'; id?: string; all: boolean; by?: string };
+  | { kind: 'approvals'; action: 'list' | 'show' | 'approve' | 'reject'; id?: string; all: boolean; by?: string }
+  | { kind: 'integrations'; action: 'list' | 'init'; type?: string; targetDir?: string };
 
 export interface ParsedArgs {
   flags: {
@@ -314,6 +315,12 @@ const MANAGE_BUILDERS: Record<string, ManageBuilder> = {
     id: rest[1],
     all: !!flags.all,
     by: flags.by,
+  }),
+  integrations: ({ rest }) => ({
+    kind: 'integrations',
+    action: rest[0] === 'init' ? 'init' : 'list',
+    type: rest[0] === 'init' ? rest[1] : undefined,
+    targetDir: rest[0] === 'init' ? rest[2] : undefined,
   }),
 };
 

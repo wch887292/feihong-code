@@ -6,9 +6,14 @@
  * 从 cli/run.ts 抽离（B3 架构治理延续，2026-09-28）。
  */
 
-import { mkdirSync, writeFileSync, rmSync } from 'fs';
+import { mkdirSync, writeFileSync, rmSync, existsSync } from 'fs';
 import { join } from 'path';
 import { t } from '../../shared/i18n';
+import {
+  listIntegrationTemplates,
+  getIntegrationTemplate,
+  type IntegrationTemplate,
+} from '../../integrations/templates';
 import { loadConfig, resolveHomeDir } from '../../shared/config';
 import { runCommand } from '../../tools/shell/exec';
 import { startWebServer } from '../../web/server';
@@ -213,4 +218,67 @@ export function runServe(port?: number): void {
   scheduler.start(60_000);
   console.log('[routines] 自动化任务调度已启动（每 60s 检查一次 cron；fhcode routine list 查看）');
   // 注意：app.listen 保持事件循环运行，进程持续存活直到收到 SIGINT；本函数返回后 main() 结束不影响服务。
+}
+
+/* ===================== P9-1：企业集成预置模板 ===================== */
+
+/**
+ * `fhcode integrations list`：列出所有预置集成模板。
+ * `fhcode integrations init <type>`：把选中模板渲染写入目标目录并打印后续步骤。
+ *
+ * 目标目录默认当前工作区；文件若存在则不覆盖（避免误删用户配置），仅提示。
+ */
+export async function runIntegrationsInit(
+  action: 'list' | 'init',
+  type?: string,
+  targetDir?: string,
+): Promise<void> {
+  if (action === 'list' || !type) {
+    const templates = listIntegrationTemplates();
+    console.log('📦 飞虹 Code 企业集成预置模板（共 ' + templates.length + ' 个）：\n');
+    const cats: Record<string, string> = { im: '即时通讯桥接', cicd: 'CI/CD 流水线门禁', ticketing: '工单系统对接' };
+    for (const c of ['im', 'cicd', 'ticketing'] as const) {
+      console.log(`【${cats[c]}】`);
+      for (const tpl of templates.filter((x) => x.category === c)) {
+        console.log(`  · ${tpl.id.padEnd(16)} ${tpl.name}`);
+        console.log(`      ${tpl.description}`);
+      }
+      console.log('');
+    }
+    console.log('用法：');
+    console.log('  fhcode integrations list                      列出全部模板');
+    console.log('  fhcode integrations init <type> [目标目录]    生成模板到工作区');
+    console.log('示例：fhcode integrations init cicd-github');
+    return;
+  }
+
+  const tpl: IntegrationTemplate | undefined = getIntegrationTemplate(type);
+  if (!tpl) {
+    console.error(`❌ 未找到模板 "${type}"。运行 fhcode integrations list 查看可用模板。`);
+    process.exitCode = 1;
+    return;
+  }
+
+  const root = targetDir || process.cwd();
+  mkdirSync(root, { recursive: true });
+
+  console.log(`📥 正在生成集成模板「${tpl.name}」到：${root}\n`);
+  let written = 0;
+  for (const f of tpl.files) {
+    const abs = join(root, f.path);
+    if (existsSync(abs)) {
+      console.log(`  ⚠️ 跳过（已存在，未覆盖）：${f.path}`);
+      continue;
+    }
+    mkdirSync(join(abs, '..'), { recursive: true });
+    writeFileSync(abs, f.content, 'utf8');
+    console.log(`  ✅ ${f.path}`);
+    written++;
+  }
+
+  console.log(`\n📋 部署步骤（${written} 个文件已写入）：`);
+  for (const step of tpl.postInstructions) {
+    console.log('  ' + step);
+  }
+  console.log('\n📘 更多说明见 docs/企业集成模板指南.md');
 }
