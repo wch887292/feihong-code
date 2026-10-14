@@ -50,6 +50,18 @@ if (!existsSync(src)) {
   console.log('[copy-web] 已复制 Web 静态资源 -> ' + dst);
 }
 
+// 1.5 Monaco Editor vendor 资源（index.html 硬引用 vendor/monaco/vs/loader.js）。
+//     资源不进 git（24MB），构建时从 dependencies 中的 monaco-editor/min/vs 复制，
+//     保证 npm install + build 后 Web 端编辑器可用（修复 404 白屏）。
+const monacoSrc = join(root, 'node_modules', 'monaco-editor', 'min', 'vs');
+const monacoDst = join(dst, 'vendor', 'monaco', 'vs');
+if (!existsSync(monacoSrc)) {
+  console.warn('[copy-web] 警告：node_modules/monaco-editor/min/vs 不存在，Web 端 Monaco 编辑器将 404（请先 npm install）');
+} else {
+  copyDir(monacoSrc, monacoDst);
+  console.log('[copy-web] 已复制 Monaco vendor -> ' + monacoDst);
+}
+
 // 2. self-evolve manager.js（CommonJS，tsc 不编译）
 const mgrSrc = join(root, 'src', 'self-evolve', 'manager.js');
 const mgrDst = join(root, 'dist', 'self-evolve', 'manager.js');
