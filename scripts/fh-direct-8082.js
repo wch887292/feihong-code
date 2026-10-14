@@ -14,7 +14,7 @@ try {
   }
 } catch (e) { /* 读取失败则使用服务端自动生成逻辑 */ }
 process.env.NODE_OPTIONS = '';
-process.chdir('H:\\Muse Code\u590d\u523b'); // H:\Muse Code复刻
+process.chdir('H:\\Muse Code\u590d\u523b'); // H:\feihong-code
 var srv = require('H:\\Muse Code\u590d\u523b\\dist\\web\\server.js');
 srv.startWebServer({});
 setInterval(function () {}, 1 << 30); // 保活

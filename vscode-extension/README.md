@@ -39,7 +39,7 @@ mcp-bridge.js  ──(TCP 127.0.0.1:9599, NDJSON)──►  VS Code 扩展内 mc
 **如何启用（已默认配置好）：** 飞虹 Code 的 `~/.feihong-code/fhcode.config.json` 的 `mcp.servers` 已加入：
 ```json
 { "name": "vscode", "command": "C:/Program Files/nodejs/node.exe",
-  "args": ["H:/Muse Code复刻/vscode-extension/mcp-bridge.js"],
+  "args": ["H:/feihong-code/vscode-extension/mcp-bridge.js"],
   "initTimeoutMs": 20000, "callTimeoutMs": 120000 }
 ```
 前提：**微软 VS Code 需处于打开状态且已加载本扩展**（左侧出现「飞虹 Code」图标，扩展在宿主内启动 9599 socket）。飞虹 Code 启动时自动 spawn 桥并挂载 `vscode_*` 工具；VS Code 晚开也能在桥重连后生效（下次会话）。

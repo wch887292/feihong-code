@@ -30,7 +30,7 @@
 ```bash
 # 托管 Node + tsx
 export PATH="/c/Users/Administrator/.workbuddy/binaries/node/versions/22.22.2:$PATH"
-cd "H:/Muse Code复刻"
+cd "H:/feihong-code"
 
 node_modules/.bin/tsx src/agent/context-budget.ts          # O3 路由自测
 node_modules/.bin/tsx src/agent/completion-postprocess.ts  # O2 后处理自测

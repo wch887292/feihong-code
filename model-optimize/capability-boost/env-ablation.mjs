@@ -8,7 +8,7 @@ import fs from 'fs';
 
 const LABEL = process.argv[2] || 'X';
 const OLLAMA = 'http://127.0.0.1:11434';
-const OUT = `H:/Muse Code复刻/model-optimize/capability-boost/env-ablation-${LABEL}.json`;
+const OUT = `H:/feihong-code/model-optimize/capability-boost/env-ablation-${LABEL}.json`;
 
 const MODELS = ['qwen3-8b-opt:latest', 'qwen25-coder-15b-opt:latest'];
 const SHORT_PROMPT = '用一句话说明什么是复利。';

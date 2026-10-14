@@ -16,7 +16,7 @@ const DEFAULT_ROOT = path.join('H:\\', '飞虹素材库');
 
 // 创作中心前端路径（飞虹Code 仓库内）
 const APP_JS_CANDIDATES = [
-  path.join('H:\\', 'Muse Code复刻', 'app-mobile', 'js', 'app.js'),
+  path.join('H:\\', 'feihong-code', 'app-mobile', 'js', 'app.js'),
   path.join(__dirname, '..', '..', 'app-mobile', 'js', 'app.js'),
 ];
 

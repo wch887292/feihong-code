@@ -7,7 +7,7 @@ os.environ.pop("NODE_OPTIONS", None)
 
 import shutil
 
-test_dir = r"H:\Muse Code复刻\bench\real\work\_test_safe_delete"
+test_dir = r"H:\feihong-code\bench\real\work\_test_safe_delete"
 if os.path.exists(test_dir):
     shutil.rmtree(test_dir)
 

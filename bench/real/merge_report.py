@@ -11,7 +11,7 @@ import json
 import os
 import sys
 
-BASE = os.path.join("H:\\", "Muse Code复刻", "bench", "real")
+BASE = os.path.join("H:\\", "feihong-code", "bench", "real")
 TOTAL = 300
 
 # 有效评估口径：只有真正跑完 API 并尝试应用补丁的实例才计入分母

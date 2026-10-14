@@ -5,7 +5,7 @@ import os
 import sys
 
 os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
-os.chdir(r"H:\Muse Code复刻\bench\real")
+os.chdir(r"H:\feihong-code\bench\real")
 
 from swebench.harness.run_evaluation import main
 
@@ -21,5 +21,5 @@ main(
     rewrite_reports=False,
     modal=False,
     report_dir="eval_dsv4f_build1",
-    task_repo=r"H:\Muse Code复刻\bench\real\task_repo",
+    task_repo=r"H:\feihong-code\bench\real\task_repo",
 )

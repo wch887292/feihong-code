@@ -16,7 +16,7 @@ import fs from 'fs';
 import path from 'path';
 import { spawn } from 'child_process';
 
-const ROOT = 'H:/Muse Code复刻';
+const ROOT = 'H:/feihong-code';
 const [goalText, goalFile, logFile] = process.argv.slice(2);
 if (!goalText || !goalFile || !logFile) {
   console.error('用法: node launch-optimize.mjs "<短目标>" <goal文件> <日志文件>');

@@ -5,7 +5,7 @@ import json
 import os
 from pathlib import Path
 
-os.chdir(r"H:\Muse Code复刻\bench\real")
+os.chdir(r"H:\feihong-code\bench\real")
 
 # 加载完整数据集
 with open("swebench_lite_official_array.json", encoding="utf-8") as f:

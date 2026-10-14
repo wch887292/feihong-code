@@ -6,7 +6,7 @@
 import fs from 'fs';
 
 const MODELS = ['qwen3:8b', 'qwen2.5-coder:1.5b', 'guozhennianhua/qwen3.5-4b-kimi-k3', 'qwen3-vl:4b'];
-const OUT = 'H:/Muse Code复刻/model-optimize/capability-boost/baseline-speed.json';
+const OUT = 'H:/feihong-code/model-optimize/capability-boost/baseline-speed.json';
 const OLLAMA = 'http://127.0.0.1:11434';
 
 const SHORT_PROMPT = '用一句话说明什么是复利。';

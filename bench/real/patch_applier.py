@@ -165,7 +165,7 @@ def apply_patch(patch_content, repo_root):
 if __name__ == "__main__":
     # 测试
     import json
-    with open(r"H:\Muse Code复刻\bench\real\predictions_DeepSeek-V4-Flash.jsonl", encoding="utf-8") as f:
+    with open(r"H:\feihong-code\bench\real\predictions_DeepSeek-V4-Flash.jsonl", encoding="utf-8") as f:
         for line in f:
             obj = json.loads(line)
             if obj['instance_id'] == 'psf__requests-2148':

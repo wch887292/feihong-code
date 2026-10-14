@@ -14,7 +14,7 @@ from pathlib import Path
 from collections import defaultdict
 
 # 配置
-BENCH_DIR = Path(r"H:\Muse Code复刻\bench\real")
+BENCH_DIR = Path(r"H:\feihong-code\bench\real")
 DATASET_FILE = BENCH_DIR / "swebench_lite_official_array.json"
 PREDICTIONS_FILE = BENCH_DIR / "predictions_DeepSeek-V4-Flash.jsonl"
 VENV_DIR = BENCH_DIR / "venvs"

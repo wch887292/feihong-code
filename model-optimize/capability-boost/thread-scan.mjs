@@ -6,7 +6,7 @@
 import fs from 'fs';
 
 const OLLAMA = 'http://127.0.0.1:11434';
-const OUT = 'H:/Muse Code复刻/model-optimize/capability-boost/thread-scan.json';
+const OUT = 'H:/feihong-code/model-optimize/capability-boost/thread-scan.json';
 
 const JOBS = [
   { model: 'qwen3-8b-opt:latest', threads: [4, 6, 8, 10, 12] },

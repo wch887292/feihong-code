@@ -287,7 +287,7 @@ Windows 环境下 Defender 可能锁定 `app.asar`，导致构建失败。解决
 
 ```powershell
 # 添加项目目录到 Defender 排除项
-Add-MpPreference -ExclusionPath "H:\Muse Code复刻"
+Add-MpPreference -ExclusionPath "H:\feihong-code"
 ```
 
 ---

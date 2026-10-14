@@ -38,7 +38,7 @@ DEFAULT_BASE_URL = "http://127.0.0.1:18080"
 ENV_PATHS = [
     "/www/dk_project/livekit/agent/.env",   # Linux 生产：与 agent 共享
     os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"),  # 同目录 .env
-    r"H:\Muse Code复刻\.env",                 # Windows 开发机
+    r"H:\feihong-code\.env",                 # Windows 开发机
 ]
 AUDIT_LOG_PATH = os.environ.get("FH_AUDIT_LOG", "/var/log/fhcode-mcp-audit.log")
 MAX_GOAL_LENGTH = 5000

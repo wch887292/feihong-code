@@ -7,7 +7,7 @@
 import fs from 'fs';
 
 const OLLAMA = 'http://127.0.0.1:11434';
-const OUT = 'H:/Muse Code复刻/model-optimize/capability-boost/opt-speed.json';
+const OUT = 'H:/feihong-code/model-optimize/capability-boost/opt-speed.json';
 
 // [opt模型, 对应基线模型]
 const PAIRS = [

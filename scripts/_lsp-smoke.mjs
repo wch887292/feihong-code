@@ -1,6 +1,6 @@
 // LSP 语义服务冒烟测试
 const BASE = 'http://127.0.0.1:8099';
-const CWD = encodeURIComponent('H:/Muse Code复刻');
+const CWD = encodeURIComponent('H:/feihong-code');
 let pass = 0, fail = 0;
 
 function report(name, ok, extra = '') {
@@ -28,7 +28,7 @@ async function jget(path, token) {
     `files=${g.data.summary?.fileCount} symbols=${g.data.summary?.symbolCount} edges=${g.data.summary?.edgeCount}`);
 
   // 2. symbols（对 lsp-service.ts 自身）
-  const sym = await jget(`/api/lsp/symbols?cwd=${CWD}&file=${encodeURIComponent('H:/Muse Code复刻/src/lsp/lsp-service.ts')}`, token);
+  const sym = await jget(`/api/lsp/symbols?cwd=${CWD}&file=${encodeURIComponent('H:/feihong-code/src/lsp/lsp-service.ts')}`, token);
   report('GET /api/lsp/symbols', sym.status === 200 && sym.data.ok && Array.isArray(sym.data.symbols) && sym.data.symbols.length > 0,
     `symbols=${sym.data.symbols?.length}`);
 
@@ -37,15 +37,15 @@ async function jget(path, token) {
   report('GET /api/lsp/search', s.status === 200 && s.data.ok && s.data.symbols?.length > 0, `hits=${s.data.symbols?.length}`);
 
   // 4. diagnostics（对一个 .ts 文件，可能有错误或为空都算"可调用"）
-  const d = await jget(`/api/lsp/diagnostics?cwd=${CWD}&file=${encodeURIComponent('H:/Muse Code复刻/src/lsp/lsp-service.ts')}`, token);
+  const d = await jget(`/api/lsp/diagnostics?cwd=${CWD}&file=${encodeURIComponent('H:/feihong-code/src/lsp/lsp-service.ts')}`, token);
   report('GET /api/lsp/diagnostics', d.status === 200 && d.data.ok && Array.isArray(d.data.diagnostics), `errors=${d.data.diagnostics?.length}`);
 
   // 5. definition（找 LspService 类定义行——用 graph 摘要返回的符号定位）
-  const def = await jget(`/api/lsp/definition?cwd=${CWD}&file=${encodeURIComponent('H:/Muse Code复刻/src/lsp/lsp-service.ts')}&line=100`, token);
+  const def = await jget(`/api/lsp/definition?cwd=${CWD}&file=${encodeURIComponent('H:/feihong-code/src/lsp/lsp-service.ts')}&line=100`, token);
   report('GET /api/lsp/definition', def.status === 200 && def.data.ok, def.data.definition ? `→ ${def.data.definition.name}@${def.data.definition.line}` : '（行 100 附近无符号，属正常）');
 
   // 6. hover
-  const h = await jget(`/api/lsp/hover?cwd=${CWD}&file=${encodeURIComponent('H:/Muse Code复刻/src/lsp/lsp-service.ts')}&line=75`, token);
+  const h = await jget(`/api/lsp/hover?cwd=${CWD}&file=${encodeURIComponent('H:/feihong-code/src/lsp/lsp-service.ts')}&line=75`, token);
   report('GET /api/lsp/hover', h.status === 200 && h.data.ok, h.data.hover ? `→ ${h.data.hover.name}` : '（行 75 附近无符号，属正常）');
 
   // 7. 缺参错误处理

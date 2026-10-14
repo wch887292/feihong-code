@@ -4,14 +4,14 @@
 import json, os, yaml
 from pathlib import Path
 
-os.chdir(r"H:\Muse Code复刻\bench\real")
+os.chdir(r"H:\feihong-code\bench\real")
 
 # 加载数据集
 with open("swebench_lite_official_array.json", encoding="utf-8") as f:
     dataset = json.load(f)
 
 # 创建 task_repo 目录
-repo_root = Path(r"H:\Muse Code复刻\bench\real\task_repo")
+repo_root = Path(r"H:\feihong-code\bench\real\task_repo")
 tasks_dir = repo_root / "tasks"
 tasks_dir.mkdir(parents=True, exist_ok=True)
 

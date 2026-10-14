@@ -20,7 +20,7 @@ def _pid_alive(pid):
         return True
     return False
 
-REAL = r"H:\Muse Code复刻\bench\real"
+REAL = r"H:\feihong-code\bench\real"
 PY = r"C:\Users\Administrator\.workbuddy\binaries\python\envs\default\Scripts\python.exe"
 SCRIPT = os.path.join(REAL, "run_swebench.sh")
 DETACHED = 0x00000008 | 0x00000200

@@ -79,7 +79,7 @@ let ws = null;
   if (d.status === 200) await req('/api/workspace', { method: 'POST', body: JSON.stringify({ cwd: ws }) });
 }
 {
-  const d = await req('/api/files/read', { method: 'POST', body: JSON.stringify({ path: 'H:\\Muse Code复刻\\package.json' }) });
+  const d = await req('/api/files/read', { method: 'POST', body: JSON.stringify({ path: 'H:\\feihong-code\\package.json' }) });
   log(d.status === 200 && d.body.content?.includes('"name"'), 'POST /api/files/read（读 package.json）', d.body.path);
 }
 {

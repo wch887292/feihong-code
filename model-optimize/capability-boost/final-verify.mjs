@@ -8,7 +8,7 @@
 import fs from 'fs';
 
 const OLLAMA = 'http://127.0.0.1:11434';
-const OUT = 'H:/Muse Code复刻/model-optimize/capability-boost/final-verify.json';
+const OUT = 'H:/feihong-code/model-optimize/capability-boost/final-verify.json';
 
 const SPEED_MODELS = ['qwen3-8b-opt:latest', 'qwen25-coder-15b-opt:latest', 'qwen35-4b-opt:latest', 'qwen3-vl-4b-opt:latest'];
 const SHORT_PROMPT = '用一句话说明什么是复利。';

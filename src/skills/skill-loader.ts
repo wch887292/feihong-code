@@ -6,7 +6,7 @@
  *  - 技能 = 目录下的 SKILL.md（frontmatter: name/description + 正文指令）
  *  - 渐进式披露：索引（name+description，≤8KB）常驻 system prompt；
  *    完整 SKILL.md 由 load_skill 工具按需加载（不烧上下文）
- *  - 发现位置：cwd → 仓库根逐级 `.agents/skills`（含 .claude/skills 兼容），
+ *  - 发现位置：cwd → 仓库根逐级 `.agents/skills`、`.claude/skills`、`.fhcode/skills`，
  *    再叠加打包技能目录（仓库内 skills/）与用户级 ~/.feihong-code/skills
  *  - 纯函数解析，便于单测；不依赖任何运行时状态
  */
@@ -76,7 +76,7 @@ function findRepoRoot(cwd: string): string {
   }
 }
 
-/** 发现技能：仓库级（cwd→根逐级 .agents/skills + .claude/skills）+ 打包目录 + 用户级 */
+/** 发现技能：仓库级（cwd→根逐级 .agents/skills + .claude/skills + .fhcode/skills）+ 打包目录 + 用户级 */
 export function discoverSkills(cwd: string, packagedDirs: string[] = []): Skill[] {
   const seen = new Set<string>();
   const out: Skill[] = [];
@@ -97,6 +97,7 @@ export function discoverSkills(cwd: string, packagedDirs: string[] = []): Skill[
   for (;;) {
     push(join(dir, '.agents', 'skills'));
     push(join(dir, '.claude', 'skills'));
+    push(join(dir, '.fhcode', 'skills'));
     if (dir === root) break;
     const parent = dirname(dir);
     if (parent === dir) break;

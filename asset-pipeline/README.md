@@ -9,7 +9,7 @@
 ## 快速开始
 
 ```bash
-cd H:\Muse Code复刻\asset-pipeline
+cd H:\feihong-code\asset-pipeline
 
 # 文生图（自动下载 + 归档）
 node cli.js image --prompt "白色保温杯放在浅木色桌面上，电商产品图" --name 保温杯 --project 电商素材

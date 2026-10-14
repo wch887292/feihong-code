@@ -96,20 +96,20 @@
 {
   "name": "git",
   "command": "C:/Users/Administrator/.workbuddy/binaries/node/versions/22.22.2-3/node.exe",
-  "args": ["H:/Muse Code复刻/mcp-servers/git-mcp.js"],
+  "args": ["H:/feihong-code/mcp-servers/git-mcp.js"],
   "initTimeoutMs": 15000, "callTimeoutMs": 120000
 },
 {
   "name": "db",
   "command": "C:/Users/Administrator/.workbuddy/binaries/node/versions/22.22.2-3/node.exe",
-  "args": ["H:/Muse Code复刻/mcp-servers/db-mcp.js"],
-  "env": { "DB_ENGINE": "sqlite", "DB_PATH": "H:/Muse Code复刻/mcp-servers/_demo.db" },
+  "args": ["H:/feihong-code/mcp-servers/db-mcp.js"],
+  "env": { "DB_ENGINE": "sqlite", "DB_PATH": "H:/feihong-code/mcp-servers/_demo.db" },
   "initTimeoutMs": 15000, "callTimeoutMs": 120000
 },
 {
   "name": "figma",
   "command": "C:/Users/Administrator/.workbuddy/binaries/node/versions/22.22.2-3/node.exe",
-  "args": ["H:/Muse Code复刻/mcp-servers/figma-mcp.js"],
+  "args": ["H:/feihong-code/mcp-servers/figma-mcp.js"],
   "env": { "FIGMA_TOKEN": "" },
   "initTimeoutMs": 15000, "callTimeoutMs": 60000
 }

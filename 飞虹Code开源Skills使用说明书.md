@@ -2,7 +2,7 @@
 
 > 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心
 > 版本：2026-10-08 ｜ 适用：`fhcode`（飞虹 Code）v8.x
-> 交付物位置：`H:\Muse Code复刻\.fhcode\skills\`
+> 交付物位置：`H:\feihong-code\.fhcode\skills\`
 
 ---
 
@@ -25,7 +25,7 @@
 
 ## 二、安装位置与机制
 
-- 飞虹 Code 的 Skills 统一放在：`H:\Muse Code复刻\.fhcode\skills\<目录名>\SKILL.md`
+- 飞虹 Code 的 Skills 统一放在：`H:\feihong-code\.fhcode\skills\<目录名>\SKILL.md`
 - 每个 Skill 是一个文件夹 + 一个 `SKILL.md`，采用 YAML frontmatter（`name` / `description`）+ 正文（触发 / 执行步骤 / 输出格式 / 边界）。
 - 结构示例（已存在）：
   ```

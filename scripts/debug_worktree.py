@@ -4,7 +4,7 @@ import subprocess
 import os
 from pathlib import Path
 
-ROOT = Path('H:\\Muse Code复刻').resolve()
+ROOT = Path('H:\\feihong-code').resolve()
 WORK_DIR = ROOT / "bench" / "real" / "work"
 REPO_PATH = WORK_DIR / "astropy_repo"
 BASE_COMMIT = "d16bfe05a744909de4b27f5875fe0d4ed41ce607"

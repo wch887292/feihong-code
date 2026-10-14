@@ -5,7 +5,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const PROJECT_ROOT = 'H:\\Muse Code复刻';
+const PROJECT_ROOT = 'H:\\feihong-code';
 const SOFTWARE_NAME = '飞虹 Code 终端 AI 编程智能体软件';
 const VERSION = 'V1.0.0';
 const LINES_PER_PAGE = 50;
