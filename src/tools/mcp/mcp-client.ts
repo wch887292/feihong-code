@@ -96,7 +96,13 @@ export class McpClient {
     this.child.stderr?.on('data', (d: Buffer) => {
       this.stderrBuf = (this.stderrBuf + d.toString()).slice(-4000);
     });
-    this.child.on('error', (e) => this.rejectAll(`MCP 进程启动失败: ${e.message}`));
+    this.child.on('error', (e) => {
+      const code = (e as NodeJS.ErrnoException).code;
+      const hint = code === 'ENOENT'
+        ? `（命令未找到：${command}。请确认该命令在 PATH 中，或改用绝对路径）`
+        : '';
+      this.rejectAll(`MCP 进程启动失败: ${e.message}${hint}`);
+    });
     this.child.on('exit', (code) => {
       this.connected = false;
       this.rejectAll(`MCP 进程退出（code=${code}）`);
@@ -128,7 +134,13 @@ export class McpClient {
 
   /** 调用服务器工具（参数自动序列化，文本结果拼接返回），含瞬态错误指数退避重试 */
   async callTool(toolName: string, args: Record<string, unknown>): Promise<McpCallResult> {
-    const maxRetries = 3;
+    // 非幂等写操作（git 的 confirm:true / db 的 allowWrite:true，或工具名命中写语义）不重试，
+    // 避免"已执行但响应超时"时退避重试造成重放（重复 commit / 重复写 SQL）
+    const isWriteOp =
+      args.confirm === true ||
+      args.allowWrite === true ||
+      /commit|_add$|create_branch|checkout|^reset|push|delete|insert|update|drop|alter/i.test(toolName);
+    const maxRetries = isWriteOp ? 0 : 3;
     let lastErr: Error | undefined;
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
@@ -163,15 +175,28 @@ export class McpClient {
     return { ok: false, output: '', error: lastErr?.message ?? 'tools/call 失败' };
   }
 
-  /** 关闭连接（结束子进程） */
+  /**
+   * 关闭连接（优雅结束子进程）：
+   *  1. 先 reject 全部在途请求，避免调用方挂到超时；
+   *  2. 再走 stdin EOF，让 server 在 'end' 事件中自主清理（如 SQLite close、浏览器 quit）；
+   *  3. 2s 内未退出才 SIGTERM 强杀兜底（SIGTERM 会绕过 server 清理路径，仅作兜底）。
+   */
   async close(): Promise<void> {
     this.connected = false;
+    this.rejectAll('连接已关闭');
     this.rl?.close();
     this.rl = null;
-    if (this.child && this.child.exitCode === null) {
-      this.child.kill();
-    }
+    const child = this.child;
     this.child = null;
+    if (!child || child.exitCode !== null) return;
+    try { child.stdin?.end(); } catch { /* noop */ }
+    const exitedGracefully = await new Promise<boolean>((resolve) => {
+      const timer = setTimeout(() => resolve(false), 2000);
+      child.once('exit', () => { clearTimeout(timer); resolve(true); });
+    });
+    if (!exitedGracefully) {
+      try { child.kill(); } catch { /* noop */ }
+    }
   }
 
   /** stderr 摘要（诊断用） */

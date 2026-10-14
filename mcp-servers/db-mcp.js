@@ -162,6 +162,7 @@ async function runTool(name, args) {
     case 'db_describe': {
       const t = args.table;
       if (!t) throw new Error('缺少参数 table');
+      if (!/^[A-Za-z0-9_]+$/.test(t)) throw new Error('非法表名（仅允许字母/数字/下划线）：' + t);
       if (ENGINE === 'sqlite') {
         const db = getSqlite();
         const rows = db.prepare('PRAGMA table_info(' + JSON.stringify(t) + ')').all();
@@ -189,13 +190,15 @@ async function runTool(name, args) {
         throw new Error('写操作被安全护栏拦截：该语句非只读（' + sql.slice(0, 40) + '…），需显式传 allowWrite:true。');
       }
       if (!readOnly && allowWrite) {
-        // 二次兜底：即便 allowWrite，也仅放行常见 DML/DDL，且 MySQL/PG 下显式事务提交
+        // 二次兜底：SQLite 单语句 prepare 天然阻断多语句注入；MySQL/PG 依赖驱动默认 autocommit 提交
       }
       const limit = Math.min(Number(args.limit) || 200, 1000);
       if (ENGINE === 'sqlite') {
         const db = getSqlite();
         if (readOnly) {
-          const rows = db.prepare(sql).all();
+          // limit 同时作用于执行层：无 LIMIT 的查询自动追加，避免大表全量拉入内存
+          const execSql = /limit\s+\d+/i.test(sql) ? sql : sql.replace(/;\s*$/, '') + ' LIMIT ' + limit;
+          const rows = db.prepare(execSql).all();
           return rowsToText(rows, limit);
         }
         // 写操作
@@ -241,17 +244,21 @@ async function handleMcp(msg) {
     const name = params.name;
     const args = params.arguments || {};
     try {
+      inFlight++;
       const out = await runTool(name, args);
       send({ jsonrpc: '2.0', id, result: { content: [{ type: 'text', text: String(out) }], isError: false } });
     } catch (e) {
       const err = (e && e.message) || String(e);
       send({ jsonrpc: '2.0', id, result: { content: [{ type: 'text', text: '错误：' + err }], isError: true } });
+    } finally {
+      inFlight--;
     }
     return;
   }
   send({ jsonrpc: '2.0', id, error: { code: -32601, message: 'Method not found: ' + method } });
 }
 
+let inFlight = 0; // stdin EOF 时等待在途 tools/call 完成再退出, 避免响应静默丢失
 const rl = readline.createInterface({ input: process.stdin });
 rl.on('line', (line) => {
   if (!line.trim()) return;
@@ -263,8 +270,13 @@ rl.on('line', (line) => {
 });
 
 process.stdin.on('end', () => {
-  try { if (sqliteDb) sqliteDb.close(); } catch { /* noop */ }
-  try { if (sqlPool && sqlPool.end) sqlPool.end(); } catch { /* noop */ }
-  process.exit(0);
+  const t0 = Date.now();
+  (function waitDrain() {
+    if (inFlight <= 0 || Date.now() - t0 > 5000) {
+      try { if (sqliteDb) sqliteDb.close(); } catch { /* noop */ }
+      try { if (sqlPool && sqlPool.end) sqlPool.end(); } catch { /* noop */ }
+      process.exit(0);
+    } else setTimeout(waitDrain, 50);
+  })();
 });
 process.stdin.resume();

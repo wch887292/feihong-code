@@ -21,6 +21,9 @@ const readline = require('readline');
  */
 function createMcpServer({ name, version, tools }) {
   const toolMap = new Map(tools.map((t) => [t.name, t]));
+  // in-flight 计数：tools/call 的 await 期间 +1；stdin EOF 时等待归零再退出，
+  // 避免"请求已执行、响应未发出"时被 exit(0) 静默丢弃（客户端干等超时）。
+  let inFlight = 0;
 
   function send(obj) {
     process.stdout.write(JSON.stringify(obj) + '\n');
@@ -61,11 +64,14 @@ function createMcpServer({ name, version, tools }) {
         return;
       }
       try {
+        inFlight++;
         const out = await tool.handler(args);
         send({ jsonrpc: '2.0', id, result: { content: [{ type: 'text', text: String(out) }], isError: false } });
       } catch (e) {
         const err = (e && e.message) || String(e);
         send({ jsonrpc: '2.0', id, result: { content: [{ type: 'text', text: `错误：${err}` }], isError: true } });
+      } finally {
+        inFlight--;
       }
       return;
     }
@@ -81,7 +87,14 @@ function createMcpServer({ name, version, tools }) {
       send({ jsonrpc: '2.0', id: msg && msg.id, error: { code: -32603, message: (e && e.message) || String(e) } });
     });
   });
-  process.stdin.on('end', () => process.exit(0));
+  // stdin EOF：等待在途 tools/call 完成（上限 5s）再退出，杜绝响应静默丢失
+  process.stdin.on('end', () => {
+    const t0 = Date.now();
+    (function waitDrain() {
+      if (inFlight <= 0 || Date.now() - t0 > 5000) process.exit(0);
+      else setTimeout(waitDrain, 50);
+    })();
+  });
   process.stdin.resume();
 
   // 诊断信息写 stderr（协议要求 stdout 仅走协议）

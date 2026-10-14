@@ -143,17 +143,21 @@ async function handleMcp(msg) {
     const name = params.name;
     const args = params.arguments || {};
     try {
+      inFlight++;
       const out = await runTool(name, args);
       send({ jsonrpc: '2.0', id, result: { content: [{ type: 'text', text: String(out) }], isError: false } });
     } catch (e) {
       const err = (e && e.message) || String(e);
       send({ jsonrpc: '2.0', id, result: { content: [{ type: 'text', text: '错误：' + err }], isError: true } });
+    } finally {
+      inFlight--;
     }
     return;
   }
   send({ jsonrpc: '2.0', id, error: { code: -32601, message: 'Method not found: ' + method } });
 }
 
+let inFlight = 0; // stdin EOF 时等待在途 tools/call 完成再退出, 避免响应静默丢失
 const rl = readline.createInterface({ input: process.stdin });
 rl.on('line', (line) => {
   if (!line.trim()) return;
@@ -164,5 +168,12 @@ rl.on('line', (line) => {
   });
 });
 
-process.stdin.on('end', () => process.exit(0));
+process.stdin.on('end', () => {
+  const t0 = Date.now();
+  (function waitDrain() {
+    if (inFlight <= 0 || Date.now() - t0 > 5000) {
+      process.exit(0);
+    } else setTimeout(waitDrain, 50);
+  })();
+});
 process.stdin.resume();

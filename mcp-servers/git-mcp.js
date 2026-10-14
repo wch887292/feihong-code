@@ -82,8 +82,14 @@ const TOOLS = [
   },
 ];
 
-function resolveRepo(args) {
-  return args.repo ? path.resolve(args.repo) : process.cwd();
+async function resolveRepo(args) {
+  const repo = args.repo ? path.resolve(args.repo) : process.cwd();
+  // 仓库预检：提前给出友好错误，避免在非仓库目录上跑 git 报晦涩信息
+  const { out } = await git(repo, ['rev-parse', '--is-inside-work-tree']);
+  if (out.trim() !== 'true') {
+    throw new Error('不是 git 仓库目录：' + repo + '（请确认 repo 参数指向含 .git 的仓库根）');
+  }
+  return repo;
 }
 
 function git(repo, args, opts = {}) {
@@ -108,7 +114,7 @@ function requireConfirm(args) {
 }
 
 async function runTool(name, args) {
-  const repo = resolveRepo(args);
+  const repo = await resolveRepo(args);
   switch (name) {
     case 'git_status': {
       const { out } = await git(repo, ['status', '--porcelain', '-b']);
@@ -205,17 +211,21 @@ async function handleMcp(msg) {
     const name = params.name;
     const args = params.arguments || {};
     try {
+      inFlight++;
       const out = await runTool(name, args);
       send({ jsonrpc: '2.0', id, result: { content: [{ type: 'text', text: String(out) }], isError: false } });
     } catch (e) {
       const err = (e && e.message) || String(e);
       send({ jsonrpc: '2.0', id, result: { content: [{ type: 'text', text: '错误：' + err }], isError: true } });
+    } finally {
+      inFlight--;
     }
     return;
   }
   send({ jsonrpc: '2.0', id, error: { code: -32601, message: 'Method not found: ' + method } });
 }
 
+let inFlight = 0; // stdin EOF 时等待在途 tools/call 完成再退出, 避免响应静默丢失
 const rl = readline.createInterface({ input: process.stdin });
 rl.on('line', (line) => {
   if (!line.trim()) return;
@@ -226,5 +236,12 @@ rl.on('line', (line) => {
   });
 });
 
-process.stdin.on('end', () => process.exit(0));
+process.stdin.on('end', () => {
+  const t0 = Date.now();
+  (function waitDrain() {
+    if (inFlight <= 0 || Date.now() - t0 > 5000) {
+      process.exit(0);
+    } else setTimeout(waitDrain, 50);
+  })();
+});
 process.stdin.resume();
