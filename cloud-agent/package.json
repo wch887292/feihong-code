@@ -1,0 +1,9 @@
+{
+  "name": "feihong-cloud-agent",
+  "version": "1.0.0",
+  "private": true,
+  "description": "飞虹 Code 云中转/云端执行体（cloud-agent 本地依赖隔离，避免上溯父级 package.json）",
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

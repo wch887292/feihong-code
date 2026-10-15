@@ -13,7 +13,12 @@ import { promisify } from 'util';
 
 const execAsync = promisify(exec);
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const PORT = parseInt(process.argv.find(a => a.startsWith('--port='))?.split('=')[1] ?? '8080');
+// 端口参数兼容两种形式：--port=8082 与 --port 8082（旧版仅认等号形式，
+// 导致 start-web.js --port 8082 静默回落默认 8080，云中转隧道打不进来）
+const _portArgEq = process.argv.find(a => a.startsWith('--port='))?.split('=')[1];
+const _portArgSp = process.argv.find((a, i) => a === '--port' && process.argv[i + 1]) != null
+  ? process.argv[process.argv.indexOf('--port') + 1] : undefined;
+const PORT = parseInt(_portArgEq ?? _portArgSp ?? '8080');
 
 console.log(`\n${'═'.repeat(50)}`);
 console.log('  飞虹 Code Web 控制台 启动');
