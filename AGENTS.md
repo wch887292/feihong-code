@@ -1,36 +1,59 @@
 # 飞虹 Code 开发规范（AGENTS.md）
 
-本文件由主控注入，任务是让 fhcode 在开发时遵循以下强制规范，避免在真实 Windows 环境暴露常见缺陷。
+本文件指导 fhcode 项目的开发与运维，所有 AI 代理在本项目工作时必须遵循。
 
-## 一、Windows 系统命令解析规范（最高优先级）
+## 一、项目基本信息
 
-解析任何系统命令输出前，**必须先实际执行一次抓取真实 stdout**，再按其真实格式写解析代码。禁止凭经验假设格式。
+- **项目路径**：`H:\feihong-code`（主仓库，旧路径 `H:\Muse Code复刻` 已废弃）
+- **版本**：8.9.0
+- **技术栈**：Node.js 22+ / TypeScript / Express / SQLite / Electron / Capacitor
+- **构建**：`npm run build`（tsc + copy-web）
+- **主服务**：`node dist/cli/index.js serve --port 8082`
+- **Web 控制台**：`http://localhost:8082`，Bearer Token 见启动日志（持久化，重启不变）
+- **配置文件**：`.env`（模型/密钥）+ `fhcode.config.json`（MCP 服务器）
 
-- `netsh wlan show networks mode=bssid`：SSID 行是 `SSID 1 : RED15`（**冒号 + 编号**），字段用 `:` 分隔，不是 `=`。
-- `netsh wlan show interfaces`：首行是 `There is 1 interface on the system:`（**单数 is**），字段冒号分隔；SSID / Signal / Band / Channel / Receive rate / Transmit rate 都在此。
-- `ping`：输出可能是英文（`Packets: Sent = 2, Received = 2` / `time=27ms`）或中文（`已发送 = 4` / `最短 = 27ms`）。解析必须**同时兼容中英文**。
-- `Get-NetAdapter`：WiFi 网卡的 `PhysicalMediaType` 是 `Native 802.11`，用 `-like '*802.11*'` 匹配，不能用 `-eq '802.11'`。
-- 同类数据必须去重：同一 SSID 多个 BSS（channel/band 不同）应合并为一个网络，取最强信号，不要产生重复条目。
+## 二、配置硬规则
 
-## 二、Windows 原生 API（WlanApi.dll）规范
+### .env 格式（最高优先级）
+- **所有 JSON 数组值必须单行**，禁止跨行、禁止用单引号包裹。
+  - 错误：`FH_PROVIDERS='[\n  {...},\n  {...}\n]'`（dotenv 截断为 `'[`，导致 loadConfig 崩溃）
+  - 正确：`FH_PROVIDERS=[{"id":"agnes",...},{"id":"openrouter",...}]`
+- 修改 `.env` 后必须重启服务生效。
+- `.env` 含密钥，禁止外发、禁止提交到公开仓库。
 
-调用原生 API 前，先用 `ctypes.windll.WlanApi` 逐个 `getattr` 探测函数是否存在，捕获 `AttributeError`，**禁止臆造函数名**。
+### fhcode.config.json
+- MCP 服务器的 `command` 用 `node`，`args` 用**绝对路径**（`H:/feihong-code/mcp-servers/xxx-mcp.js`），`cwd` 设为 `H:/feihong-code`。
+- 平台密钥通过各服务器的 `env` 字段传入，不要写进服务器代码。
+- 修改后重启服务，用 `GET /api/mcp/tools` 验证全部在线。
 
-- 正确导出函数（2026-10 实测）：`WlanOpenHandle` / `WlanEnumInterfaces` / `WlanGetNetworkBssList` / `WlanConnect` / `WlanQueryInterface` / `WlanScan` / `WlanFreeMemory`。
-- **不存在**：`WlanClientGetInterface`、`WlanGetNetworkBssIdList`（曾因此导致原生路径整体静默失效）。
-- ctypes `Structure` 字段名**不能含点号**（如 `u.physicalType` 非法，会导致定义失败）。
-- 权限不足时读取 BSS 受限，自动降级到 `netsh`，保证任何环境下界面都能列出网络，不静默失败。
+## 三、启动与验证规范
 
-## 三、交付前强制验证规范
+1. 启动前确认端口未被占用：`Get-NetTCPConnection -LocalPort 8082`
+2. 后台启动：`Start-Process node -ArgumentList "dist/cli/index.js","serve","--port","8082" -WorkingDirectory "H:\feihong-code" -RedirectStandardOutput logs\xxx.log -RedirectStandardError logs\xxx.err.log -WindowStyle Hidden`
+3. 启动后等待 6-8 秒，验证：
+   - `GET http://localhost:8082/api/health` → ok=true
+   - `GET http://localhost:8082/api/mcp/tools`（带 Bearer Token）→ 10 服务器全部 ok=true
+4. 若 MCP 返回 500，第一检查 `.env` 的 FH_PROVIDERS 格式（单行 JSON），第二检查 `fhcode.config.json` 路径。
 
-每个任务交付前，**必须在目标 Windows 真实环境跑一次端到端验证脚本**（如 `verify.py`），逐项确认：
-1. 扫描是否真正返回了网络（非 0 个）
-2. 接口信息是否真正解析到（SSID / 频段 / 信道 / 速率）
-3. ping 是否真正有往返数据（非全 0/全丢包）
-4. 电源管理/硬件检测是否真正取到适配器名
-5. 每个 `空 / 0 / None / 100%丢包` 都是 bug 线索，抓真实输出修正解析后重跑，直到全绿。
-验证结果写入 README 供追溯。
+## 四、Windows 环境注意
 
-## 四、模型与执行
-- 若主模型被限流（429），自动轮换到可用 provider；本地 Ollama 模型（fhcode-agent / qwen3）不受限流，作为可靠兜底。
-- 后台无交互审批通道时，需设置 `FH_REQUIRE_APPROVAL=false` 与合适的 `FH_SANDBOX_MODE`，否则 run_shell / edit_file 全被拒导致任务空转。
+- **PowerShell 5.1 不支持三元运算符 `?`**，脚本中用 `if/else`。
+- **PowerShell 5.1 无 BOM 的中文 .ps1 会乱码**，含中文的脚本用 Node 执行或加 BOM。
+- `python` 命令可能指向错误解释器，用全路径 `C:\Python314\python.exe`。
+- 路径用正斜杠 `/` 或双反斜杠 `\\`，Node 模块路径用 `H:/feihong-code/...`。
+
+## 五、技能与 MCP 开发
+
+- 新增技能放 `H:\feihong-code\.agents\skills\<skill-name>\SKILL.md`，必须有标准 frontmatter（name/description）。
+- 新增 MCP 服务器放 `H:\feihong-code\mcp-servers\<name>-mcp.js`，复用 `./lib/mcp-framework.js` 的 `createMcpServer`。
+- 技能总数 = 项目级（.agents/skills）+ 用户级（~/.feihong-code/skills），启动时自动发现。
+- MCP 服务器必须在 `fhcode.config.json` 注册后才会被 agent 调用。
+
+## 六、交付前验证清单
+
+- [ ] `npm run build` 无错误
+- [ ] 服务启动后 health 接口正常
+- [ ] 10 个 MCP 服务器全部在线（/api/mcp/tools）
+- [ ] 模型 providers 正确加载（loadConfig 不抛异常）
+- [ ] 关键功能端到端验证（聊天、技能调用、MCP 工具调用）
+- [ ] 日志无未处理异常
