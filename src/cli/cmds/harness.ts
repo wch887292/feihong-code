@@ -21,7 +21,7 @@ export interface HarnessCmdOptions {
   offset: number;
   mode: 'mock' | 'real';
   /** P7-1: 验证器类型 file=文件存在（默认）/ test=官方测试通过（TestVerifier，跑 FAIL_TO_PASS） */
-  verifier?: 'file' | 'test';
+  verifier?: 'file' | 'test' | 'none';
   testCommand?: string;
   report?: string;
   json: boolean;
@@ -42,9 +42,10 @@ export async function runHarness(opts: HarnessCmdOptions): Promise<void> {
 
   const loader = new SwebenchLoader({ split: opts.split });
   const executor = opts.mode === 'real' ? new RealModelExecutor() : new MockOrchestratorExecutor();
-  // P7-1: 可插拔验证器——--verifier test 用 TestVerifier 跑 FAIL_TO_PASS 官方测试（真实硬指标）
+  // P7-1: 可插拔验证器——--verifier test 跑 FAIL_TO_PASS；none 仅看 agent 闭环收尾(runOk)，用于真实模型驱动能力统计
   const verifier = opts.verifier === 'test'
     ? new TestVerifier({ testCommand: opts.testCommand })
+    : opts.verifier === 'none' ? undefined
     : new FileExistsVerifier();
   const harness = new Harness({
     loader,

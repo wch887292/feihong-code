@@ -1,0 +1,9 @@
+{
+  "name": "营销技能库",
+  "slug": "marketing-skills",
+  "version": "1.0.0",
+  "installedAt": 1783153730190,
+  "source": "marketplace",
+  "iconSource": "marketing-skills",
+  "preinstalledTemplate": true
+}

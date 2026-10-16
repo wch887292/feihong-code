@@ -1,0 +1,37 @@
+# fhcode 技能 CI 流水线配置
+# 触发：新技能提交/修改 .fhcode/skills/ 目录时
+# 用法：powershell -File .fhcode-ci/run-ci.ps1
+
+pipeline:
+  name: fhcode-skill-ci
+  version: 1.0.0
+  trigger:
+    paths:
+      - ".fhcode/skills/*"
+    on: [push, manual]
+
+stages:
+  - name: schema-check
+    description: "校验每个技能的 SKILL.md frontmatter 必填字段"
+    required_fields: [name, description]
+    fail_on_error: true
+
+  - name: security-scan
+    description: "扫描硬编码密钥/token/密码"
+    patterns:
+      - 'sk-[a-zA-Z0-9]{20,}'
+      - 'AKIA[A-Z0-9]{16}'
+      - 'ghp_[a-zA-Z0-9]{30,}'
+      - 'BEGIN [A-Z ]*PRIVATE KEY'
+    fail_on_error: true
+
+  - name: structure-check
+    description: "校验技能目录结构完整性"
+    required_files: [SKILL.md]
+    fail_on_error: true
+
+rules:
+  - 高危安全问题（硬编码密钥）→ 阻断入库
+  - schema缺失（name/description）→ 阻断入库
+  - SKILL.md缺失 → 阻断入库
+  - 其他警告 → 记录但不阻断

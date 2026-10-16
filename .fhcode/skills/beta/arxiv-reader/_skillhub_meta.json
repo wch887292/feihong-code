@@ -1,0 +1,9 @@
+{
+  "name": "ArXiv论文精读",
+  "slug": "arxiv-reader",
+  "version": "1.0.3",
+  "installedAt": 1783153730164,
+  "source": "marketplace",
+  "iconSource": "arxiv-reader",
+  "preinstalledTemplate": true
+}

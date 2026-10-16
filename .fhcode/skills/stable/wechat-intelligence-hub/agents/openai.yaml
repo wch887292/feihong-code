@@ -1,0 +1,6 @@
+interface:
+  display_name: "微信个人情报库 / WeChat Intelligence Hub"
+  short_description: "全微信检索、联系人情报、日报与合作机会推进"
+  default_prompt: "使用 $wechat-intelligence-hub 刷新并查看我的微信个人情报库，整理待回复、待兑现承诺、商单、培训和项目合作，并给出有证据的下一步。"
+policy:
+  allow_implicit_invocation: true

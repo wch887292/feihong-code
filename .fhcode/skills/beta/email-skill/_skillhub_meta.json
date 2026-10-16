@@ -1,0 +1,9 @@
+{
+  "name": "邮件管理",
+  "slug": "email-skill",
+  "version": "0.1.0",
+  "installedAt": 1783153730157,
+  "source": "marketplace",
+  "iconSource": "email-skill",
+  "preinstalledTemplate": true
+}

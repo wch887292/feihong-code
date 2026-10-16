@@ -1,0 +1,13 @@
+{
+  "name": "宝塔面板管理与 MCP 接入",
+  "installedAt": 1789044702678,
+  "source": "marketplace",
+  "version": "1.0.1",
+  "skillId": "skill_2095077969453903872",
+  "description_zh": "使用 AI Agent 管理宝塔面板，并安全部署、配置和接入宝塔 MCP 服务。",
+  "description_en": "Manage BT Panel with AI agents and securely deploy, configure, and connect the BT Panel MCP service.",
+  "iconSource": "https://openplatform-cdn.codebuddy.cn/public/common/capability_cover/6231ee85-da9e-421c-ac32-54562bbae139/f2503950-9b81-4d54-ad79-d66e39732ead.png",
+  "iconLocalPath": "C:\\Users\\Administrator\\.workbuddy\\skills\\btpanel\\_icon.png",
+  "iconDownloadedFrom": "https://openplatform-cdn.codebuddy.cn/public/common/capability_cover/6231ee85-da9e-421c-ac32-54562bbae139/f2503950-9b81-4d54-ad79-d66e39732ead.png",
+  "installedContentHash": "sha256:6f79fd9d5e7e6c162dfc41ba7bb651c4206cc04243141ff56da86a0051d7f0c5"
+}

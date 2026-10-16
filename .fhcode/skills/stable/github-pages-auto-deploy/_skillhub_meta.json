@@ -1,0 +1,23 @@
+{
+  "name": "GitHub Pages Auto Deploy",
+  "installedAt": 1786326593662,
+  "source": "marketplace",
+  "version": "1.0.0",
+  "skillId": "skill_2054901716814716928",
+  "examples_zh": [
+    "给这个网站配置 GitHub Pages 自动部署",
+    "推送代码后自动发布我的静态站",
+    "帮我给 GitHub Pages 配一个自定义域名"
+  ],
+  "examples_en": [
+    "Configure automatic GitHub Pages deployment for this site",
+    "Publish my static site automatically after each push",
+    "Help me set up a custom domain for GitHub Pages"
+  ],
+  "description_zh": "配置 GitHub Pages 自动部署和自定义域名支持",
+  "description_en": "Configure automatic GitHub Pages deployment with custom domains",
+  "iconSource": "https://openplatform-cdn.codebuddy.cn/public/45edac6b-2078-4678-89f3-6f9800cf5e5f/avatar/skill/au_c7fcf7d2-718.svg",
+  "iconLocalPath": "C:\\Users\\Administrator\\.workbuddy\\skills\\github-pages-auto-deploy\\_icon.svg",
+  "iconDownloadedFrom": "https://openplatform-cdn.codebuddy.cn/public/45edac6b-2078-4678-89f3-6f9800cf5e5f/avatar/skill/au_c7fcf7d2-718.svg",
+  "installedContentHash": "sha256:2d568152d80db566fb4271e4f6c3a09f0c3f8b201847158cba58927d4bad2123"
+}

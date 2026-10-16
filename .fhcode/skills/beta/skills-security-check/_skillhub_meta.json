@@ -1,0 +1,14 @@
+{
+  "name": "Skill安全审计（云鼎实验室）",
+  "installedAt": 1774535356108,
+  "source": "marketplace",
+  "iconSource": "https://openplatform-cdn.codebuddy.cn/public/skills/icons/skills-security-check.svg",
+  "version": "1.0.2",
+  "skillId": "skill_2053082711420960768",
+  "skillName": "skills-security-check",
+  "description_zh": "腾讯云鼎出品，Skill 安全审计工具",
+  "description_en": "Scan a third-party Claude Code skill for security risks before enabling it. Use...",
+  "iconLocalPath": "C:\\Users\\Administrator\\.workbuddy\\skills\\skills-security-check\\_icon.svg",
+  "iconDownloadedFrom": "https://openplatform-cdn.codebuddy.cn/public/skills/icons/skills-security-check.svg",
+  "installedContentHash": "sha256:246384eda64722659a9cb511577e2b691b97ecc84cfafc7a648879d4ff0e729f"
+}

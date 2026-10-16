@@ -1,0 +1,9 @@
+{
+  "name": "微信读书助手",
+  "slug": "weread-skills",
+  "version": "1.0.3",
+  "installedAt": 1783153730114,
+  "source": "marketplace",
+  "iconSource": "weread-skills",
+  "preinstalledTemplate": true
+}

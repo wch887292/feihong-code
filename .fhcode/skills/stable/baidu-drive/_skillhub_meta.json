@@ -1,0 +1,10 @@
+{
+  "name": "百度网盘",
+  "installedAt": 1784366245034,
+  "source": "marketplace",
+  "iconSource": "baidu-drive",
+  "version": "1.4.3",
+  "skillId": "skill_2053081382993469440",
+  "skillName": "baidu-drive",
+  "installedContentHash": "sha256:c593df46bf383dd567f1dd08a17948528f6731109faa4f392af525cfcc1a529e"
+}

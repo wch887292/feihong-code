@@ -1,0 +1,9 @@
+{
+  "name": "腾讯会议",
+  "slug": "tencent-meeting-skill",
+  "version": "1.0.10",
+  "installedAt": 1783153730107,
+  "source": "marketplace",
+  "iconSource": "tencent-meeting-skill",
+  "preinstalledTemplate": true
+}

@@ -1,0 +1,23 @@
+{
+  "name": "全栈开发",
+  "installedAt": 1786326484713,
+  "source": "marketplace",
+  "version": "1.0.0",
+  "skillId": "skill_2053082011994116096",
+  "examples_zh": [
+    "帮我搭建一个 Express + React 全栈项目",
+    "设计用户登录的 REST API",
+    "用 Next.js 实现前后端一体化"
+  ],
+  "examples_en": [
+    "Scaffold an Express + React full-stack project",
+    "Design a user login REST API",
+    "Implement full-stack with Next.js API routes"
+  ],
+  "description_zh": "全栈应用架构与开发指南",
+  "description_en": "Full-stack architecture and development guide",
+  "iconSource": "https://openplatform-cdn.codebuddy.cn/public/skills/icons/fullstack-dev.svg",
+  "iconLocalPath": "C:\\Users\\Administrator\\.workbuddy\\skills\\fullstack-dev\\_icon.svg",
+  "iconDownloadedFrom": "https://openplatform-cdn.codebuddy.cn/public/skills/icons/fullstack-dev.svg",
+  "installedContentHash": "sha256:892d7e7bd85017a9e026fd809709d5ee65cdeb89b596a7a62ca212218a427d17"
+}

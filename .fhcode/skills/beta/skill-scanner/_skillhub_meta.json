@@ -1,0 +1,14 @@
+{
+  "name": "Skill安全扫描（朱雀实验室）",
+  "installedAt": 1774535352173,
+  "source": "marketplace",
+  "iconSource": "https://openplatform-cdn.codebuddy.cn/public/skills/icons/skill-scanner.png",
+  "version": "1.0.0",
+  "skillId": "skill_2053082773933727744",
+  "skillName": "skill-scanner",
+  "description_zh": "朱雀实验室出品，Skill 安全风险扫描",
+  "description_en": "Tencent Zhuque skill security scanner (local-only)",
+  "iconLocalPath": "C:\\Users\\Administrator\\.workbuddy\\skills\\skill-scanner\\_icon.png",
+  "iconDownloadedFrom": "https://openplatform-cdn.codebuddy.cn/public/skills/icons/skill-scanner.png",
+  "installedContentHash": "sha256:15aa7b03f4269c1caac4c20b86c2eedb54860eb148cca4b90288ea0bffcca238"
+}

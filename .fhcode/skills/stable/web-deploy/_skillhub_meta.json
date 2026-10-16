@@ -1,0 +1,21 @@
+{
+  "name": "Web Deploy",
+  "installedAt": 1786326574354,
+  "source": "marketplace",
+  "version": "1.0.0",
+  "skillId": "skill_2054901554596478976",
+  "examples_zh": [
+    "帮我检查这个网站该怎么部署",
+    "把这个前端项目部署到合适的平台",
+    "给这个静态站准备发布流程"
+  ],
+  "examples_en": [
+    "Help me decide how to deploy this website",
+    "Deploy this frontend project to a suitable platform",
+    "Prepare a publishing workflow for this static site"
+  ],
+  "description_zh": "跨 Vercel、Railway、GitHub Pages 的通用 Web 部署指南",
+  "description_en": "Build, preview and deploy web projects across common hosting targets",
+  "iconSource": "letter:auto",
+  "installedContentHash": "sha256:67b34ec251e05c753637f37e03d7505f451e15b1cb95d66ec30a8419cc551485"
+}

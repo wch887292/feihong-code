@@ -1,0 +1,9 @@
+{
+  "name": "MarkItDown",
+  "slug": "markitdown-skill",
+  "version": "1.0.1",
+  "installedAt": 1783153730203,
+  "source": "marketplace",
+  "iconSource": "markitdown-skill",
+  "preinstalledTemplate": true
+}
