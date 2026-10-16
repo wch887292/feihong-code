@@ -45,7 +45,7 @@ export function parseSkillMd(content: string, file = ''): Omit<Skill, 'name'> & 
   return { description: '', body: text.trim(), file };
 }
 
-/** 读取目录下所有 SKILL.md（非递归，技能目录扁平结构） */
+/** 读取目录下所有 SKILL.md（支持一层灰度目录 stable/beta/archive） */
 function readSkillsDir(dir: string): Skill[] {
   if (!existsSync(dir)) return [];
   const out: Skill[] = [];
@@ -53,13 +53,19 @@ function readSkillsDir(dir: string): Skill[] {
     const skillDir = join(dir, entry);
     if (!statSync(skillDir).isDirectory()) continue;
     const md = join(skillDir, 'SKILL.md');
-    if (!existsSync(md)) continue;
-    try {
-      const parsed = parseSkillMd(readFileSync(md, 'utf8'), md);
-      const name = parsed.name ?? entry;
-      out.push({ name, description: parsed.description, body: parsed.body, file: md });
-    } catch {
-      /* 跳过损坏技能 */
+    if (existsSync(md)) {
+      try {
+        const parsed = parseSkillMd(readFileSync(md, 'utf8'), md);
+        const name = parsed.name ?? entry;
+        out.push({ name, description: parsed.description, body: parsed.body, file: md });
+      } catch {
+        /* 跳过损坏技能 */
+      }
+      continue;
+    }
+    // 灰度目录：stable/beta/archive 下一层继续找
+    if (/^(stable|beta|archive)$/.test(entry)) {
+      out.push(...readSkillsDir(skillDir));
     }
   }
   return out;
