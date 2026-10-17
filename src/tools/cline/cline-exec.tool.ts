@@ -36,6 +36,22 @@ export function detectRateLimit(text: string): boolean {
   return RATE_LIMIT_PATTERNS.some((re) => re.test(text));
 }
 
+/** 未授权 / 登录过期识别（OAuth token 失效、未登录 Cline） */
+const AUTH_ERROR_PATTERNS: RegExp[] = [
+  /unauthorized/i,
+  /please\s*sign\s*in/i,
+  /not\s*(logged\s*in|authenticated)/i,
+  /session\s*expired/i,
+  /token.*(expired|invalid)/i,
+  /please\s*run\s+.*cline\s*auth/i,
+  /no\s*(valid\s*)?credentials/i,
+  /未登录|未授权|登录已过期|凭证.*失效|请先登录/i,
+];
+
+export function detectAuthError(text: string): boolean {
+  return AUTH_ERROR_PATTERNS.some((re) => re.test(text));
+}
+
 export interface CliExecResult {
   code: number;
   stdout: string;
@@ -189,6 +205,13 @@ export const clineExecTool: Tool = {
         ok: false,
         output: '',
         error: `CLINE_RATE_LIMIT: Cline 免费额度受限（429/限流），请改用本地模型继续：${smartTruncate(combined, 1200, 400, 700)}`,
+      };
+    }
+    if (detectAuthError(combined)) {
+      return {
+        ok: false,
+        output: '',
+        error: `CLINE_NEED_AUTH: Cline 凭证已过期或未登录，请在终端运行 \`cline auth\`（或 \`cline auth cline\`）完成 OAuth 登录后重试：${smartTruncate(combined, 1200, 400, 700)}`,
       };
     }
     if (res.code !== 0) {

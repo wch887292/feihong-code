@@ -12,6 +12,25 @@ import { openAIChatResponseSchema, parseToolArgs } from '../model.dto';
 import { extractTextToolCalls } from '../text-toolcall';
 import { estimateCost } from '../cost';
 
+/**
+ * 识别 Cline 之类"网关包络"响应：顶层 { data, success }，data 才是真正的
+ * OpenAI Chat Completions。识别条件同时检查 success 字段类型 + data.choices
+ * 存在，避免误把用户标准响应解包。
+ */
+function unwrapGatewayEnvelope(raw: unknown): unknown {
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+    const obj = raw as Record<string, unknown>;
+    if (
+      typeof obj.success === 'boolean' &&
+      obj.data && typeof obj.data === 'object' &&
+      Array.isArray((obj.data as Record<string, unknown>).choices)
+    ) {
+      return obj.data;
+    }
+  }
+  return raw;
+}
+
 export class OpenAICompatibleProvider implements ModelProvider {
   readonly id: string;
   readonly model: string;
@@ -93,7 +112,10 @@ export class OpenAICompatibleProvider implements ModelProvider {
     }
 
     const json: unknown = await res.json().catch(() => undefined);
-    const parsed = openAIChatResponseSchema.safeParse(json);
+    // Cline 等部分网关返回包络结构 { data: <标准响应>, success: bool }，
+    // 标准 schema 校验会报"choices 找不到"。先探测解包再校验。
+    const unwrapped = unwrapGatewayEnvelope(json);
+    const parsed = openAIChatResponseSchema.safeParse(unwrapped);
     if (!parsed.success) {
       throw new ModelError(`响应结构校验失败: ${parsed.error.message}`, this.id);
     }
