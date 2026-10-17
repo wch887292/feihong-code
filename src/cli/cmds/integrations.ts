@@ -23,6 +23,11 @@ import { installPlugin, listPlugins } from '../../plugins/plugin-loader';
 import { runTeam } from '../../agent/team';
 import { executeTask, isOfflineByDefault } from '../../core/task-executor';
 import { ensureScheduler } from '../../runtime/routines/service';
+import {
+  isCodexInstalled,
+  getCodexVersion,
+  getCodexLoginStatus,
+} from '../../tools/codex/codex-exec.tool';
 
 async function probeUrl(base: string): Promise<boolean> {
   const controller = new AbortController();
@@ -245,10 +250,35 @@ export async function runIntegrationsInit(
       }
       console.log('');
     }
+    console.log('🔌 进程级嫁接（Codex）：');
+    console.log('  · codex                       查看 Codex CLI 接入状态（安装/版本/登录）');
     console.log('用法：');
     console.log('  fhcode integrations list                      列出全部模板');
     console.log('  fhcode integrations init <type> [目标目录]    生成模板到工作区');
+    console.log('  fhcode integrations init codex                查看 Codex CLI 接入状态');
     console.log('示例：fhcode integrations init cicd-github');
+    return;
+  }
+
+  // 特殊处理：Codex 接入状态入口
+  if (type === 'codex') {
+    console.log('⚡ 飞虹 Code × OpenAI Codex CLI 接入状态：\n');
+    const available = isCodexInstalled();
+    if (!available) {
+      console.log('  ❌ Codex CLI 未安装。');
+      console.log('  安装方法：npm install -g @openai/codex --prefix "I:/codex"');
+      console.log('  并将 I:\\codex 加入 PATH 后重新打开终端。');
+      return;
+    }
+    const version = getCodexVersion();
+    const login = getCodexLoginStatus();
+    console.log(`  ✅ Codex CLI 已安装：v${version || '未知'}`);
+    console.log(`  🔑 登录状态：${login.loggedIn ? '已登录' : '未登录'}（${login.detail}）`);
+    console.log('');
+    console.log('  使用方式：');
+    console.log('    1. Web 控制台：fhcode serve 后打开浏览器 → 点击顶部「⚡ Codex」');
+    console.log('    2. 直接调用：fhcode codex "任务描述"（即将支持）');
+    console.log('    3. 登录：codex login');
     return;
   }
 

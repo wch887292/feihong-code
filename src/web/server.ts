@@ -35,6 +35,7 @@ import { registerManagerRoutes } from './routes/managers';
 import { registerModelDomainRoutes, getSharedModelRouter } from './routes/model-domain';
 import { registerFilesystemRoutes } from './routes/filesystem';
 import { registerClineRoutes } from './routes/cline';
+import { registerCodexRoutes } from './routes/codex';
 import { registerCloudBridgeRoutes } from './routes/cloud-bridge';
 import { registerShopRoutes } from './routes/shop';
 import {
@@ -770,6 +771,8 @@ export function startWebServer(opts: ServeOptions = {}): {
   registerMemoryRoutes(app, { homeDir });
   /* ========== Cline 进程级嫁接 → routes/cline.ts ========== */
   registerClineRoutes(app, { homeDir });
+  /* ========== Codex 进程级嫁接 → routes/codex.ts ========== */
+  registerCodexRoutes(app, { homeDir });
   /* ========== 云桥接（手机指令→电脑执行）+ 授权 → routes/cloud-bridge.ts ========== */
   registerCloudBridgeRoutes(app, { homeDir, loadJsonFile, saveJsonFile, bruteForce, queue });
   /* ========== P-7 自建商城（支付 + 自动发码闭环）→ routes/shop.ts ========== */
