@@ -1,5 +1,14 @@
 ﻿# 飞虹 Code 更新日志 / Changelog
 
+## v8.10.0 · Web 控制台五项 UI 改造 + Codex CLI 接入 + Cline 健壮性 (2026-10-17)
+
+**主题**：Web 控制台体验重构、进程级嫁接 OpenAI Codex CLI、增强 Cline 集成容错。
+
+- **Web 控制台五项 UI 改造**：① 侧边栏新增「🎯 技能」栏目（列出已安装技能，点击一键填入对话）；② 侧边栏可收起（按钮 / Ctrl+B，收起后图标态，窄屏自动抽屉化）；③ 任务列表支持单删与批量删（批量条含全选 / 计数 / 删除 / 取消，删除前先 stop 运行中任务）；④ 窄屏下对话栏居中满屏、中间栏可上下滑动；⑤ 弃用通话栏，工作区栏（📂文件夹 / 🛡️权限 / 💬开发模式）以紧凑药丸并入输入框
+- **接入 OpenAI Codex CLI（进程级嫁接）**：新增 `src/tools/codex/codex-exec.tool.ts` 封装本地 Codex CLI（安装 / 版本 / 登录探测）；新增 `src/web/routes/codex.ts` 提供 `/api/codex/status` 与 `/api/codex/run`；`server.ts` 注册 Codex 路由；`integrations.ts` 增加 `fhcode integrations init codex` 接入状态入口
+- **增强 Cline 集成健壮性**：`openai-compatible.provider.ts` 增加网关包络响应解包（顶层 `{data,success}` 才是真实 Chat Completions）；`cline-exec.tool.ts` 增加未授权 / 登录过期错误识别（OAuth token 失效、未登录 Cline）
+- 新增 `scripts/ui-check.cjs` Playwright 冒烟测试（覆盖收起 / 技能栏 / 批量删 / 窄屏满屏 + 重复 ID 护栏）
+
 ## v8.9.0 · 企业集成预置模板（P9-1 系统集成增强）(2026-10-11)
 
 **新增**：把零散的集成能力收敛为「开箱即用」的预置模板，显著提升系统集成维度的开箱落地能力。
