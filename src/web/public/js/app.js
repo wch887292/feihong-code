@@ -14,6 +14,7 @@
         'nav.memory': '🧠 记忆',
         'nav.release': '🚀 发布',
         'nav.cline': '🤖 Cline',
+        'nav.codex': '⚡ Codex',
         'sidebar.nav': '导航',
         'sidebar.chat': '对话任务',
         'sidebar.automations': '自动化',
@@ -21,6 +22,8 @@
         'sidebar.market': '插件市场',
         'sidebar.office': '办公助理',
         'sidebar.memory': '记忆系统',
+        'sidebar.nodes': '节点管理',
+        'sidebar.codex': 'Codex',
         'sidebar.user': '用户',
         'sidebar.settings': '设置',
         'sidebar.task_list': '任务列表',
@@ -213,6 +216,7 @@
         'nav.office': '📎 Office',
         'nav.release': '🚀 Release',
         'nav.cline': '🤖 Cline',
+        'nav.codex': '⚡ Codex',
         'nav.memory': '🧠 Memory',
         'sidebar.nav': 'Nav',
         'sidebar.chat': 'Chat',
@@ -222,6 +226,8 @@
         'sidebar.office': 'Office',
         'sidebar.release': 'Release',
         'sidebar.memory': 'Memory',
+        'sidebar.nodes': 'Nodes',
+        'sidebar.codex': 'Codex',
         'sidebar.user': 'User',
         'sidebar.settings': 'Settings',
         'sidebar.task_list': 'Tasks',
@@ -479,6 +485,9 @@
         clearHistoryOnNew: true,  // 新建时清空历史
       },
       procOpen: false,            // 「执行过程」折叠面板是否展开（轮询刷新时保留）
+      sidebarCollapsed: false,    // 侧边栏是否收起（仅图标模式）
+      batchMode: false,           // 任务列表批量管理模式
+      selectedTasks: new Set(),   // 批量模式下已选中的任务ID
     };
 
     (function initSession() {
@@ -648,7 +657,7 @@
         }
         showWelcomeGuide([]);
       }
-      await Promise.allSettled([loadTasks(), loadAutomations(), loadTemplates(), loadMarket(), loadOffice(), loadWorkspace(), loadModels(), loadMemoryStats(), loadNodes(), loadSources(), loadFolderSection(), loadSyncExecEnd()]);
+      await Promise.allSettled([loadTasks(), loadAutomations(), loadTemplates(), loadMarket(), loadOffice(), loadWorkspace(), loadModels(), loadMemoryStats(), loadNodes(), loadSources(), loadFolderSection(), loadSyncExecEnd(), loadSidebarSkills()]);
       startRefresh();
     }
 
@@ -729,6 +738,166 @@
       el.addEventListener('click', () => switchView(el.getAttribute('data-nav')));
     });
 
+    /* ========== 侧边栏收起 / 展开 ========== */
+    const SIDEBAR_KEY = 'fhcode.sidebarCollapsed';
+    function applySidebarCollapsed(collapsed, persist) {
+      state.sidebarCollapsed = !!collapsed;
+      const layout = document.getElementById('appLayout');
+      if (layout) layout.classList.toggle('sidebar-collapsed', state.sidebarCollapsed);
+      const btn = document.getElementById('sidebarFoldBtn');
+      if (btn) {
+        btn.textContent = state.sidebarCollapsed ? '⟩' : '⟨';
+        btn.title = state.sidebarCollapsed ? '展开侧边栏（Ctrl+B）' : '收起侧边栏（Ctrl+B）';
+      }
+      if (persist !== false) {
+        try { localStorage.setItem(SIDEBAR_KEY, state.sidebarCollapsed ? '1' : '0'); } catch {}
+      }
+    }
+    (function initSidebarState() {
+      let saved = null;
+      try { saved = localStorage.getItem(SIDEBAR_KEY); } catch {}
+      // 窄屏（<900px）一律以「收起」进入，对话区满屏；宽屏恢复上次偏好
+      const narrow = window.matchMedia('(max-width: 900px)').matches;
+      applySidebarCollapsed(narrow ? true : saved === '1', false);
+    })();
+    // 跨断点时自动切换：进入窄屏收起抽屉，回到宽屏恢复展开
+    let _lastNarrow = window.matchMedia('(max-width: 900px)').matches;
+    window.addEventListener('resize', () => {
+      const narrow = window.matchMedia('(max-width: 900px)').matches;
+      if (narrow !== _lastNarrow) {
+        _lastNarrow = narrow;
+        applySidebarCollapsed(narrow, false);
+      }
+    });
+    document.getElementById('sidebarFoldBtn')?.addEventListener('click', () => applySidebarCollapsed(!state.sidebarCollapsed));
+    document.getElementById('sidebarMobileBtn')?.addEventListener('click', () => applySidebarCollapsed(!state.sidebarCollapsed));
+    document.getElementById('sidebarBackdrop')?.addEventListener('click', () => applySidebarCollapsed(true));
+    document.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'b' || e.key === 'B')) {
+        e.preventDefault();
+        applySidebarCollapsed(!state.sidebarCollapsed);
+      }
+    });
+    // 窄屏点击侧边栏导航后自动收起抽屉
+    document.querySelectorAll('.sidebar-icon[data-nav]').forEach((el) => {
+      el.addEventListener('click', () => {
+        if (window.matchMedia('(max-width: 900px)').matches) applySidebarCollapsed(true);
+      });
+    });
+
+    /* ========== 技能栏目（侧边栏） ========== */
+    const SKILL_ICONS = ['🧩', '⚡', '🧠', '📊', '🔍', '✍️', '🛠️', '🎨', '🤖', '📦', '🚀', '🧪'];
+    async function loadSidebarSkills() {
+      const list = document.getElementById('skillList');
+      if (!list) return;
+      try {
+        const d = await api('/api/skills/installed');
+        const skills = (d.skills || []).filter((s) => s && s.name);
+        if (!skills.length) {
+          list.innerHTML = '<div class="empty skill-empty">暂无技能，点上方「＋ 市场」安装</div>';
+          return;
+        }
+        list.innerHTML = skills.slice(0, 12).map((s, i) => {
+          const icon = s.icon || SKILL_ICONS[i % SKILL_ICONS.length];
+          const name = escapeHtml(String(s.name));
+          const desc = escapeHtml(String(s.description || ''));
+          return '<div class="skill-item" data-skill="' + encodeURIComponent(String(s.name)) + '" title="' + desc + '">'
+            + '<span class="skill-ico">' + icon + '</span>'
+            + '<span class="skill-name">' + name + '</span>'
+            + '</div>';
+        }).join('');
+        list.querySelectorAll('.skill-item').forEach((el) => {
+          el.addEventListener('click', () => {
+            const name = decodeURIComponent(el.getAttribute('data-skill') || '');
+            const inp = document.getElementById('goalInput');
+            if (!inp || !name) return;
+            const prefix = '使用技能【' + name + '】：';
+            inp.value = inp.value.trim() ? prefix + inp.value.trim() : prefix;
+            switchView('chat');
+            setTimeout(() => inp.focus(), 60);
+          });
+        });
+      } catch (e) {
+        list.innerHTML = '<div class="empty skill-empty">技能加载失败</div>';
+      }
+    }
+    document.getElementById('skillMarketBtn')?.addEventListener('click', () => switchView('market'));
+
+    /* ========== 任务列表：批量删除 ========== */
+    function setBatchMode(on) {
+      state.batchMode = !!on;
+      if (!state.batchMode) state.selectedTasks.clear();
+      const bar = document.getElementById('taskBatchBar');
+      if (bar) bar.style.display = state.batchMode ? 'flex' : 'none';
+      const btn = document.getElementById('taskBatchBtn');
+      if (btn) btn.classList.toggle('active', state.batchMode);
+      renderSidebarTaskList();
+      updateBatchCount();
+    }
+    function updateBatchCount() {
+      const cnt = document.getElementById('taskBatchCount');
+      if (cnt) cnt.textContent = '已选 ' + state.selectedTasks.size;
+      const items = document.querySelectorAll('#taskListContainer .task-item[data-task-id]');
+      const all = document.getElementById('taskSelectAll');
+      if (all) all.checked = items.length > 0 && Array.prototype.every.call(items, (el) => state.selectedTasks.has(el.getAttribute('data-task-id')));
+      const del = document.getElementById('taskBatchDeleteBtn');
+      if (del) {
+        del.disabled = state.selectedTasks.size === 0;
+        del.textContent = state.selectedTasks.size ? '🗑 删除(' + state.selectedTasks.size + ')' : '🗑 删除';
+      }
+    }
+    async function batchDeleteTasks() {
+      const ids = Array.from(state.selectedTasks);
+      if (!ids.length) { toast('请先勾选要删除的任务'); return; }
+      if (!confirm('确定删除选中的 ' + ids.length + ' 个任务？删除后不可恢复。')) return;
+      const btn = document.getElementById('taskBatchDeleteBtn');
+      if (btn) btn.disabled = true;
+      let ok = 0;
+      let fail = 0;
+      for (const id of ids) {
+        try {
+          const t = state.tasks.find((x) => x.id === id);
+          if (t && (t.status === 'running' || t.status === 'queued')) {
+            try { await api('/api/tasks/' + id + '/stop', 'POST'); } catch (_) {}
+            await new Promise((r) => setTimeout(r, 250));
+          }
+          await api('/api/tasks/' + id, 'DELETE');
+          ok++;
+          state.tasks = state.tasks.filter((t) => t.id !== id);
+          if (state.currentTaskId === id) state.currentTaskId = null;
+        } catch (e) {
+          fail++;
+        }
+      }
+      state.selectedTasks.clear();
+      // 当前任务被删除：回退到最新任务或空白态
+      if (!state.currentTaskId) {
+        if (state.tasks.length) {
+          state.currentTaskId = state.tasks[0].id;
+          try { renderTaskDetail(state.currentTaskId); await refreshCurrentThread(); } catch {}
+        } else {
+          try { renderTaskThread(null); } catch {}
+        }
+      }
+      renderSidebarTaskList();
+      updateBatchCount();
+      toast('已删除 ' + ok + ' 个任务' + (fail ? '，' + fail + ' 个失败' : ''));
+      if (!state.tasks.length) setBatchMode(false);
+    }
+    document.getElementById('taskBatchBtn')?.addEventListener('click', () => setBatchMode(!state.batchMode));
+    document.getElementById('taskBatchCancelBtn')?.addEventListener('click', () => setBatchMode(false));
+    document.getElementById('taskBatchDeleteBtn')?.addEventListener('click', batchDeleteTasks);
+    document.getElementById('taskSelectAll')?.addEventListener('change', (e) => {
+      const items = document.querySelectorAll('#taskListContainer .task-item[data-task-id]');
+      Array.prototype.forEach.call(items, (el) => {
+        const id = el.getAttribute('data-task-id');
+        if (e.target.checked) state.selectedTasks.add(id);
+        else state.selectedTasks.delete(id);
+      });
+      renderSidebarTaskList();
+      updateBatchCount();
+    });
+
     /* ========== 用户菜单 ========== */
     const userMenuMask = document.getElementById('userMenuMask');
     document.getElementById('topbarUser').addEventListener('click', () => userMenuMask.classList.add('show'));
@@ -803,6 +972,12 @@
     async function deleteTask(taskId) {
       if (!confirm('确定要删除这个任务吗？')) return;
       try {
+        const t = state.tasks.find((x) => x.id === taskId);
+        // 运行中/排队中的任务先停止，再删除（后端不允许直接删除运行中任务）
+        if (t && (t.status === 'running' || t.status === 'queued')) {
+          try { await api('/api/tasks/' + taskId + '/stop', 'POST'); } catch (_) {}
+          await new Promise((r) => setTimeout(r, 350));
+        }
         await api('/api/tasks/' + taskId, 'DELETE');
         toast('任务已删除');
         state.tasks = state.tasks.filter((t) => t.id !== taskId);
@@ -1543,9 +1718,10 @@
       toast('通话已结束，识别的文字已保留在输入框');
     }
 
-    document.getElementById('voiceCallBtn').addEventListener('click', () => startCall('voice'));
-    document.getElementById('videoCallBtn').addEventListener('click', () => startCall('video'));
-    document.getElementById('hangupCallBtn').addEventListener('click', hangupCall);
+    // 通话栏已从界面移除（语音/视频通话入口下线），保留函数做兼容兜底，全部可选绑定
+    document.getElementById('voiceCallBtn')?.addEventListener('click', () => startCall('voice'));
+    document.getElementById('videoCallBtn')?.addEventListener('click', () => startCall('video'));
+    document.getElementById('hangupCallBtn')?.addEventListener('click', hangupCall);
     document.getElementById('videoCallClose')?.addEventListener('click', hangupCall);
 
     // 视频通话截图：把当前摄像头画面截取下来放到输入框
@@ -2351,10 +2527,10 @@
         bar.className = 'cline-status-bar';
         const d = await api('/api/cline/status');
         if (d.available) {
-          bar.textContent = '✅ Cline CLI 已就绪' + (d.version ? '（v' + d.version + '）' : '') + ' · 免费模型 cline-free/deepseek-v4.1-flash';
+          bar.textContent = '✅ Cline CLI 已安装' + (d.version ? '（v' + d.version + '）' : '') + ' · 若执行报 Unauthorized 请运行 cline auth 登录';
           bar.classList.add('ok');
         } else {
-          bar.textContent = '⚠️ Cline CLI 未安装或未登录：请先运行 cline auth 登录';
+          bar.textContent = '⚠️ Cline CLI 未安装：请先 npm install -g cline（装好后运行 cline auth 登录）';
           bar.classList.add('warn');
         }
       } catch (e) {
@@ -2387,6 +2563,11 @@
           st.style.color = '#d93025';
           tm.textContent = '耗时 ' + Math.round((d.elapsedMs || 0) / 1000) + 's';
           tx.textContent = 'Cline 免费额度受限，已标记退回主模型。\n\n' + (d.text || d.error || '');
+        } else if (d.error && d.error.indexOf('CLINE_NEED_AUTH') === 0) {
+          st.textContent = '🔑 需重新登录';
+          st.style.color = '#d93025';
+          tm.textContent = '耗时 ' + Math.round((d.elapsedMs || 0) / 1000) + 's';
+          tx.textContent = 'Cline 凭证已过期/未登录：请在终端运行 `cline auth` 完成 OAuth 登录后重试。\n\n' + (d.error || '');
         } else if (d.ok) {
           st.textContent = '✅ 完成';
           st.style.color = '#188038';
@@ -2423,7 +2604,90 @@
       if (nav === 'cline') {
         setTimeout(initClineUI, 120);
       }
+      if (nav === 'codex') {
+        setTimeout(initCodexUI, 120);
+      }
     };
+
+    /* ========== Codex 进程级嫁接（Web 控制台入口） ========== */
+    async function loadCodexStatus() {
+      const bar = document.getElementById('codexStatusBar');
+      if (!bar) return;
+      try {
+        bar.textContent = '检测中…';
+        bar.className = 'codex-status-bar';
+        const d = await api('/api/codex/status');
+        if (d.available) {
+          const loginText = d.loggedIn ? '✅ 已登录' : '⚠️ 未登录（请先运行 codex login）';
+          bar.textContent = '✅ Codex CLI 已安装' + (d.version ? '（v' + d.version + '）' : '') + ' · ' + loginText;
+          bar.classList.add(d.loggedIn ? 'ok' : 'warn');
+        } else {
+          bar.textContent = '⚠️ Codex CLI 未安装：请先 npm install -g @openai/codex（或检查 I:\\codex 是否在 PATH）';
+          bar.classList.add('warn');
+        }
+      } catch (e) {
+        bar.textContent = '⚠️ 无法检测 Codex：' + e.message;
+        bar.className = 'codex-status-bar warn';
+      }
+    }
+
+    async function runCodexTask() {
+      const btn = document.getElementById('codexRunBtn');
+      const inp = document.getElementById('codexTaskInput');
+      const result = document.getElementById('codexResult');
+      const task = (inp.value || '').trim();
+      if (!task) { toast('请先输入任务内容'); inp.focus(); return; }
+      const modelEl = document.getElementById('codexModelInput');
+      const model = (modelEl.value || '').trim() || undefined;
+      const effortEl = document.getElementById('codexEffortInput');
+      const reasoningEffort = effortEl ? effortEl.value || undefined : undefined;
+      const sandboxEl = document.getElementById('codexSandboxInput');
+      const sandbox = sandboxEl ? sandboxEl.value || undefined : undefined;
+      btn.disabled = true;
+      btn.textContent = '⏳ Codex 执行中…';
+      result.style.display = 'block';
+      document.getElementById('codexResultStatus').textContent = '⏳ 执行中';
+      document.getElementById('codexResultTime').textContent = '';
+      document.getElementById('codexResultText').textContent = '正在派发给 Codex…（需已登录，最多约 3 分钟）';
+      try {
+        const d = await api('/api/codex/run', 'POST', { task, model, reasoningEffort, sandbox });
+        const st = document.getElementById('codexResultStatus');
+        const tm = document.getElementById('codexResultTime');
+        const tx = document.getElementById('codexResultText');
+        if (d.authError) {
+          st.textContent = '🔑 需登录';
+          st.style.color = '#d93025';
+          tm.textContent = '耗时 ' + Math.round((d.elapsedMs || 0) / 1000) + 's';
+          tx.textContent = 'Codex 未登录：请在终端运行 `codex login` 完成登录后重试。\n\n' + (d.error || '');
+        } else if (d.ok) {
+          st.textContent = '✅ 完成';
+          st.style.color = '#188038';
+          tm.textContent = '耗时 ' + Math.round((d.elapsedMs || 0) / 1000) + 's';
+          tx.textContent = d.text || '（无返回文本）';
+        } else {
+          st.textContent = '❌ 失败';
+          st.style.color = '#d93025';
+          tm.textContent = '耗时 ' + Math.round((d.elapsedMs || 0) / 1000) + 's';
+          tx.textContent = d.error || '执行失败';
+        }
+      } catch (e) {
+        document.getElementById('codexResultStatus').textContent = '❌ 异常';
+        document.getElementById('codexResultStatus').style.color = '#d93025';
+        document.getElementById('codexResultText').textContent = '请求失败：' + e.message;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '▶ 派发给 Codex';
+      }
+    }
+
+    function initCodexUI() {
+      const btn = document.getElementById('codexRunBtn');
+      if (btn && !btn.dataset.bound) {
+        btn.dataset.bound = '1';
+        btn.addEventListener('click', runCodexTask);
+      }
+      loadCodexStatus();
+    }
     if (state.token && state.phone) {
       document.getElementById('loginOverlay').style.display = 'none';
       document.getElementById('appLayout').classList.add('show');

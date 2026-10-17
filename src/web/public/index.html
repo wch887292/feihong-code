@@ -9,6 +9,8 @@
   <meta name="theme-color" content="#4F46E5" />
   <meta name="description" content="飞虹 Code — 终端 AI 编程智能体" />
     <link rel="stylesheet" href="css/style.css">
+    <!-- 对标 WorkBuddy 的设计增强主题（覆盖式增强，需在 style.css 之后加载） -->
+    <link rel="stylesheet" href="css/wb-theme.css">
   <!-- Monaco Editor AMD Loader（代码编辑器内核，VSCode 同款） -->
   <script src="vendor/monaco/vs/loader.js"></script>
 </head>
@@ -45,6 +47,7 @@
         <div class="topbar-nav-item" data-nav="office" data-i18n="nav.office">📎 办公</div>
         <div class="topbar-nav-item" data-nav="memory" data-i18n="nav.memory">🧠 记忆</div>
         <div class="topbar-nav-item" data-nav="cline" data-i18n="nav.cline">🤖 Cline</div>
+        <div class="topbar-nav-item" data-nav="codex" data-i18n="nav.codex">⚡ Codex</div>
         <div class="topbar-nav-item" data-nav="release" data-i18n="nav.release">🚀 发布</div>
       </nav>
       <div class="topbar-spacer"></div>
@@ -61,7 +64,12 @@
     <!-- 主体区 -->
     <div class="main-area">
       <!-- 左侧图标导航 -->
-      <aside class="sidebar">
+      <aside class="sidebar" id="sidebar">
+        <!-- 侧边栏头：标题 + 收起/展开按钮 -->
+        <div class="sidebar-head">
+          <span class="sidebar-head-title">菜单</span>
+          <button class="sidebar-fold-btn" id="sidebarFoldBtn" title="收起侧边栏（Ctrl+B）" aria-label="收起侧边栏">⟨</button>
+        </div>
         <!-- 导航菜单 -->
         <div class="sidebar-section">
           <div class="sidebar-section-title" data-i18n="sidebar.nav">导航</div>
@@ -93,9 +101,44 @@
             <span class="icon">🧠</span>
             <span class="label" data-i18n="sidebar.memory">记忆系统</span>
           </div>
+          <div class="sidebar-icon" data-nav="codex" title="Codex" data-i18n="sidebar.codex">
+            <span class="icon">⚡</span>
+            <span class="label" data-i18n="sidebar.codex">Codex</span>
+          </div>
           <div class="sidebar-icon" data-nav="release" title="产品发布" data-i18n="sidebar.release">
             <span class="icon">🚀</span>
             <span class="label" data-i18n="sidebar.release">产品发布</span>
+          </div>
+        </div>
+
+        <!-- 任务列表 -->
+        <div class="sidebar-section" id="taskListSection" style="display:none;">
+          <div class="sidebar-section-title" style="display:flex;align-items:center;justify-content:space-between;">
+            <span data-i18n="sidebar.task_list">任务列表 <span class="badge" id="taskCountBadge" style="margin-left:4px;">0</span></span>
+            <div class="task-head-tools">
+              <button class="new-task-btn" id="taskBatchBtn" title="批量管理任务（多选删除）">☑ 批量</button>
+              <button class="new-task-btn" id="newTaskBtn" title="新建对话任务" data-i18n="btn.new_task">＋ 新建任务</button>
+            </div>
+          </div>
+          <div class="task-batch-bar" id="taskBatchBar" style="display:none;">
+            <label class="task-batch-all"><input type="checkbox" id="taskSelectAll" /><span>全选</span></label>
+            <span class="task-batch-count" id="taskBatchCount">已选 0</span>
+            <button class="task-batch-del" id="taskBatchDeleteBtn">🗑 删除</button>
+            <button class="task-batch-cancel" id="taskBatchCancelBtn">取消</button>
+          </div>
+          <div id="taskListContainer" style="max-height:300px;overflow-y:auto;">
+            <div class="empty" style="font-size:11px;padding:8px;" data-i18n="empty.no_tasks">暂无任务</div>
+          </div>
+        </div>
+
+        <!-- 技能栏目：已安装技能，一键填入对话 -->
+        <div class="sidebar-section" id="skillSection">
+          <div class="sidebar-section-title" style="display:flex;align-items:center;justify-content:space-between;">
+            <span>🎯 技能</span>
+            <button class="new-task-btn" id="skillMarketBtn" title="前往技能市场安装更多技能">＋ 市场</button>
+          </div>
+          <div id="skillList" class="skill-list">
+            <div class="empty" style="font-size:11px;padding:6px;">加载中…</div>
           </div>
         </div>
 
@@ -108,17 +151,6 @@
           <div class="folder-cwd" id="folderCwd" title="当前工作区">加载中…</div>
           <div id="folderList" class="folder-list">
             <div class="empty" style="font-size:11px;padding:6px;">加载中…</div>
-          </div>
-        </div>
-
-        <!-- 任务列表 -->
-        <div class="sidebar-section" id="taskListSection" style="display:none;">
-          <div class="sidebar-section-title" style="display:flex;align-items:center;justify-content:space-between;">
-            <span data-i18n="sidebar.task_list">任务列表 <span class="badge" id="taskCountBadge" style="margin-left:4px;">0</span></span>
-            <button class="new-task-btn" id="newTaskBtn" title="新建对话任务" data-i18n="sidebar.chat">＋ 新建任务</button>
-          </div>
-          <div id="taskListContainer" style="max-height:300px;overflow-y:auto;">
-            <div class="empty" style="font-size:11px;padding:8px;" data-i18n="empty.no_tasks">暂无任务</div>
           </div>
         </div>
 
@@ -136,6 +168,10 @@
           </div>
         </div>
       </aside>
+
+      <!-- 窄屏：侧边栏抽屉开关 + 遮罩 -->
+      <button class="sidebar-mobile-btn" id="sidebarMobileBtn" title="打开菜单" aria-label="打开菜单">☰</button>
+      <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
 
       <!-- 中间内容区 -->
       <main class="chat-area" id="chatArea">
@@ -194,30 +230,22 @@
                 <span class="pill" id="directModePill" style="display:none;" title="电脑操作模式已开启" data-i18n="chat.direct_mode">🖥 电脑操作</span>
                 <span id="voiceBadge" class="voice-badge" style="display:none;" data-i18n="chat.listening">● 正在听…</span>
                 <span class="spacer"></span>
+                <!-- 工作区设置：原独立「工作区栏」已并入输入框（文件夹 / 权限 / 开发模式） -->
+                <button class="pill wb-mini" id="workspacePickBtn" title="选择工作区文件夹">
+                  <span class="wb-icon">📂</span>
+                  <span class="wb-label" id="workspaceCwdBottom">加载中…</span>
+                  <span class="wb-arrow">▾</span>
+                </button>
+                <div class="pill wb-mini" id="workspacePermBadge" title="点击配置权限">
+                  <span>🛡️</span>
+                  <span id="workspacePermLabel" data-i18n="perm.default">默认权限</span>
+                </div>
+                <div class="pill wb-mini" id="devModeBadge" title="点击切换开发模式：交互模式（豆包式，每轮驱动）/ 自主模式（单命令全自动）">
+                  <span id="devModeIcon">💬</span>
+                  <span id="devModeLabel">交互模式</span>
+                </div>
                 <button id="sendBtn" title="发送（Ctrl+Enter）" aria-label="发送">↑</button>
               </div>
-            </div>
-            <div class="workspace-bar">
-              <button class="wb-select" id="workspacePickBtn" title="选择工作区文件夹" data-i18n="modal.new_task_workspace">
-                <span class="wb-icon">📂</span>
-                <span class="wb-label" id="workspaceCwdBottom" data-i18n="common.loading">加载中…</span>
-                <span class="wb-arrow">▾</span>
-              </button>
-              <div class="wb-perm" id="workspacePermBadge" title="点击配置权限">
-                <span>🛡️</span>
-                <span id="workspacePermLabel" data-i18n="perm.default">默认权限</span>
-              </div>
-              <div class="wb-mode" id="devModeBadge" title="点击切换开发模式：交互模式（豆包式，每轮驱动）/ 自主模式（单命令全自动）">
-                <span id="devModeIcon">💬</span>
-                <span id="devModeLabel">交互模式</span>
-              </div>
-            </div>
-            <div class="call-bar">
-              <span class="call-hint" data-i18n="call.hint">通话</span>
-              <button id="voiceCallBtn" class="call-btn" data-i18n="call.voice">📞 语音</button>
-              <button id="videoCallBtn" class="call-btn" data-i18n="call.video">🎥 视频</button>
-              <button id="hangupCallBtn" class="call-btn hangup" style="display:none;" data-i18n="call.hangup">⛔ 挂断</button>
-              <span id="callStatus" class="call-status"></span>
             </div>
           </div>
         </div>
@@ -251,6 +279,38 @@
           <div class="cline-result" id="clineResult" style="display:none;">
             <div class="cline-result-head"><span id="clineResultStatus"></span><span class="cline-result-time" id="clineResultTime"></span></div>
             <pre id="clineResultText"></pre>
+          </div>
+        </div>
+
+        <!-- Codex 控制台页面（进程级嫁接） -->
+        <div class="page-view" data-view="codex">
+          <div class="page-head">
+            <div data-i18n="nav.codex"><h2>⚡ Codex</h2><div class="sub">fhcode 调度 → OpenAI Codex CLI 执行（需 OpenAI 账号登录）</div></div>
+          </div>
+          <div class="codex-status-bar" id="codexStatusBar">检测中…</div>
+          <div class="section-title">派发任务</div>
+          <div class="codex-form">
+            <textarea id="codexTaskInput" rows="4" placeholder="输入要派给 Codex 的任务，例如：在项目里写一个 Python 计算器并运行"></textarea>
+            <div class="codex-form-row">
+              <input id="codexModelInput" type="text" placeholder="模型（可留空，默认 Codex 自动选择）" />
+              <select id="codexEffortInput">
+                <option value="">推理深度（默认）</option>
+                <option value="minimal">minimal</option>
+                <option value="low">low</option>
+                <option value="medium">medium</option>
+                <option value="high">high</option>
+              </select>
+              <select id="codexSandboxInput">
+                <option value="read-only">沙箱：只读</option>
+                <option value="workspace-write">沙箱：工作区可写</option>
+                <option value="danger-full-access">沙箱：完全访问</option>
+              </select>
+              <button id="codexRunBtn">▶ 派发给 Codex</button>
+            </div>
+          </div>
+          <div class="codex-result" id="codexResult" style="display:none;">
+            <div class="codex-result-head"><span id="codexResultStatus"></span><span class="codex-result-time" id="codexResultTime"></span></div>
+            <pre id="codexResultText"></pre>
           </div>
         </div>
         <!-- 模板库页面 -->

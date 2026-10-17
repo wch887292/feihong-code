@@ -3,9 +3,9 @@
  * 支持离线缓存、PWA 安装、移动端适配
  */
 
-const CACHE_NAME = 'feihong-code-v2';
-const STATIC_CACHE = 'feihong-static-v2';
-const RUNTIME_CACHE = 'feihong-runtime-v2';
+const CACHE_NAME = 'feihong-code-v4';
+const STATIC_CACHE = 'feihong-static-v4';
+const RUNTIME_CACHE = 'feihong-runtime-v4';
 
 // 静态资源缓存列表
 const STATIC_ASSETS = [
@@ -13,6 +13,7 @@ const STATIC_ASSETS = [
   '/index.html',
   '/manifest.json',
   '/css/style.css',
+  '/css/wb-theme.css',
   '/js/app.js',
   '/js/ui.js',
   '/js/api.js',

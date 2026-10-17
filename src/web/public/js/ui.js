@@ -1416,6 +1416,14 @@
       const badge = document.getElementById('taskCountBadge');
       if (!container || !section) return;
 
+      // 批量模式：清理已经被删除/不存在的选中项
+      if (state.batchMode) {
+        const alive = new Set(state.tasks.map((t) => t.id));
+        Array.from(state.selectedTasks).forEach((id) => {
+          if (!alive.has(id)) state.selectedTasks.delete(id);
+        });
+      }
+
       // 置顶任务排在前面，其余按时间倒序
       const sortedTasks = [...state.tasks].sort((a, b) => {
         if (state.pinnedTasks.has(a.id) && !state.pinnedTasks.has(b.id)) return -1;
@@ -1432,6 +1440,7 @@
 
       section.style.display = 'block';
       badge.textContent = activeTasks.length;
+      const batch = !!state.batchMode;
 
       let html = '';
       activeTasks.slice(0, 15).forEach(t => {
@@ -1440,15 +1449,18 @@
         const isPinned = state.pinnedTasks.has(t.id);
         const activeClass = state.currentTaskId === t.id ? 'active' : '';
         const bridgeBadge = t.bridgeCmdId ? '<span class="task-bridge" title="手机云电脑任务">☁️</span>' : '';
-        html += `<div class="task-item ${activeClass}" data-task-id="${t.id}" data-pinned="${isPinned}">
+        const checked = state.selectedTasks.has(t.id) ? 'checked' : '';
+        const running = t.status === 'running' || t.status === 'queued';
+        html += `<div class="task-item ${activeClass} ${batch ? 'batch' : ''}" data-task-id="${t.id}" data-pinned="${isPinned}">
+          ${batch ? `<label class="task-check"><input type="checkbox" data-check-id="${t.id}" ${checked}></label>` : ''}
           <span class="task-icon">${icon}</span>
           <span class="task-title">${title}</span>
           ${bridgeBadge}
           ${isPinned ? '<span class="task-pinned">📌</span>' : ''}
           <div class="task-actions">
             <button class="pin-btn" data-id="${t.id}" data-pinned="${isPinned}" title="${isPinned ? '取消置顶' : '置顶'}">${isPinned ? '📌' : '📍'}</button>
-            ${(t.status === 'running' || t.status === 'queued') ? '<button class="stop-btn" data-id="' + t.id + '" title="停止任务">⏹</button>' : ''}
-            ${t.status === 'done' || t.status === 'failed' ? '<button class="delete-btn" data-id="' + t.id + '" title="删除任务">🗑️</button>' : ''}
+            ${running ? '<button class="stop-btn" data-id="' + t.id + '" title="停止任务">⏹</button>' : ''}
+            <button class="delete-btn" data-id="${t.id}" title="删除任务">🗑️</button>
           </div>
         </div>`;
       });
@@ -1458,17 +1470,37 @@
       // 绑定点击事件
       container.querySelectorAll('.task-item[data-task-id]').forEach(el => {
         el.addEventListener('click', (e) => {
-          // 如果是点击pin按钮，不切换任务
-          if (e.target.classList.contains('pin-btn')) return;
+          // 如果是点击pin/删除/复选控件，不切换任务
+          if (e.target.closest('.pin-btn, .delete-btn, .stop-btn, .task-check')) return;
           const id = el.getAttribute('data-task-id');
+          // 批量模式：点击整行 = 勾选/取消勾选
+          if (state.batchMode) {
+            if (state.selectedTasks.has(id)) state.selectedTasks.delete(id);
+            else state.selectedTasks.add(id);
+            renderSidebarTaskList();
+            updateBatchCount();
+            return;
+          }
           selectTask(id);
         });
 
         // 右键菜单 - 置顶/取消置顶
         el.addEventListener('contextmenu', (e) => {
           e.preventDefault();
+          if (state.batchMode) return;
           const id = el.getAttribute('data-task-id');
           togglePinTask(id);
+        });
+      });
+
+      // 绑定批量勾选框
+      container.querySelectorAll('[data-check-id]').forEach((cb) => {
+        cb.addEventListener('click', (e) => e.stopPropagation());
+        cb.addEventListener('change', () => {
+          const id = cb.getAttribute('data-check-id');
+          if (cb.checked) state.selectedTasks.add(id);
+          else state.selectedTasks.delete(id);
+          updateBatchCount();
         });
       });
 
@@ -1505,6 +1537,9 @@
           }
         });
       });
+
+      // 同步批量工具栏的计数 / 全选状态
+      try { updateBatchCount(); } catch (_) {}
     }
 
     /**
@@ -1542,7 +1577,8 @@
       document.querySelectorAll('.view, .page-view').forEach((v) => v.classList.toggle('active', v.getAttribute('data-view') === nav));
       // 切换时显示/隐藏底部工具栏（任务上下文头部始终可见）
       const isChat = nav === 'chat';
-      document.getElementById('chatFootbar').style.display = isChat ? 'flex' : 'none';
+      const footbar = document.getElementById('chatFootbar');
+      if (footbar) footbar.style.display = isChat ? 'flex' : 'none';
       // 切换到对话视图时，如果当前任务已完成或不存在，自动开启新对话
       if (isChat) {
         const cur = state.tasks.find((t) => t.id === state.currentTaskId);

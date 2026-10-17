@@ -1979,3 +1979,19 @@ pre, code, .code-block, .code-block * {
 .sidebar-icon { border-radius: 12px; }
 .sidebar-icon.active { background: var(--brand-soft); }
 .sidebar-icon.active .label { color: var(--brand); font-weight: 600; }
+
+/* ---- Codex 控制台（进程级嫁接，样式对齐 Cline） ---- */
+.codex-status-bar { margin: 4px 0 14px; padding: 10px 14px; border-radius: 8px; background: #f6f8fa; border: 1px solid #e1e4e8; font-size: 13px; color: #57606a; }
+.codex-status-bar.ok { background: #e6f4ea; border-color: #b7e1c3; color: #188038; }
+.codex-status-bar.warn { background: #fef7e0; border-color: #f3e2a8; color: #b26a00; }
+.codex-form { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+.codex-form textarea { width: 100%; min-height: 96px; padding: 10px 12px; border: 1px solid #d0d7de; border-radius: 8px; font-size: 14px; font-family: inherit; resize: vertical; background: #fff; }
+.codex-form-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.codex-form-row input { flex: 1; padding: 9px 12px; border: 1px solid #d0d7de; border-radius: 8px; font-size: 13px; min-width: 140px; }
+.codex-form-row select { padding: 9px 8px; border: 1px solid #d0d7de; border-radius: 8px; font-size: 12px; background: #fff; }
+.codex-form-row button { padding: 9px 18px; border: 0; border-radius: 8px; background: #1f6feb; color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; }
+.codex-form-row button:disabled { opacity: .6; cursor: not-allowed; }
+.codex-result { border: 1px solid #d0d7de; border-radius: 8px; overflow: hidden; }
+.codex-result-head { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; background: #f6f8fa; border-bottom: 1px solid #e1e4e8; font-weight: 600; font-size: 13px; }
+.codex-result-time { font-weight: 400; color: #6e7781; font-size: 12px; }
+.codex-result pre { margin: 0; padding: 14px; white-space: pre-wrap; word-break: break-word; font-size: 13px; line-height: 1.6; max-height: 60vh; overflow: auto; background: #fff; }
