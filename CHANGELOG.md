@@ -1,6 +1,6 @@
 ﻿# 飞虹 Code 更新日志 / Changelog
 
-## v8.10.0 · Web 控制台五项 UI 改造 + Codex CLI 接入 + Cline 健壮性 (2026-10-17)
+## v8.10.1 · Web 控制台五项 UI 改造 + Codex CLI 接入 + Cline 健壮性 (2026-10-17)
 
 **主题**：Web 控制台体验重构、进程级嫁接 OpenAI Codex CLI、增强 Cline 集成容错。
 
