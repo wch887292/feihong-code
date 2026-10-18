@@ -5,6 +5,7 @@
  * 集中配置（铁律：所有配置来自环境变量，启动时校验，fail-fast，懒加载）
  */
 import { ConfigError } from './errors';
+import { parseShellPolicy } from './shell-policy';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
@@ -85,6 +86,8 @@ export interface AppConfig {
   plugins: LoadedPlugins;
   security: {
     shellAllowlist: string[];
+    /** P0-C（对标 Codex execpolicy）：shell 前缀黑名单（FH_SHELL_DENY），优先级高于白名单 */
+    shellDenylist: string[];
     requireApproval: boolean;
     /** P0-2：沙箱模式（read-only / workspace-write / danger-full-access） */
     sandboxMode: SandboxMode;
@@ -326,7 +329,9 @@ export function loadConfig(): AppConfig {
     // P3-3：插件（用户级 + 项目级），聚合技能目录/hooks/MCP，与显式配置叠加
     plugins,
     security: {
-      shellAllowlist: (process.env.FH_SHELL_ALLOW || '').split(',').map((s) => s.trim()).filter(Boolean),
+      // P0-C：前缀规则解析（无空格=命令名，有空格=子命令前缀），FH_SHELL_DENY 优先级高于 ALLOW
+      shellAllowlist: parseShellPolicy(process.env.FH_SHELL_ALLOW || ''),
+      shellDenylist: parseShellPolicy(process.env.FH_SHELL_DENY || ''),
       requireApproval: process.env.FH_REQUIRE_APPROVAL !== 'false',
       sandboxMode: normalizeSandboxMode(process.env.FH_SANDBOX_MODE),
       networkAllow: (process.env.FH_NETWORK_ALLOW || '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean),

@@ -15,6 +15,7 @@ import { createInterface } from 'readline';
 import { setRunId, logger } from '../shared/logger';
 import { t } from '../shared/i18n';
 import { loadConfig, loadConfigFile } from '../shared/config';
+import { matchShellRules } from '../shared/shell-policy';
 import { AppError } from '../shared/errors';
 import type { CapabilityTag } from '../shared/types';
 import { ModelRouter } from '../models/model-router';
@@ -194,18 +195,25 @@ export function joinHome(): string {
 
 /**
  * 非交互默认审批器：CLI 无交互审批通道时，命中 shell 白名单的命令自动通过，
- * 其余一律拒绝（安全优先，由日志留痕）。配合 FH_SHELL_ALLOW 使用。
+ * 其余一律拒绝（安全优先，由日志留痕）。配合 FH_SHELL_ALLOW / FH_SHELL_DENY 使用。
+ * P0-C：白/黑名单均支持前缀规则；FH_SHELL_DENY 命中一律拒绝（优先级高于白名单）。
  */
 export function defaultApproverFor(security: {
   shellAllowlist: string[];
+  shellDenylist?: string[];
   requireApproval: boolean;
 }): (action: string) => Promise<boolean> {
   return async (action: string): Promise<boolean> => {
     if (!security.requireApproval) return true;
     const cmd = action.replace(/^run_shell:\s*/, '').trim();
-    const head = cmd.split(/\s+/)[0] || '';
-    if (security.shellAllowlist.includes(head)) {
-      logger.info('审批自动通过（命中白名单）', { action });
+    const denyHit = matchShellRules(security.shellDenylist ?? [], cmd);
+    if (denyHit) {
+      logger.warn('审批拒绝（命中 shell 拒绝规则）', { action, rule: denyHit });
+      return false;
+    }
+    const allowHit = matchShellRules(security.shellAllowlist, cmd);
+    if (allowHit) {
+      logger.info('审批自动通过（命中白名单）', { action, rule: allowHit });
       return true;
     }
     logger.warn('审批拒绝（无交互审批通道且未命中白名单）', { action });
@@ -284,6 +292,7 @@ export async function executeTask(goal: string, opts: RunOptions = {}): Promise<
   // Web 控制台可传入安全配置覆盖默认值
   if (opts.security) {
     security.shellAllowlist = opts.security.shellAllowlist ?? security.shellAllowlist;
+    security.shellDenylist = opts.security.shellDenylist ?? security.shellDenylist;
     security.requireApproval = opts.security.requireApproval ?? security.requireApproval;
     security.sandboxMode = opts.security.sandboxMode ?? security.sandboxMode;
   }
@@ -354,6 +363,7 @@ export async function executeTask(goal: string, opts: RunOptions = {}): Promise<
       router = ModelRouter.fromConfig(cfg, undefined, tier);
     }
     security.shellAllowlist = cfg.security.shellAllowlist;
+    security.shellDenylist = cfg.security.shellDenylist;
     security.requireApproval = cfg.security.requireApproval;
     security.sandboxMode = cfg.security.sandboxMode;
     security.networkRules = { networkAllow: cfg.security.networkAllow, networkDeny: cfg.security.networkDeny };
@@ -393,7 +403,7 @@ export async function executeTask(goal: string, opts: RunOptions = {}): Promise<
     (process.stdin.isTTY ? interactiveApprover() : defaultApproverFor(security));
 
   const guard = rt
-    ? rt.makeGuard({ runId, cwd, shellAllowlist: security.shellAllowlist, approve })
+    ? rt.makeGuard({ runId, cwd, shellAllowlist: security.shellAllowlist, shellDenylist: security.shellDenylist, approve })
     : undefined;
 
   // P2-1：SessionStart hooks（注册 pua-ext 等技能 hooks，获取系统提示注入）

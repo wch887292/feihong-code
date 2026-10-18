@@ -76,6 +76,7 @@ export async function runResume(runId: string): Promise<void> {
     const cfg = loadConfig();
     router = ModelRouter.fromConfig(cfg);
     security.shellAllowlist = cfg.security.shellAllowlist;
+    security.shellDenylist = cfg.security.shellDenylist;
     security.requireApproval = cfg.security.requireApproval;
   }
 
@@ -92,6 +93,7 @@ export async function runResume(runId: string): Promise<void> {
         runId: cp.runId,
         cwd: cp.cwd,
         shellAllowlist: security.shellAllowlist,
+        shellDenylist: security.shellDenylist,
         approve,
       })
     : undefined;

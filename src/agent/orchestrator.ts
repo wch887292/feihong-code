@@ -118,6 +118,8 @@ export const COMPLETION_PROTOCOL_PROMPT = `\n\n## 任务完成协议（必须遵
 
 export interface OrchestratorSecurity {
   shellAllowlist: string[];
+  /** P0-C：shell 前缀黑名单（FH_SHELL_DENY，优先级高于白名单） */
+  shellDenylist?: string[];
   requireApproval: boolean;
   /** P0-2：沙箱模式（缺省 workspace-write） */
   sandboxMode?: SandboxMode;

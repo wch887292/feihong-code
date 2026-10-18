@@ -32,6 +32,8 @@ export interface EnterpriseRuntime {
     runId: string;
     cwd: string;
     shellAllowlist: string[];
+    /** P0-C：shell 前缀黑名单（FH_SHELL_DENY） */
+    shellDenylist?: string[];
     approve?: (action: string) => Promise<boolean>;
   }): ToolGuard;
 }
@@ -57,8 +59,8 @@ export function createEnterpriseRuntime(baseHome = resolveHomeDir()): Enterprise
     audit,
     quota,
     maxCostUsd,
-    makeGuard: ({ runId, cwd, shellAllowlist, approve }) =>
-      createEnterpriseGuard({ tenant, policy, audit, runId, cwd, shellAllowlist, approve }),
+    makeGuard: ({ runId, cwd, shellAllowlist, shellDenylist, approve }) =>
+      createEnterpriseGuard({ tenant, policy, audit, runId, cwd, shellAllowlist, shellDenylist, approve }),
   };
 }
 

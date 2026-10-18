@@ -19,6 +19,7 @@ import { join, resolve, sep } from 'path';
 import { logger } from '../shared/logger';
 import { ROLES, type Role } from './tenant';
 import { t } from '../shared/i18n';
+import { matchShellRules } from '../shared/shell-policy';
 
 export type Effect = 'allow' | 'deny' | 'approval';
 
@@ -175,8 +176,10 @@ export interface EvalInput {
   tool: string;
   args: Record<string, unknown>;
   cwd: string;
-  /** 运行时 shell 白名单（FH_SHELL_ALLOW） */
+  /** 运行时 shell 白名单（FH_SHELL_ALLOW，前缀规则） */
   shellAllowlist: string[];
+  /** P0-C：运行时 shell 黑名单（FH_SHELL_DENY，前缀规则，优先级高于白名单） */
+  shellDenylist?: string[];
 }
 
 /** 深合并：仅覆盖用户显式提供的键，避免局部配置抹掉默认安全基线 */
@@ -250,7 +253,7 @@ function escapesWorkspace(cwd: string, p: string): boolean {
 
 /** 策略判定核心 */
 export function evaluate(policy: Policy, input: EvalInput): PolicyDecision {
-  const { role, tool, args, cwd, shellAllowlist } = input;
+  const { role, tool, args, cwd, shellAllowlist, shellDenylist = [] } = input;
   const rolePolicy = policy.roles[role];
 
   // 1) 危险 shell 命令：无条件拒绝，admin 也不例外
@@ -265,6 +268,11 @@ export function evaluate(policy: Policy, input: EvalInput): PolicyDecision {
           rule: 'denyShell',
         };
       }
+    }
+    // P0-C（对标 Codex execpolicy）：FH_SHELL_DENY 前缀黑名单，先于白名单判定
+    const denyHit = matchShellRules(shellDenylist, cmd);
+    if (denyHit) {
+      return { effect: 'deny', reason: `命中 shell 拒绝规则: ${denyHit}`, rule: 'shellDenylist' };
     }
   }
 
@@ -287,12 +295,12 @@ export function evaluate(policy: Policy, input: EvalInput): PolicyDecision {
   const needsApproval = rolePolicy.approvalTools.includes(tool);
 
   if (needsApproval) {
-    // shell 白名单可免审批（仅 run_shell）
+    // shell 白名单可免审批（仅 run_shell，前缀规则匹配）
     if (tool === 'run_shell') {
       const cmd = String(args.command ?? args.cmd ?? '');
-      const head = cmd.trim().split(/\s+/)[0] || '';
-      if (shellAllowlist.includes(head)) {
-        return { effect: 'allow', reason: `命中 shell 白名单: ${head}`, rule: 'shellAllowlist' };
+      const allowHit = matchShellRules(shellAllowlist, cmd);
+      if (allowHit) {
+        return { effect: 'allow', reason: `命中 shell 白名单: ${allowHit}`, rule: 'shellAllowlist' };
       }
     }
     return { effect: 'approval', reason: `工具 ${tool} 需人工审批`, rule: 'rbac.approval' };

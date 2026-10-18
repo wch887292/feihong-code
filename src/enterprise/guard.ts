@@ -22,6 +22,8 @@ export interface EnterpriseGuardDeps {
   runId: string;
   cwd: string;
   shellAllowlist: string[];
+  /** P0-C：shell 前缀黑名单（FH_SHELL_DENY，优先级高于白名单） */
+  shellDenylist?: string[];
   /** 人工审批通道（TTY 交互 / 白名单兜底）；缺省视为拒绝 */
   approve?: (action: string) => Promise<boolean>;
 }
@@ -35,7 +37,7 @@ function describe(tool: string, args: Record<string, unknown>): string {
 }
 
 export function createEnterpriseGuard(deps: EnterpriseGuardDeps): ToolGuard {
-  const { tenant, policy, audit, runId, cwd, shellAllowlist, approve } = deps;
+  const { tenant, policy, audit, runId, cwd, shellAllowlist, shellDenylist = [], approve } = deps;
 
   const write = (
     action: string,
@@ -59,7 +61,7 @@ export function createEnterpriseGuard(deps: EnterpriseGuardDeps): ToolGuard {
     async check(tool: string, args: Record<string, unknown>): Promise<ToolGuardVerdict> {
       const resource = describe(tool, args);
       const action = `tool:${tool}`;
-      const verdict = evaluate(policy, { role: tenant.role, tool, args, cwd, shellAllowlist });
+      const verdict = evaluate(policy, { role: tenant.role, tool, args, cwd, shellAllowlist, shellDenylist });
 
       if (verdict.effect === 'deny') {
         write(action, resource, 'deny', `${verdict.rule} — ${verdict.reason}`);
