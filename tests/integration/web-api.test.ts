@@ -67,6 +67,50 @@ test('web-api: 正确 token 返回模型列表且 apiKey 脱敏', async () => {
   }
 });
 
+test('web-api: 手机号+密码登录（首次注册默认密码=后4位，错误密码 401）', async () => {
+  const { url, close } = startWebServer({ port: 0, token: TOKEN });
+  try {
+    // 首次登录：自动注册，默认密码=后 4 位
+    const first = await fetch(`${url}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: '13800138000', password: '8000' }),
+    });
+    assert.equal(first.status, 200, '首次登录应成功');
+    const firstBody = (await first.json()) as { ok: boolean; token?: string; isFirstLogin?: boolean };
+    assert.equal(firstBody.ok, true);
+    assert.ok(firstBody.token, '应返回会话令牌');
+    assert.equal(firstBody.isFirstLogin, true, '首次登录标记');
+
+    // 已注册账号：正确密码可登录（非首次）
+    const second = await fetch(`${url}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: '13800138000', password: '8000' }),
+    });
+    const secondBody = (await second.json()) as { ok: boolean; isFirstLogin?: boolean };
+    assert.equal(secondBody.isFirstLogin, false, '已注册账号非首次');
+
+    // 错误密码：401 拒绝
+    const bad = await fetch(`${url}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: '13800138000', password: 'wrong-pass' }),
+    });
+    assert.equal(bad.status, 401, '错误密码必须 401');
+
+    // 缺密码：400
+    const noPwd = await fetch(`${url}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: '13800138000' }),
+    });
+    assert.equal(noPwd.status, 400, '缺密码必须 400');
+  } finally {
+    close();
+  }
+});
+
 /** 类型占位：startWebServer 返回的 close 为同步清理函数 */
 export type WebServerHandle = { url: string; close: () => void };
 void (null as unknown as Server);

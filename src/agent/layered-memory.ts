@@ -20,7 +20,7 @@
  */
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
-import { homedir } from 'os';
+import { resolveAccountHome } from '../security/account';
 import type { ChatMessage } from '../models/model.interface';
 import {
   compactContext,
@@ -52,7 +52,7 @@ const DEFAULT_CONFIG: LayeredMemoryConfig = {
   workingMemoryThreshold: 30,
   preservedRounds: 10,
   maxTaskCheckpoints: 20,
-  memoryDir: join(process.env.FH_HOME?.trim() || join(homedir(), '.feihong-code'), 'layered-memory'),
+  memoryDir: join(resolveAccountHome(), 'layered-memory'),
   useSmartCompaction: true,
   maxRecalledItems: 5,
 };

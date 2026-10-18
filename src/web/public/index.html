@@ -24,9 +24,11 @@
   <div id="loginOverlay">
     <div class="login-card">
       <h2 data-i18n="app.title_login">飞虹 Code 控制台</h2>
-      <p data-i18n="app.login_hint">请输入手机号码直接登录</p>
+      <p data-i18n="app.login_hint">请输入手机号码与密码登录（首次登录密码=手机号后 4 位）</p>
       <label for="loginPhone" data-i18n="login.phone_label">手机号码</label>
       <input type="text" id="loginPhone" autocomplete="off" placeholder="如 13800138000" />
+      <label for="loginPassword" data-i18n="login.password_label">登录密码</label>
+      <input type="password" id="loginPassword" autocomplete="current-password" placeholder="首次登录为手机号后 4 位" />
       <button id="loginBtn" data-i18n="login.btn_login">手机号登录</button>
       <div class="login-status" id="loginStatus"></div>
     </div>

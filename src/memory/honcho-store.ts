@@ -21,6 +21,7 @@
 import { join } from 'path';
 import { existsSync, mkdirSync } from 'fs';
 import { getStore, SQLiteStore } from '../shared/sqlite-store';
+import { resolveAccountHome } from '../security/account';
 
 export interface HonchoMemory {
   id?: number;
@@ -57,7 +58,8 @@ export class HonchoStore {
   private apiKey: string | null;
 
   constructor(options: HonchoOptions = {}) {
-    const home = process.env.FH_HOME || join(process.env.HOME || process.env.USERPROFILE || '.', '.feihong-code');
+    // 账号隔离：记忆数据目录按激活账号落进 <FH_HOME>/accounts/<phone>/
+    const home = resolveAccountHome();
     this.dataDir = options.dataDir || join(home, 'honcho');
     this.userId = options.userId || process.env.FH_HONCHO_USER || 'default';
     this.remoteUrl = options.remoteUrl || process.env.FH_HONCHO_URL || null;

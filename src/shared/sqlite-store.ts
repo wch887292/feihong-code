@@ -22,6 +22,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { getMasterKey, encryptText, decryptText } from './secure-store';
+import { resolveAccountHome } from '../security/account';
 
 /** 当前 Schema 版本：每次变更结构需 +1 并补 migrate() 分支 */
 export const SCHEMA_VERSION = 2;
@@ -45,8 +46,8 @@ interface Row {
 
 function resolveDbPath(): string {
   if (process.env.FH_DB_PATH) return process.env.FH_DB_PATH;
-  const home = process.env.FH_HOME || join(process.env.HOME || process.env.USERPROFILE || '.', '.feihong-code');
-  return join(home, 'feihong.db');
+  // 账号隔离：SQLite 按激活账号落进 <FH_HOME>/accounts/<phone>/feihong.db
+  return join(resolveAccountHome(), 'feihong.db');
 }
 
 export class SQLiteStore {

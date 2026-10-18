@@ -12,7 +12,7 @@ import type { Request, Response, NextFunction } from 'express';
 import { timingSafeEqual, randomBytes } from 'crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { dirname, join } from 'path';
-import { homedir } from 'os';
+import { resolveAccountHome } from '../security/account';
 import { encryptText, decryptText, getMasterKey } from '../shared/secure-store';
 
 /** 计时安全的字符串比较，避免令牌逐字节泄露的计时攻击面 */
@@ -64,10 +64,9 @@ export const WELCOME_TASKS = [
   },
 ];
 
-/** 会话落盘位置：$FH_HOME/web-sessions.json，缺省 ~/.feihong-code/web-sessions.json */
+/** 会话落盘位置：<账号目录>/web-sessions.json（账号隔离），缺省 ~/.feihong-code/web-sessions.json */
 function defaultSessionFile(): string {
-  const home = process.env.FH_HOME?.trim() || join(homedir(), '.feihong-code');
-  return join(home, 'web-sessions.json');
+  return join(resolveAccountHome(), 'web-sessions.json');
 }
 
 /**

@@ -11,6 +11,7 @@ import { randomUUID } from 'crypto';
 import { mkdtempSync } from 'fs';
 import { tmpdir, homedir } from 'os';
 import { join } from 'path';
+import { resolveAccountHome } from '../security/account';
 import { createInterface } from 'readline';
 import { setRunId, logger } from '../shared/logger';
 import { t } from '../shared/i18n';
@@ -146,8 +147,8 @@ export function getSessionHome(offline: boolean): string {
   if (offline && !process.env.FH_HOME) return join(tmpdir(), 'fhcode-demo-logs');
   const rt = getEnterprise();
   if (rt) return rt.tenant.sessionDir;
-  const home = process.env.FH_HOME ? expandHome(process.env.FH_HOME) : joinHome();
-  return join(home, 'sessions');
+  // 账号隔离：非企业模式按激活账号落进 <FH_HOME>/accounts/<phone>/sessions
+  return join(resolveAccountHome(), 'sessions');
 }
 
 /** 流式输出：只展示模型的思考内容，不展示工具调用等技术细节，让普通人看懂。 */

@@ -20,6 +20,7 @@ import { runRoutineCmd } from './cmds/routine';
 import { runMemoryCmd } from './cmds/memory';
 import { runApprovalsCmd } from './cmds/approvals';
 import { runCredsCmd } from './cmds/creds';
+import { runLogin, runLogout, runAccounts, runAccountPassword } from './cmds/account';
 import { runModelsDiscoverCmd } from './cmds/models';
 import { runTrajectoryCmd } from './cmds/trajectory';
 import { runSandboxCmd } from './cmds/sandbox';
@@ -226,7 +227,11 @@ async function dispatchManage(m: ManagementCommand): Promise<void> {
     }); break;
     case 'memory': await runMemoryCmd(m.action, m.yes, m.project); break;
     case 'approvals': await runApprovalsCmd({ action: m.action, id: m.id, all: m.all, by: m.by }); break;
-    case 'creds': await runCredsCmd(m.action, m.ref, m.value); break;
+    case 'creds': await runCredsCmd(m.action, m.ref, m.value, m.scope); break;
+    case 'login': await runLogin(m.phone, m.password); break;
+    case 'logout': runLogout(); break;
+    case 'accounts': runAccounts(); break;
+    case 'account-password': await runAccountPassword(m.phone, m.oldPassword, m.newPassword); break;
     case 'models': if (m.action === 'discover') await runModelsDiscoverCmd(m.providerId); break;
   }
 }

@@ -75,7 +75,11 @@ export type ManagementCommand =
   | { kind: 'memory'; action: 'profile' | 'stats' | 'list' | 'clear'; yes: boolean; project?: string }
   | { kind: 'approvals'; action: 'list' | 'show' | 'approve' | 'reject'; id?: string; all: boolean; by?: string }
   | { kind: 'integrations'; action: 'list' | 'init'; type?: string; targetDir?: string }
-  | { kind: 'creds'; action: 'list' | 'set' | 'unset' | 'migrate'; ref?: string; value?: string }
+  | { kind: 'creds'; action: 'list' | 'set' | 'unset' | 'migrate'; ref?: string; value?: string; scope?: string }
+  | { kind: 'login'; phone: string; password?: string }
+  | { kind: 'logout' }
+  | { kind: 'accounts' }
+  | { kind: 'account-password'; phone?: string; oldPassword?: string; newPassword?: string }
   | { kind: 'models'; action: 'discover'; providerId?: string };
 
 export interface ParsedArgs {
@@ -139,6 +143,8 @@ export interface ParsedArgs {
     sync?: boolean;
     /** memory list：项目作用域过滤（缺省=全局，* = 全部） */
     project?: string;
+    /** creds set/unset：环境作用域（--env <scope>，对标 Codex SecretScope.Environment） */
+    env?: string;
   };
   /** 单命令模式下的需求文本（首个非 flag 参数） */
   command?: string;
@@ -180,6 +186,7 @@ const FLAG_SPECS: Record<string, FlagSpec> = {
   mode: { kind: 'str', key: 'mode' },
   report: { kind: 'str', key: 'report' },
   project: { kind: 'str', key: 'project' },
+  env: { kind: 'str', key: 'env' },
   tier: { kind: 'str', key: 'tier' },
   name: { kind: 'str', key: 'name' },
   prompt: { kind: 'str', key: 'prompt' },
@@ -347,11 +354,21 @@ const MANAGE_BUILDERS: Record<string, ManageBuilder> = {
     type: rest[0] === 'init' ? rest[1] : undefined,
     targetDir: rest[0] === 'init' ? rest[2] : undefined,
   }),
-  creds: ({ rest }) => ({
+  creds: ({ flags, rest }) => ({
     kind: 'creds',
     action: (rest[0] as 'list' | 'set' | 'unset' | 'migrate') ?? 'list',
     ref: rest[1],
     value: rest[2],
+    scope: typeof flags.env === 'string' ? flags.env : undefined,
+  }),
+  login: ({ rest }) => ({ kind: 'login', phone: rest[0] ?? '', password: rest[1] }),
+  logout: () => ({ kind: 'logout' }),
+  accounts: () => ({ kind: 'accounts' }),
+  'account-password': ({ rest }) => ({
+    kind: 'account-password',
+    phone: rest[0],
+    oldPassword: rest[1],
+    newPassword: rest[2],
   }),
   models: ({ rest }) => ({
     kind: 'models',

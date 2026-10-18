@@ -27,6 +27,7 @@ import {
 } from 'fs';
 import { securityHeaders, verifyRequestSignature, BruteForceGuard } from '../security';
 import { requireToken, SessionStore, type Session, WELCOME_TASKS } from './auth';
+import { loginAccount, resolveAccountHome } from '../security/account';
 import { registerExtraApis } from './extra-apis';
 import { registerComputerRoutes } from './routes/computer';
 import { registerCapabilitySourceRoutes } from './routes/capability-source';
@@ -207,9 +208,10 @@ export function startWebServer(opts: ServeOptions = {}): {
   const soloTasks = new Map<string, { agent: SoloAgent; report?: SoloReport; status: 'running' | 'completed' | 'failed' }>();
 
   // 任务队列（进程内；服务端静默执行）— 需在登录接口前初始化
+  // 账号隔离：任务持久化按激活账号落进 <FH_HOME>/accounts/<phone>/tasks
   const persistDir =
     process.env.FH_TASK_PERSIST_DIR?.trim() ||
-    join(process.env.FH_HOME?.trim() || join(require('os').homedir(), '.feihong-code'), 'tasks');
+    join(resolveAccountHome(), 'tasks');
   const queue = new TaskQueue({
     concurrency: Number(process.env.FH_TASK_CONCURRENCY ?? 2),
     webhookUrl: process.env.FH_TASK_WEBHOOK_URL,
@@ -301,13 +303,19 @@ export function startWebServer(opts: ServeOptions = {}): {
     res.send(result.body);
   });
 
-  // 手机号直登：无短信验证，生成本地会话令牌
+  // 手机号 + 密码登录（v8.11 账号升级）：无短信验证，生成本地会话令牌
+  // 首次登录自动注册（默认密码=手机号后 4 位）；已有账号须密码匹配
   // 安全约束（F2）：响应绝不回显签名密钥；登录加基础格式校验与频率限制，防暴力与密钥泄露。
   app.post('/api/auth/login', (req: Request, res: Response) => {
     const body = (req.body ?? {}) as Record<string, any>;
     const phone = typeof body?.phone === 'string' ? body.phone.trim() : '';
+    const password = typeof body?.password === 'string' ? body.password : '';
     if (!/^\+?[0-9]{6,20}$/.test(phone)) {
       res.status(400).json({ ok: false, error: '请输入有效的手机号码（6-20 位数字）' });
+      return;
+    }
+    if (!password) {
+      res.status(400).json({ ok: false, error: '请输入登录密码（首次登录默认=手机号后 4 位）' });
       return;
     }
     // 频率限制：同一来源 60 秒内最多 10 次登录尝试
@@ -324,13 +332,24 @@ export function startWebServer(opts: ServeOptions = {}): {
       res.status(429).json({ ok: false, error: '登录尝试过于频繁，请稍后再试' });
       return;
     }
+    // 账号校验：未注册自动注册（默认密码=后 4 位）；已注册校验密码
+    let isFirstLogin: boolean;
+    try {
+      const r = loginAccount(phone, password);
+      isFirstLogin = r.isFirstLogin;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : '登录失败';
+      const code = e && typeof e === 'object' && 'code' in e ? String((e as { code?: unknown }).code) : '';
+      res.status(code === 'ACCOUNT_PASSWORD_MISMATCH' ? 401 : 400).json({ ok: false, error: msg });
+      return;
+    }
     // 使用新的登录方法，支持首次登录检测
     const result = sessions.login(phone);
     const session = sessions.get(result.token);
     
     // 首次登录：返回引导任务定义（不自动提交执行，由用户在前端点「运行」时再真正发起）
     let welcomeTasks: any[] = [];
-    if (result.isFirstLogin) {
+    if (isFirstLogin) {
       // 标记会话为首次登录（用于后续接口识别）
       if (session) {
         session.isFirstLogin = true;
@@ -349,7 +368,7 @@ export function startWebServer(opts: ServeOptions = {}): {
       ok: true, 
       token: result.token,
       phone,
-      isFirstLogin: result.isFirstLogin,
+      isFirstLogin,
       welcomeTasks,
     });
   });

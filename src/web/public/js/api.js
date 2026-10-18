@@ -326,15 +326,18 @@
 
     async function doLogin() {
       const input = document.getElementById('loginPhone');
+      const pwdInput = document.getElementById('loginPassword');
       const status = document.getElementById('loginStatus');
       const btn = document.getElementById('loginBtn');
       const phone = (input.value || '').trim();
+      const password = (pwdInput && pwdInput.value) || '';
       if (!/^\d{6,20}$/.test(phone)) { status.textContent = '请输入有效的手机号码'; status.classList.add('err'); return; }
+      if (!password) { status.textContent = '请输入登录密码（首次登录默认=手机号后 4 位）'; status.classList.add('err'); return; }
       btn.disabled = true;
       status.textContent = '登录中…';
       status.classList.remove('err');
       try {
-        const d = await api('/api/auth/login', 'POST', { phone });
+        const d = await api('/api/auth/login', 'POST', { phone, password });
         if (!d || !d.token) throw new Error('服务端未返回令牌');
         state.token = d.token;
         state.signSecret = d.signSecret || '';

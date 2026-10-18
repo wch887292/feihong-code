@@ -19,6 +19,7 @@ import { existsSync, readdirSync, statSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { userInfo } from 'os';
 import { resolveHomeDir } from '../shared/config';
+import { resolveAccountHome } from '../security/account';
 import { AppError } from '../shared/errors';
 
 export const ROLES = ['viewer', 'developer', 'operator', 'admin'] as const;
@@ -64,10 +65,13 @@ function normalizeRole(raw: string | undefined): Role {
 /**
  * 解析当前租户上下文。
  *
+ * 账号隔离：baseHome 缺省为 resolveAccountHome()——存在激活手机号时，
+ * 会话/审计/goals 落进 <FH_HOME>/accounts/<phone>/tenants/<tenantId>/，每手机号互不可见。
+ *
  * 兼容性：默认租户（default）且尚未创建 tenants/default 目录、但存在旧版
  * <FH_HOME>/sessions 时，继续沿用旧目录，避免升级后历史会话"消失"。
  */
-export function resolveTenantContext(baseHome = resolveHomeDir()): TenantContext {
+export function resolveTenantContext(baseHome = resolveAccountHome()): TenantContext {
   const tenantId = (process.env.FH_TENANT || 'default').trim();
   assertValidId('FH_TENANT', tenantId);
 

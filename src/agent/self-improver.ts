@@ -10,7 +10,7 @@
  */
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
-import { homedir } from 'os';
+import { resolveAccountHome } from '../security/account';
 import type { ChatMessage } from '../models/model.interface';
 import {
   upsertExperience,
@@ -37,7 +37,7 @@ export interface SelfImprovementConfig {
 const DEFAULT_CONFIG: SelfImprovementConfig = {
   reflectionEnabled: true,
   maxPatternsPerTask: 5,
-  experienceDir: join(homedir(), '.feihong-code', 'experiences'),
+  experienceDir: join(resolveAccountHome(), 'experiences'),
 };
 
 export class SelfImprover {

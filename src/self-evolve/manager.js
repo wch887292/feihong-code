@@ -21,17 +21,31 @@ function generateId() {
 
 class SelfEvolveManager {
   constructor() {
-    this.baseDir = path.join(process.env.HOME || process.env.USERPROFILE || '.', '.feihong-code', 'self-evolve');
+    // 账号隔离：self-evolve 数据按激活账号落进 <FH_HOME>/accounts/<phone>/（与 TS 侧 resolveAccountHome 同构）
+    this.homeDir = this.resolveAccountHome();
+    this.baseDir = path.join(this.homeDir, 'self-evolve');
     this.failuresFile = path.join(this.baseDir, 'failures.json');
     this.skillsIndexFile = path.join(this.baseDir, 'skills-index.json');
     this.historyFile = path.join(this.baseDir, 'history.json');
     // 双系统收敛：失败/技能/解决 统一回流到共享经验库（experiences.jsonl），
     // 与新一代 self-improve（src/agent/experience.ts）共用同一存储，供 orchestrator 检索注入。
-    this.experiencesDir = path.join(process.env.HOME || process.env.USERPROFILE || '.', '.feihong-code', 'experiences');
+    this.experiencesDir = path.join(this.homeDir, 'experiences');
     this.experiencesFile = path.join(this.experiencesDir, 'experiences.jsonl');
 
     this.ensureDirs();
     this.loadData();
+  }
+
+  /** 激活账号目录解析（与 src/security/account.ts resolveAccountHome 语义一致） */
+  resolveAccountHome() {
+    const base = (process.env.FH_HOME && process.env.FH_HOME.trim())
+      ? process.env.FH_HOME.trim()
+      : path.join(process.env.HOME || process.env.USERPROFILE || '.', '.feihong-code');
+    try {
+      const active = JSON.parse(require('fs').readFileSync(path.join(base, 'active-account.json'), 'utf8'));
+      if (active && active.phone) return path.join(base, 'accounts', String(active.phone));
+    } catch { /* 未激活 → 回落 base */ }
+    return base;
   }
 
   /** 稳定短哈希（与 src/agent/experience.ts shortHash 语义一致，保证跨系统 id 可对齐） */

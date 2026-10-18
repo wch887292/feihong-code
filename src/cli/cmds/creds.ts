@@ -2,18 +2,19 @@
  * 飞虹 Code (对标 Muse Code · 自研内核)
  * 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
  *
- * 凭据管理命令（对标 dsh credentials seam）：
- *   fhcode creds list               列出全部凭据引用（只显示状态，不显示值）
- *   fhcode creds set <ref> <value>  写入一个凭据引用
- *   fhcode creds unset <ref>        移除一个凭据引用
- *   fhcode creds migrate            把 fhcode.config.json 中明文 apiKey 迁移到凭据存储，
- *                                   并改写为 apiKeyEnv 引用（自动备份原文件）
+ * 凭据管理命令（对标 dsh credentials seam / Codex secrets scope）：
+ *   fhcode creds list                      列出全部凭据引用（含作用域，只显示状态不显示值）
+ *   fhcode creds set [--env <scope>] <ref> <value>   写入凭据（--env=环境作用域，缺省全局）
+ *   fhcode creds unset [--env <scope>] <ref>          移除凭据
+ *   fhcode creds migrate                    把 fhcode.config.json 中明文 apiKey 迁移到凭据存储
+ *   apiKeyEnv 支持 env:<scope>/REF 显式限定作用域
  */
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import type { ProviderConfig } from '../../shared/config';
 import { loadConfigFile, resolveHomeDir } from '../../shared/config';
 import { listCredentials, setCredential, unsetCredential, isCredentialRefName } from '../../security/credentials';
+import { resolveAccountHome } from '../../security/account';
 
 export type CredsAction = 'list' | 'set' | 'unset' | 'migrate';
 
@@ -43,48 +44,57 @@ export async function runCredsCmd(
   action: CredsAction = 'list',
   ref?: string,
   value?: string,
+  scope?: string,
 ): Promise<void> {
   if (action === 'list') {
     const rows = listCredentials();
-    console.log('飞虹 Code 凭据引用（密钥不落配置文件，存储于 ' + join(resolveHomeDir(), '.credentials.json') + '）');
-    console.log('  REF                                          STORED  ENV');
+    console.log('飞虹 Code 凭据引用（密钥不落配置文件，存储于 ' + join(resolveAccountHome(), '.credentials.json') + '）');
+    console.log('  作用域   REF                                          STORED  ENV');
     for (const row of rows) {
-      console.log(`  ${row.ref.padEnd(42)} ${row.stored ? '  yes   ' : '  no    '} ${row.env ? 'yes' : 'no'}`);
+      console.log(`  ${row.scope.padEnd(8)} ${row.ref.padEnd(42)} ${row.stored ? '  yes   ' : '  no    '} ${row.env ? 'yes' : 'no'}`);
     }
     if (rows.length === 0) {
       console.log('（当前无凭据引用）');
     }
     console.log('\n用法：');
-    console.log('  fhcode creds set <ref> <value>   写入凭据（ref 需为 FHC_XXX 形式）');
-    console.log('  fhcode creds unset <ref>         移除凭据');
-    console.log('  fhcode creds migrate              把 fhcode.config.json 明文 apiKey 迁入凭据存储');
+    console.log('  fhcode creds set <ref> <value>                 写入全局凭据（ref 需为 FHC_XXX 形式）');
+    console.log('  fhcode creds set --env <scope> <ref> <value>   写入项目/环境作用域凭据（如 --env feihong-code）');
+    console.log('  fhcode creds unset [--env <scope>] <ref>       移除凭据');
+    console.log('  fhcode creds migrate                           把 fhcode.config.json 明文 apiKey 迁入凭据存储');
+    console.log('  apiKeyEnv 支持 env:<scope>/REF 显式限定（裸 REF 自动按当前项目派生作用域，再回退全局）');
     return;
   }
 
   if (action === 'set') {
     if (!ref || !isCredentialRefName(ref)) {
-      console.error('用法：fhcode creds set <ref> <value>（ref 需为 POSIX 标识符，如 FHC_OPENROUTER_API_KEY）');
+      console.error('用法：fhcode creds set [--env <scope>] <ref> <value>（ref 需为 POSIX 标识符，如 FHC_OPENROUTER_API_KEY）');
       process.exitCode = 1;
       return;
     }
     if (!value) {
-      console.error('缺少凭据值。用法：fhcode creds set <ref> <value>');
+      console.error('缺少凭据值。用法：fhcode creds set [--env <scope>] <ref> <value>');
       process.exitCode = 1;
       return;
     }
-    setCredential(ref, value);
-    console.log(`✓ 已写入凭据引用 ${ref}（存于 ${join(resolveHomeDir(), '.credentials.json')}）`);
+    try {
+      setCredential(ref, value, scope);
+      const where = scope ? `作用域 ${scope}` : '全局';
+      console.log(`✓ 已写入凭据引用 ${ref}（${where}，存于 ${join(resolveAccountHome(), '.credentials.json')}）`);
+    } catch (e) {
+      console.error(`写入失败: ${e instanceof Error ? e.message : String(e)}`);
+      process.exitCode = 1;
+    }
     return;
   }
 
   if (action === 'unset') {
     if (!ref) {
-      console.error('用法：fhcode creds unset <ref>');
+      console.error('用法：fhcode creds unset [--env <scope>] <ref>');
       process.exitCode = 1;
       return;
     }
-    const removed = unsetCredential(ref);
-    console.log(removed ? `✓ 已移除凭据引用 ${ref}` : `（引用 ${ref} 不存在，无需移除）`);
+    const removed = unsetCredential(ref, scope);
+    console.log(removed ? `✓ 已移除凭据引用 ${ref}${scope ? `（作用域 ${scope}）` : ''}` : `（引用 ${ref} 不存在，无需移除）`);
     return;
   }
 

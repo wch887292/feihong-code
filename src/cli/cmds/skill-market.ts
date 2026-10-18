@@ -10,6 +10,7 @@ import { existsSync, mkdirSync, writeFileSync, readFileSync, copyFileSync } from
 import { join } from 'path';
 import { t } from '../../shared/i18n';
 import { resolveHomeDir } from '../../shared/config';
+import { resolveAccountHome } from '../../security/account';
 import { ModelRouter } from '../../models/model-router';
 import { fetchMarketIndex, searchMarket, installMarketSkill, isSchemaSupported } from '../../skills/skill-market';
 import { discoverSkills } from '../../skills/skill-loader';
@@ -180,9 +181,9 @@ export function runModelStats(): void {
   });
 }
 
-/** fhcode experiences [路径]：列出经验库 */
+/** fhcode experiences [路径]：列出经验库（默认按激活账号隔离） */
 export function runExperiences(path?: string): void {
-  const experienceDir = path || join(resolveHomeDir(), 'experiences');
+  const experienceDir = path || join(resolveAccountHome(), 'experiences');
   listExperiences(experienceDir).then((experiences: Experience[]) => {
     if (experiences.length === 0) {
       console.log(t('exp.empty'));

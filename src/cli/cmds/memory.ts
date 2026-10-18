@@ -10,7 +10,7 @@
  */
 import { rmSync, existsSync } from 'fs';
 import { join } from 'path';
-import { resolveHomeDir } from '../../shared/config';
+import { resolveAccountHome } from '../../security/account';
 import { createLayeredMemory } from '../../agent/layered-memory';
 import { aggregateProfile, formatProfile } from '../../memory/profile';
 import { TransparentMemory } from '../../memory/transparent';
@@ -62,7 +62,7 @@ export async function runMemoryCmd(
         process.exitCode = 1;
         return;
       }
-      const file = join(resolveHomeDir(), 'layered-memory', 'project-memory.json');
+      const file = join(resolveAccountHome(), 'layered-memory', 'project-memory.json');
       if (existsSync(file)) {
         rmSync(file, { force: true });
         console.log('✓ 已清空项目记忆（project-memory.json）');
