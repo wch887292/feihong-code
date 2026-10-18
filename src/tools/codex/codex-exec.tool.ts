@@ -197,11 +197,22 @@ export function getCodexLoginStatus(): { loggedIn: boolean; detail: string } {
   }
 }
 
+/**
+ * Codex 任务派发开关（暂停派发机制）：
+ *  - 默认停用：fhcode 不向 Codex CLI 派发任务（避免消耗 OpenAI 账号额度/外部依赖）
+ *  - 启用：设置环境变量 FH_CODEX_DELEGATE=1（或 true/yes）
+ * 停用期间：codex_exec 工具与 /api/codex/run 一律返回 CODEX_DELEGATION_DISABLED，不触碰 Codex 进程。
+ */
+export function isCodexDelegationEnabled(): boolean {
+  const raw = (process.env.FH_CODEX_DELEGATE ?? '').trim().toLowerCase();
+  return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on';
+}
+
 export const codexExecTool: Tool = {
   name: 'codex_exec',
   description:
     '把任务派给本机 OpenAI Codex CLI（codex exec，需 OpenAI 账号登录）执行并返回结果。' +
-    '适合代码生成、代码审查、重构、自动化编码等任务。' +
+    '默认已停用（需 FH_CODEX_DELEGATE=1 启用）；适合代码生成、代码审查、重构、自动化编码等任务。' +
     '返回 CODEX_NEED_AUTH 表示 Codex 未登录，请在终端运行 `codex login`。',
   jsonSchema: {
     type: 'object',
@@ -233,6 +244,16 @@ export const codexExecTool: Tool = {
     sandbox: z.enum(['read-only', 'workspace-write', 'danger-full-access']).optional(),
   }),
   async execute(args, ctx: ToolContext): Promise<ToolResult> {
+    // 暂停派发闸门：默认不向 Codex 派发任务
+    if (!isCodexDelegationEnabled()) {
+      return {
+        ok: false,
+        output: '',
+        error:
+          'CODEX_DELEGATION_DISABLED: fhcode 当前不派发任务给 Codex（默认停用）。' +
+          '如需启用请设置环境变量 FH_CODEX_DELEGATE=1 后重启。',
+      };
+    }
     const { task, model, reasoningEffort, sandbox } = args as {
       task: string;
       model?: string;

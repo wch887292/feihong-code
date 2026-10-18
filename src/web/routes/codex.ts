@@ -3,8 +3,8 @@
  * 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
  *
  * fhcode 调度 → Codex CLI 执行（需 OpenAI 账号登录）
- *  - /api/codex/status  检测 Codex 安装/版本/登录状态
- *  - /api/codex/run     派发任务给 Codex exec 执行
+ *  - /api/codex/status  检测 Codex 安装/版本/登录状态 + 派发开关状态
+ *  - /api/codex/run     派发任务给 Codex exec 执行（默认停用：FH_CODEX_DELEGATE=1 启用）
  */
 import express, { type Request, type Response } from 'express';
 import {
@@ -13,6 +13,7 @@ import {
   getCodexLoginStatus,
   runCodexCli,
   detectAuthError,
+  isCodexDelegationEnabled,
 } from '../../tools/codex/codex-exec.tool';
 
 type ExpressApp = ReturnType<typeof express>;
@@ -35,6 +36,7 @@ export function registerCodexRoutes(app: ExpressApp, deps: CodexRoutesDeps): voi
         version,
         loggedIn: login.loggedIn,
         loginDetail: login.detail,
+        delegationEnabled: isCodexDelegationEnabled(),
       });
     } catch (e: any) {
       res.json({ ok: true, available: false, error: String(e?.message || e) });
@@ -42,6 +44,16 @@ export function registerCodexRoutes(app: ExpressApp, deps: CodexRoutesDeps): voi
   });
 
   app.post('/api/codex/run', async (req: Request, res: Response) => {
+    // 暂停派发闸门：默认不向 Codex 派发任务
+    if (!isCodexDelegationEnabled()) {
+      res.status(503).json({
+        ok: false,
+        error:
+          'CODEX_DELEGATION_DISABLED: fhcode 当前不派发任务给 Codex（默认停用）。' +
+          '如需启用请设置环境变量 FH_CODEX_DELEGATE=1 后重启服务。',
+      });
+      return;
+    }
     try {
       const body = (req.body ?? {}) as Record<string, any>;
       const task = String(body?.task ?? '').trim();

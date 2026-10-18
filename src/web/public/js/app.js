@@ -2622,6 +2622,13 @@
         bar.textContent = '检测中…';
         bar.className = 'codex-status-bar';
         const d = await api('/api/codex/status');
+        if (d.delegationEnabled === false) {
+          bar.textContent = '⏸ Codex 任务派发已停用（如需启用请设 FH_CODEX_DELEGATE=1 并重启服务）';
+          bar.classList.add('warn');
+          const runBtn = document.getElementById('codexRunBtn');
+          if (runBtn) runBtn.disabled = true;
+          return;
+        }
         if (d.available) {
           const loginText = d.loggedIn ? '✅ 已登录' : '⚠️ 未登录（请先运行 codex login）';
           bar.textContent = '✅ Codex CLI 已安装' + (d.version ? '（v' + d.version + '）' : '') + ' · ' + loginText;
@@ -2659,6 +2666,13 @@
         const st = document.getElementById('codexResultStatus');
         const tm = document.getElementById('codexResultTime');
         const tx = document.getElementById('codexResultText');
+        if (d.error && String(d.error).indexOf('CODEX_DELEGATION_DISABLED') === 0) {
+          st.textContent = '⏸ 已停用';
+          st.style.color = '#d93025';
+          tm.textContent = '';
+          tx.textContent = 'Codex 任务派发已停用（默认）。如需启用请设 FH_CODEX_DELEGATE=1 并重启服务。';
+          return;
+        }
         if (d.authError) {
           st.textContent = '🔑 需登录';
           st.style.color = '#d93025';
