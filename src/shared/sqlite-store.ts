@@ -24,7 +24,7 @@ import { join } from 'path';
 import { getMasterKey, encryptText, decryptText } from './secure-store';
 
 /** 当前 Schema 版本：每次变更结构需 +1 并补 migrate() 分支 */
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 /** 需要加密的字段（key 表名:字段名） */
 const ENCRYPTED_FIELDS: Record<string, string[]> = {
@@ -69,6 +69,7 @@ export class SQLiteStore {
     // 迁移定义：key = schema 版本
     this.migrations = {
       1: (db) => this.migrateToV1(db),
+      2: (db) => this.migrateToV2(db),
     };
 
     this.ensureSchema();
@@ -217,10 +218,12 @@ export class SQLiteStore {
         content TEXT NOT NULL,
         category TEXT NOT NULL DEFAULT 'fact',
         importance REAL NOT NULL DEFAULT 0.5,
+        project TEXT,
         created_at INTEGER NOT NULL DEFAULT (unixepoch()),
         FOREIGN KEY (user_id) REFERENCES users(id)
       );
       CREATE INDEX IF NOT EXISTS idx_user_memory_user ON user_memory(user_id);
+      CREATE INDEX IF NOT EXISTS idx_user_memory_project ON user_memory(project);
 
       -- 知识库文档表
       CREATE TABLE IF NOT EXISTS knowledge (
@@ -236,6 +239,15 @@ export class SQLiteStore {
     `);
 
     db.prepare('INSERT OR REPLACE INTO meta(key, value) VALUES(?, ?)').run('schema_version', String(SCHEMA_VERSION));
+  }
+
+  /** V2（对标 Codex memories 命名空间）：user_memory 增加 project 列（项目级记忆隔离） */
+  private migrateToV2(db: DatabaseSync): void {
+    // SQLite ALTER TABLE ADD COLUMN 幂等性由 ensureSchema 的版本号保证（仅执行一次）
+    db.exec(`
+      ALTER TABLE user_memory ADD COLUMN project TEXT;
+      CREATE INDEX IF NOT EXISTS idx_user_memory_project ON user_memory(project);
+    `);
   }
 
   private ensureSchema(): void {
@@ -499,21 +511,47 @@ export class SQLiteStore {
     return row;
   }
 
-  userAddMemory(userId: string, content: string, category = 'fact', importance = 0.5): void {
-    this.db.prepare('INSERT INTO user_memory(user_id, content, category, importance) VALUES(?, ?, ?, ?)')
-      .run(userId, content, category, importance);
+  /** 新增记忆；project 缺省为全局记忆（对标 Codex memories 环境作用域） */
+  userAddMemory(userId: string, content: string, category = 'fact', importance = 0.5, project?: string): void {
+    this.db.prepare('INSERT INTO user_memory(user_id, content, category, importance, project) VALUES(?, ?, ?, ?, ?)')
+      .run(userId, content, category, importance, project ?? null);
   }
 
-  userListMemory(userId: string, limit = 20): Row[] {
+  /**
+   * 列出记忆。
+   * project 语义：undefined = 仅全局（project IS NULL，保持既有行为）；'*' = 全部作用域；其他 = 仅该项目。
+   */
+  userListMemory(userId: string, limit = 20, project?: string): Row[] {
+    if (project === '*') {
+      return this.db.prepare(
+        'SELECT * FROM user_memory WHERE user_id = ? ORDER BY importance DESC, created_at DESC LIMIT ?'
+      ).all(userId, limit) as Row[];
+    }
+    if (project !== undefined) {
+      return this.db.prepare(
+        'SELECT * FROM user_memory WHERE user_id = ? AND project = ? ORDER BY importance DESC, created_at DESC LIMIT ?'
+      ).all(userId, project, limit) as Row[];
+    }
     return this.db.prepare(
-      'SELECT * FROM user_memory WHERE user_id = ? ORDER BY importance DESC, created_at DESC LIMIT ?'
+      'SELECT * FROM user_memory WHERE user_id = ? AND project IS NULL ORDER BY importance DESC, created_at DESC LIMIT ?'
     ).all(userId, limit) as Row[];
   }
 
-  userSearchMemory(userId: string, keyword: string, limit = 10): Row[] {
+  /** 关键词检索（project 语义同上） */
+  userSearchMemory(userId: string, keyword: string, limit = 10, project?: string): Row[] {
     const q = `%${keyword}%`;
+    if (project === '*') {
+      return this.db.prepare(
+        'SELECT * FROM user_memory WHERE user_id = ? AND content LIKE ? ORDER BY importance DESC LIMIT ?'
+      ).all(userId, q, limit) as Row[];
+    }
+    if (project !== undefined) {
+      return this.db.prepare(
+        'SELECT * FROM user_memory WHERE user_id = ? AND content LIKE ? AND project = ? ORDER BY importance DESC LIMIT ?'
+      ).all(userId, q, project, limit) as Row[];
+    }
     return this.db.prepare(
-      'SELECT * FROM user_memory WHERE user_id = ? AND content LIKE ? ORDER BY importance DESC LIMIT ?'
+      'SELECT * FROM user_memory WHERE user_id = ? AND content LIKE ? AND project IS NULL ORDER BY importance DESC LIMIT ?'
     ).all(userId, q, limit) as Row[];
   }
 

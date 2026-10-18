@@ -12,6 +12,7 @@ import dns from 'node:dns';
 import { setRunId } from '../shared/logger';
 import { AppError } from '../shared/errors';
 import { loadDotEnv } from '../shared/config';
+import { hardenProcessEnv } from '../shared/process-hardening';
 import { parseArgs, type SkillCommand, type ManagementCommand } from './commands';
 import { runTierCmd } from './cmds/tier';
 import { runAgentNewCmd } from './cmds/agent-new';
@@ -93,6 +94,9 @@ function readContextFile(path: string): string | null {
 async function main(): Promise<void> {
   setRunId(randomUUID());
   loadDotEnv(); // 尽早加载 .env（须在 isOfflineByDefault / loadConfig 之前）
+  // P2-F（对标 Codex process-hardening）：加载 .env 后立即清理注入面环境变量，
+  // 防止 NODE_OPTIONS/LD_PRELOAD 等经 .env 或外层环境注入后沿子进程扩散
+  hardenProcessEnv();
 
   const args = parseArgs(process.argv.slice(2));
   setLang(args.flags.lang);
@@ -220,7 +224,7 @@ async function dispatchManage(m: ManagementCommand): Promise<void> {
       workspaceDir: m.workspaceDir,
       enabled: m.enabled,
     }); break;
-    case 'memory': await runMemoryCmd(m.action, m.yes); break;
+    case 'memory': await runMemoryCmd(m.action, m.yes, m.project); break;
     case 'approvals': await runApprovalsCmd({ action: m.action, id: m.id, all: m.all, by: m.by }); break;
     case 'creds': await runCredsCmd(m.action, m.ref, m.value); break;
     case 'models': if (m.action === 'discover') await runModelsDiscoverCmd(m.providerId); break;

@@ -28,6 +28,8 @@ export interface HonchoMemory {
   category?: string;
   importance?: number;
   createdAt?: number;
+  /** 项目作用域（null = 全局） */
+  project?: string | null;
 }
 
 export interface HonchoRecallResult {
@@ -97,10 +99,10 @@ export class HonchoStore {
 
   /* ========== 事实记忆 ========== */
 
-  /** 记录用户陈述的事实（自动评估重要度） */
-  rememberFact(content: string, importance?: number): void {
+  /** 记录用户陈述的事实（自动评估重要度）；project 缺省=全局记忆 */
+  rememberFact(content: string, importance?: number, project?: string): void {
     const imp = importance ?? this.estimateImportance(content);
-    this.store.userAddMemory(this.userId, content, 'fact', imp);
+    this.store.userAddMemory(this.userId, content, 'fact', imp, project);
   }
 
   /** 批量记录事实 */
@@ -119,15 +121,16 @@ export class HonchoStore {
     return Math.min(1, score);
   }
 
-  /** 列出用户记忆（按重要度排序） */
-  listMemories(limit = 20): HonchoMemory[] {
-    const rows = this.store.userListMemory(this.userId, limit);
+  /** 列出用户记忆（按重要度排序；project 语义：缺省=全局，'*'=全部，其他=该项目） */
+  listMemories(limit = 20, project?: string): HonchoMemory[] {
+    const rows = this.store.userListMemory(this.userId, limit, project);
     return rows.map((r) => ({
       id: Number(r.id),
       content: String(r.content),
       category: r.category ? String(r.category) : 'fact',
       importance: Number(r.importance || 0.5),
       createdAt: Number(r.created_at),
+      project: r.project != null ? String(r.project) : null,
     }));
   }
 

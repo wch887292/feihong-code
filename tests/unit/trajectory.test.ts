@@ -121,6 +121,21 @@ test('buildForkCheckpoint: 无轨迹时抛错', async () => {
   }
 });
 
+test('buildForkCheckpoint: step 缺省（Infinity）= 续到轨迹末端（P1-D resume 语义）', async () => {
+  const home = tempHome();
+  try {
+    writeFileSync(join(home, 'sessions', 'run-abc.jsonl'), sampleEvents());
+    const { checkpoint, steps } = await buildForkCheckpoint(home, 'run-abc', Number.POSITIVE_INFINITY);
+    assert.equal(steps, 8, '缺省步骤应覆盖全部 8 条事件（含 session.end）');
+    assert.equal(checkpoint.goal, '修复登录页');
+    assert.equal(checkpoint.messages.length, 4, '末端续跑仍重建完整消息对');
+    assert.deepEqual(checkpoint.touchedFiles, ['src/b.ts']);
+    assert.ok(checkpoint.runId && checkpoint.runId !== 'run-abc', '续跑生成新 runId（不污染原轨迹）');
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
 test('buildForkCheckpoint: 截断的工具参数由 tool.call 完整 args 补齐', async () => {
   const home = tempHome();
   try {

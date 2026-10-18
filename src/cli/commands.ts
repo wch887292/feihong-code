@@ -35,7 +35,7 @@ export type ManagementCommand =
   | { kind: 'resume'; id: string }
   | { kind: 'diff'; id?: string }
   | { kind: 'rollback'; id: string; yes: boolean }
-  | { kind: 'trajectory'; action: 'list' | 'replay' | 'fork'; id?: string; step?: number; json: boolean }
+  | { kind: 'trajectory'; action: 'list' | 'replay' | 'fork' | 'resume'; id?: string; step?: number; json: boolean }
   | { kind: 'sandbox'; workdir: string; command: string; sync: boolean }
   | { kind: 'whoami' }
   | { kind: 'policy' }
@@ -72,7 +72,7 @@ export type ManagementCommand =
   | { kind: 'tier'; action: 'get' | 'set'; value?: ComputeTier }
   | { kind: 'agent-new'; name?: string; prompt?: string; tools?: string; category?: string; tier?: ComputeTier }
   | { kind: 'routine'; action: 'list' | 'add' | 'run' | 'enable' | 'rm'; id?: string; cron?: string; goal?: string; command?: string; name?: string; tier?: ComputeTier; workspaceDir?: string; enabled?: boolean }
-  | { kind: 'memory'; action: 'profile' | 'stats' | 'clear'; yes: boolean }
+  | { kind: 'memory'; action: 'profile' | 'stats' | 'list' | 'clear'; yes: boolean; project?: string }
   | { kind: 'approvals'; action: 'list' | 'show' | 'approve' | 'reject'; id?: string; all: boolean; by?: string }
   | { kind: 'integrations'; action: 'list' | 'init'; type?: string; targetDir?: string }
   | { kind: 'creds'; action: 'list' | 'set' | 'unset' | 'migrate'; ref?: string; value?: string }
@@ -137,6 +137,8 @@ export interface ParsedArgs {
     contextMaxTokens?: number;
     /** sandbox：执行后把沙箱变更合并回原目录 */
     sync?: boolean;
+    /** memory list：项目作用域过滤（缺省=全局，* = 全部） */
+    project?: string;
   };
   /** 单命令模式下的需求文本（首个非 flag 参数） */
   command?: string;
@@ -177,6 +179,7 @@ const FLAG_SPECS: Record<string, FlagSpec> = {
   offset: { kind: 'int', min: 0, key: 'offset' },
   mode: { kind: 'str', key: 'mode' },
   report: { kind: 'str', key: 'report' },
+  project: { kind: 'str', key: 'project' },
   tier: { kind: 'str', key: 'tier' },
   name: { kind: 'str', key: 'name' },
   prompt: { kind: 'str', key: 'prompt' },
@@ -240,9 +243,9 @@ const MANAGE_BUILDERS: Record<string, ManageBuilder> = {
   rollback: ({ flags, rest }) => ({ kind: 'rollback', id: rest[0] ?? '', yes: !!flags.yes }),
   trajectory: ({ flags, rest }) => ({
     kind: 'trajectory',
-    action: rest[0] === 'replay' || rest[0] === 'fork' ? rest[0] : 'list',
+    action: rest[0] === 'replay' || rest[0] === 'fork' || rest[0] === 'resume' ? rest[0] : 'list',
     id: rest[1],
-    step: rest[0] === 'fork' && rest[1] !== undefined ? Number(rest[1]) : undefined,
+    step: (rest[0] === 'fork' || rest[0] === 'resume') && rest[1] !== undefined ? Number(rest[1]) : undefined,
     json: !!flags.json,
   }),
   sandbox: ({ flags, rest }) => {
@@ -327,8 +330,9 @@ const MANAGE_BUILDERS: Record<string, ManageBuilder> = {
   }),
   memory: ({ flags, rest }) => ({
     kind: 'memory',
-    action: (rest[0] as 'profile' | 'stats' | 'clear') ?? 'profile',
+    action: (rest[0] as 'profile' | 'stats' | 'list' | 'clear') ?? 'profile',
     yes: !!flags.yes,
+    project: typeof flags.project === 'string' ? flags.project : undefined,
   }),
   approvals: ({ flags, rest }) => ({
     kind: 'approvals',

@@ -18,6 +18,8 @@ export interface TransparentEntry {
   content: string;
   category: string;
   importance: number;
+  /** 项目作用域（null = 全局记忆，对标 Codex memories 环境作用域） */
+  project: string | null;
   /** ISO 8601 时间戳（由 unixepoch 秒转换） */
   createdAt: string;
 }
@@ -44,7 +46,7 @@ export interface ExportPayload {
   exportedAt: string;
   redacted: boolean;
   count: number;
-  entries: Array<{ content: string; category: string; importance: number; createdAt: string }>;
+  entries: Array<{ content: string; category: string; importance: number; project: string | null; createdAt: string }>;
 }
 
 /** 秒/毫秒时间戳统一转 ISO 8601（容错：>1e12 视为毫秒） */
@@ -59,6 +61,7 @@ function rowToEntry(r: Record<string, unknown>): TransparentEntry {
     content: String(r.content),
     category: r.category ? String(r.category) : 'fact',
     importance: Number(r.importance ?? 0.5),
+    project: r.project != null ? String(r.project) : null,
     createdAt: toIso(Number(r.created_at ?? 0)),
   };
 }
@@ -72,20 +75,20 @@ export class TransparentMemory {
     this.store.userUpsert({ id: userId });
   }
 
-  /** 新增记忆（等价 rememberFact， importance 显式可传） */
-  add(content: string, importance = 0.5, category = 'fact'): boolean {
-    this.store.userAddMemory(this.userId, content, category, importance);
+  /** 新增记忆（等价 rememberFact， importance 显式可传）；project 缺省=全局 */
+  add(content: string, importance = 0.5, category = 'fact', project?: string): boolean {
+    this.store.userAddMemory(this.userId, content, category, importance, project);
     return true;
   }
 
-  /** 读取全部记忆（按重要度降序，limit 默认 1000，导出场景须取全量） */
-  list(limit = 1000): TransparentEntry[] {
-    return this.store.userListMemory(this.userId, limit).map(rowToEntry);
+  /** 读取全部记忆（按重要度降序；project 语义：缺省=全局，'*'=全部，其他=该项目） */
+  list(limit = 1000, project?: string): TransparentEntry[] {
+    return this.store.userListMemory(this.userId, limit, project).map(rowToEntry);
   }
 
-  /** 关键词检索 */
-  search(keyword: string, limit = 50): TransparentEntry[] {
-    return this.store.userSearchMemory(this.userId, keyword, limit).map(rowToEntry);
+  /** 关键词检索（project 语义同上） */
+  search(keyword: string, limit = 50, project?: string): TransparentEntry[] {
+    return this.store.userSearchMemory(this.userId, keyword, limit, project).map(rowToEntry);
   }
 
   /** 编辑记忆内容（返回是否命中） */
@@ -151,6 +154,7 @@ export class TransparentMemory {
         e.content,
         typeof e.category === 'string' ? e.category : 'fact',
         typeof e.importance === 'number' ? e.importance : 0.5,
+        typeof e.project === 'string' && e.project ? e.project : undefined,
       );
       existing.add(e.content.trim());
       added += 1;
@@ -165,6 +169,7 @@ export class TransparentMemory {
       content: doRedact ? auditRedact(e.content) : e.content,
       category: e.category,
       importance: e.importance,
+      project: e.project,
       createdAt: e.createdAt,
     }));
     return {
