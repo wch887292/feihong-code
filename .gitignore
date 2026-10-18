@@ -235,3 +235,16 @@ sanitization-audit-*.md
 主流IDE横向测评报告_2026-10-01.docx
 飞虹Code使用说明书_纯小白版.docx
 飞虹Code使用说明书_纯小白版.pdf
+
+# ── 2026-10-18 自我评测清理：本地实验产物（文件保留本地，不入库）──
+# SWE-bench 数据与跑分报告
+swebench_lite.json
+swebench_lite.parquet
+swe_*.md
+# 一次性 Python 实验脚本
+greeting.py
+parquet_to_json.py
+test_greeting.py
+# 本地日志与 UI 冒烟产物
+logs/
+.ui-check/

@@ -1,5 +1,18 @@
 ﻿# 飞虹 Code 更新日志 / Changelog
 
+## v8.10.1+（未发版）· 对标 DeepSeek Harness 升级：凭据安全化 / Anthropic 协议 / 模型发现 / 插件扩展 / 轨迹 / 沙箱 / Web 接入 (2026-10-18)
+
+**主题**：对标 DeepSeek Harness 工程底座六项能力，全面提升凭据安全、协议兼容与可观测性。
+
+- **P0-1 凭据安全化**：新增 `src/security/credentials.ts` 凭据存储 seam（加密落盘于 `~/.feihong-code/.credentials.json`）；provider 密钥支持 `apiKeyEnv` 引用；新增 `fhcode creds list/set/del` 命令；配置文件 21 个 provider 与 `.env` 3 个 provider 的明文密钥已全部迁移为引用，`.env` 不再含真实密钥
+- **P0-2 Anthropic Messages 协议**：新增 `anthropic-messages.provider.ts` 与响应 schema，支持 Claude 官方 / Anthropic 兼容网关；定位为可选扩展（不配置不影响既有 provider）
+- **P1-3 模型发现**：新增 `fhcode models discover/list/count` 命令，批量探测 provider 可用性与模型清单（实测 agnes 10 模型、openrouter 471 模型）
+- **P1-4 插件清单扩展**：插件 manifest 支持声明 `providers` 与 `tools`；新增 `provider-registry.ts` 做合并与 id 冲突检测
+- **P2-5 执行轨迹**：新增 `fhcode trajectory list/replay/fork`；事件字段增强（model.response/tool.call/tool.result），长参数 2000 字符截断防 jsonl 膨胀，fork 时按 toolCallId 补齐完整参数
+- **P2-6 本地沙箱**：新增 `fhcode sandbox run <dir> -- <cmd> [--sync]`，目录级隔离（拷贝+执行+变更检测），与既有工具级策略互补
+- **Web 控制台接入**：模型管理支持协议下拉（openai-compatible / anthropic-messages）与 apiKeyEnv 凭据引用字段；RSA 公钥下发、模型列表密钥脱敏
+- **复盘修复**：task-executor 双重解析丢 key 回退、轨迹参数截断与 fork 补齐、Web 协议标签样式、注释修正；全量单测 477/477 通过
+
 ## v8.10.1 · Web 控制台五项 UI 改造 + Codex CLI 接入 + Cline 健壮性 (2026-10-17)
 
 **主题**：Web 控制台体验重构、进程级嫁接 OpenAI Codex CLI、增强 Cline 集成容错。
