@@ -659,6 +659,9 @@
       }
       await Promise.allSettled([loadTasks(), loadAutomations(), loadTemplates(), loadMarket(), loadOffice(), loadWorkspace(), loadModels(), loadMemoryStats(), loadNodes(), loadSources(), loadFolderSection(), loadSyncExecEnd(), loadSidebarSkills()]);
       startRefresh();
+      // 支持 URL ?view=xxx 一键直达指定视图（如 ?view=codex），用于桌面快捷方式
+      const urlView = new URLSearchParams(location.search).get('view');
+      if (urlView) { setTimeout(() => { try { switchView(urlView); } catch (e) {} }, 400); }
     }
 
     async function checkFirstLogin() {
