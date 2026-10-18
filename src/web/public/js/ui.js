@@ -396,8 +396,10 @@
       const m = state.models.find((x) => x.id === id);
       if (!m) return;
       document.getElementById('imName').value = m.name;
+      document.getElementById('imType').value = m.type === 'anthropic-messages' ? 'anthropic-messages' : 'openai-compatible';
       document.getElementById('imBase').value = m.apiBase || '';
       document.getElementById('imKey').value = ''; // 密钥不回填（服务端加密存储，防泄露）
+      document.getElementById('imKeyEnv').value = m.apiKeyEnv || '';
       document.getElementById('imReasoning').value = m.reasoning || '';
       document.getElementById('imMsg').textContent = '正在编辑：' + m.name + '（密钥已加密存储，留空保持不变）';
       document.getElementById('imMsg').classList.remove('err');
@@ -406,8 +408,10 @@
 
     function resetInlineForm() {
       document.getElementById('imName').value = '';
+      document.getElementById('imType').value = 'openai-compatible';
       document.getElementById('imBase').value = '';
       document.getElementById('imKey').value = '';
+      document.getElementById('imKeyEnv').value = '';
       document.getElementById('imReasoning').value = '';
       document.getElementById('imMsg').textContent = '';
       document.getElementById('imMsg').classList.remove('err');
@@ -427,14 +431,15 @@
       }
       list.innerHTML = state.models.map((m) => {
         const url = (m.apiBase || '').trim() || '（未填写 API 地址）';
-        const meta = m.reasoning ? '已配置推理中间环节' : '未配置推理中间环节';
+        const protoTag = m.type === 'anthropic-messages' ? '<span class="mm-proto-tag">Anthropic</span>' : '<span class="mm-proto-tag mm-proto-oa">OpenAI</span>';
+        const meta = (m.reasoning ? '已配置推理 · ' : '') + (m.apiKeyEnv ? '凭据引用 ' + escapeHtml(m.apiKeyEnv) : '');
         const tag = m.default ? '<span class="mm-default-tag">默认</span>' : '';
         const defaultBtn = m.default ? '' : '<button class="mm-act mm-act-primary" data-act="default">设为默认</button>';
         return (
           '<div class="mm-card" data-id="' + escapeHtml(m.id) + '">' +
             '<div class="mm-card-head">' +
               '<span class="mm-card-name">' + escapeHtml(m.name) + '</span>' +
-              tag +
+              tag + protoTag +
             '</div>' +
             '<div class="mm-card-url">' + escapeHtml(url) + '</div>' +
             '<div class="mm-card-meta">' + meta + '</div>' +

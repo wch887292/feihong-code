@@ -442,7 +442,18 @@ export class Orchestrator {
       await eventLog.append('model.response', {
         provider: resp.providerId,
         model: resp.model,
-        toolCalls: (msg.toolCalls ?? []).map((t) => t.name),
+        content: (msg.content || '').slice(0, 2000),
+        // 工具参数截断存轨迹（防 write_file 全文把 jsonl 撑爆）；fork 重建时用
+        // tool.call 事件的完整 args 补齐（两者按 toolCallId 关联）
+        toolCalls: (msg.toolCalls ?? []).map((t) => {
+          let args: unknown = t.arguments;
+          try {
+            const s = JSON.stringify(t.arguments ?? {});
+            if (s.length > 2000) args = { _truncated: true, _preview: s.slice(0, 2000) };
+          } catch { /* 保留原值 */ }
+          return { id: t.id, name: t.name, arguments: args };
+        }),
+        usage: resp.usage,
         latencyMs: latency,
       });
       this.deps.onEvent?.({
@@ -739,7 +750,7 @@ ${toolHint}
           ctx.session.append(ruleMsg);
         }
       }
-      await ctx.eventLog.append('tool.call', { name: tc.name, args: tc.arguments });
+      await ctx.eventLog.append('tool.call', { name: tc.name, args: tc.arguments, id: tc.id });
       this.deps.onEvent?.({ type: 'tool.call', name: tc.name, args: tc.arguments });
 
       // 去重检测：相同工具+相同参数如果之前已成功，返回缓存并警告；若多次重复仍不推进，
@@ -762,12 +773,12 @@ ${toolHint}
           const forceError = `工具 ${tc.name} 用相同参数已被重复调用 ${hits + 1} 次，任务没有任何进展。请立即停止重复操作，重新规划策略：先 read_file 读回实际文件内容确认现状，再决定下一步；换用其他工具、其他参数或完全不同的实现方式推进任务。`;
           result = { ok: false, output: '', error: forceError };
           this.noProgressStreak++;
-          await ctx.eventLog.append('tool.result', { name: tc.name, ok: false, output: forceError.slice(0, 500) });
+          await ctx.eventLog.append('tool.result', { name: tc.name, ok: false, output: forceError.slice(0, 500), id: tc.id });
           this.deps.onEvent?.({ type: 'tool.result', name: tc.name, ok: false, output: forceError.slice(0, 500) });
         } else {
           const warning = `[重复调用警告] 工具 ${tc.name} 用相同参数之前已成功执行过，以下是缓存的结果。请不要重复调用相同工具，直接利用已有信息推进任务。\n`;
           result = { ok: true, output: warning + cached.output };
-          await ctx.eventLog.append('tool.result', { name: tc.name, ok: true, output: result.output.slice(0, 500) });
+          await ctx.eventLog.append('tool.result', { name: tc.name, ok: true, output: result.output.slice(0, 500), id: tc.id });
           this.deps.onEvent?.({ type: 'tool.result', name: tc.name, ok: true, output: result.output.slice(0, 500) });
         }
       } else {
@@ -810,6 +821,7 @@ ${toolHint}
           name: tc.name,
           ok: result.ok,
           output: result.output.slice(0, 500),
+          id: tc.id,
         });
         this.deps.onEvent?.({ type: 'tool.result', name: tc.name, ok: result.ok, output: result.output.slice(0, 500) });
       }

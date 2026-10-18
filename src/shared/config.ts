@@ -17,6 +17,7 @@ import { parseMcpServers } from '../tools/mcp';
 import type { HookConfig } from '../runtime/hooks';
 import { parseHooks } from '../runtime/hooks';
 import { loadPlugins, type LoadedPlugins } from '../plugins/plugin-loader';
+import { mergePluginProviders } from '../plugins/provider-registry';
 import { getGithubMcpServers } from '../integrations/github-mcp';
 
 /**
@@ -48,11 +49,20 @@ export function loadDotEnv(cwd = process.cwd()): void {
 
 export interface ProviderConfig {
   id: string;
-  type: 'openai-compatible' | 'ollama';
+  /**
+   * 协议类型：
+   * - openai-compatible（默认主干）：覆盖 OpenRouter/SiliconFlow/Ollama 网关及本地聚合端点
+   * - ollama：本地 Ollama 服务
+   * - anthropic-messages（可选扩展，缺省不启用）：仅接入 Claude 官方 / Anthropic 兼容网关
+   *   （如 https://api.deepseek.com/anthropic）时配置；不配置不影响现有 provider
+   */
+  type: 'openai-compatible' | 'ollama' | 'anthropic-messages';
   baseURL: string;
   /** 模型名（OpenAI 兼容接口必填；Ollama 指定本地模型） */
   model?: string;
   apiKey?: string;
+  /** 凭据引用名（对标 dsh credentials seam）：优先于 apiKey 解析，密钥不落配置文件 */
+  apiKeyEnv?: string;
   tags: CapabilityTag[];
   costPer1k?: number;
 }
@@ -207,8 +217,8 @@ export function loadConfigFile(path?: string): Partial<AppConfig> | null {
 function buildProviderFromEnv(): ProviderConfig | null {
   const name = process.env.FH_MODEL_NAME || process.env.FH_OLLAMA_MODEL;
   if (!name) return null;
-  const type: 'openai-compatible' | 'ollama' =
-    (process.env.FH_MODEL_TYPE as 'openai-compatible' | 'ollama') ||
+  const type: 'openai-compatible' | 'ollama' | 'anthropic-messages' =
+    (process.env.FH_MODEL_TYPE as 'openai-compatible' | 'ollama' | 'anthropic-messages') ||
     (process.env.FH_MODEL_BASE_URL?.includes('ollama') ? 'ollama' : 'openai-compatible');
   const baseURL =
     process.env.FH_MODEL_BASE_URL || (type === 'ollama' ? 'http://localhost:11434' : '');
@@ -265,6 +275,13 @@ export function loadConfig(): AppConfig {
   const providers = resolveProviders(fileCfg);
   // P3-3：插件聚合（用户级 + 项目级）
   const plugins = loadPlugins(process.cwd());
+  // P1-4：插件 provider 合并进模型路由（冲突检测，配置优先）
+  const mergedProviders = mergePluginProviders(providers, plugins.providers);
+  if (mergedProviders.conflicts.length > 0) {
+    for (const c of mergedProviders.conflicts) {
+      console.warn(`[provider-registry] 插件 provider 冲突，已拒绝: ${c.id} — ${c.reason}`);
+    }
+  }
 
   cached = {
     app: {
@@ -273,7 +290,7 @@ export function loadConfig(): AppConfig {
       homeDir: resolveHomeDir(),
     },
     models: {
-      providers,
+      providers: mergedProviders.providers,
       defaultStrategy:
         (process.env.FH_MODEL_STRATEGY as ModelStrategy) ||
         fileCfg?.models?.defaultStrategy ||

@@ -13,6 +13,7 @@ import { join } from 'path';
 import { homedir } from 'os';
 import type { HookConfig } from '../runtime/hooks';
 import type { McpServerConfig } from '../tools/mcp/mcp-client';
+import type { ProviderConfig } from '../shared/config';
 import { logger } from '../shared/logger';
 
 export interface PluginManifest {
@@ -25,6 +26,10 @@ export interface PluginManifest {
   hooks?: HookConfig[];
   /** 插件内 MCP 服务器（合并进运行时 MCP） */
   mcp?: McpServerConfig[];
+  /** P1-4：插件声明的模型 provider（合并进模型路由，冲突检测见 provider-registry） */
+  providers?: ProviderConfig[];
+  /** P1-4：插件内工具脚本目录（相对插件根；执行引擎注册由宿主工具系统负责） */
+  tools?: string[];
 }
 
 export interface LoadedPlugins {
@@ -32,6 +37,10 @@ export interface LoadedPlugins {
   skillDirs: string[];
   hooks: HookConfig[];
   mcp: McpServerConfig[];
+  /** P1-4：插件声明的模型 provider */
+  providers: ProviderConfig[];
+  /** P1-4：插件工具目录绝对路径列表 */
+  toolDirs: string[];
   /** 已加载插件名（诊断/列表用） */
   loaded: string[];
 }
@@ -73,12 +82,14 @@ function listPluginsIn(root: string): PluginManifest[] {
   return out;
 }
 
-/** 发现并加载全部插件（用户级 + 项目级），聚合 skills/hooks/mcp */
+/** 发现并加载全部插件（用户级 + 项目级），聚合 skills/hooks/mcp/providers/tools */
 export function loadPlugins(cwd: string): LoadedPlugins {
   const roots = [pluginRoot(), projectPluginRoot(cwd)];
   const skillDirs: string[] = [];
   const hooks: HookConfig[] = [];
   const mcp: McpServerConfig[] = [];
+  const providers: ProviderConfig[] = [];
+  const toolDirs: string[] = [];
   const loaded: string[] = [];
   const seen = new Set<string>();
 
@@ -95,9 +106,17 @@ export function loadPlugins(cwd: string): LoadedPlugins {
       }
       if (manifest.hooks) hooks.push(...manifest.hooks);
       if (manifest.mcp) mcp.push(...manifest.mcp);
+      // P1-4：插件 provider 与工具目录聚合（provider 冲突在 provider-registry 合并时检测）
+      if (manifest.providers && manifest.providers.length > 0) {
+        providers.push(...manifest.providers);
+      }
+      for (const t of manifest.tools ?? []) {
+        const abs = join(dir, t);
+        if (existsSync(abs)) toolDirs.push(abs);
+      }
     }
   }
-  return { skillDirs, hooks, mcp, loaded };
+  return { skillDirs, hooks, mcp, providers, toolDirs, loaded };
 }
 
 function readdirSyncSafe(dir: string): string[] {

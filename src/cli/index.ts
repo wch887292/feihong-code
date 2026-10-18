@@ -18,6 +18,10 @@ import { runAgentNewCmd } from './cmds/agent-new';
 import { runRoutineCmd } from './cmds/routine';
 import { runMemoryCmd } from './cmds/memory';
 import { runApprovalsCmd } from './cmds/approvals';
+import { runCredsCmd } from './cmds/creds';
+import { runModelsDiscoverCmd } from './cmds/models';
+import { runTrajectoryCmd } from './cmds/trajectory';
+import { runSandboxCmd } from './cmds/sandbox';
 import { startRepl } from './repl';
 import { runTui } from './tui-run';
 
@@ -161,6 +165,8 @@ async function dispatchManage(m: ManagementCommand): Promise<void> {
     case 'resume': await runResume(m.id); break;
     case 'diff': await runDiff(m.id); break;
     case 'rollback': await runRollback(m.id, m.yes); break;
+    case 'trajectory': await runTrajectoryCmd(m.action, m.id, m.step, m.json); break;
+    case 'sandbox': await runSandboxCmd(m.workdir, m.command, m.sync); break;
     case 'whoami': runWhoami(); break;
     case 'policy': runPolicyCmd(); break;
     case 'audit': if (m.verify) runAuditVerify(); else runAudit(m.limit); break;
@@ -216,6 +222,8 @@ async function dispatchManage(m: ManagementCommand): Promise<void> {
     }); break;
     case 'memory': await runMemoryCmd(m.action, m.yes); break;
     case 'approvals': await runApprovalsCmd({ action: m.action, id: m.id, all: m.all, by: m.by }); break;
+    case 'creds': await runCredsCmd(m.action, m.ref, m.value); break;
+    case 'models': if (m.action === 'discover') await runModelsDiscoverCmd(m.providerId); break;
   }
 }
 

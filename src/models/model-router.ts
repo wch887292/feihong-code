@@ -18,7 +18,7 @@
 import { mkdir, readFile, writeFile } from 'fs/promises';
 import { existsSync } from 'fs';
 import { join } from 'path';
-import type { AppConfig } from '../shared/config';
+import type { AppConfig, ProviderConfig } from '../shared/config';
 import type { CapabilityTag, ModelStrategy } from '../shared/types';
 import { TIERS, type ComputeTier } from './tier';
 import { ModelError } from '../shared/errors';
@@ -26,6 +26,8 @@ import { logger } from '../shared/logger';
 import type { ChatRequest, ChatResponse, ModelProvider } from './model.interface';
 import { OpenAICompatibleProvider } from './providers/openai-compatible.provider';
 import { OllamaProvider } from './providers/ollama.provider';
+import { AnthropicMessagesProvider } from './providers/anthropic-messages.provider';
+import { resolveProviderApiKey } from '../security/credentials';
 
 export interface ModelStat {
   providerId: string;
@@ -86,9 +88,18 @@ export class ModelRouter {
 
   /** 从 AppConfig 构建（默认路由，联调真实模型时使用）；homeDir 用于统计自动落盘 */
   static fromConfig(cfg: AppConfig, statsFile?: string, tier: ComputeTier = 'full'): ModelRouter {
-    const providers = cfg.models.providers.map((p) =>
-      p.type === 'ollama' ? new OllamaProvider(p) : new OpenAICompatibleProvider(p),
-    );
+    // 凭据 seam（对标 dsh）：apiKeyEnv 引用优先解析，回退旧 apiKey 兼容存量配置
+    const homeDir = cfg.app.homeDir;
+    const providers = cfg.models.providers.map((p) => {
+      const apiKey = resolveProviderApiKey(p, homeDir);
+      const normalized: ProviderConfig = { ...p, apiKey };
+      if (p.type === 'ollama') return new OllamaProvider(normalized);
+      // anthropic-messages 为可选扩展协议（缺省不启用）：仅当需要接入 Claude 官方 /
+      // Anthropic 兼容网关（如 DeepSeek 官方 Anthropic 端点 https://api.deepseek.com/anthropic）
+      // 时才配置；不配置时走默认的 openai-compatible 分支，不影响现有 provider。
+      if (p.type === 'anthropic-messages') return new AnthropicMessagesProvider(normalized);
+      return new OpenAICompatibleProvider(normalized);
+    });
     return new ModelRouter(
       providers,
       cfg.models.defaultStrategy,

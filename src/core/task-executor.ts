@@ -16,11 +16,14 @@ import { setRunId, logger } from '../shared/logger';
 import { t } from '../shared/i18n';
 import { loadConfig, loadConfigFile } from '../shared/config';
 import { AppError } from '../shared/errors';
+import type { CapabilityTag } from '../shared/types';
 import { ModelRouter } from '../models/model-router';
 import { classifyGoalTier, type ComputeTier } from '../models/tier';
 import { ScriptedMockProvider, type MockStep } from '../models/providers/mock.provider';
 import { OpenAICompatibleProvider } from '../models/providers/openai-compatible.provider';
 import { OllamaProvider } from '../models/providers/ollama.provider';
+import { AnthropicMessagesProvider } from '../models/providers/anthropic-messages.provider';
+import { resolveProviderApiKey } from '../security/credentials';
 import { createDefaultRegistry } from '../tools';
 import { attachMcpTools, closeMcpClients } from '../tools/mcp';
 import { attachDesktopTools } from '../tools/desktop';
@@ -54,7 +57,15 @@ export interface RunOptions {
   /** P3-1：自定义事件渲染器（TUI 用），优先于 stream */
   renderer?: (ev: OrchestratorEvent) => void;
   /** 指定模型列表（由 Web 控制台传入，直接构建 ModelRouter，绕过 loadConfig 缓存） */
-  modelProviders?: Array<{ id: string; type: 'openai-compatible' | 'ollama'; baseURL: string; apiKey?: string; model?: string }>;
+  modelProviders?: Array<{
+    id: string;
+    type: 'openai-compatible' | 'ollama' | 'anthropic-messages';
+    baseURL: string;
+    apiKey?: string;
+    apiKeyEnv?: string;
+    model?: string;
+    tags?: CapabilityTag[];
+  }>;
   /** 指定模型名（如 deepseek-ai/DeepSeek-V4-Flash），覆盖默认模型选择 */
   model?: string;
   /** 安全配置（Web 控制台可覆盖默认值） */
@@ -304,11 +315,20 @@ export async function executeTask(goal: string, opts: RunOptions = {}): Promise<
 
   let router: ModelRouter;
   let pluginSkillDirs: string[] = [];
-  // Web 控制台直接注入模型配置（绕过 loadConfig 缓存）
+  // Web 控制台直接注入模型配置（绕过 loadConfig 缓存）；凭据 seam：apiKeyEnv 优先解析
   if (opts.modelProviders && opts.modelProviders.length > 0) {
-    const providers = opts.modelProviders.map((p) =>
-      p.type === 'ollama' ? new OllamaProvider({ id: p.id, type: 'ollama', baseURL: p.baseURL, model: p.model || 'default', tags: ['code-gen', 'reasoning'] }) : new OpenAICompatibleProvider({ id: p.id, type: 'openai-compatible', baseURL: p.baseURL, model: p.model || 'gpt-4o', apiKey: p.apiKey, tags: ['code-gen', 'reasoning'] }),
-    );
+    const providers = opts.modelProviders.map((p) => {
+      // 凭据 seam：apiKeyEnv 引用优先解析；引用解析失败（凭据被删/改名）时回退
+      // 调用方已传入的 apiKey（Web 场景 model-domain 已解密为明文），避免双重解析丢 key
+      const apiKey = resolveProviderApiKey(p) ?? p.apiKey;
+      if (p.type === 'ollama') {
+        return new OllamaProvider({ id: p.id, type: 'ollama', baseURL: p.baseURL, model: p.model || 'default', tags: ['code-gen', 'reasoning'] });
+      }
+      const tags = (p.tags && p.tags.length > 0 ? p.tags : ['code-gen', 'reasoning']) as CapabilityTag[];
+      const normalized = { ...p, apiKey, model: p.model || p.id, tags };
+      if (p.type === 'anthropic-messages') return new AnthropicMessagesProvider(normalized);
+      return new OpenAICompatibleProvider({ ...normalized, model: p.model || 'gpt-4o' });
+    });
     // Web 直连模式不感知档位，固定满血
     router = new ModelRouter(providers, 'cost', 0, '', '', 3, 1000, 'full');
   } else if (offline) {

@@ -1475,6 +1475,21 @@
       font-weight: 500;
       flex: 0 0 auto;
     }
+    .mm-proto-tag {
+      font-size: 11px;
+      padding: 1px 7px;
+      border-radius: 99px;
+      background: #f0eee6;
+      color: #b58900;
+      border: 1px solid #e3d9b8;
+      font-weight: 500;
+      flex: 0 0 auto;
+    }
+    .mm-proto-oa {
+      background: #e8f2ff;
+      color: #2f6fd6;
+      border-color: #c9ddf8;
+    }
     .mm-card-url {
       font-size: 12px;
       color: var(--muted);
@@ -1534,7 +1549,7 @@
       background: var(--bg);
     }
     .mm-form-title { font-size: 13px; font-weight: 600; color: var(--ink); margin-bottom: 2px; }
-    .mm-form input, .mm-form textarea {
+    .mm-form input, .mm-form textarea, .mm-form select {
       margin: 0;
       padding: 8px 10px;
       font-size: 13px;
@@ -1543,7 +1558,7 @@
       background: var(--card);
       transition: border-color 0.15s;
     }
-    .mm-form input:focus, .mm-form textarea:focus {
+    .mm-form input:focus, .mm-form textarea:focus, .mm-form select:focus {
       outline: none;
       border-color: var(--brand);
     }

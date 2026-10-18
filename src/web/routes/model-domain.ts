@@ -17,11 +17,13 @@ import { join } from 'path';
 import { TaskQueue } from '../task-queue';
 import { ModelRouter } from '../../models/model-router';
 import { OpenAICompatibleProvider } from '../../models/providers/openai-compatible.provider';
+import { AnthropicMessagesProvider } from '../../models/providers/anthropic-messages.provider';
 import { createCompletionEngine, type CompletionEngine } from '../../agent/completion-engine';
 import { lintSnippet } from '../../agent/lint';
 import { buildCodeGraph } from '../../agent/symbol-index';
 import { createDesignToCodeEngine, type DesignToCodeEngine } from '../../agent/design-to-code';
 import { encryptText, decryptText, isEncrypted, getRsaKeys, rsaDecrypt } from '../../shared/secure-store';
+import { resolveProviderApiKey } from '../../security/credentials';
 
 type ExpressApp = ReturnType<typeof express>;
 
@@ -164,6 +166,10 @@ export function registerModelDomainRoutes(app: ExpressApp, deps: ModelDomainDeps
     name: string;
     apiBase: string;
     apiKey: string; // 存储层为 AES-256-GCM 密文（v1:...），对外永不明文返回
+    /** 协议类型：openai-compatible（默认）| anthropic-messages */
+    type?: 'openai-compatible' | 'anthropic-messages';
+    /** 凭据引用名（对标 dsh seam）：apiKeyEnv 优先于 apiKey，密钥不落文件 */
+    apiKeyEnv?: string;
     reasoning?: string;
     default?: boolean;
   }
@@ -171,17 +177,20 @@ export function registerModelDomainRoutes(app: ExpressApp, deps: ModelDomainDeps
     const list = loadJsonFile<ModelConfig[]>(modelsFile, []);
     return Array.isArray(list) ? list : [];
   }
-  /** 解析真实（解密）apiKey，供任务执行器使用 */
+  /** 解析真实 apiKey：apiKeyEnv 引用优先（seam 解析），否则解密存储的密文 */
   function resolveApiKey(m: ModelConfig): string {
+    if (m.apiKeyEnv) {
+      return resolveProviderApiKey(m, homeDir) ?? '';
+    }
     if (!m.apiKey) return '';
     return isEncrypted(m.apiKey) ? decryptText(m.apiKey, masterKey) : m.apiKey;
   }
-  /** 对外脱敏视图：任何接口都不返回密钥（明文或密文） */
+  /** 对外脱敏视图：任何接口都不返回密钥（明文或密文）；type/apiKeyEnv 引用名非敏感可返回 */
   function publicModel(m: ModelConfig): ModelConfig {
-    return { ...m, apiKey: '' };
+    return { ...m, apiKey: '', type: m.type ?? 'openai-compatible' };
   }
   function saveModels(list: ModelConfig[]): boolean {
-    // 明文 key 加密后再落盘（已加密的跳过，避免二次加密）
+    // 明文 key 加密后再落盘（已加密的跳过，避免二次加密）；apiKeyEnv 引用不落明文
     const encList = list.map((m) =>
       m.apiKey && !isEncrypted(m.apiKey) ? { ...m, apiKey: encryptText(m.apiKey, masterKey) } : m,
     );
@@ -189,9 +198,10 @@ export function registerModelDomainRoutes(app: ExpressApp, deps: ModelDomainDeps
     // 同步更新任务队列的模型配置，使用解密后的真实 key（即使落盘失败也更新内存态）
     queue.setModelProviders(encList.map((m) => ({
       id: m.id,
-      type: 'openai-compatible' as const,
+      type: (m.type === 'anthropic-messages' ? 'anthropic-messages' : 'openai-compatible') as 'openai-compatible' | 'anthropic-messages',
       baseURL: m.apiBase,
       apiKey: resolveApiKey(m),
+      apiKeyEnv: m.apiKeyEnv,
       model: m.name,
     })));
     // P2: 同步更新补全引擎
@@ -202,9 +212,10 @@ export function registerModelDomainRoutes(app: ExpressApp, deps: ModelDomainDeps
   const initialModels = loadModels();
   queue.setModelProviders(initialModels.map((m) => ({
     id: m.id,
-    type: 'openai-compatible' as const,
+    type: (m.type === 'anthropic-messages' ? 'anthropic-messages' : 'openai-compatible') as 'openai-compatible' | 'anthropic-messages',
     baseURL: m.apiBase,
     apiKey: resolveApiKey(m),
+    apiKeyEnv: m.apiKeyEnv,
     model: m.name,
   })));
 
@@ -217,14 +228,25 @@ export function registerModelDomainRoutes(app: ExpressApp, deps: ModelDomainDeps
     try {
       const providers = models
         .filter((m) => m.apiBase && m.name)
-        .map((m) => new OpenAICompatibleProvider({
-          id: m.id,
-          type: 'openai-compatible',
-          baseURL: m.apiBase,
-          apiKey: resolveApiKey(m),
-          model: m.name,
-          tags: ['code-gen', 'cheap'],
-        }));
+        .map((m) =>
+          m.type === 'anthropic-messages'
+            ? new AnthropicMessagesProvider({
+                id: m.id,
+                type: 'anthropic-messages',
+                baseURL: m.apiBase,
+                apiKey: resolveApiKey(m),
+                model: m.name,
+                tags: ['code-gen', 'cheap'],
+              })
+            : new OpenAICompatibleProvider({
+                id: m.id,
+                type: 'openai-compatible',
+                baseURL: m.apiBase,
+                apiKey: resolveApiKey(m),
+                model: m.name,
+                tags: ['code-gen', 'cheap'],
+              }),
+        );
       if (!providers.length) {
         sharedModelRouter = null;
         completionEngine = null;
@@ -242,8 +264,8 @@ export function registerModelDomainRoutes(app: ExpressApp, deps: ModelDomainDeps
         cacheTtlMs: 10000,
         enableSyntaxCheck: true,
       }, codeGraph);
-      // P2-1: 更新设计稿转代码引擎的模型提供者
-      designToCodeEngine = createDesignToCodeEngine(providers);
+      // P2-1: 更新设计稿转代码引擎的模型提供者（当前仅支持 OpenAI 兼容 provider）
+      designToCodeEngine = createDesignToCodeEngine(providers.filter((p): p is OpenAICompatibleProvider => p instanceof OpenAICompatibleProvider));
     } catch (e) {
       console.error('[completion] rebuild failed:', e);
       sharedModelRouter = null;
@@ -288,6 +310,13 @@ export function registerModelDomainRoutes(app: ExpressApp, deps: ModelDomainDeps
       const dec = rsaDecrypt(body.apiKeyEnc, rsaKeys.privateKey);
       if (dec) apiKey = dec;
     }
+    const type = body?.type === 'anthropic-messages' ? 'anthropic-messages' : 'openai-compatible';
+    let apiKeyEnv = typeof body?.apiKeyEnv === 'string' ? body.apiKeyEnv.trim() : '';
+    if (apiKeyEnv && !/^[A-Za-z_][A-Za-z0-9_]*$/.test(apiKeyEnv)) {
+      res.status(400).json({ ok: false, error: '凭据引用名需为 POSIX 标识符（如 FHC_OPENROUTER_API_KEY）' });
+      return;
+    }
+    if (!apiKeyEnv) apiKeyEnv = '';
     const reasoning = typeof body?.reasoning === 'string' ? body.reasoning : '';
     if (!name) {
       res.status(400).json({ ok: false, error: '请填写模型名称' });
@@ -300,14 +329,14 @@ export function registerModelDomainRoutes(app: ExpressApp, deps: ModelDomainDeps
     if (idx >= 0) {
       // 编辑场景：未提供新 key 则保留原密钥（前端不再回填明文）
       const cfg: ModelConfig = {
-        id, name, apiBase,
+        id, name, apiBase, type, apiKeyEnv,
         apiKey: apiKey || list[idx].apiKey,
         reasoning,
       };
       list[idx] = { ...list[idx], ...cfg };
       saved = list[idx];
     } else {
-      saved = { id, name, apiBase, apiKey, reasoning };
+      saved = { id, name, apiBase, apiKey, apiKeyEnv, type, reasoning };
       list.push(saved);
     }
     if (!saveModels(list)) {

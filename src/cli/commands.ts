@@ -35,6 +35,8 @@ export type ManagementCommand =
   | { kind: 'resume'; id: string }
   | { kind: 'diff'; id?: string }
   | { kind: 'rollback'; id: string; yes: boolean }
+  | { kind: 'trajectory'; action: 'list' | 'replay' | 'fork'; id?: string; step?: number; json: boolean }
+  | { kind: 'sandbox'; workdir: string; command: string; sync: boolean }
   | { kind: 'whoami' }
   | { kind: 'policy' }
   | { kind: 'audit'; verify: boolean; limit: number }
@@ -72,7 +74,9 @@ export type ManagementCommand =
   | { kind: 'routine'; action: 'list' | 'add' | 'run' | 'enable' | 'rm'; id?: string; cron?: string; goal?: string; command?: string; name?: string; tier?: ComputeTier; workspaceDir?: string; enabled?: boolean }
   | { kind: 'memory'; action: 'profile' | 'stats' | 'clear'; yes: boolean }
   | { kind: 'approvals'; action: 'list' | 'show' | 'approve' | 'reject'; id?: string; all: boolean; by?: string }
-  | { kind: 'integrations'; action: 'list' | 'init'; type?: string; targetDir?: string };
+  | { kind: 'integrations'; action: 'list' | 'init'; type?: string; targetDir?: string }
+  | { kind: 'creds'; action: 'list' | 'set' | 'unset' | 'migrate'; ref?: string; value?: string }
+  | { kind: 'models'; action: 'discover'; providerId?: string };
 
 export interface ParsedArgs {
   flags: {
@@ -131,6 +135,8 @@ export interface ParsedArgs {
     contextCompactEvery?: number;
     /** 上下文 token 预算上限（默认 200000）。调大（如 200000/1000000）可承载更长的上下文。 */
     contextMaxTokens?: number;
+    /** sandbox：执行后把沙箱变更合并回原目录 */
+    sync?: boolean;
   };
   /** 单命令模式下的需求文本（首个非 flag 参数） */
   command?: string;
@@ -182,6 +188,7 @@ const FLAG_SPECS: Record<string, FlagSpec> = {
   'workspace-dir': { kind: 'str', key: 'workspaceDir' },
   'context-compact-every': { kind: 'int', min: 1, key: 'contextCompactEvery' },
   'context-max-tokens': { kind: 'int', min: 1000, key: 'contextMaxTokens' },
+  sync: { kind: 'bool', key: 'sync' },
 };
 
 const SHORT_FLAGS: Record<string, FlagKey> = {
@@ -231,6 +238,20 @@ const MANAGE_BUILDERS: Record<string, ManageBuilder> = {
   resume: ({ rest }) => ({ kind: 'resume', id: rest[0] ?? '' }),
   diff: ({ rest }) => ({ kind: 'diff', id: rest[0] }),
   rollback: ({ flags, rest }) => ({ kind: 'rollback', id: rest[0] ?? '', yes: !!flags.yes }),
+  trajectory: ({ flags, rest }) => ({
+    kind: 'trajectory',
+    action: rest[0] === 'replay' || rest[0] === 'fork' ? rest[0] : 'list',
+    id: rest[1],
+    step: rest[0] === 'fork' && rest[1] !== undefined ? Number(rest[1]) : undefined,
+    json: !!flags.json,
+  }),
+  sandbox: ({ flags, rest }) => {
+    // fhcode sandbox run <目录> -- <命令> [--sync]
+    const dash = rest.indexOf('--');
+    const workdir = dash > 1 ? rest[1] : '.';
+    const cmdStart = dash >= 0 ? dash + 1 : 2;
+    return { kind: 'sandbox', workdir, command: rest.slice(cmdStart).join(' '), sync: !!flags.sync };
+  },
   whoami: () => ({ kind: 'whoami' }),
   policy: () => ({ kind: 'policy' }),
   tenants: () => ({ kind: 'tenants' }),
@@ -321,6 +342,17 @@ const MANAGE_BUILDERS: Record<string, ManageBuilder> = {
     action: rest[0] === 'init' ? 'init' : 'list',
     type: rest[0] === 'init' ? rest[1] : undefined,
     targetDir: rest[0] === 'init' ? rest[2] : undefined,
+  }),
+  creds: ({ rest }) => ({
+    kind: 'creds',
+    action: (rest[0] as 'list' | 'set' | 'unset' | 'migrate') ?? 'list',
+    ref: rest[1],
+    value: rest[2],
+  }),
+  models: ({ rest }) => ({
+    kind: 'models',
+    action: rest[0] === 'discover' ? 'discover' : 'discover',
+    providerId: rest[1],
   }),
 };
 

@@ -1361,8 +1361,13 @@
               <div class="mm-form">
                 <div class="mm-form-title">填写模型信息</div>
                 <input type="text" id="imName" placeholder="模型名称（必填）" data-i18n="modal.model_name" />
-                <input type="text" id="imBase" placeholder="API 地址（如 https://api.openai.com/v1）" data-i18n="modal.model_api" />
+                <select id="imType" class="mm-select">
+                  <option value="openai-compatible">OpenAI 兼容（Chat Completions）</option>
+                  <option value="anthropic-messages">Anthropic Messages（/v1/messages）</option>
+                </select>
+                <input type="text" id="imBase" placeholder="API 地址（如 https://api.openai.com/v1 或 https://api.deepseek.com/anthropic）" data-i18n="modal.model_api" />
                 <input type="password" id="imKey" placeholder="API Key（编辑时留空保留原值）" autocomplete="off" />
+                <input type="text" id="imKeyEnv" placeholder="凭据引用名（可选，如 FHC_OPENROUTER_API_KEY，优先于 API Key）" autocomplete="off" />
                 <textarea id="imReasoning" rows="2" placeholder="推理中间环节内容（可选）"></textarea>
                 <div class="mm-form-actions">
                   <button id="imSave" class="primary sm" data-i18n="btn.save">保存</button>

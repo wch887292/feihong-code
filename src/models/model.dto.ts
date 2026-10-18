@@ -48,6 +48,29 @@ export const ollamaChatResponseSchema = z.object({
   eval_count: z.number().optional(),
 });
 
+/** Anthropic Messages 内容块：text / tool_use / tool_result */
+export const anthropicContentBlockSchema = z.object({
+  type: z.string(),
+  text: z.string().optional(),
+  id: z.string().optional(),
+  name: z.string().optional(),
+  input: z.record(z.string(), z.unknown()).optional(),
+});
+
+export const anthropicMessagesResponseSchema = z.object({
+  id: z.string(),
+  model: z.string(),
+  role: z.string().optional(),
+  stop_reason: z.string().optional(),
+  content: z.array(anthropicContentBlockSchema),
+  usage: z
+    .object({
+      input_tokens: z.number(),
+      output_tokens: z.number(),
+    })
+    .optional(),
+});
+
 /** 将模型返回的工具参数（可能是 JSON 字符串或对象）归一为对象。
  *  对畸形字符串尝试提取 JSON（处理 markdown 代码块、前后多余文本等），
  *  仍失败时返回 { __parse_error__: raw } 让上游能感知并给模型反馈，而非静默 {}。 */

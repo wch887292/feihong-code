@@ -1617,14 +1617,16 @@
     });
     async function saveInlineModel() {
       const name = document.getElementById('imName').value.trim();
+      const type = document.getElementById('imType').value === 'anthropic-messages' ? 'anthropic-messages' : 'openai-compatible';
       const apiBase = document.getElementById('imBase').value.trim();
       const apiKey = document.getElementById('imKey').value;
+      const apiKeyEnv = document.getElementById('imKeyEnv').value.trim();
       const reasoning = document.getElementById('imReasoning').value;
       const msg = document.getElementById('imMsg');
       if (!name) { msg.textContent = '请填写模型名称'; msg.classList.add('err'); return; }
       const editing = document.getElementById('imSave').dataset.editing;
       try {
-        const body = { name, apiBase, reasoning };
+        const body = { name, type, apiBase, apiKeyEnv, reasoning };
         // 三重加密·通信层：密钥 RSA 加密传输
         if (apiKey) body.apiKeyEnc = await rsaEncryptText(apiKey);
         if (editing) body.id = editing;

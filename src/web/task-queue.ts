@@ -137,7 +137,7 @@ export interface TaskQueueOptions {
   /** P6-4：任务持久化目录（跨进程/重启恢复；不配置则纯内存） */
   persistDir?: string;
   /** Web 控制台模型配置列表（models.json），供 executeTask 使用真实模型 */
-  modelProviders?: Array<{ id: string; type: 'openai-compatible' | 'ollama'; baseURL: string; apiKey?: string; model?: string }>;
+  modelProviders?: Array<{ id: string; type: 'openai-compatible' | 'ollama' | 'anthropic-messages'; baseURL: string; apiKey?: string; apiKeyEnv?: string; model?: string }>;
   /** 离线模式：使用内置 mock 模型（无需任何 API key），用于 Web 控制台演示与单元测试 */
   offline?: boolean;
   /** P3-1：文件写入暂存回调（注入 change-manager.stageChange），AI 生成的修改自动记录到变更面板 */
@@ -155,7 +155,7 @@ export class TaskQueue {
   private readonly channels?: MessageChannels;
   private readonly persistDir?: string;
   /** Web 控制台配置的模型列表 */
-  private modelProviders?: Array<{ id: string; type: 'openai-compatible' | 'ollama'; baseURL: string; apiKey?: string }>;
+  private modelProviders?: Array<{ id: string; type: 'openai-compatible' | 'ollama' | 'anthropic-messages'; baseURL: string; apiKey?: string; apiKeyEnv?: string }>;
   /** 离线模式标志（内置 mock 模型，无需 API key） */
   private readonly offline: boolean;
   /** P3-1：文件写入暂存回调（AI 生成的修改自动记录到变更面板） */
