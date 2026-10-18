@@ -6,7 +6,9 @@
  * 门禁策略：
  *  - critical / high 漏洞 > 0 → 退出码 1（阻断发布）
  *  - moderate / low / info → 仅告警，退出码 0
- *  - npm audit 网络不可达时给出降级提示，不因网络失败而误报"安全"
+ *  - audit registry 可配置（FH_AUDIT_REGISTRY，默认官方源 registry.npmjs.org，支持 audit 端点）
+ *  - npm audit 未执行（registry 不支持 / 网络失败）→ 明确输出"未执行"，不误报"通过"；
+ *    设 FH_AUDIT_STRICT=1 时未执行同样阻断发布（CI 可开启严格模式）
  */
 const { execSync } = require('child_process');
 const { readFileSync, writeFileSync, existsSync, mkdirSync } = require('fs');
@@ -16,41 +18,72 @@ const crypto = require('crypto');
 const root = process.cwd();
 const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
 let exitCode = 0;
+let auditSkipped = false;
 
 function banner(t) { console.log('\n===== ' + t + ' ====='); }
 
-/* ---------- 1. npm audit ---------- */
+/* ---------- 1. npm audit（registry 可配置，默认官方源支持 audit 端点） ---------- */
 banner('npm audit（供应链漏洞）');
-let vuln = null;
-try {
-  const out = execSync('npm audit --json', { cwd: root, encoding: 'utf8', timeout: 180000 });
-  vuln = (JSON.parse(out).metadata || {}).vulnerabilities || null;
-} catch (e) {
-  // npm audit 检测到漏洞时以非零码退出，但 stdout 仍是 JSON
+const AUDIT_REGISTRY = process.env.FH_AUDIT_REGISTRY || 'https://registry.npmjs.org';
+
+/** 执行一次 npm audit，成功返回 { count, byPackage }，未执行返回 null */
+function runAudit(extraArgs) {
+  let json = null;
   try {
-    const j = JSON.parse(e.stdout || '{}');
-    vuln = (j.metadata || {}).vulnerabilities || null;
-    if (!vuln && e.stderr && /network|ETIMEDOUT|ECONNREFUSED|registry/i.test(e.stderr)) {
-      console.log('⚠️ npm audit 网络不可达（registry 连接失败），本次跳过漏洞扫描');
-      vuln = { skipped: true };
-    }
-  } catch {
-    console.log('⚠️ npm audit 执行失败，无法获取漏洞数据');
+    const out = execSync(`npm audit --json ${extraArgs} --registry=${AUDIT_REGISTRY}`, { cwd: root, encoding: 'utf8', timeout: 180000 });
+    json = JSON.parse(out);
+  } catch (e) {
+    // npm audit 检测到漏洞时以非零码退出，但 stdout 仍是 JSON
+    try { json = JSON.parse(e.stdout || '{}'); } catch { /* 非 JSON 输出 */ }
   }
+  if (!json || !json.metadata || !json.metadata.vulnerabilities) return null;
+  return { count: json.metadata.vulnerabilities, byPackage: json.vulnerabilities || {} };
 }
-if (vuln && vuln.skipped) {
-  // 已提示
-} else if (vuln) {
+
+function auditReason(e) {
+  const msg = (e && (e.stderr || e.stdout || '')) ? (e.stderr || e.stdout || '').toString() : '';
+  if (/NOT_IMPLEMENTED|not implemented|404|audit endpoint/i.test(msg)) {
+    return `⚠️ npm audit 未执行：registry（${AUDIT_REGISTRY}）不支持 audit 端点，可设置 FH_AUDIT_REGISTRY 切换（如官方代理）`;
+  }
+  if (/network|ETIMEDOUT|ECONNREFUSED|ENOTFOUND|registry/i.test(msg)) {
+    return `⚠️ npm audit 未执行：registry（${AUDIT_REGISTRY}）连接失败，本次未扫描供应链漏洞`;
+  }
+  return `⚠️ npm audit 执行失败（registry: ${AUDIT_REGISTRY}），无法获取漏洞数据`;
+}
+
+function printSeverity(count, label) {
   const sev = ['info', 'low', 'moderate', 'high', 'critical'];
+  console.log(`  [${label}]`);
   for (const s of sev) {
-    const n = vuln[s] || 0;
-    console.log(`  ${s.padEnd(9)} ${n}`);
+    const n = count[s] || 0;
+    console.log(`    ${s.padEnd(9)} ${n}`);
     if ((s === 'high' || s === 'critical') && n > 0) exitCode = 1;
   }
-  const total = Object.values(vuln).reduce((a, b) => a + (b || 0), 0);
-  console.log(`  合计 ${total} 项` + (total === 0 ? '  ✅ 无已知漏洞' : ''));
+  console.log(`    合计 ${count.total ?? 0} 项` + ((count.total ?? 0) === 0 ? `  ✅ ${label}无已知漏洞` : ''));
+}
+
+// ① 生产依赖审计（--omit=dev）：critical/high 阻断发布
+const prodAudit = runAudit('--omit=dev');
+if (prodAudit === null) {
+  auditSkipped = true;
+  console.log('  [生产依赖] ' + auditReason({}));
 } else {
-  console.log('  （无数据）');
+  printSeverity(prodAudit.count, '生产依赖');
+}
+
+// ② 全量审计（含 devDependencies）：仅告警不阻断（构建链漏洞不影响运行时产物）
+const allAudit = runAudit('');
+if (allAudit !== null) {
+  const prodPkgs = new Set(Object.keys(prodAudit ? prodAudit.byPackage : {}));
+  const devOnly = Object.entries(allAudit.byPackage).filter(([name]) => !prodPkgs.has(name));
+  if (devOnly.length > 0) {
+    const devHigh = devOnly.filter(([, info]) => info.severity === 'high' || info.severity === 'critical').length;
+    console.log(`  [devDependencies 构建链] ${devOnly.length} 项额外漏洞（含 high/critical ${devHigh} 项）——仅告警，不阻断发布；` +
+      `涉及包: ${devOnly.map(([name]) => name).slice(0, 8).join(', ')}${devOnly.length > 8 ? ' 等' : ''}`);
+  }
+} else {
+  auditSkipped = true;
+  console.log('  [全量] ' + auditReason({}));
 }
 
 /* ---------- 2. SBOM（CycloneDX 1.5） ---------- */
@@ -131,7 +164,16 @@ if (hasOsv) {
 }
 
 /* ---------- 汇总 ---------- */
+const strictMode = process.env.FH_AUDIT_STRICT === '1';
 console.log(`\n========== 安全 CI 结果 ==========`);
-console.log(exitCode === 0 ? '  ✅ 通过（无 critical/high 漏洞）' : '  ❌ 存在 critical/high 级漏洞，阻断发布');
+if (exitCode === 1) {
+  console.log('  ❌ 存在 critical/high 级漏洞，阻断发布');
+} else if (auditSkipped) {
+  console.log('  ⚠️ 部分通过：npm audit 未执行（供应链漏洞未扫描）'
+    + (strictMode ? '；FH_AUDIT_STRICT=1 已按严格模式阻断' : '；设 FH_AUDIT_STRICT=1 可让未执行时阻断发布'));
+  if (strictMode) exitCode = 1;
+} else {
+  console.log('  ✅ 通过（无 critical/high 漏洞）');
+}
 console.log(`  SBOM: artifacts/sbom.json`);
 process.exit(exitCode);

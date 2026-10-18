@@ -15,6 +15,7 @@
  */
 import express, { type Request, type Response } from 'express';
 import { randomBytes } from 'crypto';
+import type { AddressInfo } from 'net';
 import { join, resolve, relative, isAbsolute, dirname } from 'path';
 import {
   existsSync,
@@ -778,16 +779,17 @@ export function startWebServer(opts: ServeOptions = {}): {
   /* ========== P-7 自建商城（支付 + 自动发码闭环）→ routes/shop.ts ========== */
   registerShopRoutes(app, { token, sessions });
   const server = app.listen(port, () => {
-    console.log(t('serve.started', { port }));
+    const actualPort = (server.address() as AddressInfo).port;
+    console.log(t('serve.started', { port: actualPort }));
     /* 云中转保活（显式开关 FH_CLOUD_KEEPALIVE=1 启用；独立常驻用 node dist/web/cloud-keepalive.js） */
     if (process.env.FH_CLOUD_KEEPALIVE === '1') {
       import('./cloud-keepalive').then((m) => m.startCloudKeepalive()).catch(() => { /* ignore */ });
     }
   });
   return {
-    port,
+    port: (server.address() as AddressInfo).port,
     token,
-    url: `http://localhost:${port}`,
+    url: `http://localhost:${(server.address() as AddressInfo).port}`,
     close: () => server.close(),
   };
 }
