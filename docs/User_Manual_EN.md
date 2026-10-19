@@ -1,6 +1,6 @@
 # Feihong Code (fhcode) — User Manual
 
-**Version**: v7.6.0
+**Version**: v8.11.0
 **Date**: 2026-08-16
 **Product**: Feihong Code (feihong-code) — a terminal AI coding agent (a Muse Code reimplementation)
 **Attribution**: Jinjiang Feihongzhi Tech Enterprise Management Co., Ltd. · Feiyang Qiyuan R&D Center · Lead: Wu Cihong

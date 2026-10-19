@@ -68,7 +68,7 @@ GET /api/health
 {
   "ok": true,
   "product": "飞虹 Code",
-  "version": "7.9.1",
+  "version": "8.11.0",
   "signature": "晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹",
   "enterprise": true,
   "lang": "zh",
@@ -117,7 +117,7 @@ GET /api/version
 **响应** `200 OK`
 ```json
 {
-  "version": "7.9.1",
+  "version": "8.11.0",
   "buildTime": "2026-09-03T10:00:00.000Z",
   "commit": "abc1234",
   "nodeVersion": "v22.23.2",

@@ -1,7 +1,7 @@
 # 飞虹 Code · SWE-bench Verified 跑分状态与说明
 
-> 更新时间：2026-08-28 · 版本：7.6.0
-> 本文档为 **SWE-bench 硬指标对外文案的事实依据**。所有数字均来自真实运行，不编造。
+  更新时间：2026-10-18 · 版本：8.11.0
+  本文档为 **SWE-bench 硬指标对外文案的事实依据**。所有数字均来自真实运行，不编造。
 
 ## 1. 官方 harness 能力（已集成）
 
@@ -13,7 +13,7 @@
 | `MockOrchestratorExecutor` | mock 模式：脚本化 orchestrator 回归，验证 harness 链路（不依赖模型） |
 | `RealModelExecutor` | real 模式：真实模型推理，跑官方问题 |
 | `FileExistsVerifier` | 通过标准=生成指定文件（链路自检用） |
-| `TestVerifier`（P7-1） | **通过标准=官方测试通过**：有 FAIL_TO_PASS 用例时优先跑这些失败用例（`npm test -- <用例>`），退出码 0 判通过 |
+| `TestVerifier`（P7-1） | **通过标准=官方测试通过**：有 FAIL_TO_PASS 用例时优先跑这些失败用例（`npm test -- <用例 `），退出码 0 判通过 |
 | `MarkdownReporter` / `JsonReporter` | 报告输出 |
 
 ## 2. 实测结果（诚实记录）
@@ -26,7 +26,7 @@
 | 2026-08-26 | 自建 JS 任务集（5 例） | 5 | 80%（4/5） | agnes-2.5-flash | real-test | v7.2.0 首测，1 例因模型调用中断失败 |
 | 2026-08-26 | SWE-bench lite（官方） | 1 | 100% | mock（脚本化） | FileExistsVerifier | `harness lite --limit 2 --mode mock`，django__django-11099，验证 harness 链路真实可用 |
 
-> ⚠️ 自建任务集 100% 为 **5 个简单 JS 函数题**（max/fib/palindrome/findMissing/countWords）的实测，**不代表模型在真实复杂仓库上的解题能力**。真实硬指标必须以官方 SWE-bench Verified `--mode real --verifier test` 跑出。
+  ⚠️ 自建任务集 100% 为 **5 个简单 JS 函数题**（max/fib/palindrome/findMissing/countWords）的实测，**不代表模型在真实复杂仓库上的解题能力**。真实硬指标必须以官方 SWE-bench Verified `--mode real --verifier test` 跑出。
 
 **复现命令**：
 ```bash

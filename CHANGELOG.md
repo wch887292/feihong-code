@@ -1,17 +1,16 @@
 ﻿# 飞虹 Code 更新日志 / Changelog
 
-## v8.10.1+（未发版）· 对标 DeepSeek Harness 升级：凭据安全化 / Anthropic 协议 / 模型发现 / 插件扩展 / 轨迹 / 沙箱 / Web 接入 (2026-10-18)
+## v8.11.0 · 账号体系 / 凭据作用域 / 执行策略 / Codex 派发停用 (2026-10-18)
 
-**主题**：对标 DeepSeek Harness 工程底座六项能力，全面提升凭据安全、协议兼容与可观测性。
+**主题**：对标 DeepSeek Harness 与 OpenAI Codex 工程底座升级收官——手机号账号体系、凭据环境作用域、执行策略前缀规则、Codex 任务派发默认停用。
 
-- **P0-1 凭据安全化**：新增 `src/security/credentials.ts` 凭据存储 seam（加密落盘于 `~/.feihong-code/.credentials.json`）；provider 密钥支持 `apiKeyEnv` 引用；新增 `fhcode creds list/set/del` 命令；配置文件 21 个 provider 与 `.env` 3 个 provider 的明文密钥已全部迁移为引用，`.env` 不再含真实密钥
-- **P0-2 Anthropic Messages 协议**：新增 `anthropic-messages.provider.ts` 与响应 schema，支持 Claude 官方 / Anthropic 兼容网关；定位为可选扩展（不配置不影响既有 provider）
-- **P1-3 模型发现**：新增 `fhcode models discover/list/count` 命令，批量探测 provider 可用性与模型清单（实测 agnes 10 模型、openrouter 471 模型）
-- **P1-4 插件清单扩展**：插件 manifest 支持声明 `providers` 与 `tools`；新增 `provider-registry.ts` 做合并与 id 冲突检测
-- **P2-5 执行轨迹**：新增 `fhcode trajectory list/replay/fork`；事件字段增强（model.response/tool.call/tool.result），长参数 2000 字符截断防 jsonl 膨胀，fork 时按 toolCallId 补齐完整参数
-- **P2-6 本地沙箱**：新增 `fhcode sandbox run <dir> -- <cmd> [--sync]`，目录级隔离（拷贝+执行+变更检测），与既有工具级策略互补
-- **Web 控制台接入**：模型管理支持协议下拉（openai-compatible / anthropic-messages）与 apiKeyEnv 凭据引用字段；RSA 公钥下发、模型列表密钥脱敏
-- **复盘修复**：task-executor 双重解析丢 key 回退、轨迹参数截断与 fork 补齐、Web 协议标签样式、注释修正；全量单测 477/477 通过
+- **手机号账号体系（v8.11 账号升级）**：新增 `src/security/account.ts`；`fhcode login/logout/accounts/account-password`；首次登录自动注册（默认密码=手机号后 4 位）；scrypt 哈希不落明文；密码可改；激活账号后凭据/记忆/会话/审计/goals/经验/任务/self-evolve 按 `<FH_HOME>/accounts/<phone>/` 全隔离；Web 登录加密码校验+前端密码框
+- **P0-A 凭据环境作用域**：credentials v2 `scopes{global, env:<scope>}`；`creds set --env <scope>`；`apiKeyEnv` 支持 `env:<scope>/REF` 显式限定；裸 REF 按 deriveProjectId 自动归项目作用域再回退全局；v1 文档自动迁移
+- **P0-C 执行策略前缀规则**：`FH_SHELL_ALLOW` 支持子命令前缀；新增 `FH_SHELL_DENY` 黑名单（DENY 优先，拒绝带理由）
+- **P1-D/E + P2-F**：轨迹断点恢复（`trajectory resume <runId> [<step>]`）、项目级记忆（user_memory project 列，`memory list --project`）、进程环境加固（CLI 启动清理 NODE_OPTIONS/LD_PRELOAD/DEBUG 注入面）
+- **Codex 任务派发默认停用**：`codex_exec` 工具与 `/api/codex/run` 增加闸门（HTTP 503），默认返回 `CODEX_DELEGATION_DISABLED`，`FH_CODEX_DELEGATE=1` 启用
+- **复盘修复**：记忆/经验/self-evolve 数据路径账号化（layered-memory/honcho/sqlite/experience/tasks）；凭据 v1 测试同步 v2；Web 登录集成测试
+- 验证：typecheck ✅ / build ✅ / 单测 505/505 ✅ / 集成 6/6 ✅ / 冒烟 ✅
 
 ## v8.10.1 · Web 控制台五项 UI 改造 + Codex CLI 接入 + Cline 健壮性 (2026-10-17)
 

@@ -1,7 +1,7 @@
 # 飞虹 Code App 技术说明书（移动控制台）
 
 **产品**：飞虹 Code 移动控制台（Android App + 移动版 H5）
-**版本**：v1.1.0（APK）· 移动版 H5 · 配套桌面端 v7.6.0
+**版本**：v1.1.0（APK）· 移动版 H5 · 配套桌面端 v8.11.0
 **日期**：2026-08-23
 **署名**：晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
 
@@ -58,7 +58,7 @@
 
 **关键设计**：
 
-- **单后端多端**：手机 App、移动版 H5、电脑 Web 控制台共享同一个后端服务与数据（任务/自动化/模板/模型配置实时互通）
+- **单后端多端**：手机 App、移动版 H5、电脑 Web 控制台共享同一个后端服务与数据（任务/自动化/模板/模型套置实时互通）
 - **移动版为静态壳**：`/m/` 是纯静态 HTML（无服务端渲染），业务全部通过同源 API 完成
 - **同源免 CORS**：移动版页面与 API 同域（www.jb.klai.top），无跨域问题
 
@@ -92,7 +92,7 @@
 │   ├── enterprise/              # 企业级模块（审计/RBAC）
 │   ├── node_modules/            # 生产依赖（express/zod）
 │   ├── data/                    # FH_HOME 数据目录
-│   │   ├── models.json          # 大模型配置
+│   │   ├── models.json          # 大模型套置
 │   │   ├── automations.json     # 快捷指令
 │   │   ├── templates.json       # 用户模板
 │   │   ├── tasks/               # 任务持久化
@@ -107,9 +107,9 @@
 └── (其他既有站点)
 ```
 
-### 3.2 Nginx 配置要点
+### 3.2 Nginx 套置要点
 
-站点配置文件：`/www/server/panel/vhost/nginx/www.jb.klai.top.conf`
+站点套置文件：`/www/server/panel/vhost/nginx/www.jb.klai.top.conf`
 
 ```nginx
 # HTTP → HTTPS 跳转
@@ -161,7 +161,7 @@ server {
         auth_basic "fhcode Web Console";
         auth_basic_user_file /www/dk_project/fhcode/.htpasswd;
         proxy_pass http://127.0.0.1:18080;
-        ...(同上 proxy 配置)...
+        ...(同上 proxy 套置)...
     }
 }
 ```
@@ -174,7 +174,7 @@ PM2 name: fhcode
           pm2 start cli/index.js -- serve --node-args="--max-old-space-size=256"
 端口:     18080（内网监听，Nginx 反代）
 内存:     限制堆 256MB（服务器总内存 1.9G，需控制）
-开机自启: pm2 startup + pm2 save 已配置（systemd）
+开机自启: pm2 startup + pm2 save 已套置（systemd）
 ```
 
 ---
@@ -232,7 +232,7 @@ app-mobile/index.html   # 单文件应用（HTML + CSS + JS 内联，约 50KB）
 
 - **页面**（.page 容器，通过 .active 切换）：登录页、对话页、任务页、自动化页、模板页、我的页
 - **底部 Tab**：5 个导航（对话/任务/自动化/模板/我的）
-- **弹层**（.sheet-mask）：用户菜单、新建任务、自动化表单、模型配置、权限设置、任务详情
+- **弹层**（.sheet-mask）：用户菜单、新建任务、自动化表单、模型套置、权限设置、任务详情
 - **全局组件**：Toast 提示、状态徽章、开关组件
 
 ### 5.3 状态管理
@@ -243,7 +243,7 @@ var state = {
   tasks: [],            // 任务列表
   currentTaskId: null,  // 当前选中任务
   automations: [],      // 快捷指令
-  models: [],           // 模型配置
+  models: [],           // 模型套置
   permissions: {...},   // 权限（localStorage: fh.m.perm）
   ...
 };
@@ -301,7 +301,7 @@ public class MainActivity extends Activity {
 
     onCreate():
       1. 构建根布局：WebView + 顶部水平进度条
-      2. WebSettings 配置：
+      2. WebSettings 套置：
          - setJavaScriptEnabled(true)
          - setDomStorageEnabled(true)      // localStorage 存 token
          - setMixedContentMode(NEVER_ALLOW)
@@ -347,12 +347,12 @@ export ANDROID_HOME="%USERPROFILE%/AppData/Local/Android/Sdk"
 
 产物：`app/build/outputs/apk/debug/app-debug.apk`
 
-Release 构建：`gradle assembleRelease`（当前 release 也使用 debug 签名，正式发布需配置独立 keystore）。
+Release 构建：`gradle assembleRelease`（当前 release 也使用 debug 签名，正式发布需套置独立 keystore）。
 
-### 7.3 镜像配置（国内构建必需）
+### 7.3 镜像套置（国内构建必需）
 
 - **Gradle 发行版**：腾讯云镜像 `https://mirrors.cloud.tencent.com/gradle/gradle-8.7-bin.zip`（官方源 178B/s 不可用）
-- **Maven 依赖**：build.gradle repositories 已配置阿里云镜像（google/central/gradle-plugin），官方 repo.maven.apache.org 不可达
+- **Maven 依赖**：build.gradle repositories 已套置阿里云镜像（google/central/gradle-plugin），官方 repo.maven.apache.org 不可达
 
 ### 7.4 踩坑记录
 
@@ -477,9 +477,9 @@ scp fhcode-v1.0.0.apk root@<SERVER_IP>:/www/dk_project/fhcode-mobile/
 ### 9.4 数据备份
 
 ```bash
-# 备份数据目录（模型配置/任务/审计等）
+# 备份数据目录（模型套置/任务/审计等）
 tar -czf /backup/fhcode-data-$(date +%Y%m%d).tar.gz /www/dk_project/fhcode/data
-# 备份 Nginx 配置
+# 备份 Nginx 套置
 cp /www/server/panel/vhost/nginx/www.jb.klai.top.conf /backup/
 ```
 
@@ -506,17 +506,17 @@ pm2 logs fhcode --lines 50 --nostream       # 查看错误
 
 ### 10.2 任务执行失败
 
-1. 服务器**未配置大模型** → Web 界面「大模型设置」添加（最常见）
+1. 服务器**未套置大模型** → Web 界面「大模型设置」添加（最常见）
 2. 查看任务详情中的 error 字段
 3. 检查 PM2 日志中的 `task failed` 记录
 
 ### 10.3 登录失败 / 401
 
-- 页面 401：Basic Auth 凭据错误 → 检查 .htpasswd 与 Nginx 配置
+- 页面 401：Basic Auth 凭据错误 → 检查 .htpasswd 与 Nginx 套置
 - API 401：token 过期 → 重新登录
 - Nginx 500：.htpasswd 权限不足 → `chown www:www` + 640
 
-### 10.4 Nginx 配置修改后
+### 10.4 Nginx 套置修改后
 
 ```bash
 nginx -t && nginx -s reload
@@ -532,7 +532,7 @@ nginx -t && nginx -s reload
 ## 十一、安全建议
 
 1. **更换默认凭据**：正式启用后建议重新生成 Basic Auth 密码（htpasswd -cb 覆盖 .htpasswd，同步更新 App 内 `BASIC_AUTH` 常量后重新打包 APK）
-2. **Release 签名**：正式分发前生成独立 keystore 并配置 signingConfigs.release
+2. **Release 签名**：正式分发前生成独立 keystore 并套置 signingConfigs.release
 3. **App 内置凭据说明**：APK 内嵌 Basic 凭据可被逆向提取（`Zmhjb2RlOnZyVktTQm1IUkVCZQ==` = base64(fhcode:密码)）；如需更高安全，可改为独立 App 专用账号或加设备校验
 4. **最小权限**：建议保持默认权限（写入/命令关闭），按需开启
 5. **HTTPS**：已全站 HTTPS（宝塔证书），无明文传输
