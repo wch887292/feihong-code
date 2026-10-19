@@ -2033,3 +2033,23 @@ pre, code, .code-block, .code-block * {
 .blog-at { color: var(--muted); flex: 0 0 88px; }
 .blog-kind { color: var(--brand); flex: 0 0 36px; font-weight: 600; }
 .blog-url { color: var(--text); word-break: break-all; }
+
+/* ============ M3 阶段 C：画布视图 ============ */
+.canvas-view { flex-direction: column; padding: 0; gap: 0; }
+.canvas-toolbar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--bg); flex-wrap: wrap; }
+.canvas-toolbar button { padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; }
+.canvas-toolbar button:hover { border-color: var(--brand); }
+.canvas-toolbar button.primary { background: var(--brand); color: #fff; border-color: var(--brand); }
+.canvas-toolbar button.danger { color: #e5484d; border-color: #e5484d; }
+.canvas-toolbar .canvas-sep { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
+.canvas-toolbar .canvas-status { font-size: 12px; color: var(--muted); margin-left: auto; }
+.canvas-stage { flex: 1; min-height: 0; position: relative; overflow: auto; background: var(--bg); background-image: radial-gradient(var(--border) 1px, transparent 1px); background-size: 20px 20px; }
+.canvas-card { position: absolute; width: 200px; min-height: 120px; background: var(--surface); border: 1px solid var(--border); border-top: 3px solid var(--brand); border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,.12); padding: 10px; cursor: move; display: flex; flex-direction: column; gap: 6px; }
+.canvas-card.dragging { opacity: .8; box-shadow: 0 8px 24px rgba(0,0,0,.24); z-index: 10; }
+.canvas-card-head { display: flex; justify-content: space-between; align-items: center; }
+.canvas-card-type { font-size: 11px; color: var(--muted); font-weight: 600; }
+.canvas-card-del { border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 12px; padding: 0 4px; }
+.canvas-card-del:hover { color: #e5484d; }
+.canvas-card-title { font-weight: 600; font-size: 14px; color: var(--text); word-break: break-word; }
+.canvas-card-body { font-size: 12px; color: var(--muted); white-space: pre-wrap; word-break: break-word; flex: 1; }
+.canvas-card-input { width: 100%; border: 1px solid var(--brand); border-radius: 4px; padding: 4px; font-size: 13px; font-family: inherit; resize: vertical; background: var(--surface); color: var(--text); }

@@ -6,7 +6,7 @@
  */
 import express, { type Request, type Response } from 'express';
 import { join } from 'path';
-import { mkdirSync, appendFileSync, existsSync, readFileSync } from 'fs';
+import { mkdirSync, appendFileSync, existsSync, readFileSync, writeFileSync } from 'fs';
 import { createVoiceProgrammingManager } from '../voice/voice-programming';
 import { createKnowledgeLibraryManager } from '../knowledge/library';
 import { createFigmaIntegration } from '../integrations/figma';
@@ -436,5 +436,26 @@ export function registerExtraApis(app: ExpressApp, opts: ExtraApisOptions): void
     const obs = readJsonl(obsFile).slice(-50).map((o) => ({ id: o.id, at: o.at, url: o.url, title: o.title }));
     const acts = readJsonl(actFile).slice(-50).map((o) => ({ id: o.id, at: o.at, url: o.url, action: o.action }));
     res.json({ ok: true, observations: obs, actions: acts });
+  });
+
+  /* ============ M3 阶段 C：画布视图（卡片节点本地持久化） ============ */
+  const canvasDir = join(dataDir, 'canvas');
+  mkdirSync(canvasDir, { recursive: true });
+  const boardFile = join(canvasDir, 'board.json');
+  app.get('/api/canvas/load', (_req: Request, res: Response) => {
+    if (!existsSync(boardFile)) { res.json({ ok: true, nodes: [], updatedAt: null }); return; }
+    try {
+      const data = JSON.parse(readFileSync(boardFile, 'utf8'));
+      res.json({ ok: true, nodes: Array.isArray(data.nodes) ? data.nodes : [], updatedAt: data.updatedAt ?? null });
+    } catch (e) { res.json({ ok: true, nodes: [], updatedAt: null, error: String((e as Error)?.message ?? e) }); }
+  });
+  app.post('/api/canvas/save', (req: Request, res: Response) => {
+    const body = bodyOf(req);
+    const nodes = Array.isArray(body.nodes) ? body.nodes : [];
+    const updatedAt = new Date().toISOString();
+    try {
+      writeFileSync(boardFile, JSON.stringify({ nodes, updatedAt }, null, 2), 'utf8');
+      res.json({ ok: true, count: nodes.length, updatedAt });
+    } catch (e) { res.json({ ok: false, error: String((e as Error)?.message ?? e) }); }
   });
 }

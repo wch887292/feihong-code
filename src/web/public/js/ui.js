@@ -1616,6 +1616,10 @@
       if (nav === 'browser' && typeof window.initBrowserView === 'function') {
         try { window.initBrowserView(); } catch (_) { /* webview 不可用环境静默回退 */ }
       }
+      // M3 阶段 C：进入画布视图时加载持久化卡片节点（仅首次）
+      if (nav === 'canvas' && typeof window.initCanvasView === 'function') {
+        try { window.initCanvasView(); } catch (_) { /* 画布不可用环境静默回退 */ }
+      }
     }
 
     // 开启新对话：清空当前任务选中，显示空状态，聚焦输入框

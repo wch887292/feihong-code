@@ -99,6 +99,10 @@
             <span class="icon">🌐</span>
             <span class="label" data-i18n="sidebar.browser">浏览器</span>
           </div>
+          <div class="sidebar-icon" data-nav="canvas" title="画布" data-i18n="sidebar.canvas">
+            <span class="icon">🎨</span>
+            <span class="label" data-i18n="sidebar.canvas">画布</span>
+          </div>
           <div class="sidebar-icon" data-nav="nodes" title="节点管理" data-i18n="sidebar.nodes">
             <span class="icon">🔗</span>
             <span class="label" data-i18n="sidebar.nodes">节点管理</span>
@@ -391,6 +395,21 @@
             <button id="browserLog" class="ghost">📜 审计日志</button>
             <span class="browser-hint">观察/操作记录写入本地审计日志（Apache-2.0 私有化，不上云）</span>
           </div>
+        </div>
+
+        <!-- 画布页面（M3 阶段 C：对标 Skyalytic 画布模块） -->
+        <div class="page-view canvas-view" data-view="canvas">
+          <div class="canvas-toolbar">
+            <button id="canvasAddIdea">💡 思路</button>
+            <button id="canvasAddMaterial">📎 素材</button>
+            <button id="canvasAddAi">🤖 AI 产出</button>
+            <span class="canvas-sep"></span>
+            <button id="canvasSave" class="primary">💾 保存</button>
+            <button id="canvasReload" class="ghost">↻ 重载</button>
+            <button id="canvasClear" class="ghost danger">🗑 清空</button>
+            <span class="canvas-status" id="canvasStatus">就绪 · 数据存本地 dataDir/canvas/board.json（Apache-2.0 私有化，不上云）</span>
+          </div>
+          <div class="canvas-stage" id="canvasStage"></div>
         </div>
 
         <!-- 节点管理页面 -->
@@ -1472,6 +1491,7 @@
   <script src="js/api.js"></script>
       <script src="js/ui.js"></script>
       <script src="js/browser.js"></script>
+      <script src="js/canvas.js"></script>
       <script src="js/app.js"></script>
 </body>
 </html>
