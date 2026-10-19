@@ -224,7 +224,7 @@ app-mobile/
 ```
 android/
 ├── app/
-│   ├── build.gradle        # 构建配置（versionCode=26, versionName=7.9.0）
+│   ├── build.gradle        # 构建配置（versionCode=26, versionName=8.11.0）
 │   ├── fhcode-release.jks  # 签名密钥
 │   └── src/main/
 │       ├── AndroidManifest.xml
@@ -639,7 +639,7 @@ npm run electron:build  # 构建 Windows 安装包
 {
   "ok": true,
   "product": "飞虹 Code",
-  "version": "7.9.0",
+  "version": "8.11.0",
   "signature": "晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹",
   "enterprise": true,
   "lang": "zh",
