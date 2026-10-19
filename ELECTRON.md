@@ -150,8 +150,8 @@ set ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/
 
 ### 四、验证方式（Verify）
 
-- **每阶段**：`node node_modules/typescript/bin/tsc --noEmit` 全绿；前端 JS `node --check` 语法校验。
-- **GUI 验收**：本地 `npm run build && npm run electron`，或在桌面环境 `curl` 起服务打页，逐项对照里程碑验收清单（每项 PASS 再进下一阶段）。
+- **静态层（CI 可覆盖）**：`node node_modules/typescript/bin/tsc --noEmit` 全绿；前端 JS `node --check` 语法校验；`npm run build` 打包成功。
+- **GUI 实跑（CI 不可覆盖 · 强制门槛）**：每阶段 GUI 视图完成，**必须**在真实桌面环境 `npm run build && npm run electron` 打页，逐项对照里程碑验收清单。无头 CI 无法打开窗口、无法验证视觉交互，**不能替代此项**。每项 PASS 再进下一阶段。
 - **回归**：技能面板/市场既有用例不回退（`loadMarket` `renderMarketGrid` 行为保持）。
 
 ### 五、风险与依赖（Risk）
