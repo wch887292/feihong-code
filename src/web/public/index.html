@@ -95,6 +95,10 @@
             <span class="icon">📎</span>
             <span class="label" data-i18n="sidebar.office">办公助理</span>
           </div>
+          <div class="sidebar-icon" data-nav="browser" title="内置浏览器" data-i18n="sidebar.browser">
+            <span class="icon">🌐</span>
+            <span class="label" data-i18n="sidebar.browser">浏览器</span>
+          </div>
           <div class="sidebar-icon" data-nav="nodes" title="节点管理" data-i18n="sidebar.nodes">
             <span class="icon">🔗</span>
             <span class="label" data-i18n="sidebar.nodes">节点管理</span>
@@ -359,6 +363,34 @@
             <div data-i18n="nav.office"><h2>📎 办公助理</h2><div class="sub">文档处理快捷入口，点击即生成提示词</div></div>
           </div>
           <div class="grid" id="officeGrid" data-i18n="common.loading"><div class="empty">加载中…</div></div>
+        </div>
+
+        <!-- 内置浏览器页面（M2 阶段 B：对标 Skyalytic 浏览器模块） -->
+        <div class="page-view browser-view" data-view="browser">
+          <div class="browser-bar">
+            <button id="browserBack" title="后退">◀</button>
+            <button id="browserFwd" title="前进">▶</button>
+            <button id="browserReload" title="刷新">⟳</button>
+            <input type="text" id="browserUrl" placeholder="输入网址，如 https://www.klai.top" />
+            <button id="browserGo" class="primary">前往</button>
+            <select id="browserPreset">
+              <option value="">快捷站点</option>
+              <option value="https://www.klai.top">klai.top 官网</option>
+              <option value="https://github.com/wch887292">我的 GitHub</option>
+              <option value="https://www.bing.com">Bing</option>
+              <option value="https://www.wikipedia.org">Wikipedia</option>
+            </select>
+          </div>
+          <div class="browser-status" id="browserStatus">就绪 · 输入网址后点击「前往」</div>
+          <div class="browser-stage">
+            <webview id="browserWebview" src="about:blank" allowpopups partition="fhcode-browser"></webview>
+          </div>
+          <div class="browser-actions">
+            <button id="browserObserve" class="ai-btn">🤖 让 AI 观察当前页</button>
+            <button id="browserAct" class="ai-btn">🖱 让 AI 操作此页</button>
+            <button id="browserLog" class="ghost">📜 审计日志</button>
+            <span class="browser-hint">观察/操作记录写入本地审计日志（Apache-2.0 私有化，不上云）</span>
+          </div>
         </div>
 
         <!-- 节点管理页面 -->
@@ -1438,7 +1470,8 @@
       <script src="js/utils.js"></script>
   <script src="js/monaco-editor.js"></script>
   <script src="js/api.js"></script>
-  <script src="js/ui.js"></script>
-  <script src="js/app.js"></script>
+      <script src="js/ui.js"></script>
+      <script src="js/browser.js"></script>
+      <script src="js/app.js"></script>
 </body>
 </html>

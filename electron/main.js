@@ -115,7 +115,8 @@ function createWindow() {
     webPreferences: {
       preload: join(__dirname, 'preload.js'),
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      webviewTag: true
     },
     show: false,
     backgroundColor: '#1a1a2e'
@@ -133,6 +134,21 @@ function createWindow() {
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
     return { action: 'deny' };
+  });
+
+  // M2 阶段 B：浏览器视图 <webview> 安全加固
+  // 每个 guest webview 强制隔离 + 沙箱，禁用 node，避免 XSS 越权访问主进程/文件系统。
+  // 注意：标准做法仅覆写 webPreferences 安全参数，切勿调用 event.preventDefault()（会销毁 webview）。
+  mainWindow.webContents.on('will-attach-webview', (_event, webPreferences, params) => {
+    webPreferences.nodeIntegration = false;
+    webPreferences.nodeIntegrationInSubFrames = false;
+    webPreferences.contextIsolation = true;
+    webPreferences.sandbox = true;
+    // 可选：限制仅允许 http/https 与 about: 协议，拦截非常规协议
+    if (params && params.url && !/^(https?:|about:)/i.test(params.url)) {
+      console.warn('[Electron] 拒绝附加非 http(s) webview 源:', params.url);
+      _event.preventDefault();
+    }
   });
 
   // 关闭时最小化到托盘

@@ -1612,6 +1612,10 @@
           startNewChat();
         }
       }
+      // M2 阶段 B：进入浏览器视图时初始化 webview 交互（仅首次）
+      if (nav === 'browser' && typeof window.initBrowserView === 'function') {
+        try { window.initBrowserView(); } catch (_) { /* webview 不可用环境静默回退 */ }
+      }
     }
 
     // 开启新对话：清空当前任务选中，显示空状态，聚焦输入框

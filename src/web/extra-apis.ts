@@ -6,7 +6,7 @@
  */
 import express, { type Request, type Response } from 'express';
 import { join } from 'path';
-import { mkdirSync } from 'fs';
+import { mkdirSync, appendFileSync, existsSync, readFileSync } from 'fs';
 import { createVoiceProgrammingManager } from '../voice/voice-programming';
 import { createKnowledgeLibraryManager } from '../knowledge/library';
 import { createFigmaIntegration } from '../integrations/figma';
@@ -386,5 +386,55 @@ export function registerExtraApis(app: ExpressApp, opts: ExtraApisOptions): void
       const hover = lsp.getHover(lspCwd(req), String(file), line);
       res.json({ ok: true, hover });
     } catch (e) { res.json({ ok: false, error: String((e as Error)?.message ?? e) }); }
+  });
+
+  /* ============ M2 阶段 B：内置浏览器视图（观察/操作审计） ============ */
+  const browserDir = join(dataDir, 'browser');
+  mkdirSync(browserDir, { recursive: true });
+  const obsFile = join(browserDir, 'observations.jsonl');
+  const actFile = join(browserDir, 'actions.jsonl');
+  const readJsonl = (file: string): Record<string, any>[] => {
+    if (!existsSync(file)) return [];
+    return readFileSync(file, 'utf8').split('\n').map((l) => l.trim()).filter(Boolean)
+      .map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean) as Record<string, any>[];
+  };
+  const appendJsonl = (file: string, obj: Record<string, any>): void => {
+    appendFileSync(file, JSON.stringify(obj) + '\n', 'utf8');
+  };
+  const genId = (): string => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  // 操作计划（交给 agent 运行时实际执行；此处生成可审计的步骤描述）
+  const planForAct = (url: string, action: string): string =>
+    `1) 在 ${url} 加载页面并等待就绪；2) 解析 DOM 定位目标元素；3) 执行动作：「${action}」；4) 校验结果并回写至任务上下文。`;
+
+  app.post('/api/browser/observe', (req: Request, res: Response) => {
+    const body = bodyOf(req);
+    const url = String(body.url ?? '').trim();
+    if (!url) { res.json({ ok: false, error: '缺少 url' }); return; }
+    const id = genId();
+    const at = new Date().toISOString();
+    appendJsonl(obsFile, {
+      id, at, url,
+      title: String(body.title ?? '').slice(0, 300),
+      text: String(body.text ?? '').slice(0, 8000),
+    });
+    res.json({ ok: true, id, at, chars: String(body.text ?? '').length });
+  });
+
+  app.post('/api/browser/act', (req: Request, res: Response) => {
+    const body = bodyOf(req);
+    const url = String(body.url ?? '').trim();
+    const action = String(body.action ?? '').trim();
+    if (!url || !action) { res.json({ ok: false, error: '缺少 url 或 action' }); return; }
+    const id = genId();
+    const at = new Date().toISOString();
+    const plan = planForAct(url, action);
+    appendJsonl(actFile, { id, at, url, action: action.slice(0, 2000), plan });
+    res.json({ ok: true, id, at, plan });
+  });
+
+  app.get('/api/browser/log', (_req: Request, res: Response) => {
+    const obs = readJsonl(obsFile).slice(-50).map((o) => ({ id: o.id, at: o.at, url: o.url, title: o.title }));
+    const acts = readJsonl(actFile).slice(-50).map((o) => ({ id: o.id, at: o.at, url: o.url, action: o.action }));
+    res.json({ ok: true, observations: obs, actions: acts });
   });
 }
