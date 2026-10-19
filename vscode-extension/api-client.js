@@ -55,12 +55,20 @@ class FhApiClient {
   }
 
   /**
-   * 登录（免签）。成功后自动持有 token。
+   * 登录（v8.11 账号体系：手机号 + 密码；首次登录默认密码=手机号后 4 位）。
+   * 成功后自动持有 token。
    * @param {string} phone 6-20 位数字手机号
+   * @param {string} password 登录密码（首次登录默认=手机号后 4 位）
    * @returns {{status:number, json:any}}
    */
-  async login(phone) {
-    const r = await this._raw('POST', '/api/auth/login', JSON.stringify({ phone }), {}, 8000);
+  async login(phone, password = '') {
+    const r = await this._raw(
+      'POST',
+      '/api/auth/login',
+      JSON.stringify({ phone, password }),
+      {},
+      8000
+    );
     if (r.status === 200 && r.json && r.json.token) this.setToken(r.json.token);
     return r;
   }

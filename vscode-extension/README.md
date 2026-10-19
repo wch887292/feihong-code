@@ -1,7 +1,7 @@
 # 飞虹 Code VS Code 扩展
 
 > 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
-> 版本 8.5.0 ｜ 与主项目 feihong-code 版本号保持一致（check:version 闸门强制）
+> 版本 8.11.0 ｜ 与主项目 feihong-code 版本号保持一致（check:version 闸门强制）
 
 在 VS Code / Qoder 等 VS Code 兼容 IDE 中直接使用飞虹 Code：侧边栏 AI 对话、选中代码解释/重构、结果一键插入编辑器。
 
@@ -47,6 +47,7 @@ mcp-bridge.js  ──(TCP 127.0.0.1:9599, NDJSON)──►  VS Code 扩展内 mc
 ## 功能
 
 - 💬 **侧边栏 AI 对话**：与 Web 控制台同源的任务链路（建任务 → 轮询 → 多轮续接）
+- 🔐 **账号体系登录（v8.11）**：手机号 + 密码登录，首次登录默认密码=手机号后 4 位；支持设置中预填密码或弹窗输入
 - 📝 **右键命令**：选中代码 → 「飞虹 Code: 解释选中代码」/「重构选中代码」
 - 🧩 **代码一键插入**：回复中的代码块悬停显示「插入」按钮，直接替换选区或新开文件
 - 🤖 **驱动模式（AI 直接改文件）**：开启后飞虹 Code 作为 VS Code 内置编码代理，读当前文件、生成改动并**真实写回工作区**（改已有文件 / 新建文件），无需手动复制
@@ -71,9 +72,9 @@ mcp-bridge.js  ──(TCP 127.0.0.1:9599, NDJSON)──►  VS Code 扩展内 mc
 ## 安装
 
 1. 启动飞虹 Code 后端：项目根目录运行 `一键启动Web控制台.bat`（或 `node start-web.js --port=8080`）
-2. IDE → 扩展 → `···` → 从 VSIX 安装 → 选择 `feihong-code-8.5.0.vsix`
-   （或命令行：`code --install-extension feihong-code-8.5.0.vsix`）
-3. 点击左侧活动栏「飞虹 Code」图标，在设置中填好手机号后即可对话
+2. IDE → 扩展 → `···` → 从 VSIX 安装 → 选择 `feihong-code-8.11.0.vsix`
+   （或命令行：`code --install-extension feihong-code-8.11.0.vsix`）
+3. 点击左侧活动栏「飞虹 Code」图标，在设置中填好手机号后即可对话（首次登录默认密码=手机号后 4 位）
 
 ## 配置
 
@@ -82,13 +83,14 @@ IDE 设置中搜索 `feihong-code`：
 | 配置项 | 默认值 | 说明 |
 |---|---|---|
 | `feihong-code.serverUrl` | `http://127.0.0.1:8080` | 后端服务地址（云端可填 `https://api.klai.top/fhrelay` 等） |
-| `feihong-code.phone` | 空 | 登录手机号（6-20 位数字，本地服务免验证码；首次发消息时也会弹窗询问） |
+| `feihong-code.phone` | 空 | 登录手机号（6-20 位数字；首次发消息时也会弹窗询问） |
+| `feihong-code.password` | 空 | 登录密码（可选；不填则首次登录默认=手机号后 4 位） |
 | `feihong-code.token` | 空 | 访问令牌（高级：配置后跳过手机号登录） |
 
 ## 对话链路（技术说明）
 
 ```
-POST /api/auth/login {phone}                    → 换取会话令牌（免签）
+POST /api/auth/login {phone, password}          → 换取会话令牌（v8.11 账号体系；首次登录默认密码=手机号后 4 位）
 POST /api/tasks {goal}                          → 创建任务（需 F2 签名）
 GET  /api/tasks/:id                             → 轮询状态 queued/running/done/failed（免签读）
 POST /api/tasks/:id/messages {message}          → 多轮续接（需 F2 签名，任务运行中返回 409）

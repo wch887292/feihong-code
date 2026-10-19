@@ -86,6 +86,11 @@
           "default": "",
           "description": "登录手机号（6-20 位数字，本地服务免验证码）"
         },
+        "feihong-code.password": {
+          "type": "string",
+          "default": "",
+          "description": "登录密码（可选；不填则首次登录默认=手机号后 4 位）"
+        },
         "feihong-code.token": {
           "type": "string",
           "default": "",

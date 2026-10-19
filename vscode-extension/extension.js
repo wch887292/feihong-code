@@ -133,7 +133,7 @@ class FeihongChatViewProvider {
     return this._client;
   }
 
-  /** 确保已持有会话令牌：token 配置 → phone 自动登录 → InputBox 输入手机号 */
+  /** 确保已持有会话令牌：token 配置 → phone+password 登录 → InputBox 输入手机号与密码 */
   async _ensureToken() {
     const cfg = vscode.workspace.getConfiguration('feihong-code');
     const client = this._clientFromConfig();
@@ -147,17 +147,33 @@ class FeihongChatViewProvider {
     let phone = (cfg.get('phone', '') || '').trim();
     if (!phone) {
       phone = await vscode.window.showInputBox({
-        prompt: '飞虹 Code：输入手机号登录（6-20 位数字，本地服务免验证码）',
+        prompt: '飞虹 Code：输入手机号登录（6-20 位数字）',
         placeHolder: '13800000000',
         ignoreFocusOut: true,
       });
       if (!phone) throw new Error('已取消：未提供登录手机号');
       await cfg.update('phone', phone.trim(), vscode.ConfigurationTarget.Global);
     }
+    phone = phone.trim();
 
-    const r = await client.login(phone.trim());
+    // v8.11 账号体系：密码登录（首次登录默认=手机号后 4 位）
+    let password = (cfg.get('password', '') || '').trim();
+    if (!password) {
+      const defaultPwd = phone.slice(-4);
+      password = await vscode.window.showInputBox({
+        prompt: '飞虹 Code：输入登录密码（首次登录默认=手机号后 4 位，可直接回车）',
+        placeHolder: defaultPwd,
+        password: true,
+        ignoreFocusOut: true,
+      });
+      if (password === undefined) throw new Error('已取消：未提供登录密码');
+      if (!password) password = defaultPwd;
+      await cfg.update('password', password, vscode.ConfigurationTarget.Global);
+    }
+
+    const r = await client.login(phone, password);
     if (r.status === 200 && r.json && r.json.token) {
-      this._status('已登录（' + phone.trim() + '）', false);
+      this._status('已登录（' + phone + '）', false);
       return client;
     }
     const err = (r.json && (r.json.error || r.json.raw)) || ('HTTP ' + r.status);
