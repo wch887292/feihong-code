@@ -36,7 +36,7 @@ export type ManagementCommand =
   | { kind: 'diff'; id?: string }
   | { kind: 'rollback'; id: string; yes: boolean }
   | { kind: 'trajectory'; action: 'list' | 'replay' | 'fork' | 'resume'; id?: string; step?: number; json: boolean }
-  | { kind: 'sandbox'; workdir: string; command: string; sync: boolean }
+  | { kind: 'sandbox'; workdir: string; command: string; sync: boolean; os: boolean }
   | { kind: 'whoami' }
   | { kind: 'policy' }
   | { kind: 'audit'; verify: boolean; limit: number }
@@ -141,6 +141,8 @@ export interface ParsedArgs {
     contextMaxTokens?: number;
     /** sandbox：执行后把沙箱变更合并回原目录 */
     sync?: boolean;
+    /** sandbox：OS 级沙箱执行（bwrap/unshare/sandbox-exec，Windows 受限降级） */
+    os?: boolean;
     /** memory list：项目作用域过滤（缺省=全局，* = 全部） */
     project?: string;
     /** creds set/unset：环境作用域（--env <scope>，对标 Codex SecretScope.Environment） */
@@ -199,6 +201,7 @@ const FLAG_SPECS: Record<string, FlagSpec> = {
   'context-compact-every': { kind: 'int', min: 1, key: 'contextCompactEvery' },
   'context-max-tokens': { kind: 'int', min: 1000, key: 'contextMaxTokens' },
   sync: { kind: 'bool', key: 'sync' },
+  os: { kind: 'bool', key: 'os' },
 };
 
 const SHORT_FLAGS: Record<string, FlagKey> = {
@@ -256,11 +259,15 @@ const MANAGE_BUILDERS: Record<string, ManageBuilder> = {
     json: !!flags.json,
   }),
   sandbox: ({ flags, rest }) => {
-    // fhcode sandbox run <目录> -- <命令> [--sync]
+    // fhcode sandbox run <目录> -- <命令> [--sync] [--os]
+    // fhcode sandbox status                                  显示 OS 沙箱能力
+    if (rest[0] === 'status') {
+      return { kind: 'sandbox', workdir: 'status', command: '', sync: false, os: false };
+    }
     const dash = rest.indexOf('--');
     const workdir = dash > 1 ? rest[1] : '.';
     const cmdStart = dash >= 0 ? dash + 1 : 2;
-    return { kind: 'sandbox', workdir, command: rest.slice(cmdStart).join(' '), sync: !!flags.sync };
+    return { kind: 'sandbox', workdir, command: rest.slice(cmdStart).join(' '), sync: !!flags.sync, os: !!flags.os };
   },
   whoami: () => ({ kind: 'whoami' }),
   policy: () => ({ kind: 'policy' }),

@@ -171,7 +171,7 @@ async function dispatchManage(m: ManagementCommand): Promise<void> {
     case 'diff': await runDiff(m.id); break;
     case 'rollback': await runRollback(m.id, m.yes); break;
     case 'trajectory': await runTrajectoryCmd(m.action, m.id, m.step, m.json); break;
-    case 'sandbox': await runSandboxCmd(m.workdir, m.command, m.sync); break;
+    case 'sandbox': await runSandboxCmd(m.workdir, m.command, m.sync, m.os); break;
     case 'whoami': runWhoami(); break;
     case 'policy': runPolicyCmd(); break;
     case 'audit': if (m.verify) runAuditVerify(); else runAudit(m.limit); break;
