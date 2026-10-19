@@ -13,7 +13,7 @@
  * 本模块不得反向 import web/server 或 cli/*。
  */
 import express, { type Request, type Response } from 'express';
-import { existsSync, mkdirSync, readFileSync, statSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync } from 'fs';
 import { join, resolve } from 'path';
 import { randomUUID } from 'crypto';
 import dns from 'node:dns';
@@ -433,6 +433,7 @@ export function registerCapabilitySourceRoutes(app: ExpressApp, deps: Capability
     installHint: string;
     homepage: string;
     rawUrl: string;
+    featured?: boolean;
   }
 
   async function fetchClawHubSkills(keyword: string, limit: number): Promise<MarketSkill[]> {
@@ -503,6 +504,62 @@ export function registerCapabilitySourceRoutes(app: ExpressApp, deps: Capability
     }
   }
 
+  /* ========== 内置技能分类（复用 cli/cmds/skill-market.ts 的 SKILL_CATEGORIES / FEATURED 分类数据；
+     因本模块不得反向 import cli/*，此处本地镜像，保持与 T6 分类一致） ========== */
+  const SKILL_CATEGORIES: Record<string, string> = {
+    goal: '自管理', plan: '自管理', grill: '安全审计', 'self-evolve': '自管理', 'self-heal': '自管理',
+    'geo-faq-deploy': '部署',
+    docx: '办公文档', pptx: '办公文档', xlsx: '办公文档',
+    summarize: '调研摘要', 'web-research': '调研摘要',
+    'code-review': '编码开发', 'git-flow': '编码开发', 'api-design': '编码开发', refactor: '编码开发',
+    'test-gen': '编码开发', 'doc-gen': '办公文档', 'security-audit': '安全审计', performance: '编码开发',
+    'dependency-upgrade': '编码开发', onboarding: '其他',
+  };
+  const FEATURED_SKILLS = new Set<string>([
+    'goal', 'plan', 'grill', 'docx', 'pptx', 'xlsx', 'summarize', 'web-research',
+    'code-review', 'security-audit',
+  ]);
+
+  /** 扫描本地仓库内置技能目录（skills 子目录下的 SKILL.md），返回带分类/精选标注的市场条目 */
+  function loadBuiltinSkills(): MarketSkill[] {
+    const roots = [
+      join(process.cwd(), 'skills'),
+      join(__dirname, '../../skills'),
+      join(__dirname, '../../../skills'),
+    ];
+    const dir = roots.find((r) => existsSync(r));
+    if (!dir) return [];
+    const out: MarketSkill[] = [];
+    try {
+      for (const name of readdirSync(dir)) {
+        const sk = join(dir, name, 'SKILL.md');
+        if (!existsSync(sk)) continue;
+        const content = readFileSync(sk, 'utf8');
+        const fm = content.match(/^---\n([\s\S]*?)\n---/);
+        if (!fm) continue;
+        const nm = (fm[1].match(/^name:\s*(.+)$/m) || [])[1];
+        if (!nm) continue;
+        const dsRaw = fm[1].match(/^description:\s*([\s\S]*?)(?=\n\w|$)/m);
+        const ds = dsRaw ? dsRaw[1].trim() : '';
+        out.push({
+          id: 'builtin:' + name,
+          name: nm.trim(),
+          description: ds,
+          source: 'fhcode-builtin',
+          author: '飞虹 Code',
+          category: SKILL_CATEGORIES[name] ?? '通用',
+          tags: [],
+          downloads: 0,
+          installHint: '已随仓库内置，直接使用技能【' + nm.trim() + '】',
+          homepage: '',
+          featured: FEATURED_SKILLS.has(name),
+          rawUrl: '',
+        });
+      }
+    } catch { /* 忽略读取异常 */ }
+    return out;
+  }
+
   app.get('/api/skills/market', async (req: Request, res: Response) => {
     const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
     const source = typeof req.query.source === 'string' ? req.query.source : 'all';
@@ -528,6 +585,10 @@ export function registerCapabilitySourceRoutes(app: ExpressApp, deps: Capability
         homepage: s.homepage,
         rawUrl: s.rawUrl,
       })));
+    }
+    // 内置技能（随仓库分发，按分类/精选标注，对标生态平台分类浏览 + 官方精选榜）
+    if (source === 'builtin' || source === 'all') {
+      results = results.concat(loadBuiltinSkills());
     }
     // 从自定义来源拉取技能（HTTP URL 返回 JSON 数组）
     if (source === 'custom' || source === 'all') {

@@ -20,7 +20,7 @@ export async function runSkillNewCmd(name: string, opts: { template?: string; gl
   const templateId = opts.template ?? 'code-review';
   const templateDir = join(__dirname, '../../templates/skills', templateId);
   if (!existsSync(templateDir)) {
-    console.error(`模板不存在: ${templateId}（可选：code-review/git-flow/api-design/refactor/test-gen/doc-gen/security-audit/performance/dependency-upgrade/onboarding）`);
+    console.error(`模板不存在: ${templateId}（可选：code-review/git-flow/api-design/refactor/test-gen/doc-gen/security-audit/performance/dependency-upgrade/onboarding/docx/pptx/xlsx/summarize/web-research）`);
     process.exitCode = 1;
     return;
   }
@@ -51,6 +51,28 @@ export async function runSkillNewCmd(name: string, opts: { template?: string; gl
 
 /* ===================== Skills 市场 ===================== */
 
+/** 技能分类映射（用于 list/search 分类浏览，对标生态平台分类；未知归「通用」） */
+const SKILL_CATEGORIES: Record<string, string> = {
+  goal: '自管理', plan: '自管理', grill: '安全审计', 'self-evolve': '自管理', 'self-heal': '自管理',
+  'geo-faq-deploy': '部署',
+  docx: '办公文档', pptx: '办公文档', xlsx: '办公文档',
+  summarize: '调研摘要', 'web-research': '调研摘要',
+  'code-review': '编码开发', 'git-flow': '编码开发', 'api-design': '编码开发', refactor: '编码开发',
+  'test-gen': '编码开发', 'doc-gen': '办公文档', 'security-audit': '安全审计', performance: '编码开发',
+  'dependency-upgrade': '编码开发', onboarding: '其他',
+};
+/** 飞虹官方精选（★ 标记，作为推荐/信任信号，对标生态平台榜单） */
+const FEATURED = new Set<string>([
+  'goal', 'plan', 'grill', 'docx', 'pptx', 'xlsx', 'summarize', 'web-research',
+  'code-review', 'security-audit',
+]);
+function categoryOf(name: string): string {
+  return SKILL_CATEGORIES[name] ?? '通用';
+}
+function featuredStar(name: string): string {
+  return FEATURED.has(name) ? ' ★' : '';
+}
+
 /** 默认市场源（agentskills.io 官方规范端点；可用 --repo 或 FH_SKILL_MARKET 覆盖） */
 const DEFAULT_MARKET = process.env.FH_SKILL_MARKET || 'https://agentskills.io';
 
@@ -66,9 +88,19 @@ export async function runSkillMarketCmd(action: 'search' | 'install' | 'list', q
       return;
     }
     console.log(t('skillMarket.localTitle', { n: skills.length }));
+    // 按分类分组展示（对标生态平台分类浏览）
+    const groups: Record<string, typeof skills> = {};
     for (const s of skills) {
-      console.log(`  ${s.name.padEnd(24)} ${s.description.slice(0, 60)}`);
+      const cat = categoryOf(s.name);
+      (groups[cat] ||= []).push(s);
     }
+    for (const cat of Object.keys(groups).sort()) {
+      console.log(`\n  [${cat}]`);
+      for (const s of groups[cat]) {
+        console.log(`    ${s.name.padEnd(22)}${featuredStar(s.name)} ${s.description.slice(0, 48)}`);
+      }
+    }
+    console.log('\n  ★ = 飞虹官方精选（推荐榜）');
     return;
   }
 
@@ -106,7 +138,7 @@ export async function runSkillMarketCmd(action: 'search' | 'install' | 'list', q
     }
     console.log(t('skillMarket.searchTitle', { q: query ?? '', n: results.length, base }));
     for (const s of results) {
-      console.log(`  ${s.name.padEnd(28)} [${s.type}] ${s.description.slice(0, 70)}`);
+      console.log(`  ${s.name.padEnd(26)} [${categoryOf(s.name)}] ${s.description.slice(0, 54)}`);
     }
     console.log(t('skillMarket.installHint'));
     return;

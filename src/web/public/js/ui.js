@@ -195,13 +195,34 @@
     function renderMarketGrid() {
       const grid = document.getElementById('marketGrid');
       if (!state.market.length) { renderEmpty(grid, t('empty.no_skills')); return; }
-      grid.innerHTML = state.market.map((s) => {
-        const installed = state.installed.has(s.id);
-        const btn = installed
-          ? '<button class="install" disabled style="opacity:.55;cursor:default;">✅ 已安装</button>'
-          : '<button class="install" data-id="' + encodeURIComponent(s.id) + '" data-name="' + encodeURIComponent(s.name) + '" data-source="' + s.source + '">安装</button>';
-        return '<div class="tile"><div class="icon">' + (s.source === 'clawhub' ? '🧩' : '🛠') + '</div><div class="title">' + escapeHtml(s.name) + '</div><div class="desc">' + escapeHtml(s.description).slice(0, 70) + '…<br><span class="muted">' + (s.source === 'clawhub' ? 'ClawHub' : 'Agent-Foundry') + ' · 下载 ' + (s.downloads || 0) + '</span></div><div class="ops">' + btn + '</div></div>';
-      }).join('');
+      // 分类分组（顺序对齐 skill-market 分类数据，内置技能/官方精选优先展示）
+      const ORDER = ['自管理', '安全审计', '部署', '办公文档', '调研摘要', '编码开发', '其他', '通用'];
+      const groups = {};
+      for (const s of state.market) {
+        const cat = s.category || '通用';
+        (groups[cat] || (groups[cat] = [])).push(s);
+      }
+      const cats = Object.keys(groups).sort((a, b) => {
+        const ia = ORDER.indexOf(a), ib = ORDER.indexOf(b);
+        return (ia < 0 ? 999 : ia) - (ib < 0 ? 999 : ib);
+      });
+      let html = '';
+      for (const cat of cats) {
+        html += '<div class="section-title" style="margin-top:14px;">' + escapeHtml(cat) + ' <span class="muted">(' + groups[cat].length + ')</span></div>';
+        html += '<div class="grid">';
+        html += groups[cat].map((s) => {
+          const installed = state.installed.has(s.id);
+          const star = s.featured ? ' <span style="color:#ffb020;">★</span>' : '';
+          const btn = installed
+            ? '<button class="install" disabled style="opacity:.55;cursor:default;">✅ 已安装</button>'
+            : '<button class="install" data-id="' + encodeURIComponent(s.id) + '" data-name="' + encodeURIComponent(s.name) + '" data-source="' + s.source + '">安装</button>';
+          const srcLabel = s.source === 'clawhub' ? 'ClawHub' : s.source === 'agent-foundry' ? 'Agent-Foundry' : (s.source === 'fhcode-builtin' ? '内置' : (s.source || ''));
+          const dl = s.source === 'fhcode-builtin' ? '随仓库内置' : ('下载 ' + (s.downloads || 0));
+          return '<div class="tile"><div class="icon">' + (s.source === 'fhcode-builtin' ? '🟢' : (s.source === 'clawhub' ? '🧩' : '🛠')) + '</div><div class="title">' + escapeHtml(s.name) + star + '</div><div class="desc">' + escapeHtml(s.description).slice(0, 70) + '…<br><span class="muted">' + srcLabel + ' · ' + dl + '</span></div><div class="ops">' + btn + '</div></div>';
+        }).join('');
+        html += '</div>';
+      }
+      grid.innerHTML = html;
       grid.querySelectorAll('button.install').forEach((b) => b.addEventListener('click', (e) => {
         e.stopPropagation();
         installSkill(b.getAttribute('data-id'), b.getAttribute('data-name'), b.getAttribute('data-source'));
