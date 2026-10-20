@@ -278,9 +278,27 @@ export class Orchestrator {
           : (process.env.SHELL || '/bin/bash');
         systemPrompt += `\n\n## 运行环境（必须遵守）\n`
           + `- 当前工作目录（cwd）：${cwd}\n`
-          + `- 操作系统/平台：${process.platform}${isWin ? '（Windows：路径用反斜杠或正斜杠均可，但禁止使用 /root、/home、/usr 等 POSIX 系统路径——它们不存在）' : ''}\n`
+          + `- 操作系统/平台：${process.platform}${isWin ? '（Windows）' : ''}\n`
           + `- 默认 shell：${shellHint}\n`
           + `所有 run_shell / read_file / write_file 操作默认相对当前 cwd 执行；除非用户明确给出其他绝对路径，禁止 cd 切换或假设其他目录。`;
+        if (isWin) {
+          // P-fix-2（2026-10-21 复盘）：2026-10-20 空转事故根因——系统提示只禁了 POSIX 路径
+          // （/root、/home），却未告知 cmd 语法，agent 生成 bash 风格命令（ls -la /H/ 2>/dev/null
+          // || echo ...），靠 PATH 里的 MSYS 工具半能跑，且 || 兜底让命令 exit 0「假成功」，
+          // agent 误判「文件不存在/H 盘不可访问」持续重试直至熔断。此处给出 cmd 语法速查，
+          // 与 run-shell.tool.ts 的 bash-ism 执行期纠正提示构成双保险。
+          systemPrompt += `\n\n## Windows shell 语法速查（当前平台为 Windows，shell 是 cmd.exe，不是 bash）\n`
+            + `你生成的每一条 shell 命令都必须是合法的 cmd.exe 语法。常见错误写法与正确替代：\n`
+            + `- 列目录：用 dir /b 或 dir，禁止 ls、ls -la、ls -l（PATH 里可能有 MSYS 版 ls，但它的路径风格和 cmd 不兼容，用了必然出错）\n`
+            + `- 看文件内容：用 type 文件名，禁止 cat\n`
+            + `- 文件内搜索：用 findstr，禁止 grep\n`
+            + `- 重定向：> 和 >> 可用；禁止 2>/dev/null、/dev/null、>/dev/null 这类写法，cmd 没有 /dev/null，要用 2>nul\n`
+            + `- 命令链：&& 和 || 可用，语义与 bash 相同\n`
+            + `- 盘符路径：H:/feihong-code 或 H:\\feihong-code 都可以；禁止 /h/、/H/、/c/、/C/ 这类 MSYS 风格路径（cmd.exe 不识别，会报「系统找不到指定的路径」）\n`
+            + `- 禁止使用 /root、/home、/usr、/tmp、/etc 等 POSIX 系统路径，Windows 上不存在\n`
+            + `- 诊断提示：如果命令报「系统找不到指定的路径」，首先怀疑你的命令语法是 bash 风格而不是文件真的不存在，请立即改用 cmd 语法重写，不要原样重试\n`
+            + `- 切换盘符目录必须写全：cd /d H:/feihong-code，只写 cd H:/feihong-code 不会切换盘符`;
+        }
       }
       // 完成协议（2026-10-05「叙述即完成」缺陷修复）：执行期必须调工具，收尾用 FINAL:
       systemPrompt += COMPLETION_PROTOCOL_PROMPT;

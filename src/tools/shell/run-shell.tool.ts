@@ -31,6 +31,45 @@ function isDangerousShellCommand(cmd: string): boolean {
   return DANGEROUS_SHELL_PATTERNS.some((re) => re.test(cmd));
 }
 
+/**
+ * P-fix-2（2026-10-21 复盘）：检测命令中的 bash 风格特征（仅 Windows 有意义）。
+ * 背景：2026-10-20 空转事故中 agent 生成 `ls -la /H/ 2>/dev/null || echo "H: not accessible"`，
+ * cmd.exe 下靠 PATH 里的 MSYS 工具半能跑，|| 兜底还让命令 exit 0「假成功」，
+ * agent 误判「文件不存在 / H 盘不可访问」持续 bash 风格重试直至熔断。
+ * 本函数只做检测并返回人类可读特征列表，供 execute 在输出里附纠正提示；
+ * 不拦截命令（避免误伤），纯函数便于单测。
+ */
+export function detectBashisms(cmd: string): string[] {
+  if (process.platform !== 'win32') return [];
+  const hits: string[] = [];
+  const c = cmd.trim();
+  if (/(^|[|&;>]\s*|\s)(\/dev\/null|\/dev\/zero)/.test(c)) hits.push('/dev/null（cmd 不存在该路径，重定向黑洞请用 2>nul）');
+  if (/(^|[|&;]\s*|\s)ls(\s|$)/.test(c)) hits.push('行首 ls（cmd 请用 dir /b）');
+  if (/(^|[|&;]\s*|\s)cat(\s|$)/.test(c)) hits.push('行首 cat（cmd 请用 type）');
+  if (/(^|[|&;]\s*|\s)grep(\s|$)/.test(c)) hits.push('行首 grep（cmd 请用 findstr）');
+  if (/(^|[|&;]\s*|\s)(sed|awk|chmod|chown|touch|export|source|which|uname|pwd)(\s|$)/.test(c)) hits.push('bash 专有命令');
+  // MSYS 风格盘符路径：空白后的 /x/ 开头（/h/xxx、/H/、/c/ 等）。
+  // cmd 开关参数（cd /d、dir /b、cmd /c）均为单斜杠不会误伤；URL（https://）前是冒号也不会命中。
+  if (/(^|\s)\/[a-zA-Z]\/(?=\S)/.test(c) || /(^|\s)\/[a-zA-Z]\/(?=\s|$)/.test(c)) {
+    hits.push('MSYS 风格盘符路径（如 /h/、/c/，cmd 不识别，请写 H:/ 或 H:\\）');
+  }
+  if (/(^|\s)~(\\|\/|$)/.test(c)) hits.push('~ 家目录展开（cmd 不支持，请写绝对路径）');
+  if (/\$[A-Za-z_]/.test(c) && !/%[A-Za-z_]/.test(c)) hits.push('$VAR 变量引用（cmd 变量是 %VAR%）');
+  return hits;
+}
+
+/** bash-ism 命中时附加给模型的纠正提示（假成功陷阱是重点） */
+function bashismWarning(hits: string[]): string {
+  return [
+    '',
+    '[命令语法警告] 检测到 bash 风格特征：' + hits.join('；') + '。',
+    '当前 shell 是 cmd.exe（Windows），上述语法并未按你的预期执行：',
+    '1. 即使本命令退出码为 0（例如 || echo 兜底），输出也可能是 bash 兜底分支的产物，不是真实结果，不要轻信；',
+    '2. 如果输出或 stderr 出现「系统找不到指定的路径」，那是命令语法不兼容，不是文件不存在，更不是磁盘不可访问；',
+    '3. 请立即用 cmd 语法重写整条命令（ls→dir /b、cat→type、grep→findstr、2>/dev/null→2>nul、/h/x→H:/x），不要原样重试。',
+  ].join('\n');
+}
+
 /** 智能截断：保留头部和尾部，中间用省略标记替换（错误信息通常在末尾） */
 function smartTruncate(text: string, maxLen = 6000, headLen = 2000, tailLen = 3000): string {
   if (text.length <= maxLen) return text;
@@ -125,9 +164,15 @@ export const runShellTool: Tool = {
         ? await runCommandInContainer(command, ctx.cwd, timeoutMs)
         : await runCommand(command, ctx.cwd, timeoutMs);
     const isTimeout = res.timedOut === true || res.code === 124 || /\[超时\]|\[强制结束\]/.test(res.stderr || '');
+    // P-fix-2：bash-ism 纠正提示拼在输出最前面，确保模型先看到语法警告再看到命令结果，
+    // 阻断「|| echo 兜底 exit 0 假成功 → 误判文件/磁盘不存在 → 原样重试」的死循环
+    const bashisms = detectBashisms(command);
+    const output = bashisms.length > 0
+      ? bashismWarning(bashisms) + '\n\n' + buildOutput(res.stdout, res.stderr)
+      : buildOutput(res.stdout, res.stderr);
     return {
       ok: res.code === 0,
-      output: buildOutput(res.stdout, res.stderr),
+      output,
       error: res.code === 0
         ? undefined
           : isTimeout

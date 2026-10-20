@@ -6,6 +6,8 @@
  * P5-4：容器执行（docker run 挂载工作区，镜像 FH_SANDBOX_IMAGE）
  */
 import { spawn } from 'child_process';
+import { existsSync } from 'fs';
+import { resolve as resolvePath } from 'path';
 
 export interface ExecResult {
   code: number;
@@ -71,9 +73,21 @@ export function runCommand(cmd: string, cwd: string, timeoutMs = defaultShellTim
   return new Promise((resolve) => {
     // 不用内置 timeout 选项：它只杀 shell 进程，不杀 shell 启动的子进程（如 npm/node）。
     // 手动实现超时：先 SIGTERM，宽限期后 SIGKILL，并尝试杀整个进程树。
-    const child = spawn(cmd, { cwd, shell: true });
+    // P-fix-2（2026-10-21）：spawn 前规范化 cwd——resolve 统一分隔符，不存在或不可访问时
+    // 回退 process.cwd() 并在 stderr 留痕，避免 spawn 直接以「系统找不到指定的路径」
+    // 整体失败、模型拿不到任何诊断信息而盲目重试。
+    let effectiveCwd = cwd;
+    let cwdFallbackNote = '';
+    try {
+      effectiveCwd = resolvePath(cwd);
+      if (!existsSync(effectiveCwd)) throw new Error('not found');
+    } catch {
+      effectiveCwd = process.cwd();
+      cwdFallbackNote = `[警告] 请求的工作目录不存在或不可访问，已回退到进程目录: ${cwd}\n`;
+    }
+    const child = spawn(cmd, { cwd: effectiveCwd, shell: true });
     let stdout = '';
-    let stderr = '';
+    let stderr = cwdFallbackNote;
     let settled = false;
     const isWindows = process.platform === 'win32';
 
