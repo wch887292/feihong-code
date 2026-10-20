@@ -1,5 +1,15 @@
 ﻿# 飞虹 Code 更新日志 / Changelog
 
+## v8.11.1 · M4 智能体编排面板 + 用户级技能内置化 + 合规检查修复 (2026-10-20)
+
+**主题**：图形化编排 fhcode team 多智能体并行执行；将用户级技能物理内置进仓库（11→242）；修复合规检查对 MCP 桥接描述的误报。
+
+- **M4 智能体编排面板**：新增 `data-view="orchestrator"` 视图——左侧 8 角色模板、中间可拖拽节点画布（全局目标中枢并行扇出 SVG 连线）、生成 YAML/JSON 配置、一键发起调后端并行执行并展示各 agent 结果；后端 `src/agent/agent-graph-runner.ts` 用 ModelRouter 真实并行调用（Promise.all，失败隔离），无 provider 时降级确定性离线合成；运行记录私有化落 `dataDir/orchestrator/runs`
+- **用户级技能内置化**：将 `~/.feihong-code/skills` 中 231 个技能物理内置进仓库 `skills/`（排除 editable-design/reverse-skill 超大目录与 docx/pptx/xlsx 重名），内置 11→242，仓库 skills/ 体积 14MB；修复 `loadLocalSkills` name 去重键误合并同名异目录技能
+- **技能市场全量分组展示**：扫内置/用户级/项目级三源，分类可折叠 + 统计条，本地技能标记「✅ 可直接使用」
+- **合规检查修复**：`check-compliance-claims.mjs` 正则 `C?MM?C`→`CMMC`，避免产品能力描述里的 MCP（Model Context Protocol）桥接被误判为 CMMC 第三方认证宣称
+- 验证：tsc ✅ / build ✅ / 接口 smoke ✅ / Edge 无头验收（8 模板 / 2 并行结果卡 / 0 localhost 报错）✅ / CI 闸口 version·cross·compliance 全绿
+
 ## v8.11.0 · 账号体系 / 凭据作用域 / 执行策略 / Codex 派发停用 (2026-10-18)
 
 **主题**：对标 DeepSeek Harness 与 OpenAI Codex 工程底座升级收官——手机号账号体系、凭据环境作用域、执行策略前缀规则、Codex 任务派发默认停用。
