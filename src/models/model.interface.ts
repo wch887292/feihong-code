@@ -61,5 +61,7 @@ export interface ModelProvider {
   readonly model: string;
   readonly tags: CapabilityTag[];
   readonly costPer1k?: number;
+  /** key 池编号（1 起，对标 FCC api_key_number），未配 key 池时为 1 */
+  readonly keyIndex?: number;
   chat(req: ChatRequest): Promise<ChatResponse>;
 }

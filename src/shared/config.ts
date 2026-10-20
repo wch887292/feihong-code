@@ -64,6 +64,12 @@ export interface ProviderConfig {
   apiKey?: string;
   /** 凭据引用名（对标 dsh credentials seam）：优先于 apiKey 解析，密钥不落配置文件 */
   apiKeyEnv?: string;
+  /**
+   * Key 池凭据引用名有序列表，每项经凭据存储解析，配了则启用多 key 按序展开，未配则回退 apiKeyEnv 或 apiKey 单 key 行为。
+   */
+  keyRefs?: string[];
+  /** key 池展开时注入的编号（1 起），运行时使用，配置层无需手填 */
+  keyIndex?: number;
   tags: CapabilityTag[];
   costPer1k?: number;
 }

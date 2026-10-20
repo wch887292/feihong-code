@@ -16,6 +16,7 @@ export class OllamaProvider implements ModelProvider {
   readonly model: string;
   readonly tags: CapabilityTag[];
   readonly costPer1k: number;
+  readonly keyIndex?: number;
   private readonly baseURL: string;
 
   constructor(cfg: ProviderConfig) {
@@ -23,6 +24,7 @@ export class OllamaProvider implements ModelProvider {
     this.model = cfg.model ?? cfg.id;
     this.tags = cfg.tags;
     this.costPer1k = cfg.costPer1k ?? 0;
+    this.keyIndex = cfg.keyIndex;
     this.baseURL = cfg.baseURL.replace(/\/$/, '');
   }
 

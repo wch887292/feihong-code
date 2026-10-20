@@ -27,7 +27,7 @@ import type { ChatRequest, ChatResponse, ModelProvider } from './model.interface
 import { OpenAICompatibleProvider } from './providers/openai-compatible.provider';
 import { OllamaProvider } from './providers/ollama.provider';
 import { AnthropicMessagesProvider } from './providers/anthropic-messages.provider';
-import { resolveProviderApiKey } from '../security/credentials';
+import { resolveCredential, resolveProviderApiKey } from '../security/credentials';
 
 export interface ModelStat {
   providerId: string;
@@ -39,6 +39,8 @@ export interface ModelStat {
   avgLatencyMs: number;
   lastUsedAt: string;
   successRate: number;
+  /** key 池编号（1 起），未配置 key 池时为 1；旧记录缺省视为 1 */
+  keyIndex?: number;
 }
 
 export interface ModelStatsCache {
@@ -52,6 +54,8 @@ const DEFAULT_STATS_FILE = 'model-stats.jsonl';
 
 /** 模型/鉴权类错误：直接轮换到下一个可用模型，重试无意义 */
 const ROTATE_ONLY_STATUS = new Set<number>([400, 401, 403, 404]);
+/** key 级错误：优先在本 provider 内切下一把 key，key 池耗尽再跳下一家（对标 FCC fallback key 轮换） */
+const KEY_ROTATE_STATUS = new Set<number>([401, 403, 429]);
 /** 其余状态码（429/500/502/503/504 等瞬时错误）均视为可退避重试 */
 
 export class ModelRouter {
@@ -90,16 +94,44 @@ export class ModelRouter {
   static fromConfig(cfg: AppConfig, statsFile?: string, tier: ComputeTier = 'full'): ModelRouter {
     // 凭据 seam（对标 dsh）：apiKeyEnv 引用优先解析，回退旧 apiKey 兼容存量配置
     const homeDir = cfg.app.homeDir;
-    const providers = cfg.models.providers.map((p) => {
-      const apiKey = resolveProviderApiKey(p, homeDir);
-      const normalized: ProviderConfig = { ...p, apiKey };
-      if (p.type === 'ollama') return new OllamaProvider(normalized);
-      // anthropic-messages 为可选扩展协议（缺省不启用）：仅当需要接入 Claude 官方 /
-      // Anthropic 兼容网关（如 DeepSeek 官方 Anthropic 端点 https://api.deepseek.com/anthropic）
-      // 时才配置；不配置时走默认的 openai-compatible 分支，不影响现有 provider。
-      if (p.type === 'anthropic-messages') return new AnthropicMessagesProvider(normalized);
-      return new OpenAICompatibleProvider(normalized);
-    });
+    // Key 池第一阶段：只做配置解析与多 key 展开，不改轮换逻辑。
+    // keyRefs 非空：逐项经凭据存储 resolveCredential 解析并收集非空 key（按配置顺序展开）；
+    // 未配 keyRefs：回退 resolveProviderApiKey 单 key 行为（有值则单元素数组，否则空数组）
+    const resolveKeyList = (p: ProviderConfig): string[] => {
+      if (p.keyRefs && p.keyRefs.length > 0) {
+        const keys: string[] = [];
+        for (const ref of p.keyRefs) {
+          const key = resolveCredential(ref, homeDir);
+          if (key) keys.push(key);
+        }
+        return keys;
+      }
+      const singleKey = resolveProviderApiKey(p, homeDir);
+      return singleKey ? [singleKey] : [];
+    };
+
+    const providers: ModelProvider[] = [];
+    for (const p of cfg.models.providers) {
+      const keyList = resolveKeyList(p);
+      // key 池非空：每把 key 各建一个实例，id 保持 p.id 不变（兼容统计与日志）；
+      // 列表为空：按原行为只建一个实例，apiKey 仍传 resolveProviderApiKey 的结果
+      const normalizedList: ProviderConfig[] =
+        keyList.length > 0
+          ? keyList.map((key, idx) => ({ ...p, apiKey: key, keyIndex: idx + 1 }))
+          : [{ ...p, apiKey: resolveProviderApiKey(p, homeDir) }];
+      for (const normalized of normalizedList) {
+        if (p.type === 'ollama') {
+          providers.push(new OllamaProvider(normalized));
+        } else if (p.type === 'anthropic-messages') {
+          // anthropic-messages 为可选扩展协议（缺省不启用）：仅当需要接入 Claude 官方 /
+          // Anthropic 兼容网关（如 DeepSeek 官方 Anthropic 端点 https://api.deepseek.com/anthropic）
+          // 时才配置；不配置时走默认的 openai-compatible 分支，不影响现有 provider。
+          providers.push(new AnthropicMessagesProvider(normalized));
+        } else {
+          providers.push(new OpenAICompatibleProvider(normalized));
+        }
+      }
+    }
     return new ModelRouter(
       providers,
       cfg.models.defaultStrategy,
@@ -146,7 +178,7 @@ export class ModelRouter {
   }
 
   /** 更新模型调用统计（并在配置了 homeDir 时同步落盘，供 model-stats 命令读取） */
-  async updateStat(providerId: string, model: string, success: boolean, costUsd: number, latencyMs: number): Promise<void> {
+  async updateStat(providerId: string, model: string, success: boolean, costUsd: number, latencyMs: number, keyIndex: number = 1): Promise<void> {
     if (!this.statsCache) {
       this.statsCache = { version: STATS_VERSION, stats: [], updatedAt: new Date().toISOString() };
     }
@@ -159,9 +191,11 @@ export class ModelRouter {
       existing.totalCostUsd += costUsd;
       existing.avgLatencyMs = (existing.avgLatencyMs * (existing.totalCalls - 1) + latencyMs) / existing.totalCalls;
       existing.lastUsedAt = new Date().toISOString();
+      existing.keyIndex = keyIndex;
       existing.successRate = existing.successfulCalls / existing.totalCalls;
     } else {
       this.statsCache.stats.push({
+        keyIndex,
         providerId,
         model,
         totalCalls: 1,
@@ -250,31 +284,36 @@ export class ModelRouter {
   }
 
   /**
-   * 调用并自动轮换。按状态码分类：
-   *  - 400/401/403/404（模型/鉴权类）：立即轮换下个可用模型，不做退避重试
-   *  - 429/500/502/503/504（瞬时/服务端）：轮换下个模型，整轮结束后退避重试，直到任务完成或达到上限
+   * 调用并自动轮换。按状态码分类处理（P0-1 起支持 provider 级 key 池）：
+   *  - 401/403/429（key 级错误）：优先切同一 provider 的下一把 key，key 池耗尽再跳下一家
+   *  - 400/404（模型类）：跳过本 provider 剩余 key，直接挑战下一家，不做退避重试
+   *  - 其余 5xx（瞬时/服务端）：同上跳下一家，整轮结束后退避重试，直到任务完成或达到上限
    *  - 网络/未知错误：按可重试处理
-   * 全部 provider 均不可用时抛出最后错误。
+   * 全部 provider（含各 key）均不可用时抛出最后错误。
    */
   async chat(req: ChatRequest, tags?: CapabilityTag[]): Promise<ChatResponse> {
     const order = this.rank(tags);
     if (order.length === 0) {
       throw new ModelError('未配置任何可用模型 provider', 'router', 500);
     }
+    // 同 provider 的多个 key 实例聚拢相邻（keyIndex 升序），保证 401/429 时先切自家 key
+    const grouped = this.groupByProvider(order);
 
     const maxCycles = this.maxRetries;
     let lastErr: unknown;
     let lastRetryable = true;
 
     for (let cycle = 0; cycle < maxCycles; cycle++) {
-      for (const p of order) {
+      let i = 0;
+      while (i < grouped.length) {
+        const p = grouped[i];
         const startTime = Date.now();
         try {
           const resp = await p.chat(req);
           const latency = Date.now() - startTime;
 
           // M6: 更新性能统计（成功记录响应模型名）
-          await this.updateStat(p.id, resp.model, true, resp.costUsd, latency);
+          await this.updateStat(p.id, resp.model, true, resp.costUsd, latency, p.keyIndex ?? 1);
 
           if (this.budget > 0 && resp.costUsd > this.budget) {
             logger.warn('cost over budget', { provider: p.id, cost: resp.costUsd, budget: this.budget });
@@ -283,16 +322,26 @@ export class ModelRouter {
         } catch (e) {
           const latency = Date.now() - startTime;
           // M6: 记录失败（用 provider 配置的模型名，避免统计出 model='' 的空条目）
-          await this.updateStat(p.id, p.model, false, 0, latency);
+          await this.updateStat(p.id, p.model, false, 0, latency, p.keyIndex ?? 1);
           const status = this.statusOf(e);
           lastErr = e;
           lastRetryable = this.isRetryable(e);
-          logger.warn('模型调用失败，自动轮换下个模型', {
+          logger.warn('模型调用失败，自动轮换', {
             provider: p.id,
+            keyIndex: p.keyIndex ?? 1,
             status,
             cycle: cycle + 1,
             error: e instanceof Error ? e.message : String(e),
           });
+
+          if (status !== undefined && KEY_ROTATE_STATUS.has(status)) {
+            // key 级错误（401/403/429）：同 provider 还有下一把 key 就切 key，否则自然跳到下一家
+            i += 1;
+          } else {
+            // 非 key 级错误：跳过本 provider 剩余 key，直接挑战下一家
+            i += 1;
+            while (i < grouped.length && grouped[i].id === p.id) i += 1;
+          }
         }
       }
 
@@ -305,6 +354,22 @@ export class ModelRouter {
     }
 
     throw lastErr instanceof Error ? lastErr : new ModelError('所有可用模型均调用失败', 'router', 500);
+  }
+
+  /** 把 rank 结果按 provider 聚拢：同 provider 的 key 实例相邻且按 keyIndex 升序 */
+  private groupByProvider(order: ModelProvider[]): ModelProvider[] {
+    const groups = new Map<string, ModelProvider[]>();
+    for (const p of order) {
+      const arr = groups.get(p.id);
+      if (arr) arr.push(p);
+      else groups.set(p.id, [p]);
+    }
+    const grouped: ModelProvider[] = [];
+    for (const arr of groups.values()) {
+      arr.sort((a, b) => (a.keyIndex ?? 1) - (b.keyIndex ?? 1));
+      grouped.push(...arr);
+    }
+    return grouped;
   }
 }
 
