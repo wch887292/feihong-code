@@ -2173,3 +2173,19 @@ pre, code, .code-block, .code-block * {
   .orch-body { grid-template-columns: 180px 1fr; }
   .orch-results { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--border); max-height: 260px; }
 }
+
+/* ===== M5 运营增强：技能市场榜单（热门/下载/精选） ===== */
+.rank-tabs { display: inline-flex; gap: 4px; background: var(--bg-soft, rgba(127,127,127,.08)); padding: 3px; border-radius: 8px; flex: 0 0 auto; }
+.rank-tab { border: 0; background: transparent; color: var(--muted); padding: 5px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; transition: .15s; }
+.rank-tab:hover { color: var(--fg); }
+.rank-tab.active { background: var(--accent, #3b82f6); color: #fff; font-weight: 600; }
+
+.rank-head { display: flex; align-items: baseline; gap: 12px; padding: 10px 2px 14px; flex-wrap: wrap; }
+.rank-title { font-size: 17px; font-weight: 700; color: var(--fg); }
+.rank-sub { font-size: 12px; color: var(--muted); }
+.rank-count { margin-left: auto; font-size: 12px; color: var(--muted); }
+
+.mk-rank { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 22px; padding: 0 5px; margin-right: 2px; border-radius: 6px; font-size: 12px; font-weight: 700; background: var(--bg-soft, rgba(127,127,127,.12)); color: var(--muted); }
+.mk-rank.r1 { background: linear-gradient(135deg, #fde68a, #f59e0b); color: #5a3a00; }
+.mk-rank.r2 { background: linear-gradient(135deg, #e5e7eb, #9ca3af); color: #2b2f36; }
+.mk-rank.r3 { background: linear-gradient(135deg, #fcd9b6, #cd7f32); color: #4a2c0a; }

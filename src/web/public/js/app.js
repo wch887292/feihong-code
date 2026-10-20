@@ -192,6 +192,10 @@
         // ---- 输入框占位符（键名固定为 ph.<元素id>）----
         'ph.goalInput': '输入指令，消息将归属当前任务持续对话；点上方「＋ 新建任务」可开启新任务（创建 → 推理 → 工具验证 → 闭环全程追踪）',
         'ph.marketSearch': '搜索…',
+        'rank.category': '分类',
+        'rank.hot': '🔥 热门',
+        'rank.downloads': '⬇️ 下载',
+        'rank.featured': '⭐ 精选',
         'ph.autoName': '如：每日构建检查',
         'ph.autoGoal': '运行 npm test 并汇总失败用例…',
         'ph.tplTitle': '如：SQL 优化',
@@ -399,6 +403,10 @@
         // ---- input placeholders (key = ph.<element id>) ----
         'ph.goalInput': 'Type an instruction. Messages stay in the current task; click "+ New Task" above to start a new one (create → reason → verify → close the loop).',
         'ph.marketSearch': 'Search…',
+        'rank.category': 'Category',
+        'rank.hot': '🔥 Hot',
+        'rank.downloads': '⬇️ Downloads',
+        'rank.featured': '⭐ Featured',
         'ph.autoName': 'e.g. Daily build check',
         'ph.autoGoal': 'Run npm test and summarize failing cases…',
         'ph.tplTitle': 'e.g. SQL Optimization',
@@ -2271,6 +2279,11 @@
     let marketTimer;
     document.getElementById('marketSearch')?.addEventListener('input', () => { clearTimeout(marketTimer); marketTimer = setTimeout(loadMarket, 400); });
     document.getElementById('marketSource')?.addEventListener('change', loadMarket);
+    document.querySelectorAll('#marketRankTabs .rank-tab').forEach((tab) => tab.addEventListener('click', () => {
+      document.querySelectorAll('#marketRankTabs .rank-tab').forEach((t) => t.classList.remove('active'));
+      tab.classList.add('active');
+      loadMarket();
+    }));
 
     /* ========== 节点管理 & 自定义来源 ========== */
     document.getElementById('addNodeBtn')?.addEventListener('click', () => openNodeModal());

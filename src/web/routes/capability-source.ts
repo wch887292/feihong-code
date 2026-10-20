@@ -686,6 +686,18 @@ export function registerCapabilitySourceRoutes(app: ExpressApp, deps: Capability
       );
     }
 
+    // M5 运营增强：榜单排序（热门榜 / 下载榜 / 官方精选置顶）
+    // 数据源自 T6 的 FEATURED（featured 字段）+ downloads 字段；本地技能 downloads=0 靠 featured 体现热度
+    const rank = typeof req.query.rank === 'string' ? req.query.rank : '';
+    if (rank === 'downloads') {
+      results.sort((a, b) => (Number(b.downloads) || 0) - (Number(a.downloads) || 0) || Number(!!b.featured) - Number(!!a.featured));
+    } else if (rank === 'featured') {
+      results.sort((a, b) => Number(!!b.featured) - Number(!!a.featured) || (Number(b.downloads) || 0) - (Number(a.downloads) || 0));
+    } else if (rank === 'hot') {
+      const hotScore = (s: MarketSkill) => (s.featured ? 100000 : 0) + (Number(s.downloads) || 0);
+      results.sort((a, b) => hotScore(b) - hotScore(a));
+    }
+
     // 总量统计：给前端「全部技能一览」用，保证用户一眼知道本机有多少技能
     const counts = {
       builtin: allLocal.filter((s) => s.source === 'fhcode-builtin').length,

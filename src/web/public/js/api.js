@@ -94,17 +94,21 @@
     async function loadMarket() {
       const q = document.getElementById('marketSearch').value.trim();
       const source = document.getElementById('marketSource').value;
+      const rankEl = document.querySelector('#marketRankTabs .rank-tab.active');
+      const rank = rankEl ? rankEl.getAttribute('data-rank') : 'category';
       const grid = document.getElementById('marketGrid');
       grid.innerHTML = '<div class="empty">加载中…</div>';
       try {
         // limit 放宽到 1000：本机技能可能有几百个，不能截断
         const params = new URLSearchParams({ source, limit: '1000' });
         if (q) params.set('q', q);
+        if (rank && rank !== 'category') params.set('rank', rank); // M5 榜单排序
         const d = await api('/api/skills/market?' + params.toString());
         state.market = d.skills || [];
         state.marketCounts = d.counts || {};
+        state.marketRank = rank;
         await loadInstalled();   // 先加载已安装集合，市场按钮才能正确显示「已安装」态
-        renderMarketGrid();
+        renderMarket();
       } catch (e) { grid.innerHTML = '<div class="empty" style="color:var(--err)">加载失败：' + escapeHtml(e.message) + '</div>'; }
     }
 

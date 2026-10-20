@@ -216,7 +216,7 @@
           + '<span class="market-cat-name">' + escapeHtml(cat) + '</span>'
           + '<span class="market-cat-count">' + groups[cat].length + ' 个</span>'
           + '</div>'
-          + '<div class="grid market-grid">' + groups[cat].map(skillCard).join('') + '</div>'
+          + '<div class="grid market-grid">' + groups[cat].map((s) => skillCard(s)).join('') + '</div>'
           + '</section>';
       }
       grid.innerHTML = html;
@@ -253,10 +253,11 @@
       return !!s.local || s.source === 'fhcode-builtin' || s.source === 'user' || s.source === 'project';
     }
 
-    function skillCard(s) {
+    function skillCard(s, rankIdx) {
       const local = isLocalSkill(s);
       const installed = state.installed.has(s.id);
       const star = s.featured ? '<span class="mk-star" title="官方精选">★</span>' : '';
+      const rankBadge = rankIdx ? '<span class="mk-rank ' + (rankIdx <= 3 ? 'r' + rankIdx : 'rN') + '" title="第 ' + rankIdx + ' 名">' + (rankIdx <= 3 ? ['🥇', '🥈', '🥉'][rankIdx - 1] : rankIdx) + '</span>' : '';
       const srcMap = { 'fhcode-builtin': '内置', user: '我的', project: '项目', clawhub: 'ClawHub', 'agent-foundry': 'Agent-Foundry' };
       const srcLabel = srcMap[s.source] || (s.source || '来源');
       const srcCls = local ? 'mk-badge-local' : 'mk-badge-eco';
@@ -266,11 +267,38 @@
       else if (installed) btn = '<button class="install" disabled>✅ 已安装</button>';
       else btn = '<button class="install" data-id="' + encodeURIComponent(s.id) + '" data-name="' + encodeURIComponent(s.name) + '" data-source="' + escapeHtml(s.source) + '">安装</button>';
       return '<div class="tile mk-tile">'
-        + '<div class="mk-head"><span class="mk-icon">' + icon + '</span><span class="mk-badge ' + srcCls + '">' + escapeHtml(srcLabel) + '</span>' + star + '</div>'
+        + '<div class="mk-head">' + rankBadge + '<span class="mk-icon">' + icon + '</span><span class="mk-badge ' + srcCls + '">' + escapeHtml(srcLabel) + '</span>' + star + '</div>'
         + '<div class="title" title="' + escapeHtml(s.name) + '">' + escapeHtml(s.name) + '</div>'
         + '<div class="desc" title="' + escapeHtml(s.description) + '">' + escapeHtml(s.description || '（无描述）') + '</div>'
         + '<div class="ops">' + btn + '</div>'
         + '</div>';
+    }
+
+    /** 市场渲染分发：分类模式走分组，榜单模式走排名扁平列表（M5 运营增强） */
+    function renderMarket() {
+      const rank = state.marketRank || 'category';
+      if (rank === 'category') renderMarketGrid();
+      else renderMarketRank(rank);
+    }
+
+    /** M5 榜单渲染：扁平列表 + 排名徽章 + 榜单标题，保留来源/搜索筛选与安装跳转 */
+    function renderMarketRank(rank) {
+      const grid = document.getElementById('marketGrid');
+      if (!state.market.length) { renderEmpty(grid, t('empty.no_skills')); renderMarketSummary(); return; }
+      const META = {
+        hot: { title: '🔥 热门榜', sub: '综合官方精选与下载量，越靠前越值得一试' },
+        downloads: { title: '⬇️ 下载榜', sub: '按累计下载量降序，生态热门技能优先' },
+        featured: { title: '⭐ 官方精选榜', sub: '飞虹 Code 团队推荐的精品技能置顶' },
+      };
+      const m = META[rank] || { title: '榜单', sub: '' };
+      let html = '<div class="rank-head"><span class="rank-title">' + m.title + '</span><span class="rank-sub">' + m.sub + '</span><span class="rank-count">共 ' + state.market.length + ' 个</span></div>';
+      html += '<div class="grid market-grid">' + state.market.map((s, i) => skillCard(s, i + 1)).join('') + '</div>';
+      grid.innerHTML = html;
+      renderMarketSummary();
+      grid.querySelectorAll('button.install[data-id]').forEach((b) => b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        installSkill(b.getAttribute('data-id'), b.getAttribute('data-name'), b.getAttribute('data-source'));
+      }));
     }
 
     function bindTplCards(grid) {
