@@ -109,6 +109,23 @@ export function startWebServer(opts: ServeOptions = {}): {
 
   const port = opts.port ?? Number(process.env.FH_WEB_PORT ?? 8080);
   let token = opts.token ?? process.env.FH_WEB_TOKEN ?? '';
+  const MASTER_TOKEN_FILE = (() => {
+    const f = join(process.env.FH_HOME?.trim() || join(require('os').homedir(), '.feihong-code'), 'web-token.json');
+    return f;
+  })();
+  const ROTATE_GRACE_MS = 24 * 60 * 60 * 1000; // 旧主令牌宽限期 24h
+  let oldTokens: Array<{ value: string; expiresAt: number }> = [];
+  const weakTokenWarned = new Set<string>();
+  // M1 加固（2026-10-20 P0）：弱令牌告警——固定/示例值的 FH_WEB_TOKEN 等于把控制台令牌写进所有备份与日志，
+  // 任何拿到 .env 的人即获得全权限。建议改用 randomBytes(32) 生成的 64 位 hex，并经 /api/auth/rotate-token 轮换。
+  const isWeakMasterToken = (tk: string): boolean => /^fhcode-2026-fixed-token-/i.test(tk) || tk.length < 24;
+  if (token && isWeakMasterToken(token) && !weakTokenWarned.has(token)) {
+    console.warn('\n' +
+      '[fhcode-security] ⚠️  检测到弱 FH_WEB_TOKEN（fhcode-2026-fixed-token-* 为示例固定值或长度 <24）。\n' +
+      '   任何拿到 .env 备份/日志的人即可访问 Web 控制台全部接口（含键鼠操作/文件读写）。\n' +
+      '   请改用强随机令牌：node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"，\n' +
+      '   写入 .env 的 FH_WEB_TOKEN 并重启；已上线环境建议经 POST /api/auth/rotate-token 平滑轮换（旧令牌 24h 宽限）。\n');
+  }
   if (!token) {
     // 令牌持久化：自动生成后落盘 ~/.feihong-code/web-token.json，重启复用，
     // 避免每次重启换 token 导致手机端预置令牌失配（v8.8.3）
