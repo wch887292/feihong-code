@@ -342,23 +342,27 @@
         <!-- 插件市场页面 -->
         <div class="page-view" data-view="market">
           <div class="page-head">
-            <div data-i18n="nav.market"><h2>🧩 插件市场</h2><div class="sub">聚合 ClawHub 与 Agent-Foundry 技能生态</div></div>
+            <div><h2>🧩 技能市场</h2><div class="sub">本机全部技能一览 · 内置 + 我的 + 生态，一眼看清有什么技能可用</div></div>
             <div class="row" style="flex:0 0 auto; gap:8px;">
-              <input type="text" id="marketSearch" placeholder="搜索…" style="margin:0;width:160px;" data-i18n="market.search_placeholder" />
-              <select id="marketSource" style="margin:0;width:130px;">
-                <option value="all" data-i18n="market.source_all">全部来源</option>
+              <input type="text" id="marketSearch" placeholder="搜索技能名称 / 描述…" style="margin:0;width:200px;" />
+              <select id="marketSource" style="margin:0;width:170px;">
+                <option value="local" selected>本地技能（内置+我的）</option>
+                <option value="all">全部（含生态）</option>
+                <option value="builtin">仅内置技能</option>
+                <option value="user">仅我的技能</option>
+                <option value="project">仅项目技能</option>
                 <option value="clawhub">ClawHub</option>
                 <option value="agent-foundry">Agent-Foundry</option>
-                <option value="node">节点</option>
-                <option value="builtin">内置技能</option>
+                <option value="node">节点来源</option>
                 <option value="custom">自定义来源</option>
               </select>
-              <button id="marketRefresh" data-i18n="btn.refresh">刷新</button>
+              <button id="marketRefresh">刷新</button>
             </div>
           </div>
-          <div class="grid" id="marketGrid" data-i18n="common.loading"><div class="empty">加载中…</div></div>
-          <div class="section-title" style="margin-top:20px;" data-i18n="market.installed">已安装</div>
-          <div class="grid" id="installedGrid" data-i18n="market.installed"><div class="empty">暂无已安装技能</div></div>
+          <div class="market-summary" id="marketSummary"></div>
+          <div class="market-groups" id="marketGrid"><div class="empty">加载中…</div></div>
+          <div class="section-title" style="margin-top:20px;">已安装（生态技能）</div>
+          <div class="grid" id="installedGrid"><div class="empty">暂无已安装技能</div></div>
         </div>
 
         <!-- 办公助理页面 -->

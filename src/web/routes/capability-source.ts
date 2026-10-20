@@ -434,6 +434,8 @@ export function registerCapabilitySourceRoutes(app: ExpressApp, deps: Capability
     homepage: string;
     rawUrl: string;
     featured?: boolean;
+    /** 本地技能（内置/用户级/项目级）标记：已在本机可直接用，不需要「安装」 */
+    local?: boolean;
   }
 
   async function fetchClawHubSkills(keyword: string, limit: number): Promise<MarketSkill[]> {
@@ -520,59 +522,113 @@ export function registerCapabilitySourceRoutes(app: ExpressApp, deps: Capability
     'code-review', 'security-audit',
   ]);
 
-  /** 扫描本地仓库内置技能目录（skills 子目录下的 SKILL.md），返回带分类/精选标注的市场条目 */
-  function loadBuiltinSkills(): MarketSkill[] {
-    const roots = [
+  /** 本地技能目录：仓库内置 / 用户级（~/.feihong-code/skills）/ 项目级（.feihong-code/skills） */
+  interface LocalSkillRoot { dir: string; origin: 'builtin' | 'user' | 'project' }
+
+  function collectLocalSkillRoots(): LocalSkillRoot[] {
+    const roots: LocalSkillRoot[] = [];
+    const seen = new Set<string>();
+    const push = (dir: string, origin: LocalSkillRoot['origin']) => {
+      if (!dir || seen.has(dir) || !existsSync(dir)) return;
+      seen.add(dir);
+      roots.push({ dir, origin });
+    };
+    // 仓库内置：按 cwd → 编译产物相对路径依次探测，只取第一个命中的
+    const builtinCandidates = [
       join(process.cwd(), 'skills'),
       join(__dirname, '../../skills'),
       join(__dirname, '../../../skills'),
     ];
-    const dir = roots.find((r) => existsSync(r));
-    if (!dir) return [];
+    const builtinDir = builtinCandidates.find((r) => existsSync(r));
+    if (builtinDir) push(builtinDir, 'builtin');
+    // 用户级技能：fhcode CLI 实际加载的位置（这之前完全没进市场，用户看不到自己有哪些技能）
+    push(join(homeDir, 'skills'), 'user');
+    // 项目级技能
+    push(join(process.cwd(), '.feihong-code', 'skills'), 'project');
+    return roots;
+  }
+
+  /** 解析 SKILL.md frontmatter 的 name / description / category */
+  function parseSkillFrontmatter(content: string): { name: string; description: string; category?: string } | null {
+    const fm = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+    if (!fm) return null;
+    const body = fm[1];
+    const unquote = (v: string) => v.trim().replace(/^["']([\s\S]*)["']$/, '$1').trim();
+    const nm = (body.match(/^name:\s*(.+)$/m) || [])[1];
+    if (!nm) return null;
+    const dsRaw = body.match(/^description:\s*([\s\S]*?)(?=\n[a-zA-Z_-]+\s*:|$)/m);
+    const ds = dsRaw ? unquote(dsRaw[1].replace(/\s+/g, ' ')) : '';
+    const cat = (body.match(/^category:\s*(.+)$/m) || [])[1];
+    return { name: unquote(nm), description: ds, category: cat ? unquote(cat) : undefined };
+  }
+
+  /** 扫描全部本地技能（内置 + 用户级 + 项目级），按 name 去重，返回带来源/分类/精选标注的条目 */
+  function loadLocalSkills(): MarketSkill[] {
     const out: MarketSkill[] = [];
-    try {
-      for (const name of readdirSync(dir)) {
-        const sk = join(dir, name, 'SKILL.md');
+    const seenNames = new Set<string>();
+    for (const root of collectLocalSkillRoots()) {
+      let entries: string[] = [];
+      try { entries = readdirSync(root.dir); } catch { continue; }
+      for (const dirName of entries) {
+        const sk = join(root.dir, dirName, 'SKILL.md');
         if (!existsSync(sk)) continue;
-        const content = readFileSync(sk, 'utf8');
-        const fm = content.match(/^---\n([\s\S]*?)\n---/);
+        let content = '';
+        try { content = readFileSync(sk, 'utf8'); } catch { continue; }
+        const fm = parseSkillFrontmatter(content);
         if (!fm) continue;
-        const nm = (fm[1].match(/^name:\s*(.+)$/m) || [])[1];
-        if (!nm) continue;
-        const dsRaw = fm[1].match(/^description:\s*([\s\S]*?)(?=\n\w|$)/m);
-        const ds = dsRaw ? dsRaw[1].trim() : '';
+        const key = fm.name.toLowerCase();
+        if (seenNames.has(key)) continue;
+        seenNames.add(key);
+        const source = root.origin === 'builtin' ? 'fhcode-builtin' : root.origin === 'user' ? 'user' : 'project';
+        const category = fm.category
+          ?? (root.origin === 'builtin' ? (SKILL_CATEGORIES[dirName] ?? '通用') : '我的技能');
         out.push({
-          id: 'builtin:' + name,
-          name: nm.trim(),
-          description: ds,
-          source: 'fhcode-builtin',
-          author: '飞虹 Code',
-          category: SKILL_CATEGORIES[name] ?? '通用',
+          id: (root.origin === 'builtin' ? 'builtin:' : root.origin === 'user' ? 'user:' : 'project:') + dirName,
+          name: fm.name,
+          description: fm.description,
+          source,
+          author: root.origin === 'builtin' ? '飞虹 Code' : '本地',
+          category,
           tags: [],
           downloads: 0,
-          installHint: '已随仓库内置，直接使用技能【' + nm.trim() + '】',
+          installHint: '已在本机可用，直接使用技能【' + fm.name + '】',
           homepage: '',
-          featured: FEATURED_SKILLS.has(name),
+          featured: FEATURED_SKILLS.has(dirName),
           rawUrl: '',
+          local: true,
         });
       }
-    } catch { /* 忽略读取异常 */ }
+    }
     return out;
   }
 
   app.get('/api/skills/market', async (req: Request, res: Response) => {
     const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
     const source = typeof req.query.source === 'string' ? req.query.source : 'all';
-    const limit = Math.min(Number(req.query.limit) || 50, 200);
-    let results: MarketSkill[] = [];
+    // 全量展示：默认上限放宽到 1000，避免「我的技能」有几百个时被截断
+    const limit = Math.min(Number(req.query.limit) || 1000, 2000);
+    const ecoLimit = Math.min(limit, 200);
+
+    // 本地技能（内置 + 用户级 + 项目级）：纯本地扫描，毫秒级返回，不依赖网络
+    const allLocal = loadLocalSkills();
+    let localSkills: MarketSkill[] = [];
+    if (source === 'all' || source === 'local' || source === 'builtin' || source === 'user' || source === 'project') {
+      if (source === 'builtin') localSkills = allLocal.filter((s) => s.source === 'fhcode-builtin');
+      else if (source === 'user') localSkills = allLocal.filter((s) => s.source === 'user');
+      else if (source === 'project') localSkills = allLocal.filter((s) => s.source === 'project');
+      else localSkills = allLocal;
+    }
+
+    // 生态技能（需要联网，单独来源时可跳过本地）
+    let ecosystem: MarketSkill[] = [];
     if (source === 'clawhub' || source === 'all')
-      results = results.concat(await fetchClawHubSkills(q, limit));
+      ecosystem = ecosystem.concat(await fetchClawHubSkills(q, ecoLimit));
     if (source === 'agent-foundry' || source === 'all')
-      results = results.concat(await fetchAgentFoundrySkills(q, limit));
+      ecosystem = ecosystem.concat(await fetchAgentFoundrySkills(q, ecoLimit));
     // 从节点同步的技能
     if (source === 'node' || source === 'all') {
       const nodeSkills = collectNodeSkills();
-      results = results.concat(nodeSkills.map((s) => ({
+      ecosystem = ecosystem.concat(nodeSkills.map((s) => ({
         id: `node:${s.id}`,
         name: s.name,
         description: s.description,
@@ -586,10 +642,6 @@ export function registerCapabilitySourceRoutes(app: ExpressApp, deps: Capability
         rawUrl: s.rawUrl,
       })));
     }
-    // 内置技能（随仓库分发，按分类/精选标注，对标生态平台分类浏览 + 官方精选榜）
-    if (source === 'builtin' || source === 'all') {
-      results = results.concat(loadBuiltinSkills());
-    }
     // 从自定义来源拉取技能（HTTP URL 返回 JSON 数组）
     if (source === 'custom' || source === 'all') {
       for (const src of loadSources()) {
@@ -599,7 +651,7 @@ export function registerCapabilitySourceRoutes(app: ExpressApp, deps: Capability
           if (r.ok) {
             const data = await r.json();
             const list = Array.isArray(data) ? data : (data.items || data.skills || []);
-            results = results.concat(list.map((s: any) => ({
+            ecosystem = ecosystem.concat(list.map((s: any) => ({
               id: `custom:${src.id}:${s.id || s.name}`,
               name: String(s.name || s.title || ''),
               description: String(s.description || s.desc || ''),
@@ -616,6 +668,12 @@ export function registerCapabilitySourceRoutes(app: ExpressApp, deps: Capability
         } catch { /* skip failed sources */ }
       }
     }
+
+    // 本地优先（精选更前），生态按下载量降序
+    ecosystem.sort((a, b) => (b.downloads || 0) - (a.downloads || 0));
+    localSkills.sort((a, b) => Number(!!b.featured) - Number(!!a.featured));
+    let results: MarketSkill[] = localSkills.concat(ecosystem);
+
     // 关键词过滤
     if (q) {
       const kw = q.toLowerCase();
@@ -625,8 +683,16 @@ export function registerCapabilitySourceRoutes(app: ExpressApp, deps: Capability
         (s.tags || []).some((t) => t.toLowerCase().includes(kw))
       );
     }
-    results.sort((a, b) => (b.downloads || 0) - (a.downloads || 0));
-    res.json({ ok: true, total: results.length, skills: results.slice(0, limit) });
+
+    // 总量统计：给前端「全部技能一览」用，保证用户一眼知道本机有多少技能
+    const counts = {
+      builtin: allLocal.filter((s) => s.source === 'fhcode-builtin').length,
+      user: allLocal.filter((s) => s.source === 'user').length,
+      project: allLocal.filter((s) => s.source === 'project').length,
+      local: allLocal.length,
+      ecosystem: ecosystem.length,
+    };
+    res.json({ ok: true, total: results.length, counts, skills: results.slice(0, limit) });
   });
 
   // 已安装技能持久化

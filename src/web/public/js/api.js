@@ -97,10 +97,12 @@
       const grid = document.getElementById('marketGrid');
       grid.innerHTML = '<div class="empty">加载中…</div>';
       try {
-        const params = new URLSearchParams({ source });
+        // limit 放宽到 1000：本机技能可能有几百个，不能截断
+        const params = new URLSearchParams({ source, limit: '1000' });
         if (q) params.set('q', q);
         const d = await api('/api/skills/market?' + params.toString());
         state.market = d.skills || [];
+        state.marketCounts = d.counts || {};
         await loadInstalled();   // 先加载已安装集合，市场按钮才能正确显示「已安装」态
         renderMarketGrid();
       } catch (e) { grid.innerHTML = '<div class="empty" style="color:var(--err)">加载失败：' + escapeHtml(e.message) + '</div>'; }

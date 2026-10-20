@@ -192,11 +192,12 @@
       loadSummaryHistory();
     }
 
+    /** 技能市场：按分类分组全量展示（内置 + 我的 + 项目 + 生态），本地技能直接标「可用」 */
     function renderMarketGrid() {
       const grid = document.getElementById('marketGrid');
-      if (!state.market.length) { renderEmpty(grid, t('empty.no_skills')); return; }
-      // 分类分组（顺序对齐 skill-market 分类数据，内置技能/官方精选优先展示）
-      const ORDER = ['自管理', '安全审计', '部署', '办公文档', '调研摘要', '编码开发', '其他', '通用'];
+      if (!state.market.length) { renderEmpty(grid, t('empty.no_skills')); renderMarketSummary(); return; }
+
+      const ORDER = ['自管理', '安全审计', '部署', '办公文档', '调研摘要', '编码开发', '我的技能', '其他', '通用'];
       const groups = {};
       for (const s of state.market) {
         const cat = s.category || '通用';
@@ -206,27 +207,70 @@
         const ia = ORDER.indexOf(a), ib = ORDER.indexOf(b);
         return (ia < 0 ? 999 : ia) - (ib < 0 ? 999 : ib);
       });
+
       let html = '';
       for (const cat of cats) {
-        html += '<div class="section-title" style="margin-top:14px;">' + escapeHtml(cat) + ' <span class="muted">(' + groups[cat].length + ')</span></div>';
-        html += '<div class="grid">';
-        html += groups[cat].map((s) => {
-          const installed = state.installed.has(s.id);
-          const star = s.featured ? ' <span style="color:#ffb020;">★</span>' : '';
-          const btn = installed
-            ? '<button class="install" disabled style="opacity:.55;cursor:default;">✅ 已安装</button>'
-            : '<button class="install" data-id="' + encodeURIComponent(s.id) + '" data-name="' + encodeURIComponent(s.name) + '" data-source="' + s.source + '">安装</button>';
-          const srcLabel = s.source === 'clawhub' ? 'ClawHub' : s.source === 'agent-foundry' ? 'Agent-Foundry' : (s.source === 'fhcode-builtin' ? '内置' : (s.source || ''));
-          const dl = s.source === 'fhcode-builtin' ? '随仓库内置' : ('下载 ' + (s.downloads || 0));
-          return '<div class="tile"><div class="icon">' + (s.source === 'fhcode-builtin' ? '🟢' : (s.source === 'clawhub' ? '🧩' : '🛠')) + '</div><div class="title">' + escapeHtml(s.name) + star + '</div><div class="desc">' + escapeHtml(s.description).slice(0, 70) + '…<br><span class="muted">' + srcLabel + ' · ' + dl + '</span></div><div class="ops">' + btn + '</div></div>';
-        }).join('');
-        html += '</div>';
+        html += '<section class="market-cat">'
+          + '<div class="market-cat-head" data-cat="' + encodeURIComponent(cat) + '">'
+          + '<span class="market-cat-arrow">▾</span>'
+          + '<span class="market-cat-name">' + escapeHtml(cat) + '</span>'
+          + '<span class="market-cat-count">' + groups[cat].length + ' 个</span>'
+          + '</div>'
+          + '<div class="grid market-grid">' + groups[cat].map(skillCard).join('') + '</div>'
+          + '</section>';
       }
       grid.innerHTML = html;
-      grid.querySelectorAll('button.install').forEach((b) => b.addEventListener('click', (e) => {
+      renderMarketSummary();
+
+      // 分类折叠
+      grid.querySelectorAll('.market-cat-head').forEach((h) => h.addEventListener('click', () => {
+        h.parentElement.classList.toggle('collapsed');
+      }));
+
+      grid.querySelectorAll('button.install[data-id]').forEach((b) => b.addEventListener('click', (e) => {
         e.stopPropagation();
         installSkill(b.getAttribute('data-id'), b.getAttribute('data-name'), b.getAttribute('data-source'));
       }));
+    }
+
+    /** 顶部总览：本机有多少技能，让用户不用翻卡片就知道规模 */
+    function renderMarketSummary() {
+      const box = document.getElementById('marketSummary');
+      if (!box) return;
+      const c = state.marketCounts || {};
+      const localTotal = c.local != null ? c.local : state.market.filter((s) => isLocalSkill(s)).length;
+      const pill = (n, label, cls) => '<span class="ms-pill ' + (cls || '') + '"><b>' + (n || 0) + '</b>' + label + '</span>';
+      let html = pill(localTotal, '本机技能可用', 'ms-main');
+      if (c.builtin) html += pill(c.builtin, '内置');
+      if (c.user) html += pill(c.user, '我的');
+      if (c.project) html += pill(c.project, '项目');
+      if (c.ecosystem) html += pill(c.ecosystem, '生态可安装');
+      html += '<span class="ms-hint">本地技能可直接使用，无需安装 · 点分类标题可折叠</span>';
+      box.innerHTML = html;
+    }
+
+    function isLocalSkill(s) {
+      return !!s.local || s.source === 'fhcode-builtin' || s.source === 'user' || s.source === 'project';
+    }
+
+    function skillCard(s) {
+      const local = isLocalSkill(s);
+      const installed = state.installed.has(s.id);
+      const star = s.featured ? '<span class="mk-star" title="官方精选">★</span>' : '';
+      const srcMap = { 'fhcode-builtin': '内置', user: '我的', project: '项目', clawhub: 'ClawHub', 'agent-foundry': 'Agent-Foundry' };
+      const srcLabel = srcMap[s.source] || (s.source || '来源');
+      const srcCls = local ? 'mk-badge-local' : 'mk-badge-eco';
+      const icon = s.source === 'fhcode-builtin' ? '🟢' : s.source === 'user' ? '🧠' : s.source === 'project' ? '📁' : s.source === 'clawhub' ? '🧩' : '🛠';
+      let btn;
+      if (local) btn = '<button class="install ready" disabled>✅ 可直接使用</button>';
+      else if (installed) btn = '<button class="install" disabled>✅ 已安装</button>';
+      else btn = '<button class="install" data-id="' + encodeURIComponent(s.id) + '" data-name="' + encodeURIComponent(s.name) + '" data-source="' + escapeHtml(s.source) + '">安装</button>';
+      return '<div class="tile mk-tile">'
+        + '<div class="mk-head"><span class="mk-icon">' + icon + '</span><span class="mk-badge ' + srcCls + '">' + escapeHtml(srcLabel) + '</span>' + star + '</div>'
+        + '<div class="title" title="' + escapeHtml(s.name) + '">' + escapeHtml(s.name) + '</div>'
+        + '<div class="desc" title="' + escapeHtml(s.description) + '">' + escapeHtml(s.description || '（无描述）') + '</div>'
+        + '<div class="ops">' + btn + '</div>'
+        + '</div>';
     }
 
     function bindTplCards(grid) {

@@ -862,6 +862,16 @@ button.danger {
   background: var(--brand-soft);
   color: var(--brand);
 }
+/* 「查看全部技能」入口：与具体技能区分开 */
+.skill-item.skill-all {
+  margin-top: 4px;
+  border-top: 1px dashed rgba(127, 127, 127, 0.35);
+  padding-top: 8px;
+  color: var(--brand);
+  font-size: 12px;
+}
+.skill-item.skill-all b { font-weight: 700; }
+.skill-item.skill-all:hover { background: var(--brand-soft); }
 .skill-ico {
   width: 18px;
   flex-shrink: 0;

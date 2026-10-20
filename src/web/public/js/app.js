@@ -21,6 +21,8 @@
         'sidebar.templates': '模板库',
         'sidebar.market': '插件市场',
         'sidebar.office': '办公助理',
+        'sidebar.browser': '浏览器',
+        'sidebar.canvas': '画布',
         'sidebar.memory': '记忆系统',
         'sidebar.nodes': '节点管理',
         'sidebar.codex': 'Codex',
@@ -224,6 +226,8 @@
         'sidebar.templates': 'Templates',
         'sidebar.market': 'Market',
         'sidebar.office': 'Office',
+        'sidebar.browser': 'Browser',
+        'sidebar.canvas': 'Canvas',
         'sidebar.release': 'Release',
         'sidebar.memory': 'Memory',
         'sidebar.nodes': 'Nodes',
@@ -458,6 +462,7 @@
       completedTaskIds: new Set(),
       pinnedTasks: new Set(), // 置顶任务ID集合
       market: [],
+      marketCounts: {},
       installed: new Set(),
       agentType: 'general',
       directMode: false,
@@ -794,22 +799,30 @@
       const list = document.getElementById('skillList');
       if (!list) return;
       try {
-        const d = await api('/api/skills/installed');
+        const [d, market] = await Promise.all([
+          api('/api/skills/installed'),
+          api('/api/skills/market?source=local&limit=1').catch(() => null),
+        ]);
+        const total = Number(market?.counts?.local || 0);
+        const allRow = '<div class="skill-item skill-all" id="skillAllRow" title="打开技能市场，查看本机全部技能">'
+          + '<span class="skill-ico">📚</span>'
+          + '<span class="skill-name">查看全部' + (total ? ' <b>' + total + '</b> ' : ' ') + '个技能 →</span>'
+          + '</div>';
         const skills = (d.skills || []).filter((s) => s && s.name);
         if (!skills.length) {
-          list.innerHTML = '<div class="empty skill-empty">暂无技能，点上方「＋ 市场」安装</div>';
-          return;
+          list.innerHTML = '<div class="empty skill-empty">本机 ' + (total ? total + ' 个技能已可用' : '暂无技能') + '，点下方查看全部</div>' + allRow;
+        } else {
+          list.innerHTML = skills.slice(0, 11).map((s, i) => {
+            const icon = s.icon || SKILL_ICONS[i % SKILL_ICONS.length];
+            const name = escapeHtml(String(s.name));
+            const desc = escapeHtml(String(s.description || ''));
+            return '<div class="skill-item" data-skill="' + encodeURIComponent(String(s.name)) + '" title="' + desc + '">'
+              + '<span class="skill-ico">' + icon + '</span>'
+              + '<span class="skill-name">' + name + '</span>'
+              + '</div>';
+          }).join('') + allRow;
         }
-        list.innerHTML = skills.slice(0, 12).map((s, i) => {
-          const icon = s.icon || SKILL_ICONS[i % SKILL_ICONS.length];
-          const name = escapeHtml(String(s.name));
-          const desc = escapeHtml(String(s.description || ''));
-          return '<div class="skill-item" data-skill="' + encodeURIComponent(String(s.name)) + '" title="' + desc + '">'
-            + '<span class="skill-ico">' + icon + '</span>'
-            + '<span class="skill-name">' + name + '</span>'
-            + '</div>';
-        }).join('');
-        list.querySelectorAll('.skill-item').forEach((el) => {
+        list.querySelectorAll('.skill-item[data-skill]').forEach((el) => {
           el.addEventListener('click', () => {
             const name = decodeURIComponent(el.getAttribute('data-skill') || '');
             const inp = document.getElementById('goalInput');
@@ -820,6 +833,7 @@
             setTimeout(() => inp.focus(), 60);
           });
         });
+        document.getElementById('skillAllRow')?.addEventListener('click', () => switchView('market'));
       } catch (e) {
         list.innerHTML = '<div class="empty skill-empty">技能加载失败</div>';
       }
