@@ -299,13 +299,19 @@ function saveBridgeDeviceSecret(secret: string): void {
   }
 }
 
-/** 注册设备：携带本地 deviceSecret（若有）；云端首次下发时落盘 */
-async function bridgeRegister(cloudBase: string, deviceId: string, deviceName: string, headers: Record<string, string>): Promise<void> {
+/** 注册设备：携带本地 deviceSecret（若有）；云端首次下发时落盘。
+ *  新电脑在云端宽限期内可由所有者传 bootstrapToken（FH_BRIDGE_BOOTSTRAP_TOKEN）补发密钥。 */
+async function bridgeRegister(cloudBase: string, deviceId: string, deviceName: string, headers: Record<string, string>, bootstrapToken = ''): Promise<void> {
   const deviceSecret = getBridgeDeviceSecret();
   const resp = await bridgeFetch(`${cloudBase}/api/bridge/register`, {
     method: 'POST',
     headers,
-    body: { deviceId, name: deviceName, ...(deviceSecret ? { deviceSecret } : {}) },
+    body: {
+      deviceId,
+      name: deviceName,
+      ...(deviceSecret ? { deviceSecret } : {}),
+      ...(bootstrapToken ? { bootstrapToken } : {}),
+    },
   });
   if (resp.secretIssued && resp.deviceSecret) {
     saveBridgeDeviceSecret(resp.deviceSecret);
@@ -396,14 +402,21 @@ export async function runBridge(action: string, _args: string[]): Promise<void> 
 
   // H1 修复（P0）：所有者在本机为"这台电脑"完成首次注册 → 云端下发 deviceSecret，
   // 落盘 ~/.feihong-code/bridge-device-secret（0600），后续 start 自动携带。
+  // 云端宽限期内，新电脑可用一次性 bootstrap token（FH_BRIDGE_BOOTSTRAP_TOKEN）补发。
   if (action === 'register-device') {
     const secret = getBridgeDeviceSecret();
     if (secret) {
       console.log('✅ 本机已有设备密钥（' + getBridgeSecretFile() + '），无需重复注册。');
       return;
     }
+    const bootstrapToken = process.env.FH_BRIDGE_BOOTSTRAP_TOKEN ?? '';
+    if (!bootstrapToken) {
+      console.warn('提示：未设 FH_BRIDGE_BOOTSTRAP_TOKEN。若该设备在云端尚未注册过，' +
+        '需在云端环境设置一次性 bootstrap token 后重试（宽限期 ' +
+        '（FH_BRIDGE_MIGRATION_MS，默认 7 天）内有效）。已注册且心跳新鲜的旧设备无需 token。');
+    }
     try {
-      await bridgeRegister(cloudBase, deviceId, deviceName, authHeaders);
+      await bridgeRegister(cloudBase, deviceId, deviceName, authHeaders, bootstrapToken);
       console.log('✅ 设备已注册并下发密钥，已落盘（权限 0600）。后续 `fhcode bridge start` 将自动携带。');
     } catch (e) {
       console.error('❌ 注册失败: ' + (e instanceof Error ? e.message : String(e)));

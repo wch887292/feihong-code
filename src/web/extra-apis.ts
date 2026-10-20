@@ -7,7 +7,8 @@
 import express, { type Request, type Response } from 'express';
 import { join, extname, dirname, resolve, sep } from 'path';
 import { spawn } from 'child_process';
-import { mkdirSync, appendFileSync, existsSync, readFileSync, writeFileSync, readdirSync } from 'fs';
+import { mkdirSync, appendFileSync, existsSync, readFileSync, writeFileSync, readdirSync, unlinkSync } from 'fs';
+import { homedir } from 'os';
 import { logger } from '../shared/logger';
 import { loadConfig } from '../shared/config';
 import { resolveProviderApiKey } from '../security/credentials';
@@ -26,6 +27,8 @@ import { createPluginManager } from '../plugins/manager';
 import { createSelfCorrector } from '../agent/self-correction';
 import { createLspService } from '../lsp/lsp-service';
 import { LspClient } from '../lsp/lsp-client';
+import { runCommand } from '../tools/shell/exec';
+import { processManager } from '../tools/shell/process-manager';
 
 type ExpressApp = ReturnType<typeof express>;
 
@@ -639,6 +642,179 @@ export function registerExtraApis(app: ExpressApp, opts: ExtraApisOptions): void
       res.json({ ok: true, runs: entries });
     } catch (e) {
       res.json({ ok: true, runs: [], error: String((e as Error)?.message ?? e) });
+    }
+  });
+
+  /* ============ M5：WSL2 内核管理面板（自编译 Linux 7.3 内核，零占 C: 部署于 H:/wsl） ============ */
+  const WSL_DISTRO = 'Ubuntu-22.04';
+  const WSL_SRC_DIR = '/root/linux-7.3';
+  const WSL_KERNEL_IMG_WIN = 'H:/wsl/kernel/bzImage';
+  const WSL_KERNEL_IMG_WSL = '/mnt/h/wsl/kernel/bzImage';
+  const WSLCONFIG_PATH = join(homedir(), '.wslconfig');
+  const WSL_BUILD_LOG = '/root/build.log';
+
+  /** kernel= 路径白名单：仅允许 盘符:/ 或 /mnt/ 开头的 bzImage 绝对路径，杜绝换行注入 INI 劫持 */
+  function safeKernelPath(p: unknown): string | null {
+    const v = String(p ?? '').trim();
+    if (!/^([A-Za-z]:[\\/][\w.\\/-]+\.bzImage|\/mnt\/[\w./-]+\.bzImage)$/.test(v)) return null;
+    return v;
+  }
+
+  // 总览：WSL 状态 / 发行版 / 运行内核 / .wslconfig 指向 / 自编译内核是否生效
+  app.get('/api/wsl/status', async (_req: Request, res: Response) => {
+    const out: Record<string, any> = {
+      distro: WSL_DISTRO,
+      kernelImg: WSL_KERNEL_IMG_WIN,
+      srcDir: WSL_SRC_DIR,
+    };
+    try {
+      const r1 = await runCommand('wsl.exe --status', process.cwd(), 30000);
+      out.wslStatus = (r1.stdout || '').replace(/\0/g, '').trim();
+    } catch (e) { out.wslStatus = ''; out.wslStatusError = String((e as Error)?.message ?? e); }
+    try {
+      const r2 = await runCommand('wsl.exe -l -v', process.cwd(), 30000);
+      out.distroList = (r2.stdout || '').replace(/\0/g, '').trim();
+    } catch (_) { out.distroList = ''; }
+    try {
+      const r3 = await runCommand(`wsl.exe -d ${WSL_DISTRO} -- uname -r`, process.cwd(), 60000);
+      out.runningKernel = (r3.stdout || '').trim();
+      if (r3.code !== 0) out.unameError = (r3.stderr || '').trim();
+    } catch (e) { out.runningKernel = ''; out.unameError = String((e as Error)?.message ?? e); }
+    let cfgKernel = '';
+    try {
+      if (existsSync(WSLCONFIG_PATH)) {
+        const m = readFileSync(WSLCONFIG_PATH, 'utf8').match(/^\s*kernel\s*=\s*(.+)$/mi);
+        if (m) cfgKernel = m[1].trim();
+      }
+    } catch (_) { /* 读取失败按未配置处理 */ }
+    out.configKernel = cfgKernel;
+    // 默认 WSL 内核为 microsoft 6.x/5.x，自编译 7.3 生效时 uname 返回 7.x
+    out.customActive = !!out.runningKernel && /^7\./.test(out.runningKernel);
+    res.json({ ok: true, ...out });
+  });
+
+  // 电源：start 拉起发行版 / restart·shutdown 全局关机（下次启动自动重拉）/ terminate 仅终止本发行版
+  app.post('/api/wsl/power', async (req: Request, res: Response) => {
+    const action = String(bodyOf(req).action ?? '').trim();
+    const map: Record<string, string> = {
+      start: `wsl.exe -d ${WSL_DISTRO} -- echo started`,
+      restart: 'wsl.exe --shutdown',
+      shutdown: 'wsl.exe --shutdown',
+      terminate: `wsl.exe -t ${WSL_DISTRO}`,
+    };
+    const cmd = map[action];
+    if (!cmd) { res.status(400).json({ ok: false, error: '不支持的操作: ' + action }); return; }
+    try {
+      const r = await runCommand(cmd, process.cwd(), 90000);
+      res.json({ ok: r.code === 0, code: r.code, stdout: (r.stdout || '').trim(), stderr: (r.stderr || '').trim() });
+    } catch (e) {
+      res.status(500).json({ ok: false, error: String((e as Error)?.message ?? e) });
+    }
+  });
+
+  // 编译：processManager 后台跑 make，规避 runCommand 180s 超时；产物复制到 H:/wsl/kernel/bzImage
+  app.post('/api/wsl/build', (req: Request, res: Response) => {
+    const jobs = Math.max(1, Math.min(32, Number(bodyOf(req).jobs) || 12));
+    const cmd = `wsl.exe -d ${WSL_DISTRO} -- bash -lc "cd ${WSL_SRC_DIR} && make -j${jobs} && cp arch/x86/boot/bzImage ${WSL_KERNEL_IMG_WSL} && echo WSL_BUILD_DONE"`;
+    try {
+      const job = processManager.start(cmd, process.cwd());
+      logger.info('wsl kernel build started', { jobId: job.jobId, jobs });
+      res.json({ ok: true, jobId: job.jobId, command: cmd });
+    } catch (e) {
+      res.status(500).json({ ok: false, error: String((e as Error)?.message ?? e) });
+    }
+  });
+
+  app.get('/api/wsl/build/status', (req: Request, res: Response) => {
+    const jobId = String(req.query.jobId ?? '');
+    const job = processManager.status(jobId);
+    if (!job) { res.json({ ok: false, error: '任务不存在或已随进程重启失联' }); return; }
+    const logs = processManager.logs(jobId, 120) || { stdout: '', stderr: '', combined: '' };
+    res.json({
+      ok: true,
+      job: { jobId: job.jobId, status: job.status, exitCode: job.exitCode, startedAt: job.startedAt, endedAt: job.endedAt },
+      logs,
+    });
+  });
+
+  app.post('/api/wsl/build/stop', (req: Request, res: Response) => {
+    const jobId = String(bodyOf(req).jobId ?? '');
+    if (!jobId) { res.status(400).json({ ok: false, error: '缺少 jobId' }); return; }
+    res.json(processManager.stop(jobId));
+  });
+
+  app.get('/api/wsl/config', (_req: Request, res: Response) => {
+    try {
+      const exists = existsSync(WSLCONFIG_PATH);
+      const content = exists ? readFileSync(WSLCONFIG_PATH, 'utf8') : '';
+      res.json({ ok: true, exists, path: WSLCONFIG_PATH, content, kernelImg: WSL_KERNEL_IMG_WIN });
+    } catch (e) {
+      res.status(500).json({ ok: false, error: String((e as Error)?.message ?? e) });
+    }
+  });
+
+  // 改写 .wslconfig 的 kernel= 行：白名单校验 + 写前备份（保留最近 5 份）+ 强制正斜杠
+  app.post('/api/wsl/config', (req: Request, res: Response) => {
+    const kernel = safeKernelPath(bodyOf(req).kernel);
+    if (!kernel) {
+      res.status(400).json({ ok: false, error: 'kernel 路径不合法：仅允许 盘符:/…/*.bzImage 或 /mnt/…/*.bzImage 绝对路径（须用正斜杠）' });
+      return;
+    }
+    try {
+      const exists = existsSync(WSLCONFIG_PATH);
+      let content = exists ? readFileSync(WSLCONFIG_PATH, 'utf8') : '[wsl2]\n';
+      if (exists) {
+        const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+        writeFileSync(`${WSLCONFIG_PATH}.bak-${stamp}`, content, 'utf8');
+        try {
+          readdirSync(homedir())
+            .filter((f: string) => /^\.wslconfig\.bak-/.test(f))
+            .sort().reverse().slice(5)
+            .forEach((f: string) => { try { unlinkSync(join(homedir(), f)); } catch (_) { /* 清理失败不影响保存 */ } });
+        } catch (_) { /* 清理失败不影响保存 */ }
+      }
+      if (/^\s*kernel\s*=.*$/mi.test(content)) {
+        content = content.replace(/^\s*kernel\s*=.*$/mi, 'kernel=' + kernel);
+      } else if (/^\s*\[wsl2\]\s*$/mi.test(content)) {
+        content = content.replace(/^\s*\[wsl2\]\s*$/mi, '[wsl2]\nkernel=' + kernel);
+      } else {
+        content = content.replace(/\s*$/, '') + '\n\n[wsl2]\nkernel=' + kernel + '\n';
+      }
+      writeFileSync(WSLCONFIG_PATH, content, 'utf8');
+      logger.info('wslconfig kernel updated', { path: WSLCONFIG_PATH, kernel });
+      res.json({ ok: true, path: WSLCONFIG_PATH, content });
+    } catch (e) {
+      res.status(500).json({ ok: false, error: String((e as Error)?.message ?? e) });
+    }
+  });
+
+  // 编译日志：读 WSL 内 /root/build.log 尾部
+  app.get('/api/wsl/log', async (req: Request, res: Response) => {
+    const lines = Math.max(10, Math.min(500, Number(req.query.lines) || 150));
+    try {
+      const r = await runCommand(`wsl.exe -d ${WSL_DISTRO} -- tail -n ${lines} ${WSL_BUILD_LOG}`, process.cwd(), 30000);
+      res.json({ ok: true, log: (r.stdout || '').trim(), stderr: (r.stderr || '').trim(), code: r.code });
+    } catch (e) {
+      res.json({ ok: false, error: String((e as Error)?.message ?? e), log: '' });
+    }
+  });
+
+  // 打开目录：白名单仅允许 H:/wsl 与 WSL 内内核源码目录，防任意路径探测
+  app.post('/api/wsl/open-dir', (req: Request, res: Response) => {
+    const target = String(bodyOf(req).target ?? '').trim();
+    if (!/^(H:[\\/]wsl(?:[\\/][\w. -]+)*|\\\\wsl\.localhost[\\/]Ubuntu-22.04[\\/]root[\\/]linux-7\.3(?:[\\/][\w. -]+)*)$/i.test(target)) {
+      res.status(400).json({ ok: false, error: '仅允许打开 H:/wsl 目录或 WSL 内 /root/linux-7.3 源码目录' });
+      return;
+    }
+    try {
+      if (process.platform === 'win32') {
+        spawn('explorer.exe', [target], { detached: true, stdio: 'ignore' }).unref();
+      } else {
+        spawn('xdg-open', [target], { detached: true, stdio: 'ignore' }).unref();
+      }
+      res.json({ ok: true, target });
+    } catch (e) {
+      res.status(500).json({ ok: false, error: '打开失败: ' + String((e as Error)?.message ?? e) });
     }
   });
 }

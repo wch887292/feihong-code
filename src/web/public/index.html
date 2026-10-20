@@ -123,6 +123,10 @@
             <span class="icon">🚀</span>
             <span class="label" data-i18n="sidebar.release">产品发布</span>
           </div>
+          <div class="sidebar-icon" data-nav="wsl" title="WSL2 内核" data-i18n="sidebar.wsl">
+            <span class="icon">🐧</span>
+            <span class="label" data-i18n="sidebar.wsl">WSL2 内核</span>
+          </div>
         </div>
 
         <!-- 任务列表 -->
@@ -460,6 +464,62 @@
               <div class="orch-results-title">📤 执行结果</div>
               <div class="orch-results-body" id="orchResultsBody"><div class="empty">尚未发起。配置好智能体与全局目标后，点「一键发起」。</div></div>
             </aside>
+          </div>
+        </div>
+
+        <!-- WSL2 内核管理页面（M5：自编译 Linux 7.3 内核，零占 C: 部署于 H:/wsl） -->
+        <div class="page-view wsl-view" data-view="wsl">
+          <div class="wsl-toolbar">
+            <button id="wslRefresh" class="primary">↻ 刷新状态</button>
+            <span class="canvas-sep"></span>
+            <button id="wslStart">▶ 启动</button>
+            <button id="wslRestart">⟳ 重启</button>
+            <button id="wslTerminate">⏹ 终止发行版</button>
+            <button id="wslShutdown" class="danger">⏻ 全局关机</button>
+            <span class="wsl-status" id="wslStatus">就绪 · 自编译 Linux 7.3 内核</span>
+          </div>
+          <div class="wsl-body">
+            <div class="wsl-cards" id="wslCards"></div>
+
+            <section class="wsl-panel">
+              <div class="wsl-panel-head">
+                <h3>🔧 重新编译内核</h3>
+                <span class="wsl-panel-hint">在 WSL 内 /root/linux-7.3 执行 make，产物自动复制到 H:/wsl/kernel/bzImage，完成后重启 WSL 生效</span>
+              </div>
+              <div class="wsl-panel-row">
+                <label>并发数 <input type="number" id="wslBuildJobs" value="12" min="1" max="32" /></label>
+                <button id="wslBuildBtn" class="primary ai-btn">▶ 开始编译</button>
+                <button id="wslBuildStop" class="ghost danger" style="display:none;">⏹ 停止</button>
+                <span id="wslBuildState" class="wsl-build-state"></span>
+              </div>
+              <pre class="wsl-log" id="wslBuildLog">尚未开始编译。</pre>
+            </section>
+
+            <section class="wsl-panel">
+              <div class="wsl-panel-head">
+                <h3>⚙ .wslconfig 内核指向</h3>
+                <span class="wsl-panel-hint">保存前自动备份原文件；路径必须用正斜杠（反斜杠会被 INI 解析器当转义符导致配置失效）</span>
+              </div>
+              <div class="wsl-panel-row">
+                <button id="wslCfgReload" class="ghost">↻ 重新读取</button>
+                <button id="wslCfgSave" class="primary">💾 保存</button>
+                <span id="wslCfgState" class="wsl-build-state"></span>
+              </div>
+              <textarea class="wsl-cfg-editor" id="wslCfgEditor" spellcheck="false" placeholder="[wsl2]&#10;kernel=H:/wsl/kernel/bzImage"></textarea>
+            </section>
+
+            <section class="wsl-panel">
+              <div class="wsl-panel-head">
+                <h3>📜 编译日志</h3>
+                <span class="wsl-panel-hint">读取 WSL 内 /root/build.log 尾部</span>
+              </div>
+              <div class="wsl-panel-row">
+                <button id="wslLogRefresh" class="ghost">↻ 刷新日志</button>
+                <button id="wslOpenSrc" class="ghost">📂 打开源码目录</button>
+                <button id="wslOpenWin" class="ghost">📂 打开 H:/wsl</button>
+              </div>
+              <pre class="wsl-log" id="wslLogBody">点击「刷新日志」查看。</pre>
+            </section>
           </div>
         </div>
 
@@ -1544,6 +1604,7 @@
       <script src="js/browser.js"></script>
       <script src="js/canvas.js"></script>
       <script src="js/orchestrator.js"></script>
+      <script src="js/wsl.js"></script>
       <script src="js/app.js"></script>
 </body>
 </html>

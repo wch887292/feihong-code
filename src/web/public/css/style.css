@@ -2189,3 +2189,40 @@ pre, code, .code-block, .code-block * {
 .mk-rank.r1 { background: linear-gradient(135deg, #fde68a, #f59e0b); color: #5a3a00; }
 .mk-rank.r2 { background: linear-gradient(135deg, #e5e7eb, #9ca3af); color: #2b2f36; }
 .mk-rank.r3 { background: linear-gradient(135deg, #fcd9b6, #cd7f32); color: #4a2c0a; }
+
+/* ===== M5：WSL2 内核管理面板（自编译 Linux 7.3 内核，零占 C: 部署于 H:/wsl） ===== */
+.wsl-view { flex-direction: column; padding: 0; gap: 0; }
+.wsl-toolbar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--bg); flex-wrap: wrap; }
+.wsl-toolbar button { padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; font-size: 13px; }
+.wsl-toolbar button:hover { border-color: var(--brand); }
+.wsl-toolbar button.primary { background: var(--brand); color: #fff; border-color: var(--brand); }
+.wsl-toolbar button.danger { color: #e5484d; border-color: #e5484d; }
+.wsl-toolbar .canvas-sep { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
+.wsl-toolbar .wsl-status { font-size: 12px; color: var(--muted); margin-left: auto; }
+
+.wsl-body { flex: 1; min-height: 0; overflow: auto; padding: 14px; display: flex; flex-direction: column; gap: 14px; }
+
+.wsl-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; }
+.wsl-card { border: 1px solid var(--border); border-radius: 10px; background: var(--surface); padding: 12px 14px; }
+.wsl-card .k { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.wsl-card .v { font-size: 15px; font-weight: 600; word-break: break-all; }
+.wsl-card .v.ok { color: #16a34a; }
+.wsl-card .v.warn { color: #d97706; }
+
+.wsl-panel { border: 1px solid var(--border); border-radius: 10px; background: var(--surface); padding: 12px 14px; }
+.wsl-panel-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.wsl-panel-head h3 { font-size: 14px; margin: 0; }
+.wsl-panel-hint { font-size: 12px; color: var(--muted); }
+.wsl-panel-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.wsl-panel-row label { font-size: 13px; color: var(--text); display: inline-flex; align-items: center; gap: 6px; }
+.wsl-panel-row button { padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--text); cursor: pointer; font-size: 13px; }
+.wsl-panel-row button:hover { border-color: var(--brand); }
+.wsl-panel-row button.primary { background: var(--brand); color: #fff; border-color: var(--brand); }
+.wsl-panel-row button.danger { color: #e5484d; border-color: #e5484d; }
+.wsl-panel-row button:disabled { opacity: .5; cursor: not-allowed; }
+.wsl-panel-row input[type="number"] { width: 64px; padding: 5px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); }
+.wsl-build-state { font-size: 12px; color: var(--muted); }
+
+.wsl-log { margin: 0; max-height: 260px; overflow: auto; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px; font-family: Consolas, "Cascadia Mono", "Courier New", monospace; font-size: 12px; line-height: 1.5; white-space: pre-wrap; word-break: break-all; color: var(--text); }
+.wsl-cfg-editor { width: 100%; min-height: 170px; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 10px; font-family: Consolas, "Cascadia Mono", "Courier New", monospace; font-size: 12px; line-height: 1.6; resize: vertical; box-sizing: border-box; }
+.wsl-cfg-editor:focus { outline: none; border-color: var(--brand); }

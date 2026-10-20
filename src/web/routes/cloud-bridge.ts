@@ -117,15 +117,24 @@ export function registerCloudBridgeRoutes(app: ExpressApp, deps: CloudBridgeDeps
         return;
       }
     } else if (!found) {
-      // 无 secret 且未注册过 → 匿名注册，拒绝（H1 修复核心）
-      res.status(401).json({ ok: false, error: '设备未授权：请先由所有者经 fhcode bridge enroll 注册该设备并下发 deviceSecret' });
-      return;
+      // 无 secret 且未注册过 → 匿名注册，拒绝（H1 修复核心）。
+      // 迁移兜底：宽限期（FH_BRIDGE_MIGRATION_MS，默认 7 天）内允许所有者经一次性 bootstrap
+      // token（FH_BRIDGE_BOOTSTRAP_TOKEN，需与 FH_WEB_TOKEN 相同的强度）为既有电脑补发密钥。
+      const migrationMs = Number(process.env.FH_BRIDGE_MIGRATION_MS) > 0 ? Number(process.env.FH_BRIDGE_MIGRATION_MS) : 7 * 24 * 60 * 60 * 1000;
+      const bootstrapOk = !!process.env.FH_BRIDGE_BOOTSTRAP_TOKEN
+        && String(body?.bootstrapToken ?? '').trim() === process.env.FH_BRIDGE_BOOTSTRAP_TOKEN;
+      if (!bootstrapOk) {
+        res.status(401).json({ ok: false, error: '设备未授权：新电脑请先由所有者在本机执行 fhcode bridge register-device 注册（云端下发 deviceSecret）；宽限期 ' + Math.round(migrationMs / 3600000) + 'h 内可用一次性 bootstrap token 补发' });
+        return;
+      }
     } else {
-      // 旧客户端宽限：已注册设备且 10 分钟内有心跳 → 放行（迁移期兼容，避免误杀已上线设备）
+      // 旧客户端宽限：已注册设备且宽限窗口（默认 10 分钟）内有心跳 → 放行并补发密钥，
+      // 旧客户端下一次注册即获得 deviceSecret，升级后自动携带 → 平滑迁移闭环。
+      const graceMs = Number(process.env.FH_BRIDGE_GRACE_MS) > 0 ? Number(process.env.FH_BRIDGE_GRACE_MS) : 10 * 60 * 1000;
       const lastSeen = Date.parse(found.lastSeenAt);
-      const recent = Number.isFinite(lastSeen) && Date.now() - lastSeen < 10 * 60 * 1000;
+      const recent = Number.isFinite(lastSeen) && Date.now() - lastSeen < graceMs;
       if (!recent) {
-        res.status(401).json({ ok: false, error: '设备已离线超过 10 分钟，请更新客户端并携带 deviceSecret 重新注册' });
+        res.status(401).json({ ok: false, error: '设备心跳已中断超过宽限期（' + Math.round(graceMs / 60000) + ' 分钟）：请在本机执行 fhcode bridge register-device 重新注册（需已升级带 deviceSecret 的版本）' });
         return;
       }
     }

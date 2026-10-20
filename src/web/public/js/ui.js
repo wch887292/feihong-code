@@ -1692,6 +1692,10 @@
       if (nav === 'canvas' && typeof window.initCanvasView === 'function') {
         try { window.initCanvasView(); } catch (_) { /* 画布不可用环境静默回退 */ }
       }
+      // M5：进入 WSL2 内核视图时加载状态与 .wslconfig（仅首次绑定）
+      if (nav === 'wsl' && typeof window.initWslView === 'function') {
+        try { window.initWslView(); } catch (_) { /* WSL 不可用环境静默回退 */ }
+      }
     }
 
     // 开启新对话：清空当前任务选中，显示空状态，聚焦输入框
