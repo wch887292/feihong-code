@@ -7,7 +7,12 @@
 import express, { type Request, type Response } from 'express';
 import { join, extname, dirname, resolve, sep } from 'path';
 import { spawn } from 'child_process';
-import { mkdirSync, appendFileSync, existsSync, readFileSync, writeFileSync } from 'fs';
+import { mkdirSync, appendFileSync, existsSync, readFileSync, writeFileSync, readdirSync } from 'fs';
+import { logger } from '../shared/logger';
+import { loadConfig } from '../shared/config';
+import { resolveProviderApiKey } from '../security/credentials';
+import { ModelRouter } from '../models/model-router';
+import { runAgentGraph, type GraphAgentSpec } from '../agent/agent-graph-runner';
 import { createVoiceProgrammingManager } from '../voice/voice-programming';
 import { createKnowledgeLibraryManager } from '../knowledge/library';
 import { createFigmaIntegration } from '../integrations/figma';
@@ -529,5 +534,111 @@ export function registerExtraApis(app: ExpressApp, opts: ExtraApisOptions): void
       }
       res.json({ ok: true, target });
     } catch (e) { res.status(500).json({ ok: false, error: '打开失败: ' + String((e as Error)?.message ?? e) }); }
+  });
+
+  /* ============ M4 阶段 D：智能体编排面板（图形化拖拽编排 fhcode team 多智能体） ============ */
+  const orchestratorDir = join(dataDir, 'orchestrator');
+  const orchestratorRunsDir = join(orchestratorDir, 'runs');
+  mkdirSync(orchestratorRunsDir, { recursive: true });
+
+  // 启动时探测是否配置了真实模型 provider；有 key 走 online，否则 offline 合成（演示机也能跑通）
+  let orchestratorRouter: ModelRouter | undefined;
+  let orchestratorOffline = true;
+  try {
+    const cfg = loadConfig();
+    const homeDir = (cfg.app && cfg.app.homeDir) || process.env.FH_HOME_DIR || '';
+    const providers = (cfg.models && cfg.models.providers) || [];
+    const hasKey = providers.some((p) => {
+      const k = resolveProviderApiKey(p as never, homeDir as string);
+      return !!k && String(k).trim().length > 0;
+    });
+    if (hasKey) {
+      orchestratorRouter = ModelRouter.fromConfig(cfg as never);
+      orchestratorOffline = false;
+    }
+  } catch (e) {
+    logger.warn('orchestrator config load failed, fallback offline', { error: String((e as Error)?.message ?? e) });
+  }
+
+  /** 编排面板左侧角色模板（点击即添加一个智能体节点） */
+  const ORCHESTRATOR_TEMPLATES = [
+    { role: 'researcher', name: '调研分析师', icon: '🔍', desc: '梳理核心发现、依据与风险', systemPrompt: '' },
+    { role: 'architect', name: '架构师', icon: '🏗', desc: '输出模块划分与接口设计', systemPrompt: '' },
+    { role: 'coder', name: '开发者', icon: '💻', desc: '产出可运行代码方案', systemPrompt: '' },
+    { role: 'tester', name: '测试工程师', icon: '🧪', desc: '设计用例与缺陷预警', systemPrompt: '' },
+    { role: 'reviewer', name: '评审员', icon: '✅', desc: '按严重度评审并给结论', systemPrompt: '' },
+    { role: 'critic', name: '批判性思考者', icon: '🤔', desc: '找漏洞、补反方观点', systemPrompt: '' },
+    { role: 'writer', name: '内容写手', icon: '✍', desc: '产出有说服力成稿', systemPrompt: '' },
+    { role: 'translator', name: '翻译专家', icon: '🌐', desc: '准确译文与术语处理', systemPrompt: '' },
+  ];
+
+  app.get('/api/orchestrator/templates', (_req: Request, res: Response) => {
+    res.json({ ok: true, templates: ORCHESTRATOR_TEMPLATES, offline: orchestratorOffline });
+  });
+
+  app.post('/api/orchestrator/run', async (req: Request, res: Response) => {
+    const body = bodyOf(req);
+    const goal = String(body.goal ?? '').trim();
+    const agents = Array.isArray(body.agents) ? (body.agents as GraphAgentSpec[]) : [];
+    if (!agents.length) { res.status(400).json({ ok: false, error: '缺少 agents（至少一个智能体）' }); return; }
+    const specs: GraphAgentSpec[] = agents.slice(0, 8).map((a: any, i: number) => ({
+      id: String(a.id ?? 'agent-' + (i + 1)),
+      name: String(a.name ?? '智能体' + (i + 1)),
+      role: a.role ? String(a.role) : undefined,
+      systemPrompt: a.systemPrompt ? String(a.systemPrompt) : undefined,
+      goal: String(a.goal ?? ''),
+      model: a.model ? String(a.model) : undefined,
+    }));
+    try {
+      // FH_ORCHESTRATOR_OFFLINE=1 可强制离线合成（无网/无 key 机器也能演示并行编排）
+      const forceOffline = process.env.FH_ORCHESTRATOR_OFFLINE === '1';
+      const result = await runAgentGraph(specs, goal, {
+        router: orchestratorRouter,
+        offline: forceOffline || orchestratorOffline,
+      });
+      // 落盘运行记录（Apache-2.0 私有化，不上云）
+      const runId = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+      try {
+        writeFileSync(join(orchestratorRunsDir, runId + '.json'), JSON.stringify({ runId, at: new Date().toISOString(), goal, result }, null, 2), 'utf8');
+      } catch (_) { /* 落盘失败不影响返回 */ }
+      res.json({
+        ok: true,
+        runId,
+        goal: result.goal,
+        results: result.results,
+        summary: result.summary,
+        durationMs: result.durationMs,
+        offline: result.offline,
+      });
+    } catch (e) {
+      res.status(500).json({ ok: false, error: String((e as Error)?.message ?? e) });
+    }
+  });
+
+  app.get('/api/orchestrator/history', (_req: Request, res: Response) => {
+    try {
+      if (!existsSync(orchestratorRunsDir)) { res.json({ ok: true, runs: [] }); return; }
+      const entries = readdirSync(orchestratorRunsDir)
+        .filter((f: string) => f.endsWith('.json'))
+        .sort()
+        .reverse()
+        .slice(0, 20)
+        .map((f: string) => {
+          try {
+            const d = JSON.parse(readFileSync(join(orchestratorRunsDir, f), 'utf8'));
+            return {
+              runId: d.runId,
+              at: d.at,
+              goal: (d.goal || '').slice(0, 80),
+              agents: (d.result && d.result.results ? d.result.results.length : 0),
+              durationMs: d.result?.durationMs ?? 0,
+            };
+          } catch { return null; }
+        })
+        .filter(Boolean);
+      res.json({ ok: true, runs: entries });
+    } catch (e) {
+      res.json({ ok: true, runs: [], error: String((e as Error)?.message ?? e) });
+    }
   });
 }

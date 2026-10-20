@@ -23,6 +23,7 @@
         'sidebar.office': '办公助理',
         'sidebar.browser': '浏览器',
         'sidebar.canvas': '画布',
+        'sidebar.orchestrator': '智能体编排',
         'sidebar.memory': '记忆系统',
         'sidebar.nodes': '节点管理',
         'sidebar.codex': 'Codex',
@@ -228,6 +229,7 @@
         'sidebar.office': 'Office',
         'sidebar.browser': 'Browser',
         'sidebar.canvas': 'Canvas',
+        'sidebar.orchestrator': 'Orchestrator',
         'sidebar.release': 'Release',
         'sidebar.memory': 'Memory',
         'sidebar.nodes': 'Nodes',
@@ -2625,6 +2627,9 @@
       }
       if (nav === 'codex') {
         setTimeout(initCodexUI, 120);
+      }
+      if (nav === 'orchestrator') {
+        setTimeout(function () { try { window.initOrchestratorView && window.initOrchestratorView(); } catch (e) { console.warn('initOrchestratorView failed', e); } }, 120);
       }
     };
 

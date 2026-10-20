@@ -103,6 +103,10 @@
             <span class="icon">🎨</span>
             <span class="label" data-i18n="sidebar.canvas">画布</span>
           </div>
+          <div class="sidebar-icon" data-nav="orchestrator" title="智能体编排" data-i18n="sidebar.orchestrator">
+            <span class="icon">🔀</span>
+            <span class="label" data-i18n="sidebar.orchestrator">智能体编排</span>
+          </div>
           <div class="sidebar-icon" data-nav="nodes" title="节点管理" data-i18n="sidebar.nodes">
             <span class="icon">🔗</span>
             <span class="label" data-i18n="sidebar.nodes">节点管理</span>
@@ -415,6 +419,42 @@
             <span class="canvas-status" id="canvasStatus">就绪 · 数据存本地 dataDir/canvas/board.json（Apache-2.0 私有化，不上云）</span>
           </div>
           <div class="canvas-stage" id="canvasStage"></div>
+        </div>
+
+        <!-- 智能体编排页面（M4 阶段 D：对标 Skyalytic 编排模块，图形化拖拽 fhcode team 多智能体） -->
+        <div class="page-view orchestrator-view" data-view="orchestrator">
+          <div class="orch-toolbar">
+            <input type="text" id="orchGoal" class="orch-goal" placeholder="输入全局目标（所有智能体共享，例如：为服装厂老板设计一套合伙分红方案）" />
+            <span class="canvas-sep"></span>
+            <button id="orchAddEmpty" class="ghost">＋ 空白智能体</button>
+            <button id="orchGenJson" class="ghost">{} 生成 JSON</button>
+            <button id="orchGenYaml" class="ghost">⚙ 生成 YAML</button>
+            <button id="orchRun" class="primary ai-btn">▶ 一键发起（并行执行）</button>
+            <span class="orch-status" id="orchStatus">就绪 · 从左侧模板添加智能体，或点「空白智能体」</span>
+          </div>
+          <div class="orch-body">
+            <aside class="orch-palette" id="orchPalette">
+              <div class="orch-palette-title">🧰 角色模板</div>
+              <div class="orch-palette-hint">点击或拖拽到右侧画布添加智能体</div>
+              <div class="orch-tpl-list" id="orchTplList"><div class="empty">加载中…</div></div>
+            </aside>
+            <main class="orch-stage-wrap">
+              <div class="orch-stage" id="orchStage">
+                <svg class="orch-links" id="orchLinks"></svg>
+                <!-- 全局目标中枢节点 -->
+                <div class="orch-hub" id="orchHub">
+                  <div class="orch-hub-icon">🎯</div>
+                  <div class="orch-hub-label">全局目标中枢</div>
+                </div>
+                <!-- 智能体节点由 JS 注入 -->
+              </div>
+              <div class="orch-config" id="orchConfig" style="display:none;"></div>
+            </main>
+            <aside class="orch-results" id="orchResults">
+              <div class="orch-results-title">📤 执行结果</div>
+              <div class="orch-results-body" id="orchResultsBody"><div class="empty">尚未发起。配置好智能体与全局目标后，点「一键发起」。</div></div>
+            </aside>
+          </div>
         </div>
 
         <!-- 节点管理页面 -->
@@ -1497,6 +1537,7 @@
       <script src="js/ui.js"></script>
       <script src="js/browser.js"></script>
       <script src="js/canvas.js"></script>
+      <script src="js/orchestrator.js"></script>
       <script src="js/app.js"></script>
 </body>
 </html>

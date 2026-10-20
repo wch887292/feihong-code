@@ -576,7 +576,9 @@ export function registerCapabilitySourceRoutes(app: ExpressApp, deps: Capability
         try { content = readFileSync(sk, 'utf8'); } catch { continue; }
         const fm = parseSkillFrontmatter(content);
         if (!fm) continue;
-        const key = fm.name.toLowerCase();
+        // 修复：去重键用 name + 目录名，避免「同一来源内两个不同目录恰好 name 相同」被误合并而丢技能；
+        // 跨来源（builtin/user/project）同名同目录仍会去重，防止 local 与 user 重复展示。
+        const key = (fm.name + '|' + dirName).toLowerCase();
         if (seenNames.has(key)) continue;
         seenNames.add(key);
         const source = root.origin === 'builtin' ? 'fhcode-builtin' : root.origin === 'user' ? 'user' : 'project';
