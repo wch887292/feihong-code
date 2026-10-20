@@ -5,7 +5,8 @@
  * 配置型模块（figma/sso/collaboration）未配置时返回明确状态，不静默失效。
  */
 import express, { type Request, type Response } from 'express';
-import { join } from 'path';
+import { join, extname, dirname, resolve, sep } from 'path';
+import { spawn } from 'child_process';
 import { mkdirSync, appendFileSync, existsSync, readFileSync, writeFileSync } from 'fs';
 import { createVoiceProgrammingManager } from '../voice/voice-programming';
 import { createKnowledgeLibraryManager } from '../knowledge/library';
@@ -457,5 +458,76 @@ export function registerExtraApis(app: ExpressApp, opts: ExtraApisOptions): void
       writeFileSync(boardFile, JSON.stringify({ nodes, updatedAt }, null, 2), 'utf8');
       res.json({ ok: true, count: nodes.length, updatedAt });
     } catch (e) { res.json({ ok: false, error: String((e as Error)?.message ?? e) }); }
+  });
+
+  /* ---- 画布素材：上传 / 预览 / 系统打开（全部限制在 dataDir/canvas/files 内，防路径穿越） ---- */
+  const canvasFilesDir = join(canvasDir, 'files');
+  mkdirSync(canvasFilesDir, { recursive: true });
+
+  const MIME_BY_EXT: Record<string, string> = {
+    '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif',
+    '.webp': 'image/webp', '.bmp': 'image/bmp', '.svg': 'image/svg+xml', '.ico': 'image/x-icon',
+    '.pdf': 'application/pdf', '.txt': 'text/plain; charset=utf-8', '.md': 'text/markdown; charset=utf-8',
+    '.json': 'application/json', '.csv': 'text/csv; charset=utf-8', '.log': 'text/plain; charset=utf-8',
+  };
+
+  /** 生成磁盘安全文件名（保留原扩展名，便于系统按类型打开） */
+  function safeStoredName(name: string): string {
+    const base = name.replace(/[^a-zA-Z0-9_.\-]/g, '_').slice(-80) || 'file';
+    return `${Date.now()}_${Math.random().toString(36).slice(2, 7)}_${base}`;
+  }
+
+  /** 把客户端传入的 stored 名解析为 files 目录内的绝对路径，越界返回 null */
+  function resolveInFilesDir(stored: string): string | null {
+    if (!stored || stored.includes('..') || /[\\/]/.test(stored)) return null;
+    const root = resolve(canvasFilesDir) + sep;
+    const full = resolve(canvasFilesDir, stored);
+    return full.startsWith(root) ? full : null;
+  }
+
+  app.post('/api/canvas/upload', (req: Request, res: Response) => {
+    const body = bodyOf(req);
+    const name = typeof body.name === 'string' ? body.name.trim() : '';
+    const mime = typeof body.mime === 'string' && body.mime.trim() ? body.mime.trim() : 'application/octet-stream';
+    const data = typeof body.dataBase64 === 'string' ? body.dataBase64.trim() : '';
+    if (!name || !data) { res.status(400).json({ ok: false, error: '缺少 name 或 dataBase64 字段' }); return; }
+    try {
+      const stored = safeStoredName(name);
+      const buf = Buffer.from(data, 'base64');
+      writeFileSync(join(canvasFilesDir, stored), buf);
+      res.json({ ok: true, stored, name, mime, size: buf.length });
+    } catch (e) { res.status(500).json({ ok: false, error: '上传失败: ' + String((e as Error)?.message ?? e) }); }
+  });
+
+  app.get('/api/canvas/file', (req: Request, res: Response) => {
+    const raw = req.query?.name;
+    const stored = typeof raw === 'string' ? raw : '';
+    const full = resolveInFilesDir(stored);
+    if (!full || !existsSync(full)) { res.status(404).json({ ok: false, error: '文件不存在' }); return; }
+    try {
+      const buf = readFileSync(full);
+      res.setHeader('Content-Type', MIME_BY_EXT[extname(full).toLowerCase()] || 'application/octet-stream');
+      res.setHeader('Cache-Control', 'private, max-age=3600');
+      res.send(buf);
+    } catch (e) { res.status(500).json({ ok: false, error: '读取失败: ' + String((e as Error)?.message ?? e) }); }
+  });
+
+  app.post('/api/canvas/open', (req: Request, res: Response) => {
+    const body = bodyOf(req);
+    const stored = typeof body.name === 'string' ? body.name.trim() : '';
+    const mode = body.mode === 'folder' ? 'folder' : 'file';
+    const full = resolveInFilesDir(stored);
+    if (!full || !existsSync(full)) { res.status(404).json({ ok: false, error: '文件不存在' }); return; }
+    const target = mode === 'folder' ? dirname(full) : full;
+    try {
+      if (process.platform === 'win32') {
+        spawn('explorer', [target], { detached: true, stdio: 'ignore' }).unref();
+      } else if (process.platform === 'darwin') {
+        spawn('open', [target], { detached: true, stdio: 'ignore' }).unref();
+      } else {
+        spawn('xdg-open', [target], { detached: true, stdio: 'ignore' }).unref();
+      }
+      res.json({ ok: true, target });
+    } catch (e) { res.status(500).json({ ok: false, error: '打开失败: ' + String((e as Error)?.message ?? e) }); }
   });
 }

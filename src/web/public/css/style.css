@@ -2013,12 +2013,13 @@ pre, code, .code-block, .code-block * {
 
 /* ============ M2 阶段 B：内置浏览器视图 ============ */
 .browser-view { flex-direction: column; padding: 0; gap: 0; }
-.browser-bar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--bg); }
-.browser-bar button { padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; }
+.browser-bar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--bg); flex-wrap: nowrap; overflow: hidden; }
+.browser-bar button { flex: 0 0 auto; white-space: nowrap; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; }
 .browser-bar button:hover { border-color: var(--brand); }
 .browser-bar button.primary { background: var(--brand); color: #fff; border-color: var(--brand); }
-.browser-bar #browserUrl { flex: 1; min-width: 120px; padding: 7px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text); }
-.browser-bar #browserPreset { padding: 7px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text); }
+/* 覆写全局 input[type=text]/select 的 width:100% + margin-bottom，否则会把 flex 工具条挤爆 */
+.browser-bar #browserUrl { flex: 1 1 auto; width: auto; min-width: 260px; margin-bottom: 0; padding: 7px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text); }
+.browser-bar #browserPreset { flex: 0 0 auto; width: auto; max-width: 170px; margin-bottom: 0; padding: 7px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text); }
 .browser-status { padding: 6px 14px; font-size: 12px; color: var(--muted); border-bottom: 1px solid var(--border); }
 .browser-stage { flex: 1; min-height: 0; position: relative; background: #fff; }
 .browser-stage webview { width: 100%; height: 100%; border: 0; display: flex; }
@@ -2053,3 +2054,21 @@ pre, code, .code-block, .code-block * {
 .canvas-card-title { font-weight: 600; font-size: 14px; color: var(--text); word-break: break-word; }
 .canvas-card-body { font-size: 12px; color: var(--muted); white-space: pre-wrap; word-break: break-word; flex: 1; }
 .canvas-card-input { width: 100%; border: 1px solid var(--brand); border-radius: 4px; padding: 4px; font-size: 13px; font-family: inherit; resize: vertical; background: var(--surface); color: var(--text); }
+/* 素材卡：附件区（上传入口 + 列表） */
+.canvas-card[data-type="material"] { width: 250px; }
+.canvas-card.drop-hot { border-color: var(--brand); box-shadow: 0 0 0 2px var(--brand) inset, 0 8px 24px rgba(0,0,0,.18); }
+.canvas-card-files { display: flex; flex-direction: column; gap: 6px; border-top: 1px dashed var(--border); padding-top: 6px; }
+.canvas-file-add { align-self: flex-start; font-size: 12px; padding: 3px 9px; border-radius: 6px; border: 1px dashed var(--border); background: transparent; color: var(--text); cursor: pointer; white-space: nowrap; }
+.canvas-file-add:hover { border-color: var(--brand); color: var(--brand); }
+.canvas-file-list { display: flex; flex-direction: column; gap: 4px; max-height: 180px; overflow: auto; }
+.canvas-file-empty { font-size: 11px; color: var(--muted); }
+.canvas-file-hint { font-size: 11px; color: var(--muted); }
+.canvas-file-row { display: flex; align-items: center; gap: 5px; font-size: 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 3px 6px; }
+.canvas-file-row button { border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 11px; padding: 0 2px; flex: 0 0 auto; }
+.canvas-file-row button:hover { color: var(--brand); }
+.canvas-file-row .canvas-file-del:hover { color: #e5484d; }
+.canvas-file-thumb { width: 28px; height: 28px; object-fit: cover; border-radius: 4px; flex: 0 0 auto; border: 1px solid var(--border); }
+.canvas-file-icon { flex: 0 0 auto; font-size: 13px; }
+.canvas-file-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; color: var(--text); }
+.canvas-file-name:hover { color: var(--brand); text-decoration: underline; }
+.canvas-file-size { color: var(--muted); font-size: 10px; flex: 0 0 auto; }
