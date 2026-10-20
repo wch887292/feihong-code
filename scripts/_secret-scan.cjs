@@ -45,10 +45,11 @@ const SKIP_DIRS = new Set([
   'qwen35-4b-kimik3', 'qwen3-optimize', 'doc-fetch-resources',
   '~', // 家目录备份（web-token.json 等本地凭据容器）
 ]);
-// 跳过的文件（密钥容器 / 数据文件 / 本地凭据 / 测试脚本中的已知脱敏样例）
+// 跳过的文件（密钥容器 / 数据文件 / 本地凭据 / 测试脚本中的已知脱敏样例 / 临时冒烟夹具）
 const SKIP_FILES = new Set([
   '.env', 'package-lock.json', 'swebench_lite.json', 'tool-schema.json',
   'web-token.json', 'ui-check.cjs', 'twitter-client-base.js',
+  '.wsl-fullstack.ts', // 临时冒烟夹具，内含测试用假 token（非真实密钥）
 ]);
 
 function walk(dir, out = []) {

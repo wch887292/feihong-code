@@ -1,5 +1,17 @@
 ﻿# 飞虹 Code 更新日志 / Changelog
 
+## v8.11.2 · M5 技能市场榜单 + P0 安全审计三项修复 (2026-10-20)
+
+**主题**：技能市场运营榜单（热门/下载/精选）+ 一轮全项目安全审计的 P0 修复（云桥接 RCE 链路、配置密钥硬编码、弱令牌治理），均已落地并通过回归验证。
+
+- **M5 运营增强（技能市场榜单）**：`GET /api/skills/market` 新增 `rank` 参数（featured 精选置顶 / downloads 降序 / hot 综合），关键词过滤后排序并保留来源与搜索筛选；`counts` 含 local/builtin/user/project/ecosystem；前端榜单 Tab 组（分类/🔥热门/⬇️下载/⭐精选），技能卡加排名徽章（前三金/银/铜）
+- **H1 云桥接 RCE 链路封堵（服务端+客户端）**：服务端 `cloud-bridge.ts` 的 `/api/bridge/register` 改为**设备密钥制**——首次注册由云端下发 `deviceSecret`（`randomBytes(24)`，仅返回一次明文），后续注册须携带密钥并按 SHA-256 哈希 + `timingSafeEqual` 校验，**匿名注册一律 401**；设备密钥表经 `encryptText`（AES-256-GCM）落盘，保留 10 分钟宽限兼容旧已上线设备。客户端 `computer-control.ts` 新增 `register-device` 子命令（密钥落盘 0600），`start/status` 自动携带
+- **H1 补强 · 本地执行改白名单**：`tryLocalExec` 的「执行命令」分支由黑名单改为**白名单** `EXEC_ALLOWLIST`（git/npm/pnpm/node/python/python3/npx/pip，可经 `FH_BRIDGE_EXEC_ALLOW` 扩展）+ 参数禁用 shell 元字符（`| & < > ; $ \``），经 `execFile(bin, args)` 直接执行**不再过 shell**，杜绝管道注入面；`BLOCKED_CMDS` 保留为第二道纵深防御
+- **H2 配置脱敏 + 密钥扫描门禁**：`fhcode.config.json` 6 处凭证改为 `${FHC_XXX}` 环境变量引用；新增 `fhcode.config.example.json`（全占位）供复制；`mcp-client.ts` 新增 `expandEnvRefs()`，spawn MCP 子进程前把 `${FHC_XXX}` 从 `process.env` 展开，未解析引用置空并告警；新增 `scripts/_secret-scan.cjs`（`npm run secret-scan`，强指纹 + 键名启发式，命中即退出码 1）作 pre-commit/CI 门禁，全仓 0 命中；AGENTS.md 写明「凭证一律 `${FHC_XXX}` 引用、禁止明文密钥」硬规则
+- **M1 弱令牌治理 + 平滑轮换**：`server.ts` 启动时检测弱 `FH_WEB_TOKEN`（`fhcode-2026-fixed-token-*` 前缀或长度 <24）打印告警；新增 `POST /api/auth/rotate-token`——持当前主令牌（或宽限期旧令牌）+ 回显前缀防误操作 → 生成 32 字节新令牌，旧令牌进 **24h 宽限期**，新令牌落盘 `web-token.json`；`auth.ts` 的 `requireToken` 增加 `extraTokens` 参数，server 各挂载点改为逐请求调用以动态读取 `oldTokens`
+- **回归验证**：新增 `tests/unit/p0-security-regression.test.ts`（node:test）与 `scripts/_p0-security-verify.cjs`（12/12 PASS）；`tsc --noEmit` 0 错误 / `npm run build` 通过 / `npm run security`（SBOM）通过 / `secret-scan` 0 命中 / 单元测试 518 项 517 通过（唯一 1 项为 Windows 并行压测下 `runOsSandboxed` 杀进程树时序偶发，单独运行 7/7 通过）
+- **审计报告**：新增 `综合评测与安全审计报告_2026-10-20.md`，记录 P0 发现、修复实施、回归结果与待人工处理项（火山方舟/企微/钉钉/Figma 四处凭证需吊销轮换、已上线 bridge 设备需升级并跑 `fhcode bridge register-device`、轮换 `FH_WEB_TOKEN` 需同步手机端预置令牌）
+
 ## v8.11.1 · M4 智能体编排面板 + 用户级技能内置化 + 合规检查修复 (2026-10-20)
 
 **主题**：图形化编排 fhcode team 多智能体并行执行；将用户级技能物理内置进仓库（11→242）；修复合规检查对 MCP 桥接描述的误报。

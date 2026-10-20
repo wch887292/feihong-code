@@ -213,8 +213,9 @@ export class SessionStore {
  *  @param masterToken 主令牌（FH_WEB_TOKEN，CLI/自动化场景免登录）
  *  @param sessions 会话存储（手机号登录场景）
  *  @param whitelist 免认证路径白名单（如 /api/security/public-key、/api/auth/login），匹配前缀即放行
+ *  @param extraTokens 额外可接受令牌（M1 轮换宽限期的旧主令牌；带过期时间，超期自动拒绝）
  */
-export function requireToken(masterToken: string, sessions?: SessionStore, whitelist: string[] = []) {
+export function requireToken(masterToken: string, sessions?: SessionStore, whitelist: string[] = [], extraTokens?: Array<{ value: string; expiresAt: number }>) {
   return (req: Request, res: Response, next: NextFunction): void => {
     // 白名单路径直接放行（公钥、登录等无需认证的接口）
     // 注意：app.use('/api', ...) 挂载时 req.path 是去掉 /api 后的相对路径，
@@ -241,6 +242,13 @@ export function requireToken(masterToken: string, sessions?: SessionStore, white
     if (safeEqual(token, masterToken)) {
       next();
       return;
+    }
+    // M1 修复（2026-10-20 P0）：轮换宽限期内旧主令牌仍可访问（到期自动失效）
+    for (const ot of extraTokens ?? []) {
+      if (Date.now() < ot.expiresAt && safeEqual(token, ot.value)) {
+        next();
+        return;
+      }
     }
     if (sessions?.has(token)) {
       const session = sessions.get(token);

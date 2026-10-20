@@ -394,6 +394,24 @@ export async function runBridge(action: string, _args: string[]): Promise<void> 
     return;
   }
 
+  // H1 修复（P0）：所有者在本机为"这台电脑"完成首次注册 → 云端下发 deviceSecret，
+  // 落盘 ~/.feihong-code/bridge-device-secret（0600），后续 start 自动携带。
+  if (action === 'register-device') {
+    const secret = getBridgeDeviceSecret();
+    if (secret) {
+      console.log('✅ 本机已有设备密钥（' + getBridgeSecretFile() + '），无需重复注册。');
+      return;
+    }
+    try {
+      await bridgeRegister(cloudBase, deviceId, deviceName, authHeaders);
+      console.log('✅ 设备已注册并下发密钥，已落盘（权限 0600）。后续 `fhcode bridge start` 将自动携带。');
+    } catch (e) {
+      console.error('❌ 注册失败: ' + (e instanceof Error ? e.message : String(e)));
+      process.exitCode = 1;
+    }
+    return;
+  }
+
   if (action === 'status') {
     console.log(`云端: ${cloudBase}`);
     console.log(`设备ID: ${deviceId}`);
@@ -410,7 +428,7 @@ export async function runBridge(action: string, _args: string[]): Promise<void> 
   }
 
   if (action !== 'start' && action !== 'run' && action !== '') {
-    console.error(`未知子命令: ${action}（支持: start / status / id / devices）`);
+    console.error(`未知子命令: ${action}（支持: start / status / id / devices / register-device）`);
     process.exitCode = 1;
     return;
   }
@@ -433,6 +451,13 @@ export async function runBridge(action: string, _args: string[]): Promise<void> 
 
   // ===== 本地执行器增强：文件/命令/网页/系统状态（与云端执行体 cloud-agent 指令能力对齐） =====
   const LOCAL_WORK = join(homedir(), 'fhcode-cloud-work');
+  // H1 修复（P0）：本地桥接"执行命令"白名单——只允许这些可执行 + 纯安全参数。
+  // 通过环境变量 FH_BRIDGE_EXEC_ALLOW 可扩展（逗号分隔）；默认 git/npm/pnpm/node/python/python3/npx/pip。
+  // 黑名单 BLOCKED_CMDS 保留作第二道（纵深防御），白名单是第一道。
+  const EXEC_ALLOWLIST = new Set([
+    ...['git', 'npm', 'pnpm', 'node', 'python', 'python3', 'npx', 'pip'],
+    ...String(process.env.FH_BRIDGE_EXEC_ALLOW ?? '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean),
+  ]);
   const BLOCKED_CMDS = [
     /(^|\s)(rm|rmdir)\s+-[a-z]*[rf][a-z]*\s*(\/\s*|\/\*)/i,
     /(^|\s)mkfs/i, /(^|\s)dd\s+if=/i, /(^|\s)shutdown/i,
@@ -442,9 +467,6 @@ export async function runBridge(action: string, _args: string[]): Promise<void> 
     /(^|\s):\(\)/i, /(^|\s)wget\s+.*\|\s*sh/i, /(^|\s)curl\s+.*\|\s*(ba)?sh/i,
     /(^|\s)systemctl\s+(stop|disable)\s+(docker|nginx|mysql|php|redis)/i,
   ];
-  // H1 修复（P0）：本地桥接"执行命令"白名单——只允许这些可执行 + 纯安全参数。
-  // 黑名单 BLOCKED_CMDS 保留作第二道（纵深防御），白名单是第一道。
-  const EXEC_ALLOWLIST = new Set(['git', 'npm', 'pnpm', 'node', 'python', 'python3', 'npx', 'pip', 'ls', 'dir']);
   const SAFE_ARGS_RE = /^[A-Za-z0-9_.\/\\ :@+-]*$/;
   /** 白名单校验：通过则返回 { bin, args }；不通过返回错误信息 */
   function checkExecCmdline(cmdline: string): { bin: string; args: string[] } | string {
@@ -517,7 +539,7 @@ export async function runBridge(action: string, _args: string[]): Promise<void> 
       const entries = readdirSync(dir, { withFileTypes: true }).map((e) => (e.isDirectory() ? '📁 ' : '📄 ') + e.name + (e.isDirectory() ? '/' : ''));
       return { ok: true, result: { action: 'ls', path: dir, text: entries.length ? entries.join('\n') : '（空目录）' } };
     }
-    // 4) 执行命令/脚本
+    // 4) 执行命令/脚本（H1 修复：命令白名单 + 参数无 shell 元字符，经 execFile 不经 shell）
     m = /^(?:执行|运行)(命令|脚本|shell|bash|sh|python|python3|node|npm|pip|git)\s*[:：]?\s*(.+)$/i.exec(t);
     if (m) {
       const runner = m[1].toLowerCase();
@@ -527,8 +549,14 @@ export async function runBridge(action: string, _args: string[]): Promise<void> 
       else if (runner === 'npm') cmdline = 'npm ' + cmdline;
       else if (runner === 'pip') cmdline = 'pip ' + cmdline;
       else if (runner === 'git') cmdline = 'git ' + cmdline;
-      const out = await runLocalCmd(cmdline);
-      return { ok: true, result: { action: 'exec', command: cmdline, text: out.slice(0, MAX) } };
+      else cmdline = cmdline; // shell/bash/sh → 原样交给白名单（必然被拒，因 shell 不在白名单）
+      try {
+        const out = await runLocalCmd(cmdline);
+        return { ok: true, result: { action: 'exec', command: cmdline, text: out.slice(0, MAX) } };
+      } catch (e) {
+        // 白名单/元字符拦截 → 明确拒绝，不静默回退 GUI
+        return { ok: false, error: (e instanceof Error ? e.message : String(e)) };
+      }
     }
     // 5) 抓取网页（Node 原生 fetch）
     m = /^(?:抓取|下载|访问|fetch)(网页|页面|url)\s*[:：]?\s*(https?:\/\/\S+)$/i.exec(t);

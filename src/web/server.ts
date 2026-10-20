@@ -27,6 +27,7 @@ import {
 } from 'fs';
 import { securityHeaders, verifyRequestSignature, BruteForceGuard } from '../security';
 import { requireToken, SessionStore, type Session, WELCOME_TASKS } from './auth';
+import { timingSafeEqual } from 'crypto';
 import { loginAccount, resolveAccountHome } from '../security/account';
 import { registerExtraApis } from './extra-apis';
 import { registerComputerRoutes } from './routes/computer';
@@ -109,6 +110,18 @@ export function startWebServer(opts: ServeOptions = {}): {
 
   const port = opts.port ?? Number(process.env.FH_WEB_PORT ?? 8080);
   let token = opts.token ?? process.env.FH_WEB_TOKEN ?? '';
+  // M1 加固（2026-10-20 P0）：主令牌轮换状态——弱令牌告警 + 旧令牌宽限期（轮换后端点见 /api/auth/rotate-token）
+  const MASTER_TOKEN_FILE = join(process.env.FH_HOME?.trim() || join(require('os').homedir(), '.feihong-code'), 'web-token.json');
+  const ROTATE_GRACE_MS = 24 * 60 * 60 * 1000; // 旧主令牌宽限期 24h
+  let oldTokens: Array<{ value: string; expiresAt: number }> = [];
+  const isWeakMasterToken = (tk: string): boolean => /^fhcode-2026-fixed-token-/i.test(tk) || tk.length < 24;
+  if (token && isWeakMasterToken(token)) {
+    console.warn('\n' +
+      '[fhcode-security] ⚠️  检测到弱 FH_WEB_TOKEN（fhcode-2026-fixed-token-* 为示例固定值或长度 <24）。\n' +
+      '   任何拿到 .env 备份/日志的人即可访问 Web 控制台全部接口（含键鼠操作/文件读写）。\n' +
+      '   请改用强随机令牌：node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"，\n' +
+      '   写入 .env 的 FH_WEB_TOKEN 并重启；已上线环境建议经 POST /api/auth/rotate-token 平滑轮换（旧令牌 24h 宽限）。\n');
+  }
   if (!token) {
     // 令牌持久化：自动生成后落盘 ~/.feihong-code/web-token.json，重启复用，
     // 避免每次重启换 token 导致手机端预置令牌失配（v8.8.3）
@@ -373,9 +386,10 @@ export function startWebServer(opts: ServeOptions = {}): {
     });
   });
   // F7 加固（2026-09-30 安全审计 P1）：记忆/存储/honcho 属敏感数据，统一要求登录后才可读写
-  app.use('/api/memory', requireToken(token, sessions));
-  app.use('/api/storage', requireToken(token, sessions));
-  app.use('/api/honcho', requireToken(token, sessions));
+  // M1 加固（2026-10-20 P0）：令牌轮换宽限期内旧主令牌仍放行（oldTokens 动态，超期自动失效）
+  app.use('/api/memory', (req, res, next) => { requireToken(token, sessions, [], oldTokens)(req, res, next); });
+  app.use('/api/storage', (req, res, next) => { requireToken(token, sessions, [], oldTokens)(req, res, next); });
+  app.use('/api/honcho', (req, res, next) => { requireToken(token, sessions, [], oldTokens)(req, res, next); });
 
   // 鉴权：其余 /api 需 Bearer token（静态资源与 login/health 除外）
   // 公开 API（无需认证）
@@ -517,7 +531,46 @@ export function startWebServer(opts: ServeOptions = {}): {
     res.json({ ok, cleared: ok });
   });
 
-  app.use('/api', requireToken(token, sessions, ['/api/security/public-key']));
+  // M1 修复（2026-10-20 P0）：主令牌平滑轮换。
+  // 持当前主令牌（或宽限期旧令牌）POST 生成新令牌；旧令牌进宽限期（默认 24h）后失效；
+  // 新令牌落盘 web-token.json（若来源是持久化文件则同步更新），重启不漂移。
+  // body: { confirm?: string } —— 需回显 tokenPreview（前 8 位）防误操作。
+  app.post('/api/auth/rotate-token', (req: Request, res: Response) => {
+    const header = req.header('authorization') || '';
+    const m = /^Bearer\s+(.+)$/i.exec(header);
+    if (!m) { res.status(401).json({ ok: false, error: 'unauthorized' }); return; }
+    const presented = m[1];
+    const pb = Buffer.from(presented);
+    const curB = Buffer.from(token);
+    const isCurrent = pb.length === curB.length && timingSafeEqual(pb, curB);
+    const inGrace = oldTokens.some((ot) => {
+      if (Date.now() >= ot.expiresAt) return false;
+      const ob = Buffer.from(ot.value);
+      return pb.length === ob.length && timingSafeEqual(pb, ob);
+    });
+    if (!isCurrent && !inGrace) { res.status(401).json({ ok: false, error: 'unauthorized' }); return; }
+    // 防误操作：回显前 8 位
+    const confirm = String(((req.body ?? {}) as Record<string, unknown>)?.confirm ?? '');
+    const preview = token.slice(0, 8);
+    if (confirm !== preview) {
+      res.status(400).json({ ok: false, error: `请回显当前令牌前缀（${preview}…）以确认轮换`, tokenPreview: preview });
+      return;
+    }
+    const newToken = randomBytes(32).toString('hex');
+    // 旧主令牌进宽限期（含已轮换过的旧令牌顺延）
+    const now = Date.now();
+    oldTokens = [...oldTokens.filter((ot) => ot.expiresAt > now), { value: token, expiresAt: now + ROTATE_GRACE_MS }];
+    token = newToken;
+    // 同步落盘（与启动时读取的 MASTER_TOKEN_FILE 一致），重启复用新令牌
+    try {
+      mkdirSync(dirname(MASTER_TOKEN_FILE), { recursive: true });
+      writeFileSync(MASTER_TOKEN_FILE, JSON.stringify({ token: newToken, rotatedAt: new Date().toISOString() }, null, 2), 'utf-8');
+    } catch { /* 落盘失败不影响本次轮换，进程内已生效 */ }
+    console.log('[fhcode-security] 主令牌已轮换，旧令牌宽限期 24h（新令牌前缀 ' + newToken.slice(0, 8) + '…）');
+    res.json({ ok: true, token: newToken, tokenPreview: newToken.slice(0, 8), graceMs: ROTATE_GRACE_MS, persisted: true });
+  });
+
+  app.use('/api', (req, res, next) => { requireToken(token, sessions, ['/api/security/public-key'], oldTokens)(req, res, next); });
 
   // ===== v7.2.0 能力接线层：voice / knowledge / figma / sso / collaboration / plugins / self-correction =====
   // 将原"孤立代码"模块接入 Web API（修复：从 404 变为可调用）
