@@ -9,7 +9,8 @@
  * 共享闭包经 CloudBridgeDeps 注入；本模块不得反向 import web/server。
  */
 import express, { type Request, type Response } from 'express';
-import { randomUUID } from 'crypto';
+import { randomUUID, createHash, timingSafeEqual } from 'crypto';
+import { randomBytes } from 'crypto';
 import { join } from 'path';
 import { BruteForceGuard } from '../../security';
 import {
@@ -24,6 +25,7 @@ import {
   heartbeatDue,
   licenseServerUrl,
 } from '../../license';
+import { getMasterKey, encryptText, decryptText } from '../../shared/secure-store';
 
 type ExpressApp = ReturnType<typeof express>;
 
@@ -69,15 +71,77 @@ export function registerCloudBridgeRoutes(app: ExpressApp, deps: CloudBridgeDeps
 
   // 设备注册 / 心跳：电脑端桥接代理每次轮询前调用，标记在线
   // F11 加固（2026-09-30 安全审计 P1）：字段截断 + 设备数量上限，防伪造注册刷爆设备表
+  // H1 加固（2026-10-20 P0）：设备需携带 deviceSecret（首次注册时下发）经 HMAC 派生签名，
+  //   拒绝匿名注册——匿名 deviceId 可被攻击者刷占设备表并向其投递指令（→ 电脑端本地执行 RCE）。
+  //   兼容：旧客户端未传 deviceSecret 时，对"已注册且 lastSeenAt 新鲜（<10min）"的设备放行（宽限迁移期）。
+  const deviceSecretFile = join(homeDir, 'bridge-device-secrets.json');
+  interface DeviceSecretRecord { deviceId: string; secretHash: string; createdAt: string }
+  function loadDeviceSecrets(): DeviceSecretRecord[] {
+    const raw = loadJsonFile<string>(deviceSecretFile, '');
+    if (!raw) return [];
+    if (raw.startsWith('enc:')) {
+      const text = decryptText(raw.slice(4), getMasterKey(homeDir));
+      if (!text) return [];
+      try { return JSON.parse(text) as DeviceSecretRecord[]; } catch { return []; }
+    }
+    try { return JSON.parse(raw) as DeviceSecretRecord[]; } catch { return []; }
+  }
+  function saveDeviceSecrets(list: DeviceSecretRecord[]): void {
+    saveJsonFile(deviceSecretFile, 'enc:' + encryptText(JSON.stringify(list), getMasterKey(homeDir)));
+  }
+  function hashSecret(secret: string): string {
+    return createHash('sha256').update('fhcode-bridge-device-secret:' + secret).digest('hex');
+  }
+
   app.post('/api/bridge/register', (req: Request, res: Response) => {
     const body = (req.body ?? {}) as Record<string, any>;
     const deviceId = String(body?.deviceId ?? '').trim();
     const name = (String(body?.name ?? '').trim() || '未命名电脑').slice(0, 100);
+    const deviceSecret = String(body?.deviceSecret ?? '').trim();
     if (!deviceId) { res.status(400).json({ ok: false, error: '缺少 deviceId' }); return; }
     if (deviceId.length > 200) { res.status(400).json({ ok: false, error: 'deviceId 过长' }); return; }
     const list = loadBridgeDevices();
     const now = new Date().toISOString();
     const found = list.find((d) => d.deviceId === deviceId);
+
+    // 鉴权：首次注册或携带 secret 时，HMAC 校验（防匿名刷占）
+    if (deviceSecret) {
+      const secrets = loadDeviceSecrets();
+      const rec = secrets.find((s) => s.deviceId === deviceId);
+      const ok = rec && timingSafeEqual(
+        Buffer.from(rec.secretHash, 'hex'),
+        Buffer.from(hashSecret(deviceSecret), 'hex'),
+      );
+      if (!ok) {
+        res.status(401).json({ ok: false, error: '设备密钥校验失败（deviceSecret）' });
+        return;
+      }
+    } else if (!found) {
+      // 无 secret 且未注册过 → 匿名注册，拒绝（H1 修复核心）
+      res.status(401).json({ ok: false, error: '设备未授权：请先由所有者经 fhcode bridge enroll 注册该设备并下发 deviceSecret' });
+      return;
+    } else {
+      // 旧客户端宽限：已注册设备且 10 分钟内有心跳 → 放行（迁移期兼容，避免误杀已上线设备）
+      const lastSeen = Date.parse(found.lastSeenAt);
+      const recent = Number.isFinite(lastSeen) && Date.now() - lastSeen < 10 * 60 * 1000;
+      if (!recent) {
+        res.status(401).json({ ok: false, error: '设备已离线超过 10 分钟，请更新客户端并携带 deviceSecret 重新注册' });
+        return;
+      }
+    }
+
+    // 下发/保留设备密钥（首次注册时生成）
+    const secrets = loadDeviceSecrets();
+    let secRec = secrets.find((s) => s.deviceId === deviceId);
+    let issuedSecret = '';
+    if (!secRec) {
+      const generated = randomBytes(24).toString('hex');
+      secRec = { deviceId, secretHash: hashSecret(generated), createdAt: now };
+      secrets.push(secRec);
+      issuedSecret = generated; // 仅此一次返回明文，客户端落盘后不再传输
+    }
+    saveDeviceSecrets(secrets);
+
     if (!found && list.length >= 50) {
       res.status(429).json({ ok: false, error: '设备数已达上限（50），请先注销离线设备' });
       return;
@@ -85,7 +149,7 @@ export function registerCloudBridgeRoutes(app: ExpressApp, deps: CloudBridgeDeps
     if (found) { found.lastSeenAt = now; found.status = 'online'; found.name = name; }
     else { list.push({ deviceId, name, lastSeenAt: now, status: 'online', createdAt: now }); }
     saveBridgeDevices(list);
-    res.json({ ok: true, deviceId, status: 'online' });
+    res.json({ ok: true, deviceId, status: 'online', ...(issuedSecret ? { deviceSecret: issuedSecret, secretIssued: true } : {}) });
   });
 
   // 手机端：发送指令到指定电脑（入队）

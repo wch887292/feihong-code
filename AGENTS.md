@@ -23,8 +23,9 @@
 
 ### fhcode.config.json
 - MCP 服务器的 `command` 用 `node`，`args` 用**绝对路径**（`H:/feihong-code/mcp-servers/xxx-mcp.js`），`cwd` 设为 `H:/feihong-code`。
-- 平台密钥通过各服务器的 `env` 字段传入，不要写进服务器代码。
+- 平台密钥通过各服务器的 `env` 字段传入，**必须用 `${FHC_XXX}` 环境变量引用，禁止写明文密钥**（密钥值在 `.env` 配置）。凭证类 env 值（API Key / Secret / Token）写 `${FHC_DOUBAO_API_KEY}` 这类引用，非凭证类（URL / 模型名 / corp ID）可直接写字面量。
 - 修改后重启服务，用 `GET /api/mcp/tools` 验证全部在线。
+- 新增/改动配置后跑 `npm run secret-scan`，确认无硬编码密钥（门禁：命中即阻断）。
 
 ## 三、启动与验证规范
 

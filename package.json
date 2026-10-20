@@ -44,7 +44,9 @@
     "electron:build": "npm run build && electron-builder --win --x64",
     "electron:dist": "npm run build && electron-builder --win --x64 --publish never",
     "electron:pack": "npm run build && electron-builder --dir",
-    "security": "node scripts/_security-check.cjs"
+    "security": "node scripts/_security-check.cjs",
+    "secret-scan": "node scripts/_secret-scan.cjs",
+    "secret-scan:ci": "node scripts/_secret-scan.cjs"
   },
   "keywords": [
     "ai",

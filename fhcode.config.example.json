@@ -1,0 +1,74 @@
+{
+  "_readme": "复制为 fhcode.config.json 后填写。凭证一律用 ${FHC_XXX} 环境变量引用（在 .env 配置），禁止写明文密钥。",
+  "mcp": {
+    "servers": [
+      {
+        "name": "git",
+        "command": "node",
+        "args": ["H:/feihong-code/mcp-servers/git-mcp.js"],
+        "cwd": "H:/feihong-code"
+      },
+      {
+        "name": "db",
+        "command": "node",
+        "args": ["H:/feihong-code/mcp-servers/db-mcp.js"],
+        "cwd": "H:/feihong-code",
+        "env": {
+          "DB_PATH": "H:/feihong-code/mcp-servers/_demo.db"
+        }
+      },
+      {
+        "name": "doubao",
+        "command": "node",
+        "args": ["H:/feihong-code/mcp-servers/doubao-mcp.js"],
+        "cwd": "H:/feihong-code",
+        "env": {
+          "DOUBAO_API_KEY": "${FHC_DOUBAO_API_KEY}",
+          "DOUBAO_BASE_URL": "https://ark.cn-beijing.volces.com/api/v3",
+          "DOUBAO_MODEL": "doubao-1-5-pro-32k"
+        }
+      },
+      {
+        "name": "wecom",
+        "command": "node",
+        "args": ["H:/feihong-code/mcp-servers/wecom-mcp.js"],
+        "cwd": "H:/feihong-code",
+        "env": {
+          "WECOM_CORP_ID": "ww-your-corp-id",
+          "WECOM_AGENT_ID": "1000002",
+          "WECOM_SECRET": "${FHC_WECOM_SECRET}"
+        }
+      },
+      {
+        "name": "feishu",
+        "command": "node",
+        "args": ["H:/feihong-code/mcp-servers/feishu-mcp.js"],
+        "cwd": "H:/feihong-code",
+        "env": {
+          "FEISHU_APP_ID": "${FHC_FEISHU_APP_ID}",
+          "FEISHU_APP_SECRET": "${FHC_FEISHU_APP_SECRET}"
+        }
+      },
+      {
+        "name": "dingtalk",
+        "command": "node",
+        "args": ["H:/feihong-code/mcp-servers/dingtalk-mcp.js"],
+        "cwd": "H:/feihong-code",
+        "env": {
+          "DINGTALK_APP_KEY": "ding-your-app-key",
+          "DINGTALK_APP_SECRET": "${FHC_DINGTALK_APP_SECRET}",
+          "DINGTALK_AGENT_ID": "your-agent-id"
+        }
+      },
+      {
+        "name": "figma",
+        "command": "node",
+        "args": ["H:/feihong-code/mcp-servers/figma-mcp.js"],
+        "cwd": "H:/feihong-code",
+        "env": {
+          "FIGMA_TOKEN": "${FHC_FIGMA_TOKEN}"
+        }
+      }
+    ]
+  }
+}

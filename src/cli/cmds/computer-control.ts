@@ -271,11 +271,56 @@ function getBridgeDeviceId(): string {
   }
 }
 
+/**
+ * H1 修复：设备密钥（bridge-device-secret）。
+ * 首次注册时云端下发 deviceSecret，客户端落盘后，后续注册请求携带该密钥，
+ * 云端按 HMAC 校验——拒绝匿名注册，堵住"攻击者注册设备并投递指令"的 RCE 入口。
+ */
+function getBridgeSecretFile(): string {
+  return join(homedir(), '.feihong-code', 'bridge-device-secret');
+}
+function getBridgeDeviceSecret(): string {
+  try {
+    const f = getBridgeSecretFile();
+    if (existsSync(f)) {
+      const saved = readFileSync(f, 'utf-8').trim();
+      if (saved) return saved;
+    }
+  } catch { /* 读取失败按未下发处理 */ }
+  return '';
+}
+function saveBridgeDeviceSecret(secret: string): void {
+  try {
+    const f = getBridgeSecretFile();
+    mkdirSync(dirname(f), { recursive: true });
+    writeFileSync(f, secret, { mode: 0o600 });
+  } catch (e) {
+    console.warn('⚠️ 设备密钥落盘失败（下次注册将再次触发下发）:', e instanceof Error ? e.message : String(e));
+  }
+}
+
+/** 注册设备：携带本地 deviceSecret（若有）；云端首次下发时落盘 */
+async function bridgeRegister(cloudBase: string, deviceId: string, deviceName: string, headers: Record<string, string>): Promise<void> {
+  const deviceSecret = getBridgeDeviceSecret();
+  const resp = await bridgeFetch(`${cloudBase}/api/bridge/register`, {
+    method: 'POST',
+    headers,
+    body: { deviceId, name: deviceName, ...(deviceSecret ? { deviceSecret } : {}) },
+  });
+  if (resp.secretIssued && resp.deviceSecret) {
+    saveBridgeDeviceSecret(resp.deviceSecret);
+    console.log('设备密钥已下发并落盘（仅本次返回明文，后续注册自动携带）');
+  }
+}
+
 interface BridgeResp {
   ok?: boolean;
   command?: { cmdId: string; text: string } | null;
   devices?: Array<{ deviceId: string; name: string; status: string }>;
   error?: string;
+  /** H1 修复：首次注册时云端下发的设备密钥（客户端须立即落盘） */
+  deviceSecret?: string;
+  secretIssued?: boolean;
   [k: string]: unknown;
 }
 
@@ -355,11 +400,7 @@ export async function runBridge(action: string, _args: string[]): Promise<void> 
     console.log(`设备名: ${deviceName}`);
     console.log(`鉴权: ${token ? '已配置' : '未配置（FH_BRIDGE_TOKEN）'}`);
     try {
-      await bridgeFetch(`${cloudBase}/api/bridge/register`, {
-        method: 'POST',
-        headers: authHeaders,
-        body: { deviceId, name: deviceName },
-      });
+      await bridgeRegister(cloudBase, deviceId, deviceName, authHeaders);
       console.log('✅ 已注册到云端');
     } catch (e) {
       console.error('❌ 无法连接云端: ' + (e instanceof Error ? e.message : String(e)));
@@ -376,11 +417,7 @@ export async function runBridge(action: string, _args: string[]): Promise<void> 
 
   // 注册设备
   try {
-    await bridgeFetch(`${cloudBase}/api/bridge/register`, {
-      method: 'POST',
-      headers: authHeaders,
-      body: { deviceId, name: deviceName },
-    });
+    await bridgeRegister(cloudBase, deviceId, deviceName, authHeaders);
     log(`设备已注册: ${deviceName} (${deviceId})`);
   } catch (e) {
     console.error('❌ 注册失败，请检查 FH_BRIDGE_URL / FH_BRIDGE_TOKEN: ' + (e instanceof Error ? e.message : String(e)));
@@ -405,6 +442,26 @@ export async function runBridge(action: string, _args: string[]): Promise<void> 
     /(^|\s):\(\)/i, /(^|\s)wget\s+.*\|\s*sh/i, /(^|\s)curl\s+.*\|\s*(ba)?sh/i,
     /(^|\s)systemctl\s+(stop|disable)\s+(docker|nginx|mysql|php|redis)/i,
   ];
+  // H1 修复（P0）：本地桥接"执行命令"白名单——只允许这些可执行 + 纯安全参数。
+  // 黑名单 BLOCKED_CMDS 保留作第二道（纵深防御），白名单是第一道。
+  const EXEC_ALLOWLIST = new Set(['git', 'npm', 'pnpm', 'node', 'python', 'python3', 'npx', 'pip', 'ls', 'dir']);
+  const SAFE_ARGS_RE = /^[A-Za-z0-9_.\/\\ :@+-]*$/;
+  /** 白名单校验：通过则返回 { bin, args }；不通过返回错误信息 */
+  function checkExecCmdline(cmdline: string): { bin: string; args: string[] } | string {
+    const trimmed = cmdline.trim();
+    if (!trimmed) return '空命令';
+    if (BLOCKED_CMDS.some((re) => re.test(trimmed))) return '指令包含危险操作，已拒绝执行';
+    // 必须能按空白切成 token，且首 token 在白名单
+    const first = trimmed.split(/\s+/)[0];
+    if (!EXEC_ALLOWLIST.has(first.toLowerCase())) {
+      return '命令 ' + first + ' 不在白名单（允许: ' + [...EXEC_ALLOWLIST].join(', ') + '），已拒绝执行';
+    }
+    const rest = trimmed.slice(first.length).trim();
+    if (rest && !SAFE_ARGS_RE.test(rest)) {
+      return '参数含 shell 元字符（| & < > ; $ ` \\n），已拒绝执行';
+    }
+    return { bin: first, args: rest ? rest.split(/\s+/) : [] };
+  }
   function safeLocalResolve(rel: string): string {
     const abs = join(LOCAL_WORK, rel);
     if (abs !== LOCAL_WORK && !abs.startsWith(LOCAL_WORK + sep)) throw new Error('路径越界：只允许操作本地工作目录 ' + LOCAL_WORK);
@@ -412,11 +469,11 @@ export async function runBridge(action: string, _args: string[]): Promise<void> 
   }
   function runLocalCmd(cmdline: string, timeoutMs = 30000): Promise<string> {
     return new Promise((res, rej) => {
-      if (!cmdline.trim()) { rej(new Error('空命令')); return; }
-      if (BLOCKED_CMDS.some((re) => re.test(cmdline))) { rej(new Error('指令包含危险操作，已拒绝执行')); return; }
-      const isWin = platform() === 'win32';
-      execFile(isWin ? 'cmd' : 'bash', isWin ? ['/d', '/s', '/c', cmdline] : ['-c', cmdline],
-        { timeout: timeoutMs, maxBuffer: 4 * 1024 * 1024, cwd: LOCAL_WORK, env: { ...process.env } },
+      const chk = checkExecCmdline(cmdline);
+      if (typeof chk === 'string') { rej(new Error(chk)); return; }
+      // 白名单通过：直接 execFile(bin, args)，不再经 shell（杜绝 | & ; 注入面）
+      execFile(chk.bin, chk.args,
+        { timeout: timeoutMs, maxBuffer: 4 * 1024 * 1024, cwd: LOCAL_WORK, env: { ...process.env }, windowsHide: true },
         (err, stdout, stderr) => {
           if (err) { rej(new Error((stderr || stdout || err.message || '').toString().trim().slice(0, 1000) || '命令执行失败')); return; }
           res(stdout.toString().trim());

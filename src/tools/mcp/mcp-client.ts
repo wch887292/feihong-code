@@ -58,6 +58,25 @@ function writeMessage(child: ChildProcess, msg: unknown): void {
 }
 
 /**
+ * 凭证展开（H2 安全修复）：MCP 配置 env 值支持 `${FHC_XXX}` 引用，
+ * 启动子进程前从 process.env（含 .env 经 loadDotEnv 注入的值）解析。
+ * 未解析的引用置空并告警，避免把 `${...}` 字面量当密钥传给平台 API。
+ */
+function expandEnvRefs(env: Record<string, string>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(env)) {
+    if (typeof v !== 'string') { out[k] = v; continue; }
+    out[k] = v.replace(/\$\{([A-Z0-9_]+)\}/g, (_m, name: string) => {
+      const val = process.env[name];
+      if (val !== undefined) return val;
+      logger.warn(`MCP env 引用未解析：${name}（${k}）未设置，已置空。请在 .env 中配置 ${name}`, { ref: name });
+      return '';
+    });
+  }
+  return out;
+}
+
+/**
  * MCP stdio 客户端实例。
  * 用法：await client.connect() → await client.listTools() → await client.callTool(name, args) → await client.close()。
  */
@@ -85,7 +104,7 @@ export class McpClient {
     const { command, args = [], cwd, env, name } = this.cfg;
     this.child = spawn(command, args, {
       cwd,
-      env: env ? { ...process.env, ...env } : process.env,
+      env: env ? { ...process.env, ...expandEnvRefs(env) } : process.env,
       stdio: ['pipe', 'pipe', 'pipe'],
       windowsHide: true,
     });
