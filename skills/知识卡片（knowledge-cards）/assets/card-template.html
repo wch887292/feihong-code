@@ -1,0 +1,36 @@
+<!-- kpay-glossary 单卡片模板
+     占位符按 Schema 字段命名，直接字符串替换即可；
+     用于导出单张图文卡（1080×1080 建议截图区域为 .card 元素）。 -->
+<div class="card" data-term-id="{{termId}}" data-category="{{category}}"
+     style="width:1080px;padding:72px;box-sizing:border-box;
+            background:linear-gradient(150deg,#12305A,#0B1F3A 65%);
+            border:2px solid rgba(201,162,39,.45);border-radius:28px;color:#F5F1E6;
+            font-family:'Source Han Sans SC','Noto Sans SC','PingFang SC',sans-serif;">
+
+  <div style="font-family:'Source Han Serif SC','Noto Serif SC',serif;
+              font-size:72px;color:#E3C766;line-height:1.2;">{{termZh}}</div>
+  <div style="font-size:24px;color:#9FB0C8;letter-spacing:.08em;margin-top:10px;">{{termEn}}</div>
+
+  <div style="margin:28px 0 40px;">
+    <span style="font-size:20px;padding:6px 18px;border-radius:999px;
+                 border:1px solid rgba(201,162,39,.6);color:#C9A227;">{{category}}</span>
+  </div>
+
+  <div style="font-size:22px;letter-spacing:.2em;color:#C9A227;margin-bottom:10px;">定义</div>
+  <p style="font-size:30px;line-height:1.9;margin-bottom:32px;">{{definition}}</p>
+
+  <div style="font-size:22px;letter-spacing:.2em;color:#C9A227;margin-bottom:10px;">说人话</div>
+  <p style="font-size:30px;line-height:1.9;margin-bottom:32px;">{{plainAnalogy}}</p>
+
+  <div style="font-size:22px;letter-spacing:.2em;color:#C9A227;margin-bottom:10px;">常见误用</div>
+  <p style="font-size:30px;line-height:1.9;margin-bottom:32px;">{{misuse}}</p>
+
+  <p style="font-size:22px;color:#9FB0C8;">关联词 · {{relatedTerms}}</p>
+
+  <!-- riskFlag != none 时保留下面这段，否则整段删除 -->
+  <div style="margin-top:36px;padding:20px 24px;border-left:4px solid #C9A227;
+              background:rgba(201,162,39,.12);border-radius:10px;
+              font-size:22px;line-height:1.7;color:#E3C766;">
+    ⚠️ 合规提示（{{riskFlag}}）：该名词涉及资质或宣传合规边界，落地前请由法务确认。
+  </div>
+</div>

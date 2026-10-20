@@ -1,0 +1,4 @@
+interface:
+  display_name: "Rion WeChat CLI"
+  short_description: "协助首次接入本人微信，只读检索聊天并生成简短自然的回复建议"
+  default_prompt: "用 $wechat-cli 检查本机微信接入状态，再按我的需求读取相关聊天或继续首次接入流程。"

@@ -1,0 +1,13 @@
+{
+  "_comment": "复制本文件为项目根的 settings.json 再填写。profile 二选一：tencent-cos / vercel。凭证绝不写入本文件，只读各平台 CLI 的本机登录态。任何公网部署执行前需确认。",
+  "profile": "tencent-cos",
+  "domain": "your-domain.example.com",
+  "bucket": "your-bucket-appid",
+  "region": "ap-guangzhou",
+  "_vercel_example": {
+    "profile": "vercel",
+    "project": "your-vercel-project",
+    "domain": "your-domain.com",
+    "_note": "静态页不要保留固定旧 runtime 版本的 vercel.json，用空配置 {} 或删除"
+  }
+}

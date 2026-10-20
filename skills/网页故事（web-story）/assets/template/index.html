@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<!--
+  网页故事 web-story 单页模板
+  用法：复制本目录到项目根，再改内容。填充说明都写在这样的注释里。
+  硬性规则（踩坑换来的，别删）：
+  - hero 的 min-height 必须带 min() 上限，否则全页截图假留白
+  - 首屏关键图用 loading="eager"，不要 lazy
+  - CSS reset 里的 img { height:auto } 别删
+  - JS 渲染完成后必须设 dataset.ready（验收脚本在等）
+-->
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- 改：页面标题与描述 -->
+<title>页面标题 — 一句话价值主张</title>
+<meta name="description" content="一句话说清这是什么、给谁看。">
+<style>
+  :root {
+    /* 改：主色 / 强调色（每页只允许一个视觉记忆点） */
+    --ink: #1a1d23;
+    --ink-soft: #4a5160;
+    --paper: #faf8f4;
+    --card: #ffffff;
+    --line: #e6e1d8;
+    --accent: #b3541e;
+    --radius: 12px;
+    --shadow: 0 2px 12px rgba(26, 29, 35, 0.08);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  /* 防图片被 HTML 属性撑变形（踩坑 #2） */
+  img { max-width: 100%; height: auto; display: block; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans SC", "Helvetica Neue", sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    line-height: 1.75;
+    /* 防长英文/URL 在 320px 撑出横向滚动（踩坑 #3） */
+    overflow-wrap: anywhere;
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
+  /* ===== Hero ===== */
+  .hero {
+    /* 防 svh 截图假留白：必须加 min() 上限（踩坑 #1） */
+    min-height: min(88svh, 860px);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 96px 0 64px;
+  }
+  .hero .kicker {
+    font-size: 14px;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+    font-weight: 600;
+    margin-bottom: 16px;
+  }
+  .hero h1 {
+    font-size: clamp(30px, 6vw, 52px);
+    line-height: 1.25;
+    font-weight: 700;
+    max-width: 18em;
+  }
+  .hero .lede {
+    margin-top: 20px;
+    font-size: 17px;
+    color: var(--ink-soft);
+    max-width: 34em;
+  }
+  /* ===== 锚点导航 ===== */
+  .nav {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: rgba(250, 248, 244, 0.92);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line);
+  }
+  .nav .wrap {
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .nav a {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 14px;
+    font-size: 14px;
+    color: var(--ink-soft);
+    text-decoration: none;
+    border-bottom: 2px solid transparent;
+    transition: color 200ms ease-out, border-color 200ms ease-out;
+  }
+  .nav a.active { color: var(--accent); border-bottom-color: var(--accent); }
+  /* ===== 章节 ===== */
+  .section { padding: 64px 0; }
+  .section + .section { border-top: 1px solid var(--line); }
+  .section h2 {
+    font-size: clamp(22px, 4vw, 30px);
+    line-height: 1.35;
+    max-width: 22em;
+    margin-bottom: 12px;
+  }
+  .section .sub { color: var(--ink-soft); max-width: 38em; margin-bottom: 32px; }
+  /* ===== 卡片 ===== */
+  .cards {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: 1fr;
+  }
+  @media (min-width: 700px) { .cards { grid-template-columns: 1fr 1fr; } }
+  @media (min-width: 1024px) { .cards { grid-template-columns: 1fr 1fr 1fr; } }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 24px;
+    box-shadow: var(--shadow);
+    transition: transform 200ms ease-out;
+  }
+  .card:hover { transform: translateY(-2px); }
+  .card h3 { font-size: 17px; margin-bottom: 8px; }
+  .card p { font-size: 15px; color: var(--ink-soft); }
+  .src { font-size: 13px; color: var(--ink-soft); opacity: 0.85; margin-top: 12px; }
+  /* ===== 滚动进入动画 ===== */
+  .reveal { opacity: 0; transform: translateY(16px); transition: opacity 300ms ease-out, transform 300ms ease-out; }
+  .reveal.in { opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .reveal { opacity: 1; transform: none; transition: none; }
+    .card, .nav a { transition: none; }
+  }
+  /* ===== 页脚 ===== */
+  footer {
+    border-top: 1px solid var(--line);
+    padding: 40px 0 56px;
+    font-size: 14px;
+    color: var(--ink-soft);
+  }
+</style>
+</head>
+<body>
+<!-- 改：hero。kicker=栏目定位，h1=一句话论点（拒绝空话），lede=这页讲什么 -->
+<header class="hero" id="top">
+  <div class="wrap">
+    <p class="kicker">栏目定位 · 一句话</p>
+    <h1>一句能把主题讲透的论点式标题</h1>
+    <p class="lede">这一页回答什么问题、给谁看、看完能拿走什么。两三句话，不堆形容词。</p>
+  </div>
+</header>
+<!-- 改：锚点导航，与下方 section 的 id 一一对应（验收会查断链） -->
+<nav class="nav" aria-label="页面章节">
+  <div class="wrap">
+    <a href="#s1" class="active">章节一</a>
+    <a href="#s2">章节二</a>
+    <a href="#s3">章节三</a>
+    <a href="#s4">行动</a>
+  </div>
+</nav>
+<main>
+  <!-- 改：章节标题写成论点，不写"介绍""详情"这种空词 -->
+  <section class="section" id="s1">
+    <div class="wrap">
+      <h2>第一个论点：一句话说清楚</h2>
+      <p class="sub">支撑这个论点的关键事实。每个数字都要能答出出处。</p>
+      <div class="cards">
+        <article class="card reveal">
+          <h3>卡片标题</h3>
+          <p>卡片正文：一个事实或一个例子，长短句混排。</p>
+          <p class="src">来源：机构 / 日期 / 口径</p>
+        </article>
+        <article class="card reveal">
+          <h3>卡片标题</h3>
+          <p>卡片正文。</p>
+          <p class="src">来源：机构 / 日期 / 口径</p>
+        </article>
+        <article class="card reveal">
+          <h3>卡片标题</h3>
+          <p>卡片正文。</p>
+          <p class="src">来源：机构 / 日期 / 口径</p>
+        </article>
+      </div>
+    </div>
+  </section>
+  <section class="section" id="s2">
+    <div class="wrap">
+      <h2>第二个论点</h2>
+      <p class="sub">章节导语。</p>
+      <div class="cards">
+        <article class="card reveal"><h3>卡片</h3><p>正文。</p></article>
+        <article class="card reveal"><h3>卡片</h3><p>正文。</p></article>
+      </div>
+    </div>
+  </section>
+  <section class="section" id="s3">
+    <div class="wrap">
+      <h2>第三个论点</h2>
+      <p class="sub">章节导语。</p>
+      <div class="cards">
+        <article class="card reveal"><h3>卡片</h3><p>正文。</p></article>
+        <article class="card reveal"><h3>卡片</h3><p>正文。</p></article>
+      </div>
+    </div>
+  </section>
+  <section class="section" id="s4">
+    <div class="wrap">
+      <h2>看完该做什么</h2>
+      <p class="sub">转发、报名、持续回访，或自己动手验证的路径。</p>
+    </div>
+  </section>
+</main>
+<footer>
+  <div class="wrap">
+    <!-- 改：来源清单与口径说明。预测类页面必须在这里写明"这是预测，非官方结论" -->
+    <p>来源与口径说明写在这里。</p>
+  </div>
+</footer>
+<script>
+  // 滚动进入动画
+  const io = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('in');
+        io.unobserve(entry.target);
+      }
+    }
+  }, { threshold: 0.12 });
+  document.querySelectorAll('.reveal').forEach((el) => io.observe(el));
+  // 锚点高亮
+  const links = Array.from(document.querySelectorAll('.nav a'));
+  const sections = links.map((a) => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+  const navIO = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      if (entry.isIntersecting) {
+        const id = '#' + entry.target.id;
+        links.forEach((a) => a.classList.toggle('active', a.getAttribute('href') === id));
+      }
+    }
+  }, { rootMargin: '-40% 0px -55% 0px' });
+  sections.forEach((s) => navIO.observe(s));
+  // 就绪标记：web-qa 验收脚本在等它，别删
+  document.documentElement.dataset.ready = 'true';
+</script>
+</body>
+</html>
