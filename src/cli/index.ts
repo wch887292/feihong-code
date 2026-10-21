@@ -148,6 +148,7 @@ async function main(): Promise<void> {
       stream: args.flags.stream,
       model: args.flags.model,
       tier: args.flags.tier,
+      json: args.flags.json,
       contextCompactEvery: args.flags.contextCompactEvery,
       contextMaxTokens: args.flags.contextMaxTokens,
     });

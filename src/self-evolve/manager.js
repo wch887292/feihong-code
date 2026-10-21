@@ -491,11 +491,16 @@ ${skill.created_at}
       this.saveData();
     }
 
-    console.log('[自我迭代] 系统已初始化');
-    console.log(`  - 基础目录: ${this.baseDir}`);
-    console.log(`  - 失败记录: ${this.failures.length} 条`);
-    console.log(`  - 技能库: ${this.skillsIndex.length} 个`);
-    console.log(`  - 历史记录: ${this.history.length} 条`);
+    // JSON 机器输出模式（--json）下 stdout 必须纯净，引路横幅改走 stderr
+    const banner = (msg) => {
+      if (process.env.FH_LOG_STREAM === 'stderr') process.stderr.write(msg + '\n');
+      else console.log(msg);
+    };
+    banner('[自我迭代] 系统已初始化');
+    banner(`  - 基础目录: ${this.baseDir}`);
+    banner(`  - 失败记录: ${this.failures.length} 条`);
+    banner(`  - 技能库: ${this.skillsIndex.length} 个`);
+    banner(`  - 历史记录: ${this.history.length} 条`);
   }
 }
 

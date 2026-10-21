@@ -12,4 +12,17 @@ if (mj < 22 || (mj === 22 && mn < 5)) {
   console.error('');
   process.exit(1);
 }
+
+/**
+ * 纯净 stdout 模式：以下三类调用的 stdout 必须只承载最终结果，
+ * 一切结构化日志（含 import 阶段的副作用日志）改走 stderr。
+ *  - --json：stdout 只输出唯一的 JSON 结果对象
+ *  - --version / --help：stdout 只输出版本号 / 帮助文本
+ * 本文件是入口的第一个 import，因此能在其他模块产生日志前完成切换。
+ */
+const CLEAN_STDOUT_FLAGS = ['--json', '--version', '--help'];
+if (!process.env.FH_LOG_STREAM && CLEAN_STDOUT_FLAGS.some((f) => process.argv.includes(f))) {
+  process.env.FH_LOG_STREAM = 'stderr';
+}
+
 export {};

@@ -35,6 +35,16 @@ export function redact(meta: Record<string, unknown>): Record<string, unknown> {
   return out;
 }
 
+/**
+ * 日志输出流选择。
+ * 默认：error → stderr，其余 → stdout（终端可读）。
+ * FH_LOG_STREAM=stderr 时全部走 stderr —— 供 MCP stdio / JSON 机器输出等
+ * 「stdout 必须是纯净协议流」的场景使用（见 src/tunnel/serve-entry.ts）。
+ */
+function logStream(): 'stdout' | 'stderr' {
+  return process.env.FH_LOG_STREAM === 'stderr' ? 'stderr' : 'stdout';
+}
+
 function emit(level: LogEntry['level'], msg: string, meta: Record<string, unknown>): void {
   const entry: LogEntry = {
     ts: new Date().toISOString(),
@@ -44,7 +54,8 @@ function emit(level: LogEntry['level'], msg: string, meta: Record<string, unknow
     ...redact(meta),
   };
   const line = JSON.stringify(entry);
-  if (level === 'error') process.stderr.write(line + '\n');
+  const stream = logStream();
+  if (level === 'error' || stream === 'stderr') process.stderr.write(line + '\n');
   else process.stdout.write(line + '\n');
 }
 

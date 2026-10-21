@@ -22,6 +22,10 @@ export const openAIMessageSchema = z.object({
         }),
       }),
     )
+    // 关键：ModelScope / Qwen 等网关在无工具调用时返回 "tool_calls": null，
+    // 而非省略该字段。仅 .optional() 允许缺省但拒绝显式 null，
+    // 会导致整包响应被 zod 拒掉、模型轮换耗尽后空转无产出。
+    .nullable()
     .optional(),
   tool_call_id: z.string().optional(),
 });

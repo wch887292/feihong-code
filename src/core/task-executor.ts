@@ -94,6 +94,9 @@ export interface RunOptions {
   /** 上下文 token 预算上限（默认 200000）。调大（如 200000/1000000）可承载更长的上下文。
    *  对应环境变量 FH_CONTEXT_MAX_TOKENS。 */
   contextMaxTokens?: number;
+  /** JSON 输出模式：stdout 只输出一个 JSON 结果对象，结构化日志走 stderr。
+   *  供 Cherry Studio「编码搭档」等外部编排器结构化消费。 */
+  json?: boolean;
 }
 
 /** 离线演示脚本：写文件 → 总结，跑通完整链路 */

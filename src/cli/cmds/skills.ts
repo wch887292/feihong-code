@@ -25,6 +25,33 @@ export async function runGoal(goal: string, opts: RunOptions = {}): Promise<void
   const result = await executeTask(goal, opts);
   const offline = opts.offline ?? isOfflineByDefault();
 
+  // JSON 模式（供 Cherry Studio「编码搭档」等外部编排器消费）：
+  // stdout 只输出一个 JSON 对象，结构化日志走 stderr。
+  if (opts.json) {
+    process.stderr.write(
+      JSON.stringify({
+        level: 'info',
+        msg: 'goal run finished',
+        runId: result.runId,
+        ok: result.ok,
+        iterations: result.iterations,
+        costUsd: result.costUsd,
+      }) + '\n',
+    );
+    process.stdout.write(
+      JSON.stringify({
+        ok: result.ok,
+        finalAnswer: result.finalAnswer.trim(),
+        iterations: result.iterations,
+        costUsd: result.costUsd,
+        runId: result.runId,
+        logFile: result.logFile,
+      }) + '\n',
+    );
+    if (!result.ok) process.exitCode = 1;
+    return;
+  }
+
   // 只输出最终答案，不打印迭代数、成本、日志路径等技术信息
   if (result.finalAnswer.trim()) {
     console.log('');
