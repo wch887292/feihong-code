@@ -241,16 +241,37 @@ test('run: 经验目录写入经验条目', async () => {
   }
 });
 
-test('run: 累计自愈达到上限时自动终止且不虚报计数（2026-10-05 事故回归）', async () => {
+test('run: 自愈一次循环，达上限即换路线继续而非终止（2026-10-21 吴总规则回归）', async () => {
+  // 吴总规则（2026-10-21）：
+  //   1. 自愈只保留一次循环（第 1 次失败反思重试；errorHistory 先 push 再比较，故常量 MAX_TOTAL_SELF_HEALS = 2）
+  //   2. 不行就换思路换方向——第 2 次失败即注入「换路线」强指令继续推进
+  //   3. 不终止任务——遗留问题记录到每日 12:00 统一自愈修复批次
   let round = 0;
+  const healEvents: Array<{ strategy?: string; totalHeals?: number }> = [];
+  let sawBypassPrompt = false;
+  let sawReflectPrompt = false;
   const orch = new Orchestrator(
     baseDeps({
-      maxIterations: 40, // 上限 10 应远早于迭代上限触发
+      maxIterations: 12, // 自愈上限 2 应远早于迭代上限触发，但任务不得提前终止
+      eventLog: {
+        append: async (type: string, payload: Record<string, unknown>) => {
+          if (type === 'self-heal') healEvents.push(payload as { strategy?: string; totalHeals?: number });
+        },
+        filePath: '/tmp/fhcode-test.log',
+      } as unknown as OrchestratorDeps['eventLog'],
       router: {
-        chat: async () => {
+        chat: async (req: ChatReq) => {
+          const last = req.messages[req.messages.length - 1];
+          if (last?.role === 'user' && typeof last.content === 'string') {
+            if (last.content.includes('自愈一次仍未解决')) sawBypassPrompt = true;
+            if (last.content.includes('上一轮工具执行失败')) sawReflectPrompt = true;
+          }
           round++;
-          // 每轮发出 round+1 个失败工具调用（args 唯一，避免触发重复调用/打转检测）
-          const toolCalls = Array.from({ length: round + 1 }, (_, i) => ({
+          // 第 1 轮只发 1 个失败调用——让「第一次失败→注入反思提示」先发生；
+          // 第 2 轮起发 round+1 个失败调用——第二次失败即触顶走换路线
+          // （args 唯一，避免触发重复调用/打转检测）
+          const callCount = round === 1 ? 1 : round + 1;
+          const toolCalls = Array.from({ length: callCount }, (_, i) => ({
             id: `t${round}-${i}`,
             name: 'run_shell',
             arguments: { command: `fail-${round}-${i}` },
@@ -266,9 +287,16 @@ test('run: 累计自愈达到上限时自动终止且不虚报计数（2026-10-0
     }),
   );
   const result = await orch.run('必败任务');
-  assert.match(result.finalAnswer, /自动终止/, '应因自愈上限终止，而非迭代上限');
-  assert.ok(!/最大迭代/.test(result.finalAnswer), '不应耗尽迭代上限');
-  assert.ok(result.iterations < 40, `应在远早于迭代上限处停止，实际 ${result.iterations}`);
+  // 规则 1：自愈一次循环——第一次失败注入反思提示
+  assert.ok(sawReflectPrompt, '第一次失败应注入反思提示（自愈一次循环）');
+  // 规则 2：达上限换路线——注入「换路线」强指令
+  assert.ok(sawBypassPrompt, '自愈额度用尽应注入换路线强指令');
+  const strategies = healEvents.map((e) => e.strategy);
+  assert.ok(strategies.includes('reflect-retry'), '应记录 reflect-retry 自愈事件');
+  assert.ok(strategies.includes('bypass-and-continue'), '应记录 bypass-and-continue 换路线事件');
+  // 规则 3：不终止——任务跑到迭代上限自然结束，而非自愈上限「自动终止」
+  assert.ok(!/自动终止/.test(result.finalAnswer), '自愈上限用尽不应再自动终止任务');
+  assert.match(result.finalAnswer, /最大迭代/, '应跑到迭代上限自然结束');
 });
 
 test('run: 同文原地打转时注入强化提示并列出已成功工具（2026-10-05 第二次事故回归）', async () => {

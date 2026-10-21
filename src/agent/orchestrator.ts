@@ -860,10 +860,13 @@ ${toolHint}
     return roundErrors;
   }
 
-  /** 错误检测与自愈：返回 'break'（达重试上限）/ 'continue'（已注入反思）/ 'none'（未触发）
-   *  累计自愈上限 MAX_TOTAL_SELF_HEALS = 10：防止模型在同一问题上无限死循环，
-   *  超过后强制终止并给出明确提示，引导用户换思路或简化目标。 */
-  private static readonly MAX_TOTAL_SELF_HEALS = 10;
+  /** 错误检测与自愈：返回 'break'（保留的硬终止通道，正常不会触发）/ 'continue'（已注入反思或换路线）/ 'none'（未触发）
+   *  吴总规则（2026-10-21 明确）：自愈只保留一次循环。
+   *  计数时序：第 N 次失败时 errorHistory 先 push 再与上限比较，故 MAX_TOTAL_SELF_HEALS = 2 的语义为——
+   *  第 1 次失败注入反思提示重试（一次自愈循环）；第 2 次失败即用尽额度，
+   *  不再终止任务，而是注入「换路线」强指令逼模型放弃当前路径、换思路换方向继续推进；
+   *  遗留问题全量写入审计日志，由每日 12:00 统一自愈修复批次处理。 */
+  private static readonly MAX_TOTAL_SELF_HEALS = 2;
 
   private async handleRecovery(
     _msg: ChatMessage,
@@ -911,26 +914,35 @@ ${toolHint}
     }
 
     // 累计自愈上限：errorHistory.length 即为累计错误/自愈次数（每次自愈 push 一条，上限内）
+    // 吴总规则：自愈额度用尽（MAX_TOTAL_SELF_HEALS = 1）后不终止任务，强制换路线继续推进，
+    // 遗留问题写入审计日志，交由每日 12:00 统一自愈修复批次处理。
     const totalHeals = input.errorHistory.length;
     if (totalHeals >= Orchestrator.MAX_TOTAL_SELF_HEALS) {
       const errorTypes = input.errorHistory.map((e) => e.category).join(', ');
       const lastError = input.errorHistory[input.errorHistory.length - 1];
+      const capCategory = lastError?.category ?? 'unknown';
       const truncNote = truncated > 0 ? `\n**补充**: 本轮另有 ${truncated} 条错误因达到记录上限未计入统计（已全量写入审计日志）。` : '';
-      const finalAnswer = `任务已累计自我修复 ${totalHeals} 次仍未解决问题，已自动终止。
+      const bypassOnCapPrompt = `⚠️ 自愈一次仍未解决（累计失败 ${totalHeals} 次），在当前路径上继续修复已无意义，本任务不再重试自愈。
 
-**问题分析**：当前思路或方法可能根本走不通，反复修复同一个问题没有意义。
-**错误类型分布**: ${errorTypes}${truncNote}
+**错误类型**: ${errorTypes}${truncNote}
 **最后错误**: ${lastError?.message || '未知'}
 
-**建议**：
-1. 彻底换一种实现思路——不要在原来的代码上继续修
-2. 简化目标——先做出能跑的最小版本，再逐步加功能
-3. 换工具/换库/换架构——如果某个方案一直失败，说明它可能不适合当前场景
-4. 先用 list_dir 全面勘察当前目录，确认在正确的位置、有哪些文件可用
-5. 在对话区发送新的指令，描述你想换的思路，我会重新开始`;
-      await input.eventLog.append('error', { reason: 'max-total-self-heals', totalHeals, errors: input.errorHistory });
-      logger.warn('orchestrator hit max total self-heals', { runId: input.sessionRunId, totalHeals, max: Orchestrator.MAX_TOTAL_SELF_HEALS });
-      return { signal: 'break', messages, consecutiveErrors: errors, selfHealed: false, finalAnswer };
+🚨 **现在必须彻底换路线继续完成任务，而不是停下或重复原路径**：
+
+1. **绕开问题**：放弃当前失败的操作/代码/工具，用完全不同的方式实现同一个目标
+2. **先勘察再行动**：用 list_dir / read_file 确认当前环境、目录结构、有哪些文件可用，找到替代路径
+3. **分步推进**：把大目标拆成小步骤，先完成不受错误影响的步骤，把能跑的基础版本做出来
+4. **绝对不要**：用相同参数重复调用同一个已失败的工具；不要死磕同一个思路
+5. **最终兜底**：如果确实绕不开，也要先交付一个可用的中间结果（能运行的简化版、报告/说明文档、列出已完成进展和剩余阻碍），而不是空手停止
+6. 遗留问题已记录到审计日志，将由每日 12:00 统一自愈修复批次处理，当前任务先向前交付
+
+请重新规划执行路径，换一种方式继续推进任务。`;
+      const reflectMsg: ChatMessage = { role: 'user', content: bypassOnCapPrompt };
+      const newMessages = [...messages, reflectMsg];
+      await input.eventLog.append('self-heal', { category: capCategory, iteration: input.iteration, totalHeals, strategy: 'bypass-and-continue' });
+      this.deps.onEvent?.({ type: 'self-heal', category: capCategory, iteration: input.iteration, strategy: 'bypass-and-continue' });
+      logger.warn('orchestrator self-heal cap reached, switching route instead of aborting', { runId: input.sessionRunId, totalHeals, max: Orchestrator.MAX_TOTAL_SELF_HEALS });
+      return { signal: 'continue', messages: newMessages, consecutiveErrors: errors, selfHealed: true, finalAnswer: '' };
     }
 
     // 用最后一个错误生成反思提示词
@@ -983,7 +995,7 @@ ${toolHint}
     const selfHealed = true;
     // 传入累计修复次数 totalHeals，让提示词根据次数动态调整策略（次数越多越强调换思路）
     const newMessages = injectReflection(messages, errorAnalysis, input.goal, lastToolCall, totalHeals);
-    await input.eventLog.append('self-heal', { category: errorAnalysis.category, iteration: input.iteration, totalHeals });
+    await input.eventLog.append('self-heal', { category: errorAnalysis.category, iteration: input.iteration, totalHeals, strategy: 'reflect-retry' });
     this.deps.onEvent?.({ type: 'self-heal', category: errorAnalysis.category, iteration: input.iteration, strategy: 'reflect-retry' });
     logger.info('self-heal: injected reflection', { iteration: input.iteration, category: errorAnalysis.category, totalHeals });
     return { signal: 'continue', messages: newMessages, consecutiveErrors, selfHealed, finalAnswer: '' };
