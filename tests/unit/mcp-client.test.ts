@@ -13,7 +13,6 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { spawn } from 'child_process';
 import { McpClient } from '../../src/tools/mcp/mcp-client';
 
 /** 生成一个最简 MCP stdio 服务器的内联脚本 */
@@ -64,23 +63,22 @@ function makeMockScript(opts = {}) {
 }
 
 function createClient(script) {
-  const child = spawn(process.execPath, ['-e', script], {
-    stdio: ['pipe', 'pipe', 'pipe'],
-    windowsHide: true,
-  });
+  // McpClient 自行 spawn 并管理服务器进程（connect 内 spawn、close 内收尾），
+  // 此处不再外部 spawn 冗余进程（历史遗留：早期客户端不自带 spawn，现已重构）。
   const client = new McpClient({
     name: 'inline-mock',
     command: process.execPath,
     args: ['-e', script],
-    initTimeoutMs: 5000,
-    callTimeoutMs: 5000,
+    // 对齐生产默认 15s：全量并发跑时 node -e 冷启动 + 管道握手可能超过 5s（实测 flaky）
+    initTimeoutMs: 15000,
+    callTimeoutMs: 15000,
   });
-  return { client, child };
+  return { client };
 }
 
 test('McpClient: initialize 握手 + listTools 列出工具', async () => {
   const script = makeMockScript();
-  const { client, child } = createClient(script);
+  const { client } = createClient(script);
   try {
     await client.connect();
     const tools = await client.listTools();
@@ -89,13 +87,12 @@ test('McpClient: initialize 握手 + listTools 列出工具', async () => {
     assert.ok(tools.some((t) => t.name === 'fail'));
   } finally {
     await client.close();
-    child.kill();
   }
 });
 
 test('McpClient: callTool 成功返回文本结果', async () => {
   const script = makeMockScript();
-  const { client, child } = createClient(script);
+  const { client } = createClient(script);
   try {
     await client.connect();
     const res = await client.callTool('ping', {});
@@ -103,13 +100,12 @@ test('McpClient: callTool 成功返回文本结果', async () => {
     assert.equal(res.output, 'pong');
   } finally {
     await client.close();
-    child.kill();
   }
 });
 
 test('McpClient: callTool 未知工具时 ok=false', async () => {
   const script = makeMockScript();
-  const { client, child } = createClient(script);
+  const { client } = createClient(script);
   try {
     await client.connect();
     const res = await client.callTool('nonexistent', {});
@@ -117,22 +113,20 @@ test('McpClient: callTool 未知工具时 ok=false', async () => {
     assert.ok(res.error?.includes('unknown tool'), '应提示未知工具');
   } finally {
     await client.close();
-    child.kill();
   }
 });
 
 test('McpClient: close 幂等，重复调用不抛错', async () => {
   const script = makeMockScript();
-  const { client, child } = createClient(script);
+  const { client } = createClient(script);
   await client.connect();
   await client.close();
   await client.close(); // 第二次应静默
-  child.kill();
 });
 
 test('McpClient: 服务器不响应 initialize 时 connect 抛错', async () => {
   const script = makeMockScript({ respondInitialize: false });
-  const { client, child } = createClient(script);
+  const { client } = createClient(script);
   try {
     await client.connect();
     assert.fail('应因 initialize 失败而抛错');
@@ -140,13 +134,12 @@ test('McpClient: 服务器不响应 initialize 时 connect 抛错', async () => 
     assert.ok(e instanceof Error, '应抛出 Error');
   } finally {
     await client.close();
-    child.kill();
   }
 });
 
 test('McpClient: stderr 摘要可用', async () => {
   const script = makeMockScript({ writeStderr: true });
-  const { client, child } = createClient(script);
+  const { client } = createClient(script);
   try {
     await client.connect();
     // 短暂等待 stderr 累积
@@ -155,7 +148,6 @@ test('McpClient: stderr 摘要可用', async () => {
     assert.ok(client.stderrTail.includes('debug log'), '应包含 stderr 输出');
   } finally {
     await client.close();
-    child.kill();
   }
 });
 
@@ -181,14 +173,13 @@ test('McpClient: 非 JSON 行被忽略不抛错', async () => {
       }
     });
   `;
-  const { client, child } = createClient(script);
+  const { client } = createClient(script);
   try {
     await client.connect();
     const tools = await client.listTools();
     assert.equal(tools.length, 0);
   } finally {
     await client.close();
-    child.kill();
   }
 });
 
@@ -214,7 +205,7 @@ test('McpClient: 进程意外退出时 pending call 被 reject', async () => {
       }
     });
   `;
-  const { client, child } = createClient(script);
+  const { client } = createClient(script);
   try {
     await client.connect();
     await client.listTools(); // 这会触发服务器退出
@@ -226,7 +217,6 @@ test('McpClient: 进程意外退出时 pending call 被 reject', async () => {
     );
   } finally {
     await client.close();
-    child.kill();
   }
 });
 
@@ -256,7 +246,7 @@ test('McpClient: callTool 终结性错误立即抛出不重试', async () => {
       }
     });
   `;
-  const { client, child } = createClient(script);
+  const { client } = createClient(script);
   try {
     await client.connect();
     await client.listTools();
@@ -266,6 +256,5 @@ test('McpClient: callTool 终结性错误立即抛出不重试', async () => {
     assert.equal(r.output, 'ok');
   } finally {
     await client.close().catch(() => undefined);
-    child.kill();
   }
 });

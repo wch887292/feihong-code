@@ -18,8 +18,9 @@ function serverCfg(overrides = {}) {
     name: 'mock',
     command: process.execPath,
     args: [FIXTURE],
-    initTimeoutMs: 5000,
-    callTimeoutMs: 5000,
+    // 对齐生产默认 15s：全量并发跑时 node 冷启动 + 管道握手可能超过 5s（实测 flaky）
+    initTimeoutMs: 15000,
+    callTimeoutMs: 15000,
     ...overrides,
   };
 }

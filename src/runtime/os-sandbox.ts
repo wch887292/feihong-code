@@ -133,11 +133,40 @@ function runRestricted(command: string, cwd: string, env: Record<string, string>
     let stdout = '';
     let stderr = '';
     let timedOut = false;
+    // 强杀后的最终兜底定时器：Windows 下孙进程（如 ping）持有继承的 stderr pipe
+    // 句柄，即使 shell 被杀，close 也会延迟到命令自然结束（实测等到 29s）。
+    // 该定时器保证超时后至多再等 3s 即按 timedOut 结算，防止永久挂起。
+    let forceKillTimer: NodeJS.Timeout | null = null;
+    const finish = (result: OsSandboxRunResult): void => {
+      if (forceKillTimer) {
+        clearTimeout(forceKillTimer);
+        forceKillTimer = null;
+      }
+      resolve(result);
+    };
     const timer = setTimeout(() => {
       timedOut = true;
       if (process.platform === 'win32') {
-        // Windows 需杀整棵进程树（child.kill 只杀 shell）
-        execFile('taskkill', ['/pid', String(child.pid), '/T', '/F'], () => {});
+        // Windows 需杀整棵进程树（child.kill 只杀 shell，孙进程会继续持有
+        // 继承的 stdio pipe 句柄，使 close 延迟到命令自然结束）。
+        // taskkill /T /F 从 shell pid 遍历整树，是可靠手段；
+        // 若其不可用/被安全策略拦截（execFile 报错），兜底同步强杀 shell 本体。
+        execFile('taskkill', ['/pid', String(child.pid), '/T', '/F'], (error) => {
+          if (error) {
+            try { child.kill('SIGKILL'); } catch { /* noop */ }
+          }
+        });
+        forceKillTimer = setTimeout(() => {
+          finish({
+            success: false,
+            exitCode: -1,
+            stdout,
+            stderr: stderr + `\n[os-sandbox] 进程树强杀未在 3s 内生效，已按超时强制结算（pid=${child.pid ?? 'unknown'}）`,
+            timedOut: true,
+            durationMs: Date.now() - start,
+            backend: 'restricted',
+          });
+        }, 3000);
       } else {
         child.kill('SIGKILL');
       }
@@ -146,11 +175,11 @@ function runRestricted(command: string, cwd: string, env: Record<string, string>
     child.stderr.on('data', (d: Buffer) => { stderr += d.toString(); });
     child.on('close', (code) => {
       clearTimeout(timer);
-      resolve({ success: code === 0, exitCode: code ?? -1, stdout, stderr, timedOut, durationMs: Date.now() - start, backend: 'restricted' });
+      finish({ success: code === 0, exitCode: code ?? -1, stdout, stderr, timedOut, durationMs: Date.now() - start, backend: 'restricted' });
     });
     child.on('error', (e) => {
       clearTimeout(timer);
-      resolve({ success: false, exitCode: -1, stdout, stderr: `执行失败: ${e.message}`, timedOut, durationMs: Date.now() - start, backend: 'restricted' });
+      finish({ success: false, exitCode: -1, stdout, stderr: `执行失败: ${e.message}`, timedOut, durationMs: Date.now() - start, backend: 'restricted' });
     });
   });
 }
