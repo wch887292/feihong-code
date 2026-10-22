@@ -49,6 +49,11 @@ import {
  *  覆盖「read_file 循环 → 换 list_dir 继续循环」这类绕过单 cacheKey 检测的打转。 */
 const NO_PROGRESS_WARN = 5;
 const NO_PROGRESS_ABORT = 8;
+/** 模型空输出熔断阈值（2026-10-22 事故修复）：
+ *  模型连续 N 轮「无工具调用 且 content 为空/仅空白」→ 判定大会话退化窗口，
+ *  异常终止并给出诊断（查模型/key、拆窄 goal），不再静默 ok:true 收尾、0 产出。
+ *  区别于 NO_PROGRESS（数重复工具调用）与 text-only-nudge（数计划性文字）。 */
+const EMPTY_CONTENT_ABORT = 3;
 import { compactContext, shouldCompact, getCompactionThreshold, shouldCompactByTokens } from './context-compactor';
 import {
   extractExperience,
@@ -367,7 +372,8 @@ export class Orchestrator {
     let sameTextStreak = 0;
     let loopBreaks = 0;
     let textOnlyStreak = 0;
-
+    // 模型空输出连击计数（大会话退化窗口熔断）：连续无工具调用且 content 空/仅空白，达到 EMPTY_CONTENT_ABORT 硬终止
+    let emptyContentStreak = 0;
     // 检查点落盘（闭包引用最新 calls/cost/touchedFiles）
     const emitCheckpoint = async (status: SessionStatus): Promise<void> => {
       if (!persist) return;
@@ -489,23 +495,63 @@ export class Orchestrator {
       // 已有文件改动 / FINAL: 前缀 / 连续 3 轮纯文本 → 接受为最终答案；
       // 否则注入 nudge 引导消息，强制模型实际调用工具推进任务
       if (!msg.toolCalls || msg.toolCalls.length === 0) {
+        const rawText = (msg.content || '').trim();
+        // 模型空输出熔断（大会话退化窗口）：连续 N 轮「无工具调用 且 content 空/仅空白」
+        // → 判定 unisound 等模型大会话吐空，异常终止并给出诊断，不再静默 ok:true 收尾、0 产出。
+        if (rawText === '') {
+          emptyContentStreak++;
+          if (emptyContentStreak >= EMPTY_CONTENT_ABORT) {
+            finalAnswer = `检测到模型连续 ${emptyContentStreak} 轮空输出（无工具调用且正文为空），判定进入大会话退化窗口，已自动终止。`
+              + `本任务 0 实质产出。请：① 检查当前模型（unisound/u2-flash 大会话易吐空）与 API key 是否失效；`
+              + `② 把大 goal 拆成「写文件 / 编译 / 验证」更窄的单一阶段重发；③ 换用更小的模型或清空会话历史重试。`;
+            abnormalEnd = true;
+            await eventLog.append('error', { reason: 'empty-content-abort', emptyContentStreak });
+            logger.warn('orchestrator empty-content abort', { runId: session.runId, emptyContentStreak });
+            calls++;
+            break;
+          }
+        }
         const decision = resolveNoToolCall(msg.content || '', touchedFiles.length, textOnlyStreak);
         if (decision.action === 'finish') {
+          // 观测（2026-10-22 事故修复·续）：isDeadLoop 兜底放行纯文本答案时，若全程 0 文件改动
+          // 且非显式 FINAL:，记录 no-progress-no-output 审计信号——可能是「反复吐计划空话 /
+          // 工具调用中途被截断」的 unisound 大会话退化。但【不在此硬终止】：编排器层面无法可靠
+          // 区分「退化打转」与「合法的纯问答直接给答案（0 改动、无 FINAL: 前缀）」，强行掐会误杀
+          // 纯问答场景（见 orchestrator.test / agent-session.test 的合法完成用例）。真正的硬熔断
+          // 由上方第一层 empty-content-abort（彻底吐空串）承担；本处仅留观测，不改控制流、
+          // 不覆盖 finalAnswer、不设 abnormalEnd。
+          const isExplicitFinal = /^final\s*:/i.test(rawText);
+          if (touchedFiles.length === 0 && !isExplicitFinal) {
+            await eventLog.append('error', { reason: 'no-progress-no-output', textOnlyStreak, observed: true });
+            logger.warn('orchestrator no-progress observed (pure-text finish, 0 file changes)', { runId: session.runId, textOnlyStreak });
+          }
           finalAnswer = decision.finalAnswer;
           break;
         }
-        textOnlyStreak++;
-        const nudgeMsg: ChatMessage = { role: 'user', content: buildTextOnlyNudgeMessage((msg.content || '').trim()) };
-        messages.push(nudgeMsg);
-        session.append(nudgeMsg);
-        await eventLog.append('self-heal', { category: 'text-only-nudge', iteration: calls, streak: textOnlyStreak });
-        this.deps.onEvent?.({ type: 'self-heal', category: 'text-only-nudge', iteration: calls, strategy: 'text-only-nudge' });
-        logger.info('orchestrator: injected text-only nudge', { runId: session.runId, streak: textOnlyStreak, iteration: calls });
+        // 仅对「非空计划性文字」累计 nudge 连击；空输出走上方熔断计数，避免两套计数打架
+        if (rawText !== '') {
+          textOnlyStreak++;
+          const nudgeMsg: ChatMessage = { role: 'user', content: buildTextOnlyNudgeMessage(rawText) };
+          messages.push(nudgeMsg);
+          session.append(nudgeMsg);
+          await eventLog.append('self-heal', { category: 'text-only-nudge', iteration: calls, streak: textOnlyStreak });
+          this.deps.onEvent?.({ type: 'self-heal', category: 'text-only-nudge', iteration: calls, strategy: 'text-only-nudge' });
+          logger.info('orchestrator: injected text-only nudge', { runId: session.runId, streak: textOnlyStreak, iteration: calls });
+        } else {
+          // 空输出连击未达熔断阈值：注入一次恢复 nudge，引导模型回到工具调用
+          const nudgeMsg: ChatMessage = { role: 'user', content: buildTextOnlyNudgeMessage('') };
+          messages.push(nudgeMsg);
+          session.append(nudgeMsg);
+          await eventLog.append('self-heal', { category: 'text-only-nudge', iteration: calls, streak: emptyContentStreak, empty: true });
+          this.deps.onEvent?.({ type: 'self-heal', category: 'text-only-nudge', iteration: calls, strategy: 'text-only-nudge' });
+          logger.info('orchestrator: model empty output, nudged', { runId: session.runId, emptyContentStreak, iteration: calls });
+        }
         continue;
       }
 
-      // 有工具调用 → 重置纯文本连击计数
+      // 有工具调用 → 重置纯文本连击与空输出连击计数
       textOnlyStreak = 0;
+      emptyContentStreak = 0;
 
       // M4：单任务成本熔断（超预算立即停手，避免失控烧钱）
       if (maxCost > 0 && cost >= maxCost) {
@@ -714,11 +760,13 @@ ${toolHint}
       type: 'session.end',
       iterations: baselineIterations + calls,
       costUsd: cost,
-      ok: finalAnswer.length > 0,
+      // abnormalEnd（空输出熔断/成本上限/打转/迭代上限等）视为未完成，ok 必须为 false，
+      // 即便 finalAnswer 带有诊断文本也不得伪装成功（2026-10-22 事故：空输出却报 ok:true）。
+      ok: !abnormalEnd && finalAnswer.length > 0,
     });
 
     return {
-      ok: finalAnswer.length > 0,
+      ok: !abnormalEnd && finalAnswer.length > 0,
       finalAnswer,
       iterations: baselineIterations + calls,
       costUsd: cost,
