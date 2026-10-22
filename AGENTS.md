@@ -5,7 +5,7 @@
 ## 一、项目基本信息
 
 - **项目路径**：`H:\feihong-code`（主仓库，旧路径 `H:\Muse Code复刻` 已废弃）
-- **版本**：8.9.0
+- **版本**：8.12.0
 - **技术栈**：Node.js 22+ / TypeScript / Express / SQLite / Electron / Capacitor
 - **构建**：`npm run build`（tsc + copy-web）
 - **主服务**：`node dist/cli/index.js serve --port 8082`
