@@ -10,6 +10,8 @@
 
 const express = require('express');
 const store = require('./store');
+const path = require('path');
+const fs = require('fs');
 
 const PORT = Number(process.env.FHCODE_SYNC_PORT) || 8787;
 const HOST = process.env.FHCODE_SYNC_HOST || '0.0.0.0';
@@ -100,6 +102,39 @@ app.post('/api/sessions/:runId/status', (req, res) => {
   } catch (e) {
     res.status(400).json({ ok: false, error: e.message });
   }
+});
+
+// ===================== 静态文件服务（app-mobile） ======
+const MOBILE_DIR = path.join(__dirname, '..', 'app-mobile');
+
+function isPathSafe(requestPath, baseDir) {
+  const resolved = path.resolve(baseDir, requestPath);
+  return resolved.startsWith(path.resolve(baseDir));
+}
+
+app.use('/m', express.static(MOBILE_DIR, {
+  setHeaders: (res, pathname) => {
+    if (pathname.endsWith('.html')) res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    else if (pathname.endsWith('.css')) res.setHeader('Content-Type', 'text/css; charset=utf-8');
+    else if (pathname.endsWith('.js')) res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+  }
+}));
+
+// 自定义路由处理 /m/ 和路径穿越防护
+app.get('/m', (req, res) => {
+  res.redirect('/m/index.html');
+});
+
+app.get('/m/*', (req, res) => {
+  const requestedPath = req.params[0];
+  if (!isPathSafe(requestedPath, MOBILE_DIR)) {
+    return res.status(400).json({ ok: false, error: '非法路径' });
+  }
+  const filePath = path.join(MOBILE_DIR, requestedPath);
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ ok: false, error: 'Not Found' });
+  }
+  res.sendFile(filePath);
 });
 
 // ===================== 启动 =====================
