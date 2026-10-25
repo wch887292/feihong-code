@@ -19,6 +19,15 @@ import { existsSync, readdirSync, readFileSync, writeFileSync, mkdirSync, rename
 import { join } from 'path';
 import type { MessageChannels } from './channels';
 import type { ChatMessage } from '../models/model.interface';
+import type { CapabilityTag } from '../shared/types';
+
+/** 合法能力标签集合：models.json 自由字符串收窄为 CapabilityTag 用 */
+const VALID_CAPABILITY_TAGS: readonly string[] = ['code-gen', 'reasoning', 'long-context', 'vision', 'cheap', 'local'];
+
+function toCapabilityTags(tags?: string[]): CapabilityTag[] | undefined {
+  const filtered = tags?.filter((t): t is CapabilityTag => VALID_CAPABILITY_TAGS.includes(t));
+  return filtered && filtered.length > 0 ? filtered : undefined;
+}
 
 export type TaskStatus = 'queued' | 'running' | 'done' | 'failed';
 
@@ -136,8 +145,8 @@ export interface TaskQueueOptions {
   channels?: MessageChannels;
   /** P6-4：任务持久化目录（跨进程/重启恢复；不配置则纯内存） */
   persistDir?: string;
-  /** Web 控制台模型配置列表（models.json），供 executeTask 使用真实模型 */
-  modelProviders?: Array<{ id: string; type: 'openai-compatible' | 'ollama' | 'anthropic-messages'; baseURL: string; apiKey?: string; apiKeyEnv?: string; model?: string }>;
+  /** Web 控制台模型配置列表（models.json），供 executeTask 使用真实模型；tags 用于能力过滤（如 vision 模型不进 code-gen 轮换池） */
+  modelProviders?: Array<{ id: string; type: 'openai-compatible' | 'ollama' | 'anthropic-messages'; baseURL: string; apiKey?: string; apiKeyEnv?: string; model?: string; tags?: string[] }>;
   /** 离线模式：使用内置 mock 模型（无需任何 API key），用于 Web 控制台演示与单元测试 */
   offline?: boolean;
   /** P3-1：文件写入暂存回调（注入 change-manager.stageChange），AI 生成的修改自动记录到变更面板 */
@@ -155,7 +164,7 @@ export class TaskQueue {
   private readonly channels?: MessageChannels;
   private readonly persistDir?: string;
   /** Web 控制台配置的模型列表 */
-  private modelProviders?: Array<{ id: string; type: 'openai-compatible' | 'ollama' | 'anthropic-messages'; baseURL: string; apiKey?: string; apiKeyEnv?: string }>;
+  private modelProviders?: Array<{ id: string; type: 'openai-compatible' | 'ollama' | 'anthropic-messages'; baseURL: string; apiKey?: string; apiKeyEnv?: string; tags?: string[] }>;
   /** 离线模式标志（内置 mock 模型，无需 API key） */
   private readonly offline: boolean;
   /** P3-1：文件写入暂存回调（AI 生成的修改自动记录到变更面板） */
@@ -590,7 +599,7 @@ export class TaskQueue {
         // 实时捕获编排器事件，写入该任务的思维链路步骤
         renderer: (ev) => this.appendStep(id, ev),
         modelProviders: modelId && this.modelProviders
-          ? this.modelProviders.filter(m => m.id === modelId)
+          ? this.modelProviders.filter(m => m.id === modelId).map(m => ({ ...m, tags: toCapabilityTags(m.tags) }))
           : undefined,
         // 从任务权限映射安全设置，不再硬编码全权限
         security: buildSecurityFromPermissions(record.permissions),

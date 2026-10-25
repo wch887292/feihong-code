@@ -13,7 +13,7 @@
  * 鉴权：Bearer Token（fail-closed），主令牌（FH_WEB_TOKEN）与会话令牌并行。
  * 安全：三层防护——传输层(HTTPS/TLS) + 应用层(请求签名/防重放/暴力破解锁定) + 数据层(AES-256-GCM 落盘加密)
  */
-import express, { type Request, type Response } from 'express';
+import express, { type Request, type Response, type Handler } from 'express';
 import { randomBytes } from 'crypto';
 import type { AddressInfo } from 'net';
 import { join, resolve, relative, isAbsolute, dirname } from 'path';
@@ -26,6 +26,20 @@ import {
   unlinkSync,
 } from 'fs';
 import { securityHeaders, verifyRequestSignature, BruteForceGuard } from '../security';
+import {
+  requestIdMiddleware,
+  notFoundHandler,
+  globalErrorHandler,
+  validateBody,
+} from './http-guards';
+import {
+  taskBodySchema,
+  taskMessageBodySchema,
+  webhookBodySchema,
+  memoryShortBodySchema,
+  memoryAppendBodySchema,
+  honchoRememberBodySchema,
+} from './schemas';
 import { requireToken, SessionStore, type Session, WELCOME_TASKS } from './auth';
 import { timingSafeEqual } from 'crypto';
 import { loginAccount, resolveAccountHome } from '../security/account';
@@ -82,6 +96,11 @@ import { FeishuIntegration } from '../integrations/collaboration';
 // v8.0：SQLite 数据存储 + Honcho 云端记忆（本地部署）
 import { getStore } from '../shared/sqlite-store';
 import { getHonchoStore } from '../memory/honcho-store';
+// P1 完整性溯源 + 崩溃恢复（对标 Today CN DesktopStartupRecovery / checksums.json）
+import { findRecoverable } from '../runtime/recovery';
+import { verifyCheckpointManifest } from '../runtime/provenance';
+import { listCheckpoints, loadCheckpoint } from '../runtime/session-persist';
+import { getSessionHome, isOfflineByDefault } from '../core/task-executor';
 
 export interface ServeOptions {
   port?: number;
@@ -147,6 +166,8 @@ export function startWebServer(opts: ServeOptions = {}): {
   }
 
   const app = express();
+  // 全栈铁律7：请求 ID 透传（每个请求生成/沿用 X-Request-Id，随结构化日志自动传播）
+  app.use(requestIdMiddleware);
   // CORS：允许跨域访问（接口已有 Bearer Token + HMAC 签名双重鉴权，放开 Origin 风险可控；
   // 手机 H5 / 浏览器直接访问云桥接接口必须放行，否则 file:// 与 WebView 跨域请求被拦截）
   app.use((req: any, res: any, next: any) => {
@@ -405,7 +426,7 @@ export function startWebServer(opts: ServeOptions = {}): {
     res.json({ ok: true, content, date: date || new Date().toISOString().split('T')[0] });
   });
   // 手动添加一条短期记忆
-  app.post('/api/memory/short', (req: Request, res: Response) => {
+  app.post('/api/memory/short', validateBody(memoryShortBodySchema), (req: Request, res: Response) => {
     const body = (req.body ?? {}) as Record<string, any>;
     const type = (['task', 'fix', 'feature', 'error', 'note'] as const).find((t) => t === body.type) || 'note';
     const title = typeof body.title === 'string' && body.title.trim() ? body.title.trim() : '';
@@ -437,7 +458,7 @@ export function startWebServer(opts: ServeOptions = {}): {
     }
   });
   // 追加一条长期记忆
-  app.post('/api/memory/long/append', (req: Request, res: Response) => {
+  app.post('/api/memory/long/append', validateBody(memoryAppendBodySchema), (req: Request, res: Response) => {
     const body = (req.body ?? {}) as Record<string, any>;
     const category = typeof body.category === 'string' && body.category.trim() ? body.category.trim() : '自定义';
     const title = typeof body.title === 'string' && body.title.trim() ? body.title.trim() : '';
@@ -495,7 +516,7 @@ export function startWebServer(opts: ServeOptions = {}): {
       res.status(500).json({ ok: false, error: e.message });
     }
   });
-  app.post('/api/honcho/remember', (req: Request, res: Response) => {
+  app.post('/api/honcho/remember', validateBody(honchoRememberBodySchema), (req: Request, res: Response) => {
     try {
       const body = (req.body || {}) as { content?: string; importance?: number };
       if (!body.content) {
@@ -585,7 +606,7 @@ export function startWebServer(opts: ServeOptions = {}): {
     });
   });
 
-  app.post('/api/tasks', (req: Request, res: Response) => {
+  app.post('/api/tasks', validateBody(taskBodySchema), (req: Request, res: Response) => {
     const body = req.body as Record<string, any>;
     const goal = typeof body?.goal === 'string' ? body.goal.trim() : '';
     if (!goal) {
@@ -627,7 +648,7 @@ export function startWebServer(opts: ServeOptions = {}): {
     res.json({ ok: true, task: publicTask(record, true) });
   });
   // 多轮续接：向当前任务追加一条用户消息，所有对话归属同一任务生命周期
-  app.post('/api/tasks/:id/messages', (req: Request, res: Response) => {
+  app.post('/api/tasks/:id/messages', validateBody(taskMessageBodySchema), (req: Request, res: Response) => {
     const body = req.body as Record<string, any>;
     const message = typeof body?.message === 'string' ? body.message.trim() : '';
     if (!message) {
@@ -670,6 +691,54 @@ export function startWebServer(opts: ServeOptions = {}): {
     res.json({ ok: true });
   });
 
+  /* ========== P1 崩溃恢复 + 完整性溯源（对标 Today CN DesktopStartupRecovery / checksums.json）========== */
+  // GET /api/recover：扫描未正常收尾（crashed/running）的中断会话，列出可恢复项（纯读取，不改状态）
+  app.get('/api/recover', async (_req: Request, res: Response) => {
+    try {
+      const home = getSessionHome(isOfflineByDefault());
+      const cps = await listCheckpoints(home);
+      const recoverable = await findRecoverable(cps, {
+        verifyOne: async (c) => {
+          try {
+            const r = await verifyCheckpointManifest(home, c.runId, c.cwd);
+            return r.ok || r.total === 0; // 无清单（旧会话）视为可续跑
+          } catch {
+            return true;
+          }
+        },
+      });
+      res.json({ ok: true, home, mode: isOfflineByDefault() ? 'offline' : 'live', recoverable });
+    } catch (e: any) {
+      res.status(500).json({ ok: false, error: '崩溃恢复扫描失败: ' + e.message });
+    }
+  });
+  // GET /api/manifest?runId=<id>：校验会话检查点的内容指纹清单（缺省取最近一个）
+  app.get('/api/manifest', async (req: Request, res: Response) => {
+    try {
+      const home = getSessionHome(isOfflineByDefault());
+      let runId = typeof req.query.runId === 'string' && req.query.runId ? req.query.runId : '';
+      if (!runId) {
+        const cps = await listCheckpoints(home);
+        if (cps.length === 0) { res.json({ ok: false, error: '无会话可校验' }); return; }
+        runId = cps[0].runId;
+      } else {
+        const cp = await loadCheckpoint(home, runId);
+        if (cp) runId = cp.runId;
+        else {
+          const all = await listCheckpoints(home);
+          const m = all.filter((c) => c.runId.startsWith(runId));
+          if (m.length === 1) runId = m[0].runId;
+          else { res.status(404).json({ ok: false, error: `未找到会话检查点: ${runId}` }); return; }
+        }
+      }
+      const cwd = (await loadCheckpoint(home, runId))?.cwd;
+      const result = await verifyCheckpointManifest(home, runId, cwd);
+      res.json({ runId, ...result });
+    } catch (e: any) {
+      res.status(500).json({ ok: false, error: '清单校验失败: ' + e.message });
+    }
+  });
+
   // P5-2：webhook 注册/查询
   // F8 加固（2026-09-30 安全审计 P1）：仅允许公网 http(s) 地址，禁内网/回环/云元数据，防 SSRF 与数据外泄
   function assertPublicHttpUrl(rawUrl: string): string | null {
@@ -685,7 +754,7 @@ export function startWebServer(opts: ServeOptions = {}): {
     if (host.endsWith('.metadata.google.internal') || host === 'metadata.tencentyun.com' || host === '100.100.100.200') return '禁止云元数据地址';
     return null;
   }
-  app.post('/api/webhook', (req: Request, res: Response) => {
+  app.post('/api/webhook', validateBody(webhookBodySchema), (req: Request, res: Response) => {
     const body = req.body as Record<string, any>;
     const url = typeof body?.url === 'string' ? body.url.trim() : '';
     if (!url) {
@@ -850,6 +919,13 @@ export function startWebServer(opts: ServeOptions = {}): {
   registerCloudBridgeRoutes(app, { homeDir, loadJsonFile, saveJsonFile, bruteForce, queue });
   /* ========== P-7 自建商城（支付 + 自动发码闭环）→ routes/shop.ts ========== */
   registerShopRoutes(app, { token, sessions });
+
+  /* ========== 全栈铁律5：边界 404 兜底 + 全局 typed 错误处理器（置于所有路由之后）========== */
+  // 全栈铁律5：/api 未知路径统一 404；AppError 结构化返回，未知错误记日志 + 通用 500，绝不外泄堆栈
+  app.use('/api', notFoundHandler);
+  // globalErrorHandler 为 Express 错误中间件（4 参），shim 的 use 只声明 3 参 Handler，故经 unknown 断言过编译
+  app.use(globalErrorHandler as unknown as Handler);
+
   const server = app.listen(port, () => {
     const actualPort = (server.address() as AddressInfo).port;
     console.log(t('serve.started', { port: actualPort }));

@@ -58,6 +58,23 @@ export class SecurityError extends AppError {
   }
 }
 
+/**
+ * 边界输入校验失败（HTTP/Web 入参 zod 校验不通过）。
+ * 对标 fullstack-dev 铁律6「所有输入在边界处校验」：
+ * 携带结构化字段错误列表，供全局错误处理器返回 422 + fields。
+ */
+export class ValidationError extends AppError {
+  constructor(
+    public readonly fields: Array<{ path: string; message: string }>,
+  ) {
+    super(
+      '输入校验失败: ' + fields.map((f) => `${f.path}: ${f.message}`).join('; '),
+      'VALIDATION_ERROR',
+      422,
+    );
+  }
+}
+
 /** 类型守卫：判断是否为可预期的业务错误 */
 export function isAppError(e: unknown): e is AppError {
   return e instanceof AppError;

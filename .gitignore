@@ -75,6 +75,8 @@ faq_generated/
 release-new/
 release/
 release2/
+# Electron/Chromium 运行时目录（651MB 二进制：dll/pak/dat/locales，由 electron 安装生成，绝不入库）
+runtime/
 
 # 本地备份与临时补丁（不入库）
 dist.bak-*/

@@ -28,6 +28,7 @@ import { OpenAICompatibleProvider } from './providers/openai-compatible.provider
 import { OllamaProvider } from './providers/ollama.provider';
 import { AnthropicMessagesProvider } from './providers/anthropic-messages.provider';
 import { resolveCredential, resolveProviderApiKey } from '../security/credentials';
+import { localModelStatus, type LocalModelStatus } from './local-model';
 
 export interface ModelStat {
   providerId: string;
@@ -68,6 +69,8 @@ export class ModelRouter {
   private readonly backoffMs: number;
   private readonly tier: ComputeTier;
   private statsCache: ModelStatsCache | null = null;
+  /** 本地模型状态缓存（local tag 路径降级提示用） */
+  private localStatus: LocalModelStatus | null = null;
 
   constructor(
     providers: ModelProvider[],
@@ -293,6 +296,11 @@ export class ModelRouter {
    */
   async chat(req: ChatRequest, tags?: CapabilityTag[]): Promise<ChatResponse> {
     const order = this.rank(tags);
+    // 本地模型自包含：当请求路径带 local 标签且宿主 Ollama 不可达时，
+    // 给出明确降级提示（不阻断其它 provider 的 fallback）。
+    if (tags && tags.includes('local')) {
+      await this.ensureLocalStatusHint();
+    }
     if (order.length === 0) {
       throw new ModelError('未配置任何可用模型 provider', 'router', 500);
     }
@@ -370,6 +378,29 @@ export class ModelRouter {
       grouped.push(...arr);
     }
     return grouped;
+  }
+
+  /**
+   * 本地模型状态提示：探测宿主 Ollama 可达性（结果缓存，避免每次请求都探测）。
+   * 当 local 标签路径存在但 Ollama 不可达时，输出明确降级提示，但不抛错、不阻断其它 provider。
+   */
+  private async ensureLocalStatusHint(): Promise<void> {
+    if (this.localStatus) return;
+    try {
+      this.localStatus = await localModelStatus();
+      if (!this.localStatus.available) {
+        logger.warn('本地模型不可用，已降级', {
+          gpu: this.localStatus.gpu,
+          models: this.localStatus.models,
+          hint: '宿主 Ollama 未运行或不可达，local 标签请求将回退到其它 provider。',
+        });
+      }
+    } catch (e) {
+      // fail-open：探测失败仅记录，不影响路由
+      logger.warn('本地模型状态探测失败，忽略', {
+        error: e instanceof Error ? e.message : String(e),
+      });
+    }
   }
 }
 

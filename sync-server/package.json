@@ -1,0 +1,17 @@
+{
+  "name": "fhcode-sync-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "飞虹 Code 跨端同步云端中继服务（阶段一：会话快照 + 远程 goal 队列）",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "smoke": "node smoke.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}

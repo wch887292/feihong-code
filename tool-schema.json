@@ -1,9 +1,11 @@
 {
   "name": "feihong-code",
-  "version": "8.5.0",
+  "version": "8.12.0",
   "description": "Terminal AI Coding Agent — 终端 AI 编程智能体（由 scripts/gen-tool-schema.ts 从运行时工具注册表自动生成）",
-  "generatedAt": "2026-10-01",
-  "toolCount": 21,
+  "generatedAt": "2026-10-23",
+  "sourceRevision": "74b6d09",
+  "catalogVersion": "sha256:a73f677de6a5bef26a111c4290a096755384d7193f6faded3c672821aeda5fff",
+  "toolCount": 22,
   "tools": [
     {
       "name": "read_file",
@@ -44,7 +46,7 @@
     },
     {
       "name": "edit_file",
-      "description": "在文件中将 oldText 首次精确替换为 newText",
+      "description": "在文件中将 oldText 首次精确替换为 newText（支持换行符与缩进的容忍匹配兜底）",
       "parameters": {
         "type": "object",
         "properties": {
@@ -110,10 +112,52 @@
           "command": {
             "type": "string",
             "description": "要执行的完整命令"
+          },
+          "timeout": {
+            "type": "number",
+            "description": "可选，超时毫秒数（5000~900000）；不传则用 FH_SHELL_TIMEOUT_MS 或默认 180000。长命令（完整测试套件/构建发布）建议显式传更大的值"
+          },
+          "background": {
+            "type": "boolean",
+            "description": "后台运行模式：true 时立即返回 job_id，不等待命令结束。适用于 dev server / watch 模式 / 长时服务。启动后用 shell_job 工具查询日志、状态或停止。"
           }
         },
         "required": [
           "command"
+        ]
+      }
+    },
+    {
+      "name": "shell_job",
+      "description": "管理 run_shell 后台启动的长任务（dev server / watch / 服务进程）：查询状态、获取日志、停止进程、列出所有任务",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "status",
+              "logs",
+              "stop",
+              "list"
+            ],
+            "description": "操作类型：status=查询状态，logs=获取日志，stop=停止任务，list=列出所有任务"
+          },
+          "job_id": {
+            "type": "string",
+            "description": "run_shell(background:true) 返回的 job_id（status/logs/stop 必填，list 不需要）"
+          },
+          "max_lines": {
+            "type": "number",
+            "description": "logs 专用：返回最近多少行日志，默认 200，最大 2000"
+          },
+          "all": {
+            "type": "boolean",
+            "description": "list 专用：true=列出全部（含已结束），false=只列运行中（默认）"
+          }
+        },
+        "required": [
+          "action"
         ]
       }
     },

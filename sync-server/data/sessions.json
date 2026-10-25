@@ -1,0 +1,262 @@
+[
+  {
+    "runId": "smoke_mvn9i8x3",
+    "goal": "smoke 测试任务",
+    "goals": [
+      {
+        "id": "g_mvn9i8y4_9ot2",
+        "goal": "远程下发任务 A",
+        "status": "running",
+        "createdAt": "2026-10-25T03:22:32.524Z",
+        "claimedAt": "2026-10-25T03:22:32.533Z"
+      },
+      {
+        "id": "g_mvn9i8y8_ff8j",
+        "goal": "远程下发任务 B",
+        "status": "running",
+        "createdAt": "2026-10-25T03:22:32.528Z",
+        "claimedAt": "2026-10-25T03:22:32.537Z"
+      }
+    ],
+    "status": "done",
+    "messages": [
+      {
+        "role": "user",
+        "content": "你好"
+      },
+      {
+        "role": "assistant",
+        "content": "收到"
+      }
+    ],
+    "createdAt": "2026-10-25T03:22:32.509Z",
+    "updatedAt": "2026-10-25T03:22:32.544Z"
+  },
+  {
+    "runId": "smoke_mvn9ipqe",
+    "goal": "smoke 测试任务",
+    "goals": [
+      {
+        "id": "g_mvn9iprc_79jn",
+        "goal": "远程下发任务 A",
+        "status": "running",
+        "createdAt": "2026-10-25T03:22:54.312Z",
+        "claimedAt": "2026-10-25T03:22:54.319Z"
+      },
+      {
+        "id": "g_mvn9iprg_s0og",
+        "goal": "远程下发任务 B",
+        "status": "running",
+        "createdAt": "2026-10-25T03:22:54.316Z",
+        "claimedAt": "2026-10-25T03:22:54.322Z"
+      }
+    ],
+    "status": "done",
+    "messages": [
+      {
+        "role": "user",
+        "content": "你好"
+      },
+      {
+        "role": "assistant",
+        "content": "收到"
+      }
+    ],
+    "createdAt": "2026-10-25T03:22:54.296Z",
+    "updatedAt": "2026-10-25T03:22:54.329Z"
+  },
+  {
+    "runId": "smoke_mvn9jtvy",
+    "goal": "smoke 测试任务",
+    "goals": [
+      {
+        "id": "g_mvn9jtx3_52x9",
+        "goal": "远程下发任务 A",
+        "status": "running",
+        "createdAt": "2026-10-25T03:23:46.359Z",
+        "claimedAt": "2026-10-25T03:23:46.366Z"
+      },
+      {
+        "id": "g_mvn9jtx7_cpqz",
+        "goal": "远程下发任务 B",
+        "status": "running",
+        "createdAt": "2026-10-25T03:23:46.363Z",
+        "claimedAt": "2026-10-25T03:23:46.370Z"
+      }
+    ],
+    "status": "done",
+    "messages": [
+      {
+        "role": "user",
+        "content": "你好"
+      },
+      {
+        "role": "assistant",
+        "content": "收到"
+      }
+    ],
+    "createdAt": "2026-10-25T03:23:46.342Z",
+    "updatedAt": "2026-10-25T03:23:46.377Z"
+  },
+  {
+    "runId": "e2e-run-001",
+    "goal": "端到端验证任务",
+    "goals": [
+      {
+        "id": "g_mvnajjdu_xuxo",
+        "goal": "请输出一句话：跨端同步链路验证成功",
+        "status": "queued",
+        "createdAt": "2026-10-25T03:51:32.322Z"
+      },
+      {
+        "id": "g_mvnan1it_abxp",
+        "goal": "请直接回复一句话：跨端同步链路验证成功",
+        "status": "queued",
+        "createdAt": "2026-10-25T03:54:15.797Z"
+      }
+    ],
+    "status": "running",
+    "messages": [
+      {
+        "role": "user",
+        "content": "验证"
+      }
+    ],
+    "createdAt": "2026-10-25T03:51:32.274Z",
+    "updatedAt": "2026-10-25T03:54:15.797Z"
+  },
+  {
+    "runId": "e2e-run-mvnao11v",
+    "goal": "端到端验证任务",
+    "goals": [
+      {
+        "id": "g_mvnao131_lx26",
+        "goal": "请直接回复一句话：跨端同步链路验证成功",
+        "status": "running",
+        "createdAt": "2026-10-25T03:55:01.885Z",
+        "claimedAt": "2026-10-25T03:55:01.890Z"
+      }
+    ],
+    "status": "running",
+    "messages": [
+      {
+        "role": "user",
+        "content": "验证"
+      }
+    ],
+    "createdAt": "2026-10-25T03:55:01.881Z",
+    "updatedAt": "2026-10-25T03:55:01.895Z"
+  },
+  {
+    "runId": "e2e-run-mvnaoz1v",
+    "goal": "端到端验证任务",
+    "goals": [
+      {
+        "id": "g_mvnaoz30_r5lw",
+        "goal": "请直接回复一句话：跨端同步链路验证成功",
+        "status": "running",
+        "createdAt": "2026-10-25T03:55:45.948Z",
+        "claimedAt": "2026-10-25T03:55:45.960Z"
+      }
+    ],
+    "status": "running",
+    "messages": [
+      {
+        "role": "user",
+        "content": "验证"
+      }
+    ],
+    "createdAt": "2026-10-25T03:55:45.945Z",
+    "updatedAt": "2026-10-25T03:55:45.964Z"
+  },
+  {
+    "runId": "e2e-queue-mvnaoz32",
+    "goal": "已完成的历史任务",
+    "goals": [
+      {
+        "id": "g_mvnaoz36_ultj",
+        "goal": "追加的新任务",
+        "status": "running",
+        "createdAt": "2026-10-25T03:55:45.954Z",
+        "claimedAt": "2026-10-25T03:55:45.983Z"
+      }
+    ],
+    "status": "done",
+    "messages": [],
+    "createdAt": "2026-10-25T03:55:45.951Z",
+    "updatedAt": "2026-10-25T03:55:45.989Z"
+  },
+  {
+    "runId": "e2e-poll-mvnaoz3i",
+    "goal": "poller 链路验证",
+    "goals": [
+      {
+        "id": "g_mvnaoz3m_wd7u",
+        "goal": "mock 任务：无需真实执行",
+        "status": "running",
+        "createdAt": "2026-10-25T03:55:45.970Z",
+        "claimedAt": "2026-10-25T03:55:45.975Z"
+      }
+    ],
+    "status": "done",
+    "messages": [],
+    "createdAt": "2026-10-25T03:55:45.967Z",
+    "updatedAt": "2026-10-25T03:55:45.981Z"
+  },
+  {
+    "runId": "e2e-run-mvnapcl6",
+    "goal": "端到端验证任务",
+    "goals": [
+      {
+        "id": "g_mvnapcmh_x53y",
+        "goal": "请直接回复一句话：跨端同步链路验证成功",
+        "status": "running",
+        "createdAt": "2026-10-25T03:56:03.497Z",
+        "claimedAt": "2026-10-25T03:56:03.508Z"
+      }
+    ],
+    "status": "running",
+    "messages": [
+      {
+        "role": "user",
+        "content": "验证"
+      }
+    ],
+    "createdAt": "2026-10-25T03:56:03.492Z",
+    "updatedAt": "2026-10-25T03:56:03.514Z"
+  },
+  {
+    "runId": "e2e-queue-mvnapcmj",
+    "goal": "已完成的历史任务",
+    "goals": [
+      {
+        "id": "g_mvnapcmo_0ocs",
+        "goal": "追加的新任务",
+        "status": "running",
+        "createdAt": "2026-10-25T03:56:03.504Z",
+        "claimedAt": "2026-10-25T03:56:03.533Z"
+      }
+    ],
+    "status": "done",
+    "messages": [],
+    "createdAt": "2026-10-25T03:56:03.501Z",
+    "updatedAt": "2026-10-25T03:56:03.538Z"
+  },
+  {
+    "runId": "e2e-poll-mvnapcn1",
+    "goal": "poller 链路验证",
+    "goals": [
+      {
+        "id": "g_mvnapcn5_6sxz",
+        "goal": "mock 任务：无需真实执行",
+        "status": "running",
+        "createdAt": "2026-10-25T03:56:03.521Z",
+        "claimedAt": "2026-10-25T03:56:03.525Z"
+      }
+    ],
+    "status": "done",
+    "messages": [],
+    "createdAt": "2026-10-25T03:56:03.518Z",
+    "updatedAt": "2026-10-25T03:56:03.531Z"
+  }
+]

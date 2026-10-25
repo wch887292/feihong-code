@@ -21,6 +21,20 @@ import {
   symbolsForFile,
   graphStats,
 } from './symbol-index';
+import type { ModelProvider } from '../models/model.interface';
+import { VectorRagStore, isSensitiveFile } from '../knowledge/vector-rag';
+
+/** 向量 RAG 可选配置（hybrid 默认关闭，不影响现有符号 RAG 默认路径） */
+export interface RagVectorConfig {
+  /** 是否启用向量融合（默认 false） */
+  enabled: boolean;
+  /** 向量库 SQLite 文件路径 */
+  db: string;
+  /** 嵌入模型名（可选，缺省用 provider 当前模型） */
+  model?: string;
+  /** 向量检索返回的 topK 块数 */
+  topK: number;
+}
 
 /** RAG 配置 */
 export interface RagConfig {
@@ -34,6 +48,8 @@ export interface RagConfig {
   maxSymbolResults: number;
   /** 相关性阈值（0-1），低于此值的文件不注入 */
   relevanceThreshold: number;
+  /** 向量 RAG 可选通道（hybrid 默认关闭，缺省 undefined 保持纯符号检索） */
+  vector?: RagVectorConfig;
 }
 
 const DEFAULT_CONFIG: RagConfig = {
@@ -159,12 +175,17 @@ function computeFileRelevance(
 /**
  * 核心 RAG 检索：根据任务描述从代码图谱中检索相关文件
  * 返回分层结果（core / related / edge）
+ *
+ * 可选向量融合：当 config.vector.enabled 为 true 且传入的 provider 支持 embed 时，
+ * 在符号检索结果末尾追加向量命中的文件，并按 关键词 0.6 / 向量 0.4 加权融合相关性。
+ * 默认（未配置 vector 或 enabled=false）保持纯符号检索路径不变。
  */
-export function retrieveRelevantFiles(
+export async function retrieveRelevantFiles(
   graph: CodeGraph,
   query: string,
   config: Partial<RagConfig> = {},
-): RagResult {
+  provider?: ModelProvider,
+): Promise<RagResult> {
   const cfg = { ...DEFAULT_CONFIG, ...config };
   const keywords = extractKeywords(query);
 
@@ -240,6 +261,102 @@ export function retrieveRelevantFiles(
     estimatedTokens += (f.matchedSymbols.length * 50) / 4; // 每个签名约 50 字符
   }
 
+  // 5. 可选向量融合（hybrid 默认关闭）：仅当 vector.enabled 且 provider 支持 embed 时执行
+  const vectorCfg = cfg.vector;
+  const vectorEnabled =
+    vectorCfg?.enabled === true &&
+    !!vectorCfg.db &&
+    provider != null &&
+    typeof (provider as { embed?: unknown }).embed === 'function';
+
+  if (vectorEnabled && vectorCfg) {
+    try {
+      const store = new VectorRagStore({ db: vectorCfg.db, model: vectorCfg.model, topK: vectorCfg.topK });
+      try {
+        // 查询向量：对 query 做嵌入
+        const queryVec = await (provider as unknown as {
+          embed(texts: string[], model?: string): Promise<number[][]>;
+        }).embed([query], vectorCfg.model);
+        if (queryVec.length > 0 && queryVec[0].length > 0) {
+          const hits = store.search(queryVec[0], vectorCfg.topK);
+          // 向量命中文件与符号检索结果做 0.6/0.4 加权融合
+          const vectorScoreByFile = new Map<string, number>();
+          for (const hit of hits) {
+            if (isSensitiveFile(hit.file)) continue; // 敏感文件不参与融合
+            const prev = vectorScoreByFile.get(hit.file) ?? 0;
+            vectorScoreByFile.set(hit.file, Math.max(prev, hit.score));
+          }
+
+          if (vectorScoreByFile.size > 0) {
+            // 关键词侧：core/related/edge 中已出现的文件取现有 relevance 作为关键词分
+            const keywordScoreByFile = new Map<string, number>();
+            for (const f of [...coreFiles, ...relatedFiles, ...edgeFiles]) {
+              const prev = keywordScoreByFile.get(f.path) ?? 0;
+              keywordScoreByFile.set(f.path, Math.max(prev, f.relevance));
+            }
+
+            // 融合：0.6 * 关键词分 + 0.4 * 向量分；向量独有文件关键词分为 0
+            const fused = new Map<string, number>();
+            const allFiles = new Set([...keywordScoreByFile.keys(), ...vectorScoreByFile.keys()]);
+            for (const path of allFiles) {
+              const kw = keywordScoreByFile.get(path) ?? 0;
+              const vec = vectorScoreByFile.get(path) ?? 0;
+              fused.set(path, 0.6 * kw + 0.4 * vec);
+            }
+
+            // 将融合分写回 coreFiles（保持 RagFileResult 结构，relevance 为融合分）
+            const fusedCore = coreFiles.map((f) => ({
+              ...f,
+              relevance: fused.get(f.path) ?? f.relevance,
+            }));
+            // 向量独有且融合分足够高的文件，作为 core 追加（受 maxCoreFiles 约束）
+            const existingPaths = new Set(fusedCore.map((f) => f.path));
+            const vectorOnly = Array.from(fused.entries())
+              .filter(([path]) => !existingPaths.has(path))
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, Math.max(0, cfg.maxCoreFiles - fusedCore.length))
+              .map(([path, score]) => ({
+                path,
+                relevance: score,
+                matchedSymbols: symbolsForFile(graph, path),
+                tier: 'core' as const,
+              }));
+            const mergedCore = [...fusedCore, ...vectorOnly].sort((a, b) => b.relevance - a.relevance);
+
+            // 重新分层：core 取融合后前 maxCoreFiles，related/edge 保持原符号检索结果
+            const newCorePaths = new Set(mergedCore.slice(0, cfg.maxCoreFiles).map((f) => f.path));
+            const finalCore = mergedCore.filter((f) => newCorePaths.has(f.path));
+            const finalRelated = relatedFiles.filter((f) => !newCorePaths.has(f.path));
+            const finalEdge = edgeFiles.filter((f) => !newCorePaths.has(f.path));
+
+            // 重新估算 token
+            let fusedTokens = 0;
+            for (const f of finalCore) {
+              const node = graph.files[f.path];
+              if (node) fusedTokens += Math.min(readFileChars(graph.root, f.path), cfg.maxFileChars) / 4;
+            }
+            for (const f of finalRelated) {
+              fusedTokens += (f.matchedSymbols.length * 50) / 4;
+            }
+
+            return {
+              query,
+              keywords,
+              coreFiles: finalCore,
+              relatedFiles: finalRelated,
+              edgeFiles: finalEdge,
+              estimatedTokens: Math.round(fusedTokens),
+            };
+          }
+        }
+      } finally {
+        store.close();
+      }
+    } catch {
+      // 向量通道失败时静默回退到纯符号检索结果，不影响默认路径
+    }
+  }
+
   return { query, keywords, coreFiles, relatedFiles, edgeFiles, estimatedTokens: Math.round(estimatedTokens) };
 }
 
@@ -263,12 +380,13 @@ function readFileChars(root: string, relPath: string): number {
  * 生成 RAG 上下文片段（注入 system prompt）
  * 格式：核心文件全文 + 关联文件签名 + 边缘文件路径列表
  */
-export function buildRagContext(
+export async function buildRagContext(
   graph: CodeGraph,
   query: string,
   config: Partial<RagConfig> = {},
-): string {
-  const result = retrieveRelevantFiles(graph, query, config);
+  provider?: ModelProvider,
+): Promise<string> {
+  const result = await retrieveRelevantFiles(graph, query, config, provider);
   const cfg = { ...DEFAULT_CONFIG, ...config };
 
   if (result.coreFiles.length === 0 && result.relatedFiles.length === 0) {
@@ -334,9 +452,14 @@ function readFileContent(root: string, relPath: string, maxChars: number): strin
 }
 
 /** RAG 诊断信息（用于 /doctor 命令和日志） */
-export function ragDiagnostics(graph: CodeGraph, query: string): string {
+export async function ragDiagnostics(
+  graph: CodeGraph,
+  query: string,
+  config?: Partial<RagConfig>,
+  provider?: ModelProvider,
+): Promise<string> {
   const stats = graphStats(graph);
-  const result = retrieveRelevantFiles(graph, query);
+  const result = await retrieveRelevantFiles(graph, query, config, provider);
   return [
     `RAG 诊断:`,
     `  代码图谱: ${stats.files} 文件, ${stats.symbols} 符号, ${stats.internalDeps} 内部依赖`,
@@ -349,11 +472,15 @@ export function ragDiagnostics(graph: CodeGraph, query: string): string {
 }
 
 /** 便捷函数：构建带缓存的 RAG 检索器 */
-export function createRagRetriever(graph: CodeGraph, config?: Partial<RagConfig>) {
+export function createRagRetriever(
+  graph: CodeGraph,
+  config?: Partial<RagConfig>,
+  provider?: ModelProvider,
+) {
   return {
-    retrieve: (query: string) => retrieveRelevantFiles(graph, query, config),
-    buildContext: (query: string) => buildRagContext(graph, query, config),
-    diagnostics: (query: string) => ragDiagnostics(graph, query),
+    retrieve: (query: string) => retrieveRelevantFiles(graph, query, config, provider),
+    buildContext: (query: string) => buildRagContext(graph, query, config, provider),
+    diagnostics: (query: string) => ragDiagnostics(graph, query, config, provider),
     getGraph: () => graph,
   };
 }

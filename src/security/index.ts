@@ -219,7 +219,11 @@ export function securityHeaders(_req: any, res: any, next: any): void {
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'no-referrer');
   res.setHeader('X-XSS-Protection', '1; mode=block');
-  res.setHeader('Content-Security-Policy', "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; connect-src 'self' https: http:;");
+  // P0-4 加固（对标 Loomy 审计 12.1 渲染层数据外泄面）：
+  // connect-src 去掉明文 http:——堵被注入脚本经 http 外传数据的路径；
+  // 'self' 覆盖本地回环自身，https: 覆盖合法外联（api.klai.top / deepseek / openai 等均 https）。
+  // 前端已验证无 http:// fetch，此收紧零功能回归。
+  res.setHeader('Content-Security-Policy', "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; connect-src 'self' https:;");
   next();
 }
 

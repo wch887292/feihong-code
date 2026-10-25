@@ -30,6 +30,8 @@ import { planTask } from './planner';
 import { buildRepoInstructionsPrompt, scopedInstructionsFor } from './repo-context';
 import { discoverSkills, buildSkillIndexPrompt } from '../skills/skill-loader';
 import { logger } from '../shared/logger';
+import { loadSyncConfig } from '../features/sync-client/config';
+import { pushSnapshot } from '../features/sync-client/pusher';
 import type { CodeGraph } from './symbol-index';
 import { buildCodeGraph, loadCachedCodeGraph, cacheCodeGraph, incrementalUpdate } from './symbol-index';
 import { buildRagContext } from './code-rag';
@@ -335,7 +337,7 @@ export class Orchestrator {
             // 传入了预构建图谱，做一次增量更新
             graph = incrementalUpdate(graph, cwd, { maxFiles: 3000 });
           }
-          const ragContext = buildRagContext(graph, goal, { maxCoreFiles: 5, maxRelatedFiles: 8, maxFileChars: 6000 });
+          const ragContext = await buildRagContext(graph, goal, { maxCoreFiles: 5, maxRelatedFiles: 8, maxFileChars: 6000 });
           if (ragContext) {
             systemPrompt += '\n\n' + ragContext;
             await eventLog.append('rag.context', { keywords: goal.slice(0, 100), tokens: ragContext.length });
@@ -390,6 +392,24 @@ export class Orchestrator {
         messages: snap.messages,
         touchedFiles,
       });
+      // 跨端同步：把检查点以快照形式推送到 sync-server（fire-and-forget，失败静默，绝不影响主流程）
+      try {
+        const syncCfg = loadSyncConfig();
+        if (syncCfg.enabled && syncCfg.url && syncCfg.token) {
+          const statusMap: Record<string, 'queued' | 'running' | 'paused' | 'done' | 'failed'> = {
+            running: 'running', done: 'done', crashed: 'failed', paused: 'paused',
+          };
+          const syncStatus = statusMap[String(status)] ?? 'running';
+          const syncMessages = (snap.messages || []).slice(-50).map((m) => ({
+            role: m.role === 'assistant' || m.role === 'user' || m.role === 'tool' ? m.role : 'assistant',
+            content: typeof m.content === 'string' ? m.content.slice(0, 4000) : '',
+          }));
+          // 最终状态（done/failed）绕过节流，确保手机端立刻看到结果
+          void pushSnapshot(syncCfg.url, syncCfg.token, {
+            runId: snap.runId, goal, status: syncStatus, messages: syncMessages,
+          }, { force: syncStatus !== 'running' });
+        }
+      } catch { /* 同步推送永不影响主流程 */ }
     };
 
     if (!resume) await emitCheckpoint('running');

@@ -17,6 +17,14 @@ try {
   console.error('[Electron] 无法加载服务器模块:', e.message);
 }
 
+// 更新检查（独立模块，缺失时不阻塞启动）
+let updateCheck = null;
+try {
+  updateCheck = require('./update-check');
+} catch (e) {
+  console.warn('[Electron] 更新检查模块加载失败:', e.message);
+}
+
 // 禁用安全警告
 process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
 
@@ -165,6 +173,54 @@ function createWindow() {
 }
 
 /**
+ * 检查更新
+ * @param {boolean} manual 手动触发时给出明确结果提示；自动检查只在新版本首次出现时发系统通知
+ */
+async function runUpdateCheck(manual) {
+  if (!updateCheck) {
+    if (manual) dialog.showMessageBox(mainWindow, { type: 'warning', title: '检查更新', message: '更新模块不可用', detail: '请重新安装或联系技术支持。' });
+    return;
+  }
+  const result = await updateCheck.checkForUpdates();
+  const { current, latest, hasUpdate, url, error } = result;
+
+  if (manual) {
+    if (error) {
+      dialog.showMessageBox(mainWindow, { type: 'warning', title: '检查更新', message: '暂时无法检查更新', detail: '网络不可达或接口限流，不影响当前使用。\n' + error });
+      return;
+    }
+    if (!hasUpdate) {
+      dialog.showMessageBox(mainWindow, { type: 'info', title: '检查更新', message: `已是最新版本 v${current}` });
+      return;
+    }
+    const { response } = await dialog.showMessageBox(mainWindow, {
+      type: 'info',
+      title: '发现新版本',
+      message: `发现新版本 v${latest}（当前 v${current}）`,
+      buttons: ['前往下载', '稍后'],
+      defaultId: 0,
+      cancelId: 1
+    });
+    if (response === 0 && url) shell.openExternal(url);
+    return;
+  }
+
+  // 自动检查：静默失败；仅新版本首次出现时通知一次
+  if (hasUpdate && updateCheck.shouldNotify(latest)) {
+    updateCheck.markNotified(latest);
+    if (Notification.isSupported()) {
+      const n = new Notification({
+        title: '飞虹 Code 有新版本',
+        body: `v${latest} 已发布（当前 v${current}），点击查看更新内容`
+      });
+      n.on('click', () => { if (url) shell.openExternal(url); });
+      n.show();
+    }
+    if (tray) tray.setToolTip(`飞虹 Code · 可更新至 v${latest}`);
+  }
+}
+
+/**
  * 创建系统托盘
  */
 function createTray() {
@@ -182,6 +238,8 @@ function createTray() {
 
     const contextMenu = Menu.buildFromTemplate([
       { label: '显示主窗口', click: () => { if (mainWindow) { mainWindow.show(); mainWindow.focus(); } } },
+      { type: 'separator' },
+      { label: '检查更新', click: () => { runUpdateCheck(true); } },
       { type: 'separator' },
       { label: '退出', click: () => { app.isQuitting = true; app.quit(); } }
     ]);
@@ -245,11 +303,13 @@ function createMenu() {
     {
       label: '帮助',
       submenu: [
+        { label: '检查更新', click: () => { runUpdateCheck(true); } },
+        { type: 'separator' },
         { label: '关于飞虹 Code', click: () => {
           dialog.showMessageBox(mainWindow, {
             type: 'info',
             title: '关于飞虹 Code',
-            message: '飞虹 Code v8.4.2',
+            message: '飞虹 Code v' + app.getVersion(),
             detail: '终端 AI 编程智能体\n晋江市飞虹智科技企业管理有限公司'
           });
         }}
@@ -352,6 +412,9 @@ app.whenReady().then(async () => {
     await startServer();
     createWindow();
     createTray();
+
+    // 启动 10 秒后静默检查更新（不阻塞启动，不打扰首次使用）
+    setTimeout(() => { runUpdateCheck(false); }, 10000);
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();

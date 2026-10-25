@@ -158,4 +158,50 @@ export class OpenAICompatibleProvider implements ModelProvider {
       costUsd: estimateCost(usage, this.costPer1k),
     };
   }
+
+  /**
+   * 可选嵌入方法：调用 OpenAI 兼容 /embeddings 端点（同 baseURL 同 key）。
+   * 仅当 provider 实际支持嵌入模型时可用，供向量 RAG 可选通道调用。
+   */
+  async embed(texts: string[], model?: string): Promise<number[][]> {
+    if (!texts || texts.length === 0) return [];
+    const body = {
+      model: model ?? this.model,
+      input: texts,
+    };
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 60_000);
+
+    let res: Response;
+    try {
+      res = await fetch(`${this.baseURL}/embeddings`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(this.apiKey ? { Authorization: `Bearer ${this.apiKey}` } : {}),
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+    } catch (e) {
+      const aborted = controller.signal.aborted;
+      if (aborted) throw new ModelError('嵌入请求超时', this.id);
+      throw new ModelError(`嵌入网络请求失败: ${e instanceof Error ? e.message : String(e)}`, this.id);
+    } finally {
+      clearTimeout(timer);
+    }
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new ModelError(`嵌入 HTTP ${res.status} ${text.slice(0, 200)}`, this.id, res.status);
+    }
+
+    const json: unknown = await res.json().catch(() => undefined);
+    const data = (json as { data?: Array<{ embedding?: number[] }> })?.data;
+    if (!Array.isArray(data)) {
+      throw new ModelError('嵌入响应缺少 data 数组', this.id);
+    }
+    return data.map((item) => item.embedding ?? []);
+  }
 }

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<title>飞虹 Code · 同步任务</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/doubao.css">
+<link rel="stylesheet" href="css/sync.css">
+</head>
+<body>
+
+<!-- ===== 顶栏 ===== -->
+<div class="headbar">
+  <button class="hb-btn" id="backBtn" title="返回"><span class="hb-ico">←</span></button>
+  <div class="hb-title">同步任务</div>
+  <div style="width:36px;"></div>
+</div>
+<div class="notice-bar">AI 生成可能有误 · 注意核实</div>
+
+<!-- ===== 设置区（未配置时显示） ===== -->
+<div class="page active" id="syncPage">
+  <div class="sync-config" id="syncConfig">
+    <div class="config-title">🔧 服务器配置</div>
+    <div class="config-hint">请先配置同步服务器地址与令牌</div>
+    <label class="label">服务器地址</label>
+    <input class="input" id="syncUrlInput" placeholder="https://api.klai.top/fhrelay">
+    <label class="label">访问令牌 (Token)</label>
+    <input class="input" id="syncTokenInput" type="password" placeholder="Bearer token">
+    <div class="form-msg" id="configMsg"></div>
+    <div class="footer">
+      <button class="btn" id="saveConfigBtn">保存配置</button>
+    </div>
+  </div>
+
+  <!-- 任务列表区（配置后显示） -->
+  <div class="sync-list" id="syncList" style="display:none;">
+    <div class="list-header">
+      <div class="refresh-btn" id="refreshBtn" title="刷新">🔄</div>
+      <div class="list-count" id="listCount">共 0 项</div>
+    </div>
+    <div class="task-scroll" id="taskList">
+      <div class="empty">加载中…</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 详情弹层 ===== -->
+<div class="sheet-mask" id="detailSheet">
+  <div class="sheet sync-detail-sheet">
+    <div class="sheet-head">
+      <div class="sheet-title">任务详情</div>
+      <span class="sheet-close" onclick="hideSheet('detailSheet')">✕</span>
+    </div>
+    <div class="sheet-body">
+      <div class="detail-goal">
+        <div class="goal-label">目标</div>
+        <div class="goal-content" id="detailGoal"></div>
+      </div>
+      <div class="detail-status">
+        <div class="status-badge" id="detailStatus"></div>
+        <div class="update-time" id="detailTime"></div>
+      </div>
+      <div class="detail-section">
+        <div class="section-title">执行消息</div>
+        <div class="messages-list" id="detailMessages"></div>
+      </div>
+      <div class="detail-section">
+        <div class="section-title">子任务</div>
+        <div class="goals-list" id="detailGoals"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 新任务弹层 ===== -->
+<div class="sheet-mask" id="newTaskSheet">
+  <div class="sheet">
+    <div class="sheet-head">
+      <div class="sheet-title">➕ 新建同步任务</div>
+      <span class="sheet-close" onclick="hideSheet('newTaskSheet')">✕</span>
+    </div>
+    <div class="sheet-body">
+      <label class="label">任务目标 *</label>
+      <textarea class="input" id="newGoalInput" rows="5" placeholder="输入要执行的同步任务目标…"></textarea>
+      <div class="form-msg" id="newTaskMsg"></div>
+      <div class="footer">
+        <button class="btn ghost" onclick="hideSheet('newTaskSheet')">取消</button>
+        <button class="btn" id="confirmNewTaskBtn">确认创建</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 二次确认弹层 ===== -->
+<div class="sheet-mask" id="confirmSheet">
+  <div class="sheet">
+    <div class="sheet-head">
+      <div class="sheet-title">⚠️ 确认下发</div>
+      <span class="sheet-close" onclick="hideSheet('confirmSheet')">✕</span>
+    </div>
+    <div class="sheet-body">
+      <div class="confirm-hint">即将向服务器下发以下任务，确认后不可撤销：</div>
+      <div class="confirm-goal" id="confirmGoalText"></div>
+      <div class="footer">
+        <button class="btn ghost" onclick="hideSheet('confirmSheet')">取消</button>
+        <button class="btn" id="finalConfirmBtn">确认下发</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 错误提示条 ===== -->
+<div class="error-bar" id="errorBar" style="display:none;"></div>
+
+<script src="js/sync-task.js"></script>
+</body>
+</html>

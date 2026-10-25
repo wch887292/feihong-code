@@ -32,7 +32,13 @@ export type SkillCommand = 'plan' | 'grill' | 'goal' | 'self-heal';
 
 export type ManagementCommand =
   | { kind: 'sessions' }
+  /** 跨端同步轮询：认领并执行 sync-server 上远程下发的 goal（带 once 参数则单次执行） */
+  | { kind: 'sync-poll'; once: boolean }
   | { kind: 'resume'; id: string }
+  /** P1 崩溃恢复入口（对标 Today CN DesktopStartupRecovery）：扫描可续跑的中断会话 */
+  | { kind: 'recover'; json: boolean }
+  /** P1 内容指纹清单校验（对标 Today CN checksums.json）：sha256 + provenance + 自校验 */
+  | { kind: 'manifest'; id?: string; json: boolean }
   | { kind: 'diff'; id?: string }
   | { kind: 'rollback'; id: string; yes: boolean }
   | { kind: 'trajectory'; action: 'list' | 'replay' | 'fork' | 'resume'; id?: string; step?: number; json: boolean }
@@ -49,6 +55,7 @@ export type ManagementCommand =
   | { kind: 'review'; path: string; json: boolean }
   | { kind: 'team'; goal: string }
   | { kind: 'serve'; port?: number }
+  | { kind: 'serve-wecom' }
   | { kind: 'computer'; action: string; args: string[] }
   | { kind: 'bridge'; action: string; args: string[] }
   | { kind: 'license'; action: string; args: string[] }
@@ -248,7 +255,11 @@ type ManageBuilder = (ctx: ManageCtx) => ManagementCommand;
 /** 管理命令分发表：head -> 构造对应 ManagementCommand，表驱动替代长 if 链 */
 const MANAGE_BUILDERS: Record<string, ManageBuilder> = {
   sessions: () => ({ kind: 'sessions' }),
+  'sync-poll': ({ rest }) => ({ kind: 'sync-poll', once: rest.includes('once') }),
   resume: ({ rest }) => ({ kind: 'resume', id: rest[0] ?? '' }),
+  // P1：崩溃恢复扫描 + 内容指纹清单校验（对标 Today CN DesktopStartupRecovery / checksums.json）
+  recover: ({ flags }) => ({ kind: 'recover', json: !!flags.json }),
+  manifest: ({ flags, rest }) => ({ kind: 'manifest', id: rest[0] === 'verify' ? rest[1] : rest[0], json: !!flags.json }),
   diff: ({ rest }) => ({ kind: 'diff', id: rest[0] }),
   rollback: ({ flags, rest }) => ({ kind: 'rollback', id: rest[0] ?? '', yes: !!flags.yes }),
   trajectory: ({ flags, rest }) => ({
@@ -294,6 +305,7 @@ const MANAGE_BUILDERS: Record<string, ManageBuilder> = {
   review: ({ flags, rest }) => ({ kind: 'review', path: rest[0] || '.', json: !!flags.json }),
   team: ({ rest }) => ({ kind: 'team', goal: rest.join(' ') || '协作开发' }),
   serve: ({ flags }) => ({ kind: 'serve', port: flags.port }),
+  'serve-wecom': () => ({ kind: 'serve-wecom' }),
   computer: ({ rest }) => ({ kind: 'computer', action: rest[0] ?? 'status', args: rest.slice(1) }),
   bridge: ({ rest }) => ({ kind: 'bridge', action: rest[0] ?? 'status', args: rest.slice(1) }),
   license: ({ rest }) => ({ kind: 'license', action: rest[0] ?? 'show', args: rest.slice(1) }),

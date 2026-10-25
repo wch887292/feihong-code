@@ -40,12 +40,12 @@ declare module 'express' {
   export type Handler = (req: Request, res: Response, next: NextFunction) => void;
 
   export interface Application {
-    use(handler: Handler): Application;
-    use(path: string, handler: Handler): Application;
-    get(path: string, handler: Handler): Application;
-    post(path: string, handler: Handler): Application;
-    put(path: string, handler: Handler): Application;
-    delete(path: string, handler: Handler): Application;
+    use(...handlers: Handler[]): Application;
+    use(path: string, ...handlers: Handler[]): Application;
+    get(path: string, ...handlers: Handler[]): Application;
+    post(path: string, ...handlers: Handler[]): Application;
+    put(path: string, ...handlers: Handler[]): Application;
+    delete(path: string, ...handlers: Handler[]): Application;
     listen(port: number, callback?: () => void): Server;
     [key: string]: unknown;
   }

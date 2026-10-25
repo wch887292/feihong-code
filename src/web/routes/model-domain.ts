@@ -172,6 +172,8 @@ export function registerModelDomainRoutes(app: ExpressApp, deps: ModelDomainDeps
     apiKeyEnv?: string;
     reasoning?: string;
     default?: boolean;
+    /** 能力标签（对齐 CapabilityTag）：缺省视为 code-gen+reasoning；生图/生视频等专用模型配 vision 等标签，避免进入任务执行轮换池 */
+    tags?: string[];
   }
   function loadModels(): ModelConfig[] {
     const list = loadJsonFile<ModelConfig[]>(modelsFile, []);
@@ -203,6 +205,7 @@ export function registerModelDomainRoutes(app: ExpressApp, deps: ModelDomainDeps
       apiKey: resolveApiKey(m),
       apiKeyEnv: m.apiKeyEnv,
       model: m.name,
+      tags: m.tags,
     })));
     // P2: 同步更新补全引擎
     rebuildCompletionEngine(encList);
@@ -217,6 +220,7 @@ export function registerModelDomainRoutes(app: ExpressApp, deps: ModelDomainDeps
     apiKey: resolveApiKey(m),
     apiKeyEnv: m.apiKeyEnv,
     model: m.name,
+    tags: m.tags,
   })));
 
   /* ========== P2: CompletionEngine（供 /api/completion 使用；共享 ModelRouter 在模块级） ========== */
@@ -226,7 +230,9 @@ export function registerModelDomainRoutes(app: ExpressApp, deps: ModelDomainDeps
 
   function rebuildCompletionEngine(models: ModelConfig[]): void {
     try {
-      const providers = models
+      // 生图/生视频等专用模型（tags 含 vision 且不含 code-gen）不进代码补全池
+      const codeModels = models.filter((m) => !m.tags?.length || m.tags.includes('code-gen'));
+      const providers = codeModels
         .filter((m) => m.apiBase && m.name)
         .map((m) =>
           m.type === 'anthropic-messages'

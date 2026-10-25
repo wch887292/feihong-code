@@ -45,6 +45,32 @@ function logStream(): 'stdout' | 'stderr' {
   return process.env.FH_LOG_STREAM === 'stderr' ? 'stderr' : 'stdout';
 }
 
+/**
+ * EPIPE 兜底：Electron GUI 启动后 stdout/stderr 常指向已关闭的管道
+ * （控制台/父进程已退出），直接 write 会抛未捕获的 EPIPE 把主进程击崩。
+ * - 给流挂 'error' 监听，吞掉异步写错误（write 的错误是异步抛的，try/catch 抓不到）；
+ * - write 外层再包 try/catch，同步抛错也吞掉。日志写失败绝不击崩业务。
+ */
+function swallowPipeError(stream: NodeJS.WriteStream): void {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const s = stream as any;
+  if (!s || s.__fhEpipeGuard) return;
+  s.__fhEpipeGuard = true;
+  s.on('error', () => {
+    /* 管道断开时静默丢弃 */
+  });
+}
+swallowPipeError(process.stdout);
+swallowPipeError(process.stderr);
+
+function safeWrite(stream: NodeJS.WriteStream, line: string): void {
+  try {
+    stream.write(line + '\n');
+  } catch {
+    /* EPIPE / ENOTCONN / closed pipe —— 忽略 */
+  }
+}
+
 function emit(level: LogEntry['level'], msg: string, meta: Record<string, unknown>): void {
   const entry: LogEntry = {
     ts: new Date().toISOString(),
@@ -55,8 +81,8 @@ function emit(level: LogEntry['level'], msg: string, meta: Record<string, unknow
   };
   const line = JSON.stringify(entry);
   const stream = logStream();
-  if (level === 'error' || stream === 'stderr') process.stderr.write(line + '\n');
-  else process.stdout.write(line + '\n');
+  if (level === 'error' || stream === 'stderr') safeWrite(process.stderr, line);
+  else safeWrite(process.stdout, line);
 }
 
 export const logger = {

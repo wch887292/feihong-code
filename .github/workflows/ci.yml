@@ -33,6 +33,8 @@ jobs:
       - run: npm install ${{ matrix.node == 18 && '--ignore-scripts' || '' }}
       - name: 版本号一致性（package.json 为单一权威源）
         run: npm run check:version
+      - name: 工具目录一致性（防止 tool-schema.json 漂移）
+        run: npm run check:catalog
       - name: 类型检查
         run: npm run typecheck
       - name: 编译

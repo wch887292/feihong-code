@@ -21,6 +21,7 @@ export type { RunOptions } from '../core/task-executor';
 
 export * from './cmds/skills';
 export * from './cmds/sessions';
+export * from './cmds/recover';
 export * from './cmds/enterprise';
 export * from './cmds/integrations';
 export * from './cmds/skill-market';
