@@ -40,12 +40,17 @@ function resolveToken() {
 function inject(file, token, dryRun) {
   if (!fs.existsSync(file)) return false;
   let content = fs.readFileSync(file, 'utf8');
-  if (!content.includes(PLACEHOLDER)) return false; // 已注入或无占位符
+  const idx = content.indexOf(PLACEHOLDER);
+  // 已注入或无占位符
+  if (idx < 0) return false;
   if (dryRun) {
     console.log(`[dry-run] ${path.relative(root, file)} 含占位符，将注入 token（长度 ${token.length}）`);
     return true;
   }
-  content = content.split(PLACEHOLDER).join(token);
+  // 只替换第一处（DEFAULT_TOKEN 默认值）。app.js 内另有一处守卫逻辑
+  // indexOf('<FH_DEFAULT_TOKEN>') 依赖占位符原样存在来判断"是否未注入"，
+  // 若全文盲替换会把守卫也换成真 token，导致运行时把注入值误清空。
+  content = content.slice(0, idx) + token + content.slice(idx + PLACEHOLDER.length);
   fs.writeFileSync(file, content, 'utf8');
   console.log(`✓ ${path.relative(root, file)} 占位符已替换（token 长度 ${token.length}）`);
   return true;
