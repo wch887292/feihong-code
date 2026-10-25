@@ -17,7 +17,6 @@
   <button class="hb-btn" id="menuBtn" title="菜单"><span class="hb-ico">☰</span></button>
   <div class="hb-title" id="hbTitle">飞虹 Code</div>
   <div style="display:flex;align-items:center;gap:2px;">
-    <button class="conn-pill off" id="connPill" title="电脑连接状态 · 点击设置">● 未连接</button>
     <button class="hb-btn" id="newChatBtn" title="新对话"><span class="hb-ico">✎</span></button>
   </div>
 </div>
@@ -43,8 +42,6 @@
   <div class="conv-tabs">
     <div class="exec-tabs" id="execTabs">
       <button class="exec-tab active" data-exec="phone" title="手机本地对话，指令不转发电脑">📱 手机对话</button>
-      <button class="exec-tab" data-exec="direct" title="同局域网直连电脑执行">🖥️ 本地电脑</button>
-      <button class="exec-tab" data-exec="cloud" title="云端桥接执行体">☁️ 云电脑</button>
     </div>
     <div class="project-bar" id="projectBar">
       <span class="project-ico">📁</span>
@@ -91,8 +88,6 @@
 <!-- ===== 工作弹层（豆包式：对话/工作任务/模型/任务） ===== -->
 <div class="work-pop" id="workPop">
   <div class="wp-item exec-tab" data-exec="phone"><span class="wp-ico">💬</span><span class="wp-name">对话</span><span class="wp-check">✓</span></div>
-  <div class="wp-item exec-tab" data-exec="direct"><span class="wp-ico">🖥️</span><span class="wp-name">工作任务 · KLZX 本机</span><span class="wp-check">✓</span></div>
-  <div class="wp-item exec-tab" data-exec="cloud"><span class="wp-ico">☁️</span><span class="wp-name">工作任务 · 云电脑</span><span class="wp-check">✓</span></div>
   <div class="wp-item" onclick="showSheet('modelSwitchSheet');closeWorkPop();"><span class="wp-ico">🧠</span><span class="wp-name">模型</span><span class="wp-sub" id="wpModelName">切换 ›</span></div>
   <div class="wp-item" onclick="document.getElementById('projectBar').click();closeWorkPop();"><span class="wp-ico">📁</span><span class="wp-name">项目</span><span class="wp-sub">选择 ›</span></div>
   <div class="wp-item" onclick="var m=document.querySelector('.sn-menu-item[data-menu=tasks]');if(m)m.click();closeWorkPop();"><span class="wp-ico">📋</span><span class="wp-name">任务管理</span><span class="wp-sub">›</span></div>
@@ -152,45 +147,6 @@
     <button class="hb-btn" id="drawerClose"><span class="hb-ico">✕</span></button>
   </div>
   <div class="drawer-body">
-    <div class="drawer-section" id="sec-pc">
-      <div class="drawer-section-title">🖥️ 电脑连接</div>
-      <div style="font-size:12px;color:var(--ink-2);margin-bottom:8px;">连接电脑执行指令：<b>未连接</b>(灰) / <b>本地电脑</b>(绿) / <b>云电脑</b>(蓝)，顶栏状态胶囊实时显示当前使用通道</div>
-      <div class="create-tabs" style="margin-bottom:8px;">
-        <button class="create-tab" data-ctab2="direct">🖥️ 本地电脑</button>
-        <button class="create-tab" data-ctab2="cloud">☁️ 云电脑</button>
-      </div>
-      <div class="create-panel" id="ctab2-direct">
-        <label class="label">本地电脑地址（飞虹云中转 · 外网可用）</label>
-        <input class="input" id="pcUrlInput" placeholder="https://api.klai.top/fhrelay">
-        <div style="font-size:11px;color:var(--ink-2);margin:4px 0 8px;">✅ 默认已填飞虹云中转地址，家里/外网（流量/异地 WiFi）都能连，无需配 IP 或 VPN。原理：手机 → 云端 → 家里电脑 fhcode 直连服务（8082）。若你已手动改过地址请确认无误，否则留空默认值即可。</div>
-        <div class="footer" style="margin-top:4px;">
-          <button class="btn ghost" id="pcTestBtn" style="color:var(--ok);">📡 测试连接</button>
-          <button class="btn" id="pcSaveBtn">保存并连接</button>
-        </div>
-        <div class="form-msg" id="pcMsg"></div>
-      </div>
-      <div class="create-panel hidden" id="ctab2-cloud">
-        <label class="label">云电脑地址（云端桥接）</label>
-        <input class="input" id="cloudUrlInput" placeholder="https://api.klai.top/fhcode">
-        <label class="label">Token（云端令牌，可选）</label>
-        <input class="input" id="cloudTokenInput" type="password" placeholder="fh-web token">
-        <label class="label">设备 ID（本地电脑或云端执行体）</label>
-        <input class="input" id="cloudDeviceInput" placeholder="已预置: pc-cloud-agent-01（云端执行体）">
-        <div style="font-size:11px;color:var(--ink-2);margin:4px 0 8px;">✅ 云端执行体已预置（地址/Token/设备ID 默认填好，无需手动配置）。手机 → 云服务 → 执行端拉取执行，支持跨网络。支持指令：创建文件/读取文件/执行命令/抓取网页/系统状态；设备 ID 填本地电脑的 `fhcode bridge id` 可切回本地执行。</div>
-        <div class="footer" style="margin-top:4px;">
-          <button class="btn ghost" id="cloudTestBtn" style="color:var(--brand);">📡 测试连接</button>
-          <button class="btn" id="cloudSaveBtn">保存并连接</button>
-        </div>
-        <div class="form-msg" id="cloudMsg"></div>
-        <div class="footer" style="margin-top:8px;">
-          <button class="btn ghost" id="cloudHistoryBtn">📜 指令历史</button>
-          <button class="btn ghost" id="cloudSendFileBtn" style="color:var(--brand);">📁 发送文件到电脑</button>
-          <input type="file" id="cloudFileInput" style="display:none;">
-        </div>
-        <div id="cloudHistoryBox" class="hidden" style="margin-top:8px;max-height:220px;overflow:auto;font-size:12px;background:rgba(127,127,127,.06);border-radius:8px;padding:4px 8px;"></div>
-        <div style="font-size:11px;color:var(--ink-2);margin-top:8px;">📷 支持指令：「截图」回传屏幕图像、「查看图片 文件名」回传图片、「保存文件 文件名 base64=…」接收手机上传（≤6MB）</div>
-      </div>
-    </div>
     <div class="drawer-section">
       <div class="drawer-section-title">🧠 大模型</div>
       <div id="modelList"></div>
@@ -439,22 +395,6 @@
   <div class="sheet">
     <div class="sheet-head"><div class="sheet-title">🔗 连接器</div><span class="sheet-close" onclick="hideSheet('connectorSheet')">✕</span></div>
     <div class="sheet-body">
-      <div class="connector-card" data-conn="pc">
-        <div class="connector-ico">🖥️</div>
-        <div class="connector-info">
-          <div class="connector-name">本地电脑 <span class="conn-pill off" id="connectorPcPill" style="pointer-events:none;">● 未连接</span></div>
-          <div class="connector-desc">局域网直连电脑，执行命令 / 读写文件 / 抓取网页</div>
-        </div>
-        <div class="connector-arrow">›</div>
-      </div>
-      <div class="connector-card" data-conn="cloud">
-        <div class="connector-ico">☁️</div>
-        <div class="connector-info">
-          <div class="connector-name">云电脑 <span class="conn-pill off" id="connectorCloudPill" style="pointer-events:none;">● 未连接</span></div>
-          <div class="connector-desc">云端桥接执行体，跨网络远程执行（已预置地址）</div>
-        </div>
-        <div class="connector-arrow">›</div>
-      </div>
       <div class="connector-card" data-conn="keyless">
         <div class="connector-ico">🔓</div>
         <div class="connector-info">

@@ -11,6 +11,12 @@
     TOKEN: 'FHCODE_SYNC_TOKEN'
   };
 
+  // 内置默认令牌（2026-10-25 吴总要求「该填的全部内置、无需填写」）：
+  // 真实值由构建脚本 scripts/inject-mobile-token.cjs 从本机 ~/.feihong-code/web-token.json
+  // 注入并替换下方占位符（与 app.js 的 FH_DEFAULT_TOKEN 同一注入链路）；
+  // 源码仓库永远只含占位符，真实令牌不出本机。用户仍可在「服务器配置」页修改，优先级更高。
+  const BUILTIN_TOKEN = '<FH_DEFAULT_TOKEN>';
+
   let state = {
     url: '',
     token: '',
@@ -71,10 +77,13 @@
   function getStoredConfig() {
     try {
       const url = localStorage.getItem(CONFIG_KEYS.URL) || 'https://sync.klai.top';
-      const token = localStorage.getItem(CONFIG_KEYS.TOKEN);
+      // 内置令牌兜底：localStorage 无用户值时才用（占位符未注入时等同空串，退回手动填写）
+      const builtin = BUILTIN_TOKEN.indexOf('<FH_DEFAULT_TOKEN>') === 0 ? '' : BUILTIN_TOKEN;
+      const token = localStorage.getItem(CONFIG_KEYS.TOKEN) || builtin;
       return { url, token };
     } catch (e) {
-      return { url: 'https://sync.klai.top', token: '' };
+      const builtin = BUILTIN_TOKEN.indexOf('<FH_DEFAULT_TOKEN>') === 0 ? '' : BUILTIN_TOKEN;
+      return { url: 'https://sync.klai.top', token: builtin };
     }
   }
 

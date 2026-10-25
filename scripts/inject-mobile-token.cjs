@@ -21,6 +21,9 @@ const PLACEHOLDER = '<FH_DEFAULT_TOKEN>';
 // - app-mobile/js/app.js 是源码，保持占位符不变（构建期由本脚本处理后复制到产物）
 const TARGETS = [
   path.join(root, 'android', 'app', 'src', 'main', 'assets', 'public', 'js', 'app.js'),
+  // 同步任务页内置默认令牌（2026-10-25「该填的全部内置」）：与 app.js 同一注入链路，
+  // sync-task.js 的 BUILTIN_TOKEN 占位符同值替换，用户无需手动填写服务器配置
+  path.join(root, 'android', 'app', 'src', 'main', 'assets', 'public', 'js', 'sync-task.js'),
 ];
 
 /** 读取服务端持久化令牌（web-token.json），兼容 FH_HOME 环境变量 */

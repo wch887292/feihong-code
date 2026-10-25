@@ -3484,12 +3484,10 @@ function initSkillCenter() {
   $('drawerClose').addEventListener('click', closeDrawer);
   $('drawerMask').addEventListener('click', closeDrawer);
 
-  // 电脑连接：顶栏胶囊点击打开设置；初始化面板；启动检测 + 30s 心跳
-  var connPill = $('connPill');
-  if (connPill) connPill.addEventListener('click', openDrawer);
-  initPcConnPanel();
-  checkAllConns();
-  setInterval(checkAllConns, 30000);
+  // 电脑连接（fhrelay 桥接）已于 2026-10-25 下线：入口全摘、检测/心跳停止。
+  // 模式兜底：历史版本可能把 fh.pc.mode 存为 direct/cloud（指令会发往已废弃的桥接），
+  // 统一归位 phone（纯手机对话）；远程指挥电脑请改用侧栏「同步任务」页（sync.klai.top）。
+  try { if (getPcMode() !== 'phone') setPcMode('phone'); } catch (e) {}
 
   // 功能按钮
   document.querySelectorAll('.q-btn').forEach(function (b) {
