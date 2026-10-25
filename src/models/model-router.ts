@@ -294,8 +294,19 @@ export class ModelRouter {
    *  - 网络/未知错误：按可重试处理
    * 全部 provider（含各 key）均不可用时抛出最后错误。
    */
-  async chat(req: ChatRequest, tags?: CapabilityTag[]): Promise<ChatResponse> {
-    const order = this.rank(tags);
+  /**
+   * 调用并自动轮换（详见下方实现）。
+   * @param exclude 本轮需排除的 providerId 集合（编排器在检测到某模型退化/空输出时注入），
+   *   用于把已退化的模型临时踢出候选，优先换一个健康的模型继续任务；
+   *   若排除后已无可用 provider，则回退到完整列表，避免死锁。
+   */
+  async chat(req: ChatRequest, tags?: CapabilityTag[], exclude?: Set<string>): Promise<ChatResponse> {
+    let order = this.rank(tags);
+    // 退化轮换：排除已知退化的 provider（编排器注入）；排除后为空则回退完整列表
+    if (exclude && exclude.size > 0) {
+      const filtered = order.filter((p) => !exclude.has(p.id));
+      if (filtered.length > 0) order = filtered;
+    }
     // 本地模型自包含：当请求路径带 local 标签且宿主 Ollama 不可达时，
     // 给出明确降级提示（不阻断其它 provider 的 fallback）。
     if (tags && tags.includes('local')) {

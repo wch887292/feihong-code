@@ -69,6 +69,7 @@ function summarize(s) {
     updatedAt: s.updatedAt || s.createdAt || null,
     messageCount: Array.isArray(s.messages) ? s.messages.length : 0,
     goalCount: goals.length,
+    hasCloudGoal: goals.some((g) => g.executor === 'cloud'),
   };
 }
 
@@ -118,14 +119,18 @@ function getSession(runId) {
   return sessions.get(runId) || null;
 }
 
-/** 下发新 goal：写入任务队列（goals 数组），状态置 queued */
-function queueGoal(runId, goal) {
+/** 下发新 goal：写入任务队列（goals 数组），状态置 queued
+ * @param executor 'local'（本机 fhcode 认领，默认）或 'cloud'（云端执行器认领）
+ */
+function queueGoal(runId, goal, executor) {
   const s = sessions.get(runId);
   if (!s) throw new Error('会话不存在: ' + runId);
   if (!goal || typeof goal !== 'string') throw new Error('goal 必填且为字符串');
+  const exec = executor === 'cloud' ? 'cloud' : 'local';
   const goalEntry = {
     id: 'g_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6),
     goal,
+    executor: exec,
     status: 'queued',
     createdAt: new Date().toISOString(),
   };
@@ -139,12 +144,27 @@ function queueGoal(runId, goal) {
   return goalEntry;
 }
 
-/** 本地 CLI 拉取 queued 的 goal：置为 running 并返回 */
-function claimNextQueued(runId) {
+/** 扫描所有会话：返回包含「executor==='cloud' 且 status==='queued' 的 goal」的 runId 数组（云执行器专用） */
+function listCloudPending() {
+  const result = [];
+  for (const [runId, s] of sessions.entries()) {
+    if (!Array.isArray(s.goals)) continue;
+    if (s.goals.some((g) => g.executor === 'cloud' && g.status === 'queued')) {
+      result.push(runId);
+    }
+  }
+  return result;
+}
+
+/** 拉取 queued 的 goal：置为 running 并返回
+ * @param executor 'local'（默认，本机认领）或 'cloud'（云执行器认领），只拉取匹配执行端的 goal
+ */
+function claimNextQueued(runId, executor) {
   const s = sessions.get(runId);
   if (!s) throw new Error('会话不存在: ' + runId);
   if (!Array.isArray(s.goals)) s.goals = [];
-  const idx = s.goals.findIndex((g) => g.status === 'queued');
+  const want = executor === 'cloud' ? 'cloud' : 'local';
+  const idx = s.goals.findIndex((g) => g.status === 'queued' && (g.executor || 'local') === want);
   if (idx === -1) return null;
   const goal = s.goals[idx];
   goal.status = 'running';
@@ -163,6 +183,17 @@ function updateStatus(runId, status) {
     throw new Error('非法 status: ' + status);
   }
   s.status = status;
+  // 终态联动：会话置 done/failed 时，把仍 running 的 goal 一起翻到终态（消除详情页状态矛盾）
+  if (status === 'done' || status === 'failed') {
+    if (Array.isArray(s.goals)) {
+      for (const g of s.goals) {
+        if (g.status === 'running') {
+          g.status = status;
+          g.finishedAt = new Date().toISOString();
+        }
+      }
+    }
+  }
   s.updatedAt = new Date().toISOString();
   sessions.set(runId, s);
   persist();
@@ -177,6 +208,7 @@ module.exports = {
   getSession,
   queueGoal,
   claimNextQueued,
+  listCloudPending,
   updateStatus,
   _reset() { sessions = new Map(); }, // 仅供测试
 };

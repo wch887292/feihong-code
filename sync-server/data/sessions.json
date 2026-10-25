@@ -258,5 +258,64 @@
     "messages": [],
     "createdAt": "2026-10-25T03:56:03.518Z",
     "updatedAt": "2026-10-25T03:56:03.531Z"
+  },
+  {
+    "runId": "st3-mvnftfqp",
+    "goal": "阶段三验证",
+    "goals": [
+      {
+        "id": "g_mvnftfre_teqo",
+        "goal": "验证移动端下发的任务",
+        "status": "queued",
+        "createdAt": "2026-10-25T06:19:12.266Z"
+      }
+    ],
+    "status": "queued",
+    "messages": [],
+    "createdAt": "2026-10-25T06:19:12.261Z",
+    "updatedAt": "2026-10-25T06:19:12.266Z"
+  },
+  {
+    "runId": "smoke-cloud-mvnq9cy0",
+    "goal": "云执行位冒烟",
+    "goals": [
+      {
+        "id": "g_mvnq9cyy_7oif",
+        "goal": "云端任务A",
+        "executor": "cloud",
+        "status": "done",
+        "createdAt": "2026-10-25T11:11:31.306Z",
+        "claimedAt": "2026-10-25T11:11:31.313Z",
+        "finishedAt": "2026-10-25T11:11:31.318Z"
+      },
+      {
+        "id": "g_mvnq9czg_xjrk",
+        "goal": "本地任务B",
+        "executor": "local",
+        "status": "running",
+        "createdAt": "2026-10-25T11:11:31.324Z",
+        "claimedAt": "2026-10-25T11:11:31.326Z"
+      },
+      {
+        "id": "g_mvnq9czl_5fpe",
+        "goal": "云端任务C",
+        "executor": "cloud",
+        "status": "running",
+        "createdAt": "2026-10-25T11:11:31.329Z",
+        "claimedAt": "2026-10-25T11:11:31.334Z"
+      },
+      {
+        "id": "g_mvnq9czo_yb0j",
+        "goal": "本地任务D",
+        "executor": "local",
+        "status": "running",
+        "createdAt": "2026-10-25T11:11:31.332Z",
+        "claimedAt": "2026-10-25T11:11:31.337Z"
+      }
+    ],
+    "status": "queued",
+    "messages": [],
+    "createdAt": "2026-10-25T11:11:31.294Z",
+    "updatedAt": "2026-10-25T11:11:31.337Z"
   }
 ]

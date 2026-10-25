@@ -25,6 +25,7 @@ import { runModelsDiscoverCmd } from './cmds/models';
 import { runTrajectoryCmd } from './cmds/trajectory';
 import { runSandboxCmd } from './cmds/sandbox';
 import { runSyncPoll } from './cmds/sync';
+import { runCloudDelegate } from './cmds/cloud';
 import { startRepl } from './repl';
 import { runTui } from './tui-run';
 
@@ -173,6 +174,7 @@ async function dispatchManage(m: ManagementCommand): Promise<void> {
     case 'sessions': await runSessions(); break;
     // 跨端同步：认领并执行 sync-server 上远程下发的 goal
     case 'sync-poll': await runSyncPoll({ once: m.once }); break;
+    case 'cloud-delegate': await runCloudDelegate(m.goal); break;
     case 'resume': await runResume(m.id); break;
     // P1：崩溃恢复扫描 + 内容指纹清单校验（对标 Today CN DesktopStartupRecovery / checksums.json）
     case 'recover': await runRecover(m.json); break;

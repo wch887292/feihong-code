@@ -1,121 +1,105 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#ffffff">
-<title>飞虹 Code · 同步任务</title>
-<link rel="stylesheet" href="css/style.css">
-<link rel="stylesheet" href="css/doubao.css">
-<link rel="stylesheet" href="css/sync.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#ffffff">
+  <title>同步任务</title>
+  <link rel="stylesheet" href="css/sync.css">
 </head>
 <body>
+  <!--
+   * 飞虹 Code (对标 Muse Code · 自研内核)
+   * 晋江市飞虹智科技企业管理有限公司 · 飞扬企源研发中心 · 负责人：吴赐虹
+   * 同步任务页：跨端任务列表 / 上下文查看 / 远程下发 goal（二次确认）
+  -->
 
-<!-- ===== 顶栏 ===== -->
-<div class="headbar">
-  <button class="hb-btn" id="backBtn" title="返回"><span class="hb-ico">←</span></button>
-  <div class="hb-title">同步任务</div>
-  <div style="width:36px;"></div>
-</div>
-<div class="notice-bar">AI 生成可能有误 · 注意核实</div>
+  <!-- 错误提示条 -->
+  <div id="errorBar" class="sync-error-bar" style="display:none;"></div>
 
-<!-- ===== 设置区（未配置时显示） ===== -->
-<div class="page active" id="syncPage">
-  <div class="sync-config" id="syncConfig">
-    <div class="config-title">🔧 服务器配置</div>
-    <div class="config-hint">请先配置同步服务器地址与令牌</div>
-    <label class="label">服务器地址</label>
-    <input class="input" id="syncUrlInput" placeholder="https://api.klai.top/fhrelay">
-    <label class="label">访问令牌 (Token)</label>
-    <input class="input" id="syncTokenInput" type="password" placeholder="Bearer token">
-    <div class="form-msg" id="configMsg"></div>
-    <div class="footer">
-      <button class="btn" id="saveConfigBtn">保存配置</button>
+  <!-- 配置区（未配置时显示） -->
+  <section id="configSection" class="config-section" style="display:none;">
+    <h2 class="section-title">服务器配置</h2>
+    <div class="form-group">
+      <label for="syncUrlInput">服务器地址</label>
+      <input type="text" id="syncUrlInput" placeholder="https://sync.klai.top" value="https://sync.klai.top">
+    </div>
+    <div class="form-group">
+      <label for="syncTokenInput">访问令牌</label>
+      <input type="password" id="syncTokenInput" placeholder="与 sync-server 的 FHCODE_SYNC_TOKEN 一致">
+    </div>
+    <button id="saveConfigBtn" class="btn-primary">保存配置</button>
+    <div id="configMsg" class="config-msg"></div>
+  </section>
+
+  <!-- 任务列表区（已配置时显示） -->
+  <section id="listSection" style="display:none;">
+    <div class="list-head">
+      <h2 class="section-title">任务列表</h2>
+      <button id="refreshBtn" class="refresh-btn">刷新</button>
+    </div>
+    <div id="taskList" class="task-list"></div>
+  </section>
+
+  <!-- 底部新任务按钮 -->
+  <button id="newTaskFab" class="fab" style="display:none;">＋ 新任务</button>
+
+  <!-- 详情弹层 -->
+  <div id="detailSheet" class="sheet-mask">
+    <div class="sheet">
+      <div class="sheet-head">
+        <h2>任务详情</h2>
+        <span class="sheet-close" data-close="detailSheet">&times;</span>
+      </div>
+      <div class="detail-info">
+        <div class="info-row"><span class="info-label">状态</span><span id="detailStatus" class="status-badge queued">queued</span></div>
+        <div class="info-row"><span class="info-label">目标</span><span id="detailGoal"></span></div>
+        <div class="info-row"><span class="info-label">更新</span><span id="detailUpdated"></span></div>
+      </div>
+      <h3 class="sub-title">对话记录</h3>
+      <div id="detailMessages" class="messages-list"></div>
+      <h3 class="sub-title">子任务队列</h3>
+      <div id="detailGoals" class="goals-list"></div>
     </div>
   </div>
 
-  <!-- 任务列表区（配置后显示） -->
-  <div class="sync-list" id="syncList" style="display:none;">
-    <div class="list-header">
-      <div class="refresh-btn" id="refreshBtn" title="刷新">🔄</div>
-      <div class="list-count" id="listCount">共 0 项</div>
-    </div>
-    <div class="task-scroll" id="taskList">
-      <div class="empty">加载中…</div>
+  <!-- 新任务弹层 -->
+  <div id="newTaskSheet" class="sheet-mask">
+    <div class="sheet">
+      <div class="sheet-head">
+        <h2>新建同步任务</h2>
+        <span class="sheet-close" data-close="newTaskSheet">&times;</span>
+      </div>
+      <div class="form-group">
+        <label for="newGoalInput">任务目标</label>
+        <textarea id="newGoalInput" rows="4" placeholder="请输入要下发的任务..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>执行端</label>
+        <div class="executor-picker" id="executorPicker">
+          <button type="button" class="executor-option active" data-executor="local">本机执行</button>
+          <button type="button" class="executor-option" data-executor="cloud">云端执行</button>
+        </div>
+        <p class="executor-hint" id="executorHint">本机执行：任务由 H 盘 fhcode 认领，本机开机才会跑</p>
+      </div>
+      <button id="confirmNewTaskBtn" class="btn-primary">下一步</button>
     </div>
   </div>
-</div>
 
-<!-- ===== 详情弹层 ===== -->
-<div class="sheet-mask" id="detailSheet">
-  <div class="sheet sync-detail-sheet">
-    <div class="sheet-head">
-      <div class="sheet-title">任务详情</div>
-      <span class="sheet-close" onclick="hideSheet('detailSheet')">✕</span>
-    </div>
-    <div class="sheet-body">
-      <div class="detail-goal">
-        <div class="goal-label">目标</div>
-        <div class="goal-content" id="detailGoal"></div>
+  <!-- 二次确认弹层（高危下发动作，展示 goal 全文后才允许发送） -->
+  <div id="confirmSheet" class="sheet-mask">
+    <div class="sheet">
+      <div class="sheet-head">
+        <h2>确认下发</h2>
+        <span class="sheet-close" data-close="confirmSheet">&times;</span>
       </div>
-      <div class="detail-status">
-        <div class="status-badge" id="detailStatus"></div>
-        <div class="update-time" id="detailTime"></div>
-      </div>
-      <div class="detail-section">
-        <div class="section-title">执行消息</div>
-        <div class="messages-list" id="detailMessages"></div>
-      </div>
-      <div class="detail-section">
-        <div class="section-title">子任务</div>
-        <div class="goals-list" id="detailGoals"></div>
-      </div>
+      <p class="confirm-tip" id="confirmExecutorTip">即将把以下任务下发给本机 fhcode 执行，请确认内容：</p>
+      <div id="confirmGoalText" class="confirm-goal"></div>
+      <button id="sendTaskBtn" class="btn-primary">确认下发</button>
+      <button id="cancelConfirmBtn" class="btn-secondary">取消</button>
     </div>
   </div>
-</div>
 
-<!-- ===== 新任务弹层 ===== -->
-<div class="sheet-mask" id="newTaskSheet">
-  <div class="sheet">
-    <div class="sheet-head">
-      <div class="sheet-title">➕ 新建同步任务</div>
-      <span class="sheet-close" onclick="hideSheet('newTaskSheet')">✕</span>
-    </div>
-    <div class="sheet-body">
-      <label class="label">任务目标 *</label>
-      <textarea class="input" id="newGoalInput" rows="5" placeholder="输入要执行的同步任务目标…"></textarea>
-      <div class="form-msg" id="newTaskMsg"></div>
-      <div class="footer">
-        <button class="btn ghost" onclick="hideSheet('newTaskSheet')">取消</button>
-        <button class="btn" id="confirmNewTaskBtn">确认创建</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ===== 二次确认弹层 ===== -->
-<div class="sheet-mask" id="confirmSheet">
-  <div class="sheet">
-    <div class="sheet-head">
-      <div class="sheet-title">⚠️ 确认下发</div>
-      <span class="sheet-close" onclick="hideSheet('confirmSheet')">✕</span>
-    </div>
-    <div class="sheet-body">
-      <div class="confirm-hint">即将向服务器下发以下任务，确认后不可撤销：</div>
-      <div class="confirm-goal" id="confirmGoalText"></div>
-      <div class="footer">
-        <button class="btn ghost" onclick="hideSheet('confirmSheet')">取消</button>
-        <button class="btn" id="finalConfirmBtn">确认下发</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ===== 错误提示条 ===== -->
-<div class="error-bar" id="errorBar" style="display:none;"></div>
-
-<script src="js/sync-task.js"></script>
+  <script src="js/sync-task.js"></script>
 </body>
 </html>

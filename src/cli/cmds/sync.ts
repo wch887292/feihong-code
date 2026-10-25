@@ -9,7 +9,7 @@
  */
 import { AppError } from '../../shared/errors';
 import { loadSyncConfig } from '../../features/sync-client/config';
-import { startPolling } from '../../features/sync-client/poller';
+import { startPolling, claimAndExecute } from '../../features/sync-client/poller';
 import { executeTask, isOfflineByDefault } from '../../core/task-executor';
 
 /** sync-poll 命令入口：校验配置后启动轮询 */
@@ -33,12 +33,14 @@ export async function runSyncPoll(opts: { once?: boolean }): Promise<void> {
     }
   };
 
-  const stop = startPolling(cfg.url, cfg.token, executeGoal, cfg.interval, { once: opts.once });
   if (opts.once) {
-    // 单次模式：给一轮网络请求留出时间后退出
-    setTimeout(() => { stop(); process.exit(0); }, 15000);
-  } else {
-    // 持续模式：常驻运行，Ctrl+C 退出
-    process.on('SIGINT', () => { stop(); process.exit(0); });
+    // 单次模式：完整跑完本轮（认领→执行→终态回传）后自然退出
+    // 教训：早期版本用 setTimeout 15s 硬退，会在终态回传前杀死进程，云端永远停在 running
+    await claimAndExecute(cfg.url, cfg.token, executeGoal);
+    return;
   }
+
+  const stop = startPolling(cfg.url, cfg.token, executeGoal, cfg.interval);
+  // 持续模式：常驻运行，Ctrl+C 退出
+  process.on('SIGINT', () => { stop(); process.exit(0); });
 }

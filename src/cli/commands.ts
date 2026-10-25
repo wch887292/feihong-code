@@ -12,6 +12,8 @@
  *  - /goal <目标>     分解并保存高层目标（只读）
  *  - /self-heal <错误> 系统化自我修复错误诊断（只读）
  *  - sessions         列出历史会话（M3）
+ *  - sync-poll [once] 轮询 sync-server 认领远程下发的 goal 并执行（once=单次）
+ *  - cloud-delegate "<目标>" 把任务转投云端电脑执行（服务器云执行器认领，本机无需开机）
  *  - resume <id>      从检查点恢复会话（M3）
  *  - diff [id]        展示会话/工作区变更（M3）
  *  - rollback <id>    回滚会话改动（M3，需 --yes）
@@ -34,6 +36,8 @@ export type ManagementCommand =
   | { kind: 'sessions' }
   /** 跨端同步轮询：认领并执行 sync-server 上远程下发的 goal（带 once 参数则单次执行） */
   | { kind: 'sync-poll'; once: boolean }
+  /** 云电脑转投：把 goal 以 executor='cloud' 送入同步队列，由服务器云执行器执行 */
+  | { kind: 'cloud-delegate'; goal: string }
   | { kind: 'resume'; id: string }
   /** P1 崩溃恢复入口（对标 Today CN DesktopStartupRecovery）：扫描可续跑的中断会话 */
   | { kind: 'recover'; json: boolean }
@@ -256,6 +260,7 @@ type ManageBuilder = (ctx: ManageCtx) => ManagementCommand;
 const MANAGE_BUILDERS: Record<string, ManageBuilder> = {
   sessions: () => ({ kind: 'sessions' }),
   'sync-poll': ({ rest }) => ({ kind: 'sync-poll', once: rest.includes('once') }),
+  'cloud-delegate': ({ rest }) => ({ kind: 'cloud-delegate', goal: rest.join(' ') }),
   resume: ({ rest }) => ({ kind: 'resume', id: rest[0] ?? '' }),
   // P1：崩溃恢复扫描 + 内容指纹清单校验（对标 Today CN DesktopStartupRecovery / checksums.json）
   recover: ({ flags }) => ({ kind: 'recover', json: !!flags.json }),

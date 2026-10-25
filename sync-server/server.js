@@ -16,6 +16,8 @@ const fs = require('fs');
 const PORT = Number(process.env.FHCODE_SYNC_PORT) || 8787;
 const HOST = process.env.FHCODE_SYNC_HOST || '0.0.0.0';
 const TOKEN = process.env.FHCODE_SYNC_TOKEN || '';
+/** 云执行 token：只有服务器上的云执行器持有，用于认领 executor='cloud' 的任务（与手机/本机 token 隔离） */
+const CLOUD_TOKEN = process.env.FHCODE_CLOUD_EXEC_TOKEN || '';
 
 if (!TOKEN) {
   console.error('[FATAL] 环境变量 FHCODE_SYNC_TOKEN 未设置，拒绝启动（生产环境必须配置）');
@@ -26,13 +28,17 @@ const app = express();
 app.use(express.json({ limit: '20mb' })); // 会话快照可能较大
 
 // ===================== 鉴权中间件 =====================
+function bearerToken(req) {
+  const m = /^Bearer\s+(.+)$/i.exec(req.headers.authorization || '');
+  return m ? m[1] : '';
+}
+
 function auth(req, res, next) {
-  const header = req.headers.authorization || '';
-  const m = /^Bearer\s+(.+)$/i.exec(header);
-  if (!m || m[1] !== TOKEN) {
-    return res.status(401).json({ ok: false, error: '未授权：缺少或错误的 Bearer token' });
-  }
-  next();
+  const t = bearerToken(req);
+  if (t && t === TOKEN) return next();
+  // 云执行 token 也可通过全局鉴权；能否认领云端任务由路由级再隔离
+  if (CLOUD_TOKEN && t === CLOUD_TOKEN) return next();
+  return res.status(401).json({ ok: false, error: '未授权：缺少或错误的 Bearer token' });
 }
 
 // 所有 /api 路由统一鉴权
@@ -65,6 +71,13 @@ app.get('/api/sessions', (req, res) => {
   res.json({ ok: true, sessions: store.listSummaries() });
 });
 
+/** GET /api/sessions/cloud-pending 云执行器专用：列出有待执行云端任务的会话 runId（须在 :runId 路由之前注册） */
+app.get('/api/sessions/cloud-pending', (req, res) => {
+  if (!CLOUD_TOKEN) return res.status(500).json({ ok: false, error: 'cloud exec token 未配置' });
+  if (bearerToken(req) !== CLOUD_TOKEN) return res.status(403).json({ ok: false, error: '禁止访问：需要云执行 token' });
+  res.json({ ok: true, runIds: store.listCloudPending() });
+});
+
 /** GET /api/sessions/:runId 返回完整会话 */
 app.get('/api/sessions/:runId', (req, res) => {
   const session = store.getSession(req.params.runId);
@@ -73,20 +86,29 @@ app.get('/api/sessions/:runId', (req, res) => {
 });
 
 // ===================== 远程 goal 下发 =====================
-/** POST /api/sessions/:runId/goals 接收远程下发的新 goal，写入队列，状态 queued */
+/** POST /api/sessions/:runId/goals 接收远程下发的新 goal，写入队列，状态 queued
+ * body.executor：'local'（默认，本机认领）或 'cloud'（云端执行器认领）
+ */
 app.post('/api/sessions/:runId/goals', (req, res) => {
   try {
-    const goalEntry = store.queueGoal(req.params.runId, (req.body || {}).goal);
+    const goalEntry = store.queueGoal(req.params.runId, (req.body || {}).goal, (req.body || {}).executor);
     res.json({ ok: true, goal: goalEntry });
   } catch (e) {
     res.status(400).json({ ok: false, error: e.message });
   }
 });
 
-/** POST /api/sessions/:runId/claim 本地 CLI 拉取 queued 的 goal，置为 running */
+/** POST /api/sessions/:runId/claim 拉取 queued 的 goal，置为 running
+ * body.executor：'local'（默认，本机 sync token）或 'cloud'（必须持云执行 token）
+ */
 app.post('/api/sessions/:runId/claim', (req, res) => {
   try {
-    const goal = store.claimNextQueued(req.params.runId);
+    const executor = (req.body || {}).executor === 'cloud' ? 'cloud' : 'local';
+    if (executor === 'cloud') {
+      if (!CLOUD_TOKEN) return res.status(500).json({ ok: false, error: 'cloud exec token 未配置' });
+      if (bearerToken(req) !== CLOUD_TOKEN) return res.status(403).json({ ok: false, error: '禁止访问：云端认领需要云执行 token' });
+    }
+    const goal = store.claimNextQueued(req.params.runId, executor);
     if (!goal) return res.status(404).json({ ok: false, error: '无 queued 状态的 goal 可拉取' });
     res.json({ ok: true, goal });
   } catch (e) {
@@ -122,7 +144,8 @@ app.use('/m', express.static(MOBILE_DIR, {
 
 // 自定义路由处理 /m/ 和路径穿越防护
 app.get('/m', (req, res) => {
-  res.redirect('/m/index.html');
+  // 默认进入同步任务页（跨端续接主入口）
+  res.redirect('/m/sync.html');
 });
 
 app.get('/m/*', (req, res) => {

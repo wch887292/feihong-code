@@ -144,7 +144,7 @@ export type OrchestratorEvent =
   | { type: 'model.response'; provider: string; model: string; content: string; toolCalls: string[] }
   | { type: 'tool.call'; name: string; args: Record<string, unknown> }
   | { type: 'tool.result'; name: string; ok: boolean; output: string }
-  | { type: 'self-heal'; category: string; iteration: number; strategy?: 'bypass-and-continue' | 'reflect-retry' | 'loop-break' | 'loop-break-fortified' | 'text-only-nudge' | 'no-progress-warn' | 'no-progress-abort' }
+  | { type: 'self-heal'; category: string; iteration: number; strategy?: 'bypass-and-continue' | 'reflect-retry' | 'loop-break' | 'loop-break-fortified' | 'text-only-nudge' | 'no-progress-warn' | 'no-progress-abort' | 'model-rotated' }
   | { type: 'context.compact'; originalLength: number; compressedLength: number }
   | { type: 'steer'; message: string }
   | { type: 'plan'; steps: string[] }
@@ -231,6 +231,15 @@ export class Orchestrator {
   private noProgressStreak = 0;
   /** 全局空转警告是否已注入（每次 run 只注入一次，避免刷屏） */
   private noProgressWarned = false;
+  /** 退化轮换：本轮已确认退化（连续空输出 / text-only 死循环）的 provider，
+   *  由编排器注入到 router.chat 的 exclude，优先换健康模型继续任务；
+   *  仅在一次 run 内有效，run 开始即清空，避免跨任务误伤。 */
+  private excludedProviders = new Set<string>();
+  /** 文件操作（edit_file / write_file / read_file）针对同一路径的失败计数（2026-10-25 修复）。
+   *  旧「重复调用检测」只缓存【成功】结果、失败不入 toolResultCache，且模型常改参数使 cacheKey 每次不同，
+   *  于是「edit_file 反复操作不存在的文件」这类【失败循环】完全失守——每次新 cacheKey、每次失败都不计入
+   *  noProgressStreak，自愈额度用尽后只注入软提示，模型继续空转。这里按 path 单独兜底拦截。 */
+  private fileFailHits = new Map<string, number>();
 
   async run(goal: string, resume?: ResumeContext): Promise<RunResult> {
     const {
@@ -249,6 +258,8 @@ export class Orchestrator {
     this.repeatCallHits.clear();
     this.noProgressStreak = 0;
     this.noProgressWarned = false;
+    this.excludedProviders.clear();
+    this.fileFailHits.clear();
 
     let messages: ChatMessage[];
     let loadedExperiences: Experience[] = [];
@@ -459,6 +470,7 @@ export class Orchestrator {
           resp = await router.chat(
             { messages, tools: tools.definitions(), temperature: 0, timeoutMs: 180000, signal: this.deps.signal },
             this.deps.tags ?? ['code-gen'],
+            this.excludedProviders,
           );
           break; // 成功，跳出重试
         } catch (e) {
@@ -480,6 +492,8 @@ export class Orchestrator {
       const latency = Date.now() - startTime;
       cost += resp.costUsd;
       const msg = resp.message;
+      // 记录本轮实际使用的 provider（用于退化轮换：连续空输出/text-only 时把该 provider 加入排除集）
+      const lastProviderId = resp.providerId;
       messages.push(msg);
       session.append(msg);
 
@@ -520,6 +534,14 @@ export class Orchestrator {
         // → 判定 unisound 等模型大会话吐空，异常终止并给出诊断，不再静默 ok:true 收尾、0 产出。
         if (rawText === '') {
           emptyContentStreak++;
+          // 退化轮换（新增 2026-10-25）：连续 2 轮空输出 → 当前 provider 大概率进入大会话退化窗口，
+          // 把它加入排除集，下一轮 router.chat 自动换下一个可用模型，而非对同一坏模型反复 nudge 直至硬熔断。
+          if (emptyContentStreak >= 2 && lastProviderId) {
+            this.excludedProviders.add(lastProviderId);
+            await eventLog.append('self-heal', { category: 'model-rotated-degraded', iteration: calls, provider: lastProviderId, reason: 'empty-content' });
+            this.deps.onEvent?.({ type: 'self-heal', category: 'model-rotated-degraded', iteration: calls, strategy: 'model-rotated' });
+            logger.warn('orchestrator: empty-output streak, rotating model', { runId: session.runId, emptyContentStreak, exclude: lastProviderId });
+          }
           if (emptyContentStreak >= EMPTY_CONTENT_ABORT) {
             finalAnswer = `检测到模型连续 ${emptyContentStreak} 轮空输出（无工具调用且正文为空），判定进入大会话退化窗口，已自动终止。`
               + `本任务 0 实质产出。请：① 检查当前模型（unisound/u2-flash 大会话易吐空）与 API key 是否失效；`
@@ -535,15 +557,17 @@ export class Orchestrator {
         if (decision.action === 'finish') {
           // 观测（2026-10-22 事故修复·续）：isDeadLoop 兜底放行纯文本答案时，若全程 0 文件改动
           // 且非显式 FINAL:，记录 no-progress-no-output 审计信号——可能是「反复吐计划空话 /
-          // 工具调用中途被截断」的 unisound 大会话退化。但【不在此硬终止】：编排器层面无法可靠
-          // 区分「退化打转」与「合法的纯问答直接给答案（0 改动、无 FINAL: 前缀）」，强行掐会误杀
-          // 纯问答场景（见 orchestrator.test / agent-session.test 的合法完成用例）。真正的硬熔断
-          // 由上方第一层 empty-content-abort（彻底吐空串）承担；本处仅留观测，不改控制流、
-          // 不覆盖 finalAnswer、不设 abnormalEnd。
+          // 工具调用中途被截断」的 unisound 大会话退化。
+          // 2026-10-25 加固：当智能体【持有可用工具】（agentic 场景）却全程 0 文件改动、且是被 nudge
+          // 到上限（maxNudges）被迫"完成"时，判定为退化失败 → 标记异常终止（abnormalEnd），
+          // 不得伪装 ok:true（杜绝"任务半途结束不落盘却报成功"）。纯问答场景无工具则不触发，保留原有合法完成语义。
           const isExplicitFinal = /^final\s*:/i.test(rawText);
           if (touchedFiles.length === 0 && !isExplicitFinal) {
             await eventLog.append('error', { reason: 'no-progress-no-output', textOnlyStreak, observed: true });
             logger.warn('orchestrator no-progress observed (pure-text finish, 0 file changes)', { runId: session.runId, textOnlyStreak });
+            if ((this.deps.tools?.definitions?.()?.length ?? 0) > 0) {
+              abnormalEnd = true;
+            }
           }
           finalAnswer = decision.finalAnswer;
           break;
@@ -551,6 +575,14 @@ export class Orchestrator {
         // 仅对「非空计划性文字」累计 nudge 连击；空输出走上方熔断计数，避免两套计数打架
         if (rawText !== '') {
           textOnlyStreak++;
+          // 退化轮换（新增 2026-10-25）：连续 2 轮纯文本不调工具 → 当前模型陷入 text-only 退化，
+          // 换一个健康模型继续任务，而非对同一个退化模型反复 nudge。
+          if (textOnlyStreak >= 2 && lastProviderId) {
+            this.excludedProviders.add(lastProviderId);
+            await eventLog.append('self-heal', { category: 'model-rotated-degraded', iteration: calls, provider: lastProviderId, reason: 'text-only' });
+            this.deps.onEvent?.({ type: 'self-heal', category: 'model-rotated-degraded', iteration: calls, strategy: 'model-rotated' });
+            logger.warn('orchestrator: text-only streak, rotating model', { runId: session.runId, textOnlyStreak, exclude: lastProviderId });
+          }
           const nudgeMsg: ChatMessage = { role: 'user', content: buildTextOnlyNudgeMessage(rawText) };
           messages.push(nudgeMsg);
           session.append(nudgeMsg);
@@ -912,6 +944,43 @@ ${toolHint}
           id: tc.id,
         });
         this.deps.onEvent?.({ type: 'tool.result', name: tc.name, ok: result.ok, output: result.output.slice(0, 500) });
+      }
+      // 文件操作失败循环兜底（2026-10-25 修复 fhcode「edit_file 反复 file-not-found 空转」）：
+      // 旧「重复调用检测」只缓存【成功】结果、失败不入 toolResultCache，且模型常改 oldText/path 使 cacheKey 每次不同，
+      // 于是「edit_file 反复操作不存在的文件」这类【失败循环】完全失守——每次新 cacheKey、每次失败都不计入
+      // noProgressStreak，自愈额度(2)用尽后只注入软提示，模型继续空转直至 9m30s 才勉强收尾（第三阶段实测）。
+      // 这里按 path 单独兜底：① edit_file 命中 ENOENT（文件根本不存在，永远无法替换）→ 第 2 次即强制改用 write_file；
+      // ② 任意文件操作同路径连败 ≥4 次 → 强制换思路/换工具，并计入 noProgressStreak 让其被全局空转硬终止（阈值 8）兜底。
+      if (!result.ok) {
+        const fileOpNames = new Set(['edit_file', 'write_file', 'read_file']);
+        if (fileOpNames.has(tc.name)) {
+          const fileArg = (tc.arguments as Record<string, unknown> | undefined)?.path;
+          if (typeof fileArg === 'string' && fileArg) {
+            const failKey = tc.name + '::' + fileArg;
+            const failHits = (this.fileFailHits.get(failKey) ?? 0) + 1;
+            this.fileFailHits.set(failKey, failHits);
+            // ENOENT / no such file：文件根本不存在（edit_file 需先有内容才能替换，重试注定失败）
+            const isMissing = /enoent|no such file|文件不存在|not exist|路径中找不到/i.test(result.error ?? '');
+            if (isMissing && tc.name === 'edit_file' && failHits >= 2) {
+              result = {
+                ok: false,
+                output: '',
+                error: `【循环拦截】文件 "${fileArg}" 不存在，edit_file 需要先有文件内容才能做替换，对它重试注定失败。请立即改用 write_file 直接创建该文件（传入完整内容）；若怀疑路径拼写，先用 list_dir 确认正确路径。不要再对不存在的文件调用 edit_file。`,
+              };
+              this.noProgressStreak++;
+            } else if (failHits >= 4) {
+              // 注意：此处【不】累加 noProgressStreak —— 已重复的【成功】文件调用会走上方缓存命中强制失败路径
+              // （line 889 已累加），若这里再累加会双计、提前触发全局空转终止，反而抢过「同文打转」拦截
+              // （orchestrator.test.ts「同文原地打转」回归）。本分支只负责给一个强指令逼模型换思路/换工具，
+              // 失败不入 toolResultCache，故不会与缓存路径重复计数；若模型仍无视，则由 maxIterations 与指令兜底。
+              result = {
+                ok: false,
+                output: '',
+                error: `【循环拦截】工具 ${tc.name} 对路径 "${fileArg}" 已连续失败 ${failHits} 次仍无实质进展。请立即停止用相同方式重试，换一个完全不同的做法（如 edit_file 老失败就改用 write_file 整体重写；或先用 read_file 确认真实内容）。不要原地空转。`,
+              };
+            }
+          }
+        }
       }
       // P-fix：失败时附带输出尾部（stdout/stderr 中通常含真实报错如 [超时]/编译错误行），
       // 否则 agent 只看到 "exit code 1" 无法自诊断，会反复盲试直至自愈上限（2026-10-05 复盘实测）

@@ -1,349 +1,279 @@
-/**
- * 飞虹 Code (对标 Muse Code · 自研内核)
- * 晋江市飞虹智科技企业管理有限公司 / 飞虹智研发中心 / 负责人 吴赐虹
- *
- * 同步任务页 - 纯原生 JS 无依赖
- */
+/*
+晋江市飞虹智科技企业管理有限公司 / 飞虹智研发中心 / 负责人 吴赐虹
+*/
 
 (function () {
   'use strict';
 
-  // ===== 状态管理 =====
-  const state = {
-    url: '',
-    token: '',
-    tasks: [],
-    pollingTimer: null,
-    currentDetailTask: null
+  // ===== 配置与状态 =====
+  const CONFIG_KEYS = {
+    URL: 'FHCODE_SYNC_URL',
+    TOKEN: 'FHCODE_SYNC_TOKEN'
   };
 
-  // ===== DOM 元素缓存 =====
-  const dom = {
-    config: document.getElementById('syncConfig'),
-    list: document.getElementById('syncList'),
-    taskList: document.getElementById('taskList'),
-    listCount: document.getElementById('listCount'),
-    refreshBtn: document.getElementById('refreshBtn'),
-    backBtn: document.getElementById('backBtn'),
+  let state = {
+    url: '',
+    token: '',
+    pollingTimer: null,
+    currentTaskId: null
+  };
+
+  // ===== DOM 元素 =====
+  const els = {
+    errorBar: document.getElementById('errorBar'),
+    configSection: document.getElementById('configSection'),
+    listSection: document.getElementById('listSection'),
     syncUrlInput: document.getElementById('syncUrlInput'),
     syncTokenInput: document.getElementById('syncTokenInput'),
     saveConfigBtn: document.getElementById('saveConfigBtn'),
     configMsg: document.getElementById('configMsg'),
+    taskList: document.getElementById('taskList'),
+    refreshBtn: document.getElementById('refreshBtn'),
     detailSheet: document.getElementById('detailSheet'),
-    newTaskSheet: document.getElementById('newTaskSheet'),
-    confirmSheet: document.getElementById('confirmSheet'),
-    errorBar: document.getElementById('errorBar'),
-    // 详情内容
-    detailGoal: document.getElementById('detailGoal'),
     detailStatus: document.getElementById('detailStatus'),
-    detailTime: document.getElementById('detailTime'),
+    detailGoal: document.getElementById('detailGoal'),
+    detailUpdated: document.getElementById('detailUpdated'),
     detailMessages: document.getElementById('detailMessages'),
     detailGoals: document.getElementById('detailGoals'),
-    // 新任务
+    newTaskSheet: document.getElementById('newTaskSheet'),
     newGoalInput: document.getElementById('newGoalInput'),
-    newTaskMsg: document.getElementById('newTaskMsg'),
-    confirmNewTaskBtn: document.getElementById('confirmNewTaskBtn'),
-    // 二次确认
+    confirmSheet: document.getElementById('confirmSheet'),
     confirmGoalText: document.getElementById('confirmGoalText'),
-    finalConfirmBtn: document.getElementById('finalConfirmBtn')
+    sendTaskBtn: document.getElementById('sendTaskBtn'),
+    confirmNewTaskBtn: document.getElementById('confirmNewTaskBtn'),
+    newTaskFab: document.getElementById('newTaskFab'),
+    showNewTaskBtn: document.getElementById('showNewTaskBtn'),
+    backBtn: document.getElementById('backBtn')
   };
 
   // ===== 工具函数 =====
-  function showConfig() {
-    dom.config.style.display = 'block';
-    dom.list.style.display = 'none';
-  }
-
-  function showList() {
-    dom.config.style.display = 'none';
-    dom.list.style.display = 'flex';
-  }
-
   function showError(msg) {
-    dom.errorBar.textContent = msg;
-    dom.errorBar.style.display = 'block';
+    if (!els.errorBar) return;
+    els.errorBar.textContent = msg;
+    els.errorBar.style.display = 'block';
     setTimeout(() => {
-      dom.errorBar.style.display = 'none';
+      els.errorBar.style.display = 'none';
     }, 4000);
   }
 
-  function hideError() {
-    dom.errorBar.style.display = 'none';
+  function showConfig() {
+    els.configSection.style.display = 'flex';
+    els.listSection.style.display = 'none';
+    els.newTaskFab.style.display = 'none';
   }
 
-  function fmtTime(iso) {
+  function showList() {
+    els.configSection.style.display = 'none';
+    els.listSection.style.display = 'block';
+    els.newTaskFab.style.display = 'block';
+  }
+
+  function getStoredConfig() {
     try {
-      const d = new Date(iso);
-      return d.toLocaleString('zh-CN', {
+      const url = localStorage.getItem(CONFIG_KEYS.URL) || 'https://sync.klai.top';
+      const token = localStorage.getItem(CONFIG_KEYS.TOKEN);
+      return { url, token };
+    } catch (e) {
+      return { url: 'https://sync.klai.top', token: '' };
+    }
+  }
+
+  function setStoredConfig(url, token) {
+    try {
+      localStorage.setItem(CONFIG_KEYS.URL, url);
+      localStorage.setItem(CONFIG_KEYS.TOKEN, token);
+    } catch (e) {
+      console.error('保存配置失败:', e);
+    }
+  }
+
+  function formatTime(isoStr) {
+    try {
+      const date = new Date(isoStr);
+      return date.toLocaleString('zh-CN', {
         month: '2-digit',
         day: '2-digit',
         hour: '2-digit',
         minute: '2-digit'
       });
     } catch (e) {
-      return iso || '';
+      return isoStr || '';
     }
   }
 
   function genRunId() {
-    const base = Date.now().toString(36);
-    const rand = Math.floor(Math.random() * 1296).toString(36).padStart(4, '0');
-    return `syn-${base}-${rand}`;
-  }
-
-  // ===== 配置管理 =====
-  function loadConfig() {
-    try {
-      const url = localStorage.getItem('FHCODE_SYNC_URL');
-      const token = localStorage.getItem('FHCODE_SYNC_TOKEN');
-      if (url && token) {
-        state.url = url;
-        state.token = token;
-        dom.syncUrlInput.value = url;
-        dom.syncTokenInput.value = token;
-        showList();
-        startPolling();
-        fetchTasks();
-        return true;
-      }
-    } catch (e) {}
-    return false;
-  }
-
-  function saveConfig() {
-    const url = dom.syncUrlInput.value.trim();
-    const token = dom.syncTokenInput.value.trim();
-    if (!url || !token) {
-      dom.configMsg.textContent = '请填写服务器地址和令牌';
-      dom.configMsg.style.color = '#f44336';
-      return false;
-    }
-    try {
-      localStorage.setItem('FHCODE_SYNC_URL', url);
-      localStorage.setItem('FHCODE_SYNC_TOKEN', token);
-      state.url = url;
-      state.token = token;
-      dom.configMsg.textContent = '配置已保存';
-      dom.configMsg.style.color = '#388e3c';
-      setTimeout(() => {
-        dom.configMsg.textContent = '';
-      }, 2000);
-      showList();
-      startPolling();
-      fetchTasks();
-      return true;
-    } catch (e) {
-      dom.configMsg.textContent = '保存失败，请重试';
-      dom.configMsg.style.color = '#f44336';
-      return false;
-    }
+    const randomPart = Math.floor(Math.random() * 46656).toString(36).padStart(4, '0');
+    return `syn-${Date.now().toString(36)}-${randomPart}`;
   }
 
   // ===== API 调用 =====
-  async function apiFetch(path, options = {}) {
+  async function fetchApi(endpoint, options = {}) {
+    if (!state.url || !state.token) {
+      throw new Error('未配置服务器地址或令牌');
+    }
+
+    const url = state.url.replace(/\/+$/, '') + endpoint;
     const headers = {
       'Content-Type': 'application/json',
-      ...options.headers
+      'Authorization': `Bearer ${state.token}`
     };
-    if (state.token) {
-      headers['Authorization'] = `Bearer ${state.token}`;
+
+    try {
+      const response = await fetch(url, {
+        ...options,
+        headers: { ...headers, ...options.headers }
+      });
+
+      if (!response.ok) {
+        const errText = await response.text().catch(() => '');
+        throw new Error(`API 错误 (${response.status}): ${errText.slice(0, 200)}`);
+      }
+
+      const text = await response.text();
+      return JSON.parse(text);
+    } catch (e) {
+      throw e;
     }
-    const url = state.url + path;
-    const res = await fetch(url, {
-      ...options,
-      headers
+  }
+
+  async function listSessions() {
+    const data = await fetchApi('/api/sessions');
+    // sync-server 返回 { ok, sessions: [...] }
+    return data && Array.isArray(data.sessions) ? data.sessions : [];
+  }
+
+  async function getSession(runId) {
+    const data = await fetchApi(`/api/sessions/${encodeURIComponent(runId)}`);
+    // sync-server 返回 { ok, session: {...} }
+    return data && data.session ? data.session : null;
+  }
+
+  async function createSession(runId, goal) {
+    return await fetchApi('/api/sessions', {
+      method: 'POST',
+      body: JSON.stringify({
+        runId,
+        goal,
+        status: 'queued',
+        messages: []
+      })
     });
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-    }
-    return res.json();
   }
 
-  async function fetchTasks() {
-    try {
-      hideError();
-      const data = await apiFetch('/api/sessions');
-      state.tasks = data.items || [];
-      renderTaskList();
-    } catch (e) {
-      showError('加载任务失败：' + e.message);
-    }
+  async function postGoal(runId, goal, executor) {
+    return await fetchApi(`/api/sessions/${runId}/goals`, {
+      method: 'POST',
+      body: JSON.stringify({ goal, executor: executor || 'local' })
+    });
   }
 
-  async function fetchTaskDetail(runId) {
-    try {
-      const data = await apiFetch(`/api/sessions/${runId}`);
-      return data;
-    } catch (e) {
-      showError('获取详情失败：' + e.message);
-      return null;
-    }
-  }
+  // ===== 渲染函数 =====
+  function renderTaskList(tasks) {
+    if (!els.taskList) return;
 
-  async function createSession(goal) {
-    const runId = genRunId();
-    try {
-      await apiFetch('/api/sessions', {
-        method: 'POST',
-        body: JSON.stringify({
-          runId,
-          goal,
-          status: 'queued',
-          messages: []
-        })
-      });
-      return runId;
-    } catch (e) {
-      throw new Error('创建会话失败：' + e.message);
-    }
-  }
-
-  async function postGoal(runId, goal) {
-    try {
-      await apiFetch(`/api/sessions/${runId}/goals`, {
-        method: 'POST',
-        body: JSON.stringify({ goal })
-      });
-    } catch (e) {
-      throw new Error('下发任务失败：' + e.message);
-    }
-  }
-
-  // ===== 渲染 =====
-  function renderTaskList() {
-    if (state.tasks.length === 0) {
-      dom.taskList.innerHTML = '<div class="empty">暂无任务</div>';
-      dom.listCount.textContent = '共 0 项';
+    if (tasks.length === 0) {
+      els.taskList.innerHTML = '<div class="empty">暂无任务</div>';
       return;
     }
-    dom.listCount.textContent = `共 ${state.tasks.length} 项`;
-    dom.taskList.innerHTML = state.tasks.map(task => {
-      const statusClass = task.status || 'queued';
-      const goalPreview = task.goal ? task.goal.slice(0, 50) + (task.goal.length > 50 ? '...' : '') : '无目标';
+
+    els.taskList.innerHTML = tasks.map(task => {
+      const time = task.updatedAt ? formatTime(task.updatedAt) : '未知时间';
+      const goalPreview = task.goal ? task.goal.slice(0, 50) + (task.goal.length > 50 ? '...' : '') : '无描述';
+      
       return `
-        <div class="task-card" onclick="showTaskDetail('${task.runId}')">
+        <div class="task-item" data-run-id="${task.runId}">
           <div class="task-header">
-            <div class="task-goal">${escapeHtml(task.goal || '无目标')}</div>
-            <div class="task-status">
-              <span class="status-badge ${statusClass}">${translateStatus(task.status)}</span>
-            </div>
+            <span class="status-badge ${task.status || 'queued'}">${task.status || 'queued'}</span>
+            ${task.hasCloudGoal ? '<span class="executor-badge" title="云端执行">云</span>' : ''}
+            <div class="task-goal">${escapeHtml(goalPreview)}</div>
           </div>
           <div class="task-meta">
-            <span class="task-time">更新：${fmtTime(task.updatedAt)}</span>
-            <span>ID: ${task.runId.slice(0, 12)}...</span>
+            <span class="task-time">${time}</span>
           </div>
         </div>
       `;
     }).join('');
-  }
 
-  function translateStatus(status) {
-    const map = {
-      queued: '等待中',
-      running: '执行中',
-      paused: '已暂停',
-      done: '已完成',
-      failed: '已失败'
-    };
-    return map[status] || status;
-  }
-
-  function escapeHtml(str) {
-    return String(str)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
-  }
-
-  function showTaskDetail(runId) {
-    fetchTaskDetail(runId).then(data => {
-      if (!data) return;
-      state.currentDetailTask = data;
-      dom.detailGoal.textContent = data.goal || '无目标';
-      
-      const statusClass = data.status || 'queued';
-      dom.detailStatus.className = 'status-badge ' + statusClass;
-      dom.detailStatus.textContent = translateStatus(data.status);
-      
-      dom.detailTime.textContent = '更新于 ' + fmtTime(data.updatedAt);
-      
-      // 渲染消息列表
-      const msgs = data.messages || [];
-      dom.detailMessages.innerHTML = msgs.map(m => {
-        const role = m.role || 'assistant';
-        const content = m.content || '';
-        return `
-          <div class="message-item">
-            <span class="message-role">${role === 'user' ? '用户' : 'AI'}:</span>
-            <span class="message-content">${escapeHtml(content)}</span>
-          </div>
-        `;
-      }).join('') || '<div class="empty">暂无消息</div>';
-      
-      // 渲染子任务列表
-      const goals = data.goals || [];
-      dom.detailGoals.innerHTML = goals.map(g => {
-        const status = g.status || 'pending';
-        const statusClass = status === 'success' ? 'success' : status === 'failed' ? 'failed' : 'pending';
-        return `
-          <div class="goal-item">
-            <div class="goal-status ${statusClass}"></div>
-            <div class="goal-text">${escapeHtml(g.text || g.description || '无描述')}</div>
-          </div>
-        `;
-      }).join('') || '<div class="empty">暂无子任务</div>';
-      
-      showSheet('detailSheet');
+    // 绑定点击事件
+    els.taskList.querySelectorAll('.task-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const runId = item.dataset.runId;
+        loadTaskDetail(runId);
+      });
     });
   }
 
-  // ===== 新任务流程 =====
-  let pendingGoalForCreate = null;
+  function renderTaskDetail(task) {
+    if (!task) return;
 
-  function showNewTaskSheet() {
-    dom.newGoalInput.value = '';
-    dom.newTaskMsg.textContent = '';
-    showSheet('newTaskSheet');
-  }
-
-  function confirmNewTask() {
-    const goal = dom.newGoalInput.value.trim();
-    if (!goal) {
-      dom.newTaskMsg.textContent = '请输入任务目标';
-      dom.newTaskMsg.style.color = '#f44336';
-      return;
-    }
-    pendingGoalForCreate = goal;
-    hideSheet('newTaskSheet');
-    dom.confirmGoalText.textContent = goal;
-    showSheet('confirmSheet');
-  }
-
-  async function executeNewTask() {
-    hideSheet('confirmSheet');
-    const goal = pendingGoalForCreate;
-    pendingGoalForCreate = null;
+    els.detailStatus.textContent = task.status || 'queued';
+    els.detailStatus.className = 'status-badge ' + (task.status || 'queued');
     
+    els.detailGoal.textContent = task.goal || '无描述';
+    els.detailUpdated.textContent = task.updatedAt ? formatTime(task.updatedAt) : '未知时间';
+
+    // 渲染消息列表
+    if (task.messages && task.messages.length > 0) {
+      els.detailMessages.innerHTML = task.messages.map(msg => {
+        const roleLabel = msg.role === 'user' ? '用户' : (msg.role === 'assistant' ? '助手' : msg.role || 'unknown');
+        const content = msg.content ? escapeHtml(msg.content.slice(0, 200)) : '';
+        return `
+          <div class="message-item">
+            <div class="message-role">${roleLabel}</div>
+            <div>${content}</div>
+          </div>
+        `;
+      }).join('');
+    } else {
+      els.detailMessages.innerHTML = '<div style="padding:10px;color:var(--ink-2);text-align:center;">暂无对话记录</div>';
+    }
+
+    // 渲染 goals 列表（sync-server goal 条目字段：id / goal / status / createdAt）
+    if (task.goals && task.goals.length > 0) {
+      els.detailGoals.innerHTML = task.goals.map(goal => {
+        const statusClass = goal.status || 'queued';
+        const statusText = goal.status || 'queued';
+        return `
+          <div class="goal-item">
+            <div>${escapeHtml(goal.goal || '无描述')}</div>
+            <span class="goal-status ${statusClass}">${statusText}</span>
+          </div>
+        `;
+      }).join('');
+    } else {
+      els.detailGoals.innerHTML = '<div style="padding:10px;color:var(--ink-2);text-align:center;">暂无子任务</div>';
+    }
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  // ===== 数据加载 =====
+  async function loadTaskDetail(runId) {
+    state.currentTaskId = runId;
     try {
-      dom.newTaskMsg.textContent = '创建中…';
-      dom.newTaskMsg.style.color = '#1976d2';
-      
-      const runId = await createSession(goal);
-      await postGoal(runId, goal);
-      
-      dom.newTaskMsg.textContent = '任务已下发！';
-      dom.newTaskMsg.style.color = '#388e3c';
-      setTimeout(() => {
-        dom.newTaskMsg.textContent = '';
-      }, 3000);
-      
-      hideSheet('newTaskSheet');
-      fetchTasks();
+      const task = await getSession(runId);
+      renderTaskDetail(task);
+      if (els.detailSheet) els.detailSheet.classList.add('show');
     } catch (e) {
-      dom.newTaskMsg.textContent = '失败：' + e.message;
-      dom.newTaskMsg.style.color = '#f44336';
+      showError('加载详情失败：' + e.message);
+    }
+  }
+
+  async function refreshTaskList() {
+    if (!els.taskList) return;
+    els.taskList.innerHTML = '<div class="empty">加载中…</div>';
+
+    try {
+      const tasks = await listSessions();
+      // 按更新时间倒序
+      tasks.sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
+      renderTaskList(tasks);
+    } catch (e) {
+      els.taskList.innerHTML = `<div class="empty" style="color:#dc2626;">加载失败：${escapeHtml(e.message)}</div>`;
     }
   }
 
@@ -352,8 +282,7 @@
     if (state.pollingTimer) {
       clearInterval(state.pollingTimer);
     }
-    fetchTasks();
-    state.pollingTimer = setInterval(fetchTasks, 5000);
+    state.pollingTimer = setInterval(refreshTaskList, 5000);
   }
 
   function stopPolling() {
@@ -363,53 +292,183 @@
     }
   }
 
-  // ===== 事件绑定 =====
-  function bindEvents() {
-    // 返回按钮
-    dom.backBtn.addEventListener('click', () => {
-      stopPolling();
-      window.location.href = 'index.html';
-    });
-    
-    // 刷新按钮
-    dom.refreshBtn.addEventListener('click', fetchTasks);
-    
-    // 保存配置
-    dom.saveConfigBtn.addEventListener('click', saveConfig);
-    
-    // 新任务按钮
-    const newTaskBtn = document.querySelector('.bottom-fab');
-    if (newTaskBtn) {
-      newTaskBtn.addEventListener('click', showNewTaskSheet);
-    } else {
-      // 如果没有底部 FAB，在列表区添加一个按钮
-      const header = document.querySelector('.list-header');
-      if (header) {
-        const btn = document.createElement('button');
-        btn.className = 'btn sm brand';
-        btn.textContent = '+ 新任务';
-        btn.style.marginLeft = 'auto';
-        btn.addEventListener('click', showNewTaskSheet);
-        header.appendChild(btn);
-      }
+  // ===== 事件处理 =====
+  function handleSaveConfig() {
+    const url = els.syncUrlInput.value.trim();
+    const token = els.syncTokenInput.value.trim();
+
+    if (!url) {
+      els.configMsg.textContent = '服务器地址不能为空';
+      els.configMsg.style.color = '#dc2626';
+      return;
     }
-    
-    // 确认新任务
-    dom.confirmNewTaskBtn.addEventListener('click', confirmNewTask);
-    
-    // 最终确认
-    dom.finalConfirmBtn.addEventListener('click', executeNewTask);
+
+    if (!token) {
+      els.configMsg.textContent = '访问令牌不能为空';
+      els.configMsg.style.color = '#dc2626';
+      return;
+    }
+
+    setStoredConfig(url, token);
+    state.url = url;
+    state.token = token;
+
+    els.configMsg.textContent = '配置已保存';
+    els.configMsg.style.color = '#16a34a';
+
+    setTimeout(() => {
+      els.configMsg.textContent = '';
+      showList();
+      refreshTaskList();
+      startPolling();
+    }, 1000);
+  }
+
+  function handleShowNewTask() {
+    if (els.newTaskSheet) els.newTaskSheet.classList.add('show');
+  }
+
+  /** 关闭弹层：移除 show 类 */
+  function hideSheet(id) {
+    const sheet = document.getElementById(id);
+    if (sheet) sheet.classList.remove('show');
+  }
+
+  // ===== 执行端选择（本机 / 云端） =====
+  let selectedExecutor = 'local';
+
+  function initExecutorPicker() {
+    const picker = document.getElementById('executorPicker');
+    const hint = document.getElementById('executorHint');
+    if (!picker) return;
+    picker.querySelectorAll('.executor-option').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        picker.querySelectorAll('.executor-option').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedExecutor = btn.getAttribute('data-executor') || 'local';
+        if (hint) {
+          hint.textContent = selectedExecutor === 'cloud'
+            ? '云端执行：任务由服务器上的 fhcode 云电脑认领，本机不开机也照跑'
+            : '本机执行：任务由 H 盘 fhcode 认领，本机开机才会跑';
+        }
+      });
+    });
+  }
+
+  function handleConfirmNewTask() {
+    const goal = els.newGoalInput.value.trim();
+    if (!goal) {
+      alert('请输入任务目标');
+      return;
+    }
+
+    // 显示二次确认（文案随执行端变化）
+    if (els.confirmSheet && els.confirmGoalText) {
+      els.confirmGoalText.textContent = goal;
+      const tip = document.getElementById('confirmExecutorTip');
+      if (tip) {
+        tip.textContent = selectedExecutor === 'cloud'
+          ? '即将把以下任务下发给云端电脑（服务器）执行，请确认内容：'
+          : '即将把以下任务下发给本机 fhcode 执行，请确认内容：';
+      }
+      hideSheet('newTaskSheet');
+      els.confirmSheet.classList.add('show');
+    }
+  }
+
+  async function handleSendTask() {
+    const goal = els.newGoalInput.value.trim();
+    if (!goal) {
+      alert('任务目标已清空');
+      return;
+    }
+
+    const executor = selectedExecutor;
+    hideSheet('confirmSheet');
+    els.newGoalInput.value = '';
+
+    const runId = genRunId();
+
+    try {
+      // 先创建会话
+      await createSession(runId, goal);
+      // 再下发 goal（带执行端）
+      await postGoal(runId, goal, executor);
+
+      alert('任务已创建并下发（' + (executor === 'cloud' ? '云端执行' : '本机执行') + '，runId: ' + runId + '）');
+      refreshTaskList();
+    } catch (e) {
+      showError('下发失败：' + e.message);
+    }
   }
 
   // ===== 初始化 =====
   function init() {
-    bindEvents();
-    if (!loadConfig()) {
+    const config = getStoredConfig();
+    state.url = config.url;
+    state.token = config.token;
+
+    // 填充输入框
+    if (els.syncUrlInput) els.syncUrlInput.value = config.url || '';
+    if (els.syncTokenInput) els.syncTokenInput.value = config.token || '';
+
+    // 执行端选择器
+    initExecutorPicker();
+
+    // 绑定事件
+    if (els.saveConfigBtn) {
+      els.saveConfigBtn.addEventListener('click', handleSaveConfig);
+    }
+
+    if (els.refreshBtn) {
+      els.refreshBtn.addEventListener('click', refreshTaskList);
+    }
+
+    if (els.showNewTaskBtn) {
+      els.showNewTaskBtn.addEventListener('click', handleShowNewTask);
+    }
+
+    if (els.confirmNewTaskBtn) {
+      els.confirmNewTaskBtn.addEventListener('click', handleConfirmNewTask);
+    }
+
+    if (els.sendTaskBtn) {
+      els.sendTaskBtn.addEventListener('click', handleSendTask);
+    }
+
+    if (els.backBtn) {
+      els.backBtn.addEventListener('click', () => {
+        window.location.href = 'index.html';
+      });
+    }
+
+    // 弹层关闭按钮（右上角 ×）
+    document.querySelectorAll('.sheet-close').forEach((btn) => {
+      btn.addEventListener('click', () => hideSheet(btn.dataset.close));
+    });
+    // 点击遮罩空白处关闭
+    document.querySelectorAll('.sheet-mask').forEach((mask) => {
+      mask.addEventListener('click', (e) => {
+        if (e.target === mask) mask.classList.remove('show');
+      });
+    });
+    // 二次确认弹层的取消按钮
+    const cancelConfirmBtn = document.getElementById('cancelConfirmBtn');
+    if (cancelConfirmBtn) {
+      cancelConfirmBtn.addEventListener('click', () => hideSheet('confirmSheet'));
+    }
+
+    // 检查是否已配置
+    if (config.url && config.token) {
+      showList();
+      refreshTaskList();
+      startPolling();
+    } else {
       showConfig();
     }
   }
 
-  // 延迟初始化确保 DOM 就绪
+  // 页面加载完成后初始化
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {
