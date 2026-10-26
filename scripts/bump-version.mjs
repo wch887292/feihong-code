@@ -114,10 +114,20 @@ if (existsSync(p(amPath))) {
   }
 }
 
+// 4.8 tool-schema.json（工具目录生成产物，内含版本号；check:catalog 会强校验）
+// 直接调用 gen-tool-schema.ts 重新生成，避免升版后 check:catalog 红。
+try {
+  const { execSync } = await import('node:child_process');
+  execSync('npx tsx scripts/gen-tool-schema.ts', { cwd: root, stdio: 'inherit' });
+  console.log('✓ tool-schema.json      version -> ' + next + '（已重新生成）');
+} catch (e) {
+  console.warn(`⚠ tool-schema.json 自动重新生成失败（请手动运行 npx tsx scripts/gen-tool-schema.ts）: ${e.message}`);
+}
+
 // 5. 提示人工事项
 console.log(`
 下一步（人工）:
   1. 在 CHANGELOG.md 顶部添加 "## v${next} (YYYY-MM-DD)" 版本段（check-version 会强制校验）
-  2. 运行 npm run check:version 确认全部一致
+  2. 运行 npm run check:version && npm run check:catalog 确认全部一致
   3. 提交: git commit -m "chore: bump version ${prev} -> ${next}"
 `);

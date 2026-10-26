@@ -250,3 +250,6 @@ test_greeting.py
 # 本地日志与 UI 冒烟产物
 logs/
 .ui-check/
+
+# ── 2026-10-26 技能整理：upstream 临时缓存（不入库）──
+.tmp-upstream/

@@ -1,5 +1,12 @@
 ﻿# 飞虹 Code 更新日志 / Changelog
 
+## v8.13.3 · 手机端「本地电脑」外网场景定向修复 + 版本一致性校准 (2026-10-26)
+
+**主题**：修复手机端在「本地电脑」外网场景（pcUrl 为 fhrelay 云中继）下，创作任务被云端执行体认领、错跑到云电脑的问题——改为定向到「家里电脑」设备；并将 package.json 权威源同步至 8.13.3，修复 `check:version` 门禁红。
+
+- **定向指令流（`app-mobile/js/app.js`）**：`callComputer` 的 `direct` 模式新增 fhrelay 中继识别（`isRelayPcUrl`），命中时不再直发 `POST /fhrelay/api/tasks`，改为经云端 `/api/bridge/command` 定向到在线「家里电脑」设备（`fetchHomeDeviceId` 自动挑选：优先缓存设备 → 设备名含「家里电脑」 → 任一非云端在线设备），并轮询回传执行结果，修复任务错跑云电脑的问题
+- **版本一致性校准（`bump-version.mjs 8.13.3`）**：package.json / `src/cli/version.ts` / android `versionName` / README JSON-LD / `mcp-server.ts` / vscode-extension / `app-mobile/index.html` 全部同步至 8.13.3；android versionCode 81→82；`npm run check:version` 恢复全绿
+
 ## v8.12.0 · WSL2 内核管理视图 + 本地优先控制台校准 (2026-10-20)
 
 **主题**：Web 控制台新增 WSL2 内核管理视图（对标 exe 控制台：状态总览 / 电源管理 / 后台重编译 / .wslconfig 内核指向 / 编译日志），并将本地控制台与「家里电脑-本地」直连链路做方案B 收尾校准。

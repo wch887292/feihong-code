@@ -1,9 +1,9 @@
 {
   "name": "feihong-code",
-  "version": "8.12.0",
+  "version": "8.13.3",
   "description": "Terminal AI Coding Agent — 终端 AI 编程智能体（由 scripts/gen-tool-schema.ts 从运行时工具注册表自动生成）",
-  "generatedAt": "2026-10-23",
-  "sourceRevision": "74b6d09",
+  "generatedAt": "2026-10-26",
+  "sourceRevision": "19a58e7",
   "catalogVersion": "sha256:a73f677de6a5bef26a111c4290a096755384d7193f6faded3c672821aeda5fff",
   "toolCount": 22,
   "tools": [
