@@ -8,6 +8,7 @@
  *  - 离线规则拆解（无需模型）；亦产出 modelPrompt 供真实模型生成更智能计划
  */
 import type { RepoSnapshot } from './repo-reader';
+import { buildContextBrief } from './context-brief';
 
 export interface SweSubTask {
   id: string;
@@ -178,8 +179,9 @@ function buildModelPrompt(goal: string, snapshot: RepoSnapshot, tasks: SweSubTas
     '你是全自动软件工程 Agent。请严格按以下计划，使用可用工具（读/写/编辑/列目录/搜索/执行命令/跑测试）完成任务。',
     `总目标: ${goal}`,
     '',
-    '## 仓库上下文摘要',
-    snapshot.contextString.slice(0, 2500),
+    // P1 瘦身：不再整段塞全仓 contextString（上限 2500 字，是大会话吐空的膨胀源之一），
+    // 改用判别性 context-brief（只喂相关文件/符号/命令/红线），与 P0-A buildFocusedGoal 同源。
+    buildContextBrief(goal, snapshot).briefText,
     '',
     '## 任务拆解（请逐条执行，前一条完成并通过验证后再进入下一条）',
     taskLines,

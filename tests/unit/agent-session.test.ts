@@ -34,7 +34,10 @@ function mockRouter(opts: { onChat?: (req: ChatReq, call: number) => void } = {}
           message: { role: 'assistant', content: '', toolCalls: [{ id: 't1', name: 'read_file', arguments: { path: 'x.ts' } }] },
         };
       }
-      return { providerId: 'mock', model: 'mock-model', costUsd: 0, message: { role: 'assistant', content: '任务完成', toolCalls: [] } };
+      // 遵循完成协议：最后一条回复以 FINAL: 前缀收尾（无文件改动时合法完成的唯一方式）。
+      // 否则命中 orchestrator 的「纯文本收尾 + 0 文件改动 + 有工具 → 判退化失败(abnormalEnd)」加固，
+      // result.ok 为 false，steer 注入断言无法执行（2026-10-25 加固后的正确收尾语义）。
+      return { providerId: 'mock', model: 'mock-model', costUsd: 0, message: { role: 'assistant', content: 'FINAL: 任务完成', toolCalls: [] } };
     },
     getStats: () => [],
   } as unknown as ModelRouter;

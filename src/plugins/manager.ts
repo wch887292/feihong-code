@@ -10,6 +10,12 @@
 import { logger } from '../shared/logger';
 import { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync, unlinkSync } from 'fs';
 import { join } from 'path';
+import {
+  applyRenames,
+  parseMarketplaceManifest,
+  resolveDisplayName,
+  type MarketplacePlugin,
+} from './marketplace';
 
 /** 插件状态 */
 export type PluginStatus = 'installed' | 'enabled' | 'disabled' | 'error';
@@ -62,6 +68,100 @@ export interface MarketPlugin extends PluginMetadata {
   latestVersion: string;
   updateAvailable?: boolean;
 }
+
+/**
+ * P2-2 市场来源（对齐 claude-plugins-official 分发语义）：
+ *  - plugins：marketplace.json 解析出的条目（MarketplacePlugin，可携带宿主透传字段）
+ *  - renames：顶层 { 旧name -> 新name }，检索/安装时透明改写旧引用
+ *  - sourcePath：命中的 marketplace.json 绝对路径（内置回退时省略）
+ */
+export interface MarketSource {
+  plugins: MarketplacePlugin[];
+  renames: Record<string, string>;
+  sourcePath?: string;
+}
+
+/**
+ * P2-2 内置默认市场（marketplace.json 缺失/损坏时的回退，等价于旧的 4 条硬编码 mock，
+ * 但 id 一律用合法 slug（小写 [a-z0-9.-]），人类可读名放 name/displayName）。
+ * 字段形状对齐 MarketPlugin，经 toMarketPlugin 映射后返回。
+ */
+const BUILTIN_PLUGINS: MarketplacePlugin[] = [
+  {
+    name: 'feihong-git-enhanced',
+    id: 'feihong-git-enhanced',
+    displayName: 'Git Enhanced',
+    description: '增强的 Git 集成，支持可视化 diff、blame、分支管理',
+    keywords: ['git', 'version-control', 'diff'],
+    categories: ['version-control'],
+    entry: 'index.js',
+    permissions: ['workspace', 'git'],
+    dependencies: [],
+    publisher: '飞虹官方',
+    verified: true,
+    featured: true,
+    latestVersion: '1.2.0',
+    version: '1.2.0',
+    downloads: 12500,
+    rating: 4.8,
+  },
+  {
+    name: 'feihong-theme-dark-plus',
+    id: 'feihong-theme-dark-plus',
+    displayName: 'Dark+ Theme',
+    description: '飞虹 Code 官方深色主题，护眼配色',
+    keywords: ['theme', 'dark', 'ui'],
+    categories: ['themes'],
+    entry: 'index.js',
+    permissions: ['ui'],
+    dependencies: [],
+    publisher: '飞虹官方',
+    verified: true,
+    featured: true,
+    latestVersion: '2.0.1',
+    version: '2.0.1',
+    downloads: 28000,
+    rating: 4.9,
+  },
+  {
+    name: 'community-python-helper',
+    id: 'community-python-helper',
+    displayName: 'Python Helper',
+    description: 'Python 开发辅助，支持虚拟环境管理、依赖分析、代码格式化',
+    keywords: ['python', 'venv', 'pip', 'format'],
+    categories: ['programming-languages'],
+    entry: 'index.js',
+    permissions: ['workspace', 'terminal'],
+    dependencies: [],
+    publisher: '社区贡献者',
+    verified: false,
+    featured: false,
+    latestVersion: '0.9.3',
+    version: '0.9.3',
+    downloads: 5600,
+    rating: 4.5,
+  },
+  {
+    name: 'feihong-docker-helper',
+    id: 'feihong-docker-helper',
+    displayName: 'Docker Helper',
+    description: 'Docker 容器管理，支持镜像构建、容器运行、日志查看',
+    keywords: ['docker', 'container', 'devops'],
+    categories: ['devops'],
+    entry: 'index.js',
+    permissions: ['terminal', 'workspace'],
+    dependencies: [],
+    publisher: '飞虹官方',
+    verified: true,
+    featured: false,
+    latestVersion: '1.0.0',
+    version: '1.0.0',
+    downloads: 8900,
+    rating: 4.6,
+  },
+];
+
+const BUILTIN_RENAMES: Record<string, string> = {};
 
 /** 插件 API */
 export interface PluginAPI {
@@ -350,93 +450,78 @@ export class PluginManager {
   }
 
   /**
-   * 搜索市场插件（模拟）
+   * 解析市场来源（P2-2 分发层，消费 marketplace.ts 纯函数）：
+   *  - 命中 <baseDir>/marketplace.json 且可解析 → 用真实条目 + 顶层 renames
+   *  - 缺失 / 损坏 / name 非法 → 回退内置默认（等价旧的 4 条硬编码 mock，id 已 slug 化）
+   */
+  private resolveMarketSource(): MarketSource {
+    const sourcePath = join(this.baseDir, 'marketplace.json');
+    if (existsSync(sourcePath)) {
+      try {
+        const raw = JSON.parse(readFileSync(sourcePath, 'utf-8'));
+        const manifest = parseMarketplaceManifest(raw);
+        if (manifest) {
+          return { plugins: manifest.plugins, renames: manifest.renames, sourcePath };
+        }
+        logger.warn('marketplace.json 解析失败，回退内置市场', { sourcePath });
+      } catch (error) {
+        logger.warn('marketplace.json 读取失败，回退内置市场', { sourcePath, error: String(error) });
+      }
+    }
+    return { plugins: BUILTIN_PLUGINS, renames: BUILTIN_RENAMES };
+  }
+
+  /** 把 marketplace.json 条目（MarketplacePlugin 透传）映射为宿主消费的 MarketPlugin */
+  private toMarketPlugin(p: MarketplacePlugin, renames: Record<string, string>): MarketPlugin {
+    const x = p as unknown as Record<string, any>;
+    const migratedName = applyRenames(x.name, renames); // 旧引用透明迁移到当前名
+    const latestVersion: string = x.latestVersion ?? x.version ?? '0.0.0';
+    return {
+      id: migratedName,
+      name: resolveDisplayName(migratedName, x.displayName),
+      version: x.version ?? latestVersion,
+      description: x.description ?? '',
+      author: x.author ?? 'community',
+      homepage: x.homepage,
+      repository: x.repository,
+      license: x.license,
+      keywords: Array.isArray(x.keywords) ? x.keywords : [],
+      categories: Array.isArray(x.categories) ? x.categories : [],
+      icon: x.icon,
+      entry: x.entry ?? 'index.js',
+      permissions: Array.isArray(x.permissions) ? x.permissions : [],
+      dependencies: Array.isArray(x.dependencies) ? x.dependencies : [],
+      engines: x.engines,
+      publishedAt: x.publishedAt,
+      downloads: x.downloads,
+      rating: x.rating,
+      publisher: x.publisher ?? 'community',
+      verified: Boolean(x.verified),
+      featured: Boolean(x.featured),
+      latestVersion,
+    };
+  }
+
+  /**
+   * 搜索市场插件（P2-2：读真实 marketplace.json，缺失回退内置；旧名经 renames 迁移检索）
    */
   searchMarketPlugins(query: string, category?: string): MarketPlugin[] {
-    // 模拟市场插件列表
-    const mockPlugins: MarketPlugin[] = [
-      {
-        id: 'feihong-git-enhanced',
-        name: 'Git Enhanced',
-        version: '1.2.0',
-        description: '增强的 Git 集成，支持可视化 diff、 blame、分支管理',
-        author: 'feihong',
-        keywords: ['git', 'version-control', 'diff'],
-        categories: ['version-control'],
-        entry: 'index.js',
-        permissions: ['workspace', 'git'],
-        dependencies: [],
-        publisher: '飞虹官方',
-        verified: true,
-        featured: true,
-        latestVersion: '1.2.0',
-        downloads: 12500,
-        rating: 4.8,
-      },
-      {
-        id: 'feihong-theme-dark-plus',
-        name: 'Dark+ Theme',
-        version: '2.0.1',
-        description: '飞虹 Code 官方深色主题，护眼配色',
-        author: 'feihong',
-        keywords: ['theme', 'dark', 'ui'],
-        categories: ['themes'],
-        entry: 'index.js',
-        permissions: ['ui'],
-        dependencies: [],
-        publisher: '飞虹官方',
-        verified: true,
-        featured: true,
-        latestVersion: '2.0.1',
-        downloads: 28000,
-        rating: 4.9,
-      },
-      {
-        id: 'community-python-helper',
-        name: 'Python Helper',
-        version: '0.9.3',
-        description: 'Python 开发辅助，支持虚拟环境管理、依赖分析、代码格式化',
-        author: 'community',
-        keywords: ['python', 'venv', 'pip', 'format'],
-        categories: ['programming-languages'],
-        entry: 'index.js',
-        permissions: ['workspace', 'terminal'],
-        dependencies: [],
-        publisher: '社区贡献者',
-        verified: false,
-        featured: false,
-        latestVersion: '0.9.3',
-        downloads: 5600,
-        rating: 4.5,
-      },
-      {
-        id: 'feihong-docker-helper',
-        name: 'Docker Helper',
-        version: '1.0.0',
-        description: 'Docker 容器管理，支持镜像构建、容器运行、日志查看',
-        author: 'feihong',
-        keywords: ['docker', 'container', 'devops'],
-        categories: ['devops'],
-        entry: 'index.js',
-        permissions: ['terminal', 'workspace'],
-        dependencies: [],
-        publisher: '飞虹官方',
-        verified: true,
-        featured: false,
-        latestVersion: '1.0.0',
-        downloads: 8900,
-        rating: 4.6,
-      },
-    ];
-
-    let results = mockPlugins;
+    const source = this.resolveMarketSource();
+    const renames = source.renames;
+    let results: MarketPlugin[] = source.plugins.map((p) => this.toMarketPlugin(p, renames));
     if (query) {
       const q = query.toLowerCase();
-      results = results.filter((p) =>
-        p.name.toLowerCase().includes(q) ||
-        p.description.toLowerCase().includes(q) ||
-        p.keywords.some((k) => k.toLowerCase().includes(q))
-      );
+      const qRenamed = applyRenames(query, renames).toLowerCase(); // 旧名查 → 迁移到新名
+      results = results.filter((p) => {
+        const nameHit =
+          p.name.toLowerCase().includes(q) ||
+          p.name.toLowerCase().includes(qRenamed) ||
+          p.id.toLowerCase().includes(q) ||
+          p.id.toLowerCase().includes(qRenamed);
+        const descHit = p.description.toLowerCase().includes(q) || p.description.toLowerCase().includes(qRenamed);
+        const kwHit = p.keywords.some((k) => k.toLowerCase().includes(q) || k.toLowerCase().includes(qRenamed));
+        return nameHit || descHit || kwHit;
+      });
     }
     if (category) {
       results = results.filter((p) => p.categories.includes(category));

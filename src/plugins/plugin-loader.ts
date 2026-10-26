@@ -18,6 +18,8 @@ import { logger } from '../shared/logger';
 
 export interface PluginManifest {
   name: string;
+  /** P2-1：可变的人类可读标签（展示用，不影响不可变 slug `name`；缺省回退 name） */
+  displayName?: string;
   version: string;
   description?: string;
   /** 插件内技能目录（相对插件根，内含 SKILL.md） */

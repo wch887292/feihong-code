@@ -11,6 +11,10 @@
 import { readRepository, type RepoSnapshot } from './repo-reader';
 import { planSweTask, type SwePlan, type SweSubTask } from './swe-planner';
 import { verifyTask, type VerifyResult } from './swe-verifier';
+import { buildContextBrief } from './context-brief';
+import { VerificationMatrixReporter } from '../harness/reporter';
+import { writeFileSync, mkdirSync } from 'fs';
+import { dirname, join } from 'path';
 
 /** 实现单个子任务的回调（由 run.ts 注入，内含 Orchestrator 装配） */
 export interface SubTaskOutcome {
@@ -56,6 +60,10 @@ export interface SweReport {
   tasks: SweTaskResult[];
   summary: string;
   repoContext: string;
+  /** P0-B：任务收尾强制验证矩阵（markdown，可核对证据；无子任务执行记录时标注） */
+  verificationMatrix: string;
+  /** P0-B：验证矩阵落盘路径（未配置出盘路径时为 null） */
+  verificationMatrixPath: string | null;
 }
 
 interface EventLogLike {
@@ -101,7 +109,9 @@ export async function runSweAgent(goal: string, deps: SweAgentDeps): Promise<Swe
   const taskResults: SweTaskResult[] = [];
 
   if (planOnly) {
-    return finalize(goal, snapshot, tasks, taskResults, started, 'partial');
+    const report = finalize(goal, snapshot, tasks, taskResults, started, 'partial');
+    emitMatrix(report, cwd);
+    return report;
   }
 
   // 阶段 3：逐任务实现 + 验证（含自愈重试）
@@ -158,25 +168,61 @@ export async function runSweAgent(goal: string, deps: SweAgentDeps): Promise<Swe
 
   // 阶段 4：汇总
   phase('finalize', { taskCount: tasks.length });
-  return finalize(goal, snapshot, tasks, taskResults, started, computeOverall(taskResults));
+  const report = finalize(goal, snapshot, tasks, taskResults, started, computeOverall(taskResults));
+  emitMatrix(report, cwd);
+  return report;
+}
+
+/**
+ * P0-B：把验证矩阵落盘到 <cwd>/verification-matrix.md，并回填 report.verificationMatrixPath。
+ * 仅当矩阵非空（有子任务执行记录）时落盘；plan-only/空结果不落盘（避免空文件噪音）。
+ * 写盘失败不影响主流程（try/catch 兜底，path 保持 null）。
+ */
+function emitMatrix(report: SweReport, cwd: string): void {
+  if (!report.verificationMatrix || report.verificationMatrix.includes('无子任务执行记录')) {
+    return;
+  }
+  try {
+    const outPath = join(cwd, 'verification-matrix.md');
+    mkdirSync(dirname(outPath), { recursive: true });
+    writeFileSync(outPath, report.verificationMatrix, 'utf8');
+    report.verificationMatrixPath = outPath;
+  } catch {
+    report.verificationMatrixPath = null;
+  }
 }
 
 function buildFocusedGoal(plan: SwePlan, task: SweSubTask, snapshot: RepoSnapshot): string {
+  // P0-A：用判别性 brief 前置（只喂相关片段，不再整段塞全仓 contextString），
+  // 但保留当前子任务的目标文件、验收、命令与执行纪律。plan.modelPrompt 仍含全量上下文，
+  // 这里只取「任务拆解 + 执行纪律」语义，正文改用 briefText。
+  const brief = buildContextBrief(plan.goal, snapshot);
+  const taskLines = plan.tasks
+    .map(
+      (t) =>
+        `- [${t.id}] ${t.title} (复杂度${t.complexity})\n  目标文件: ${t.targetFiles.join(', ') || '（自动定位）'}\n  验收: ${t.acceptance}`,
+    )
+    .join('\n');
   const lines = [
-    plan.modelPrompt,
+    '你是全自动软件工程 Agent。请严格按下方任务拆解，使用可用工具（读/写/编辑/列目录/搜索/执行命令/跑测试）完成。',
+    `总目标: ${plan.goal}`,
+    '',
+    brief.briefText,
     '',
     `# 当前执行子任务 [${task.id}] ${task.title}`,
     `描述: ${task.description}`,
     `验收标准: ${task.acceptance}`,
     `目标文件: ${task.targetFiles.join(', ') || '（自动定位）'}`,
-    snapshot.buildCommand ? `仓库构建命令: ${snapshot.buildCommand}` : '',
-    snapshot.testCommand ? `仓库测试命令: ${snapshot.testCommand}` : '',
     task.verifyCommand ? `本任务专属验证命令: ${task.verifyCommand}` : '',
+    '',
+    '## 任务拆解（请逐条执行，前一条完成并通过验证后再进入下一条）',
+    taskLines,
     '',
     '## 本轮聚焦纪律',
     `- 本轮回合只专注完成上方子任务 [${task.id}]，不要提前做其他子任务。`,
     '- 必须通过工具实际修改/创建文件；描述代码不算完成。',
     '- 完成后务必运行对应验证命令，并依据真实输出判断，禁止谎报通过。',
+    '- 只改动与当前子任务相关的文件，避免无谓触碰无关模块。',
     '- 完成后用一句话说明：做了什么、验证了什么、结果如何。',
   ];
   return lines.filter(Boolean).join('\n');
@@ -226,6 +272,15 @@ function finalize(
     if (r.verify.overall === 'fail') lines.push(`    错误: ${r.verify.errorSummary.slice(0, 300)}`);
   }
 
+  // P0-B：任务收尾强制验证矩阵（从各子任务的 VerifyResult.steps 渲染，可核对证据）
+  const matrixReporter = new VerificationMatrixReporter();
+  const verificationMatrix =
+    results.length > 0
+      ? matrixReporter.renderAll(
+          results.map((r) => ({ taskId: r.task.id, title: r.task.title, result: r.verify })),
+        )
+      : '# 任务验证矩阵\n\n> 无子任务执行记录（plan-only 或验证前被终止），本矩阵为空。';
+
   return {
     goal,
     repository: snapshot.root,
@@ -237,6 +292,8 @@ function finalize(
     tasks: results,
     summary: lines.join('\n'),
     repoContext: snapshot.contextString,
+    verificationMatrix,
+    verificationMatrixPath: null,
   };
 }
 
