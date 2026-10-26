@@ -10,11 +10,13 @@ try {
   const tokenFile = path.join((process.env.FH_HOME || '').trim() || os.homedir(), '.feihong-code', 'web-token.json');
   if (fs.existsSync(tokenFile)) {
     const saved = JSON.parse(fs.readFileSync(tokenFile, 'utf8'));
-    if (saved && saved.token) process.env.FH_WEB_TOKEN = saved.token;
+    // v78 双令牌：桥接侧（手机直连/云桥到本机 8082）统一用 bridgeToken，与手机 getCloudToken() 一致；
+    // 切勿用 saved.token（那是 sync.klai.top 同步体系的令牌，两系统两把钥匙）。
+    if (saved && saved.bridgeToken) process.env.FH_WEB_TOKEN = saved.bridgeToken;
   }
 } catch (e) { /* 读取失败则使用服务端自动生成逻辑 */ }
 process.env.NODE_OPTIONS = '';
-process.chdir('H:\\Muse Code\u590d\u523b'); // H:\feihong-code
-var srv = require('H:\\Muse Code\u590d\u523b\\dist\\web\\server.js');
+process.chdir('H:\\feihong-code'); // H:\feihong-code（原 Muse Code复刻 旧目录已清空迁移）
+var srv = require('H:\\feihong-code\\dist\\web\\server.js');
 srv.startWebServer({});
 setInterval(function () {}, 1 << 30); // 保活

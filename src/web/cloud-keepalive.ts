@@ -74,8 +74,9 @@ function resolveCloudToken(): string {
   try {
     const tokenFile = path.join(FH_DATA_HOME, 'web-token.json');
     if (fs.existsSync(tokenFile)) {
-      const saved = JSON.parse(fs.readFileSync(tokenFile, 'utf8')) as { token?: string };
-      if (saved.token) return saved.token;
+      const saved = JSON.parse(fs.readFileSync(tokenFile, 'utf8')) as { token?: string; bridgeToken?: string };
+      // v78 双令牌：桥接侧统一用 bridgeToken，与手机 getCloudToken() 一致；saved.token 是同步体系令牌，不可混用。
+      if (saved.bridgeToken) return saved.bridgeToken;
     }
   } catch { /* 读取失败则走空 token */ }
   log('[安全] 未找到 web-token.json，bridge 无法注册云端设备，请配置令牌后重启');

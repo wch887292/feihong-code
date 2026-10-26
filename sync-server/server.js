@@ -27,6 +27,36 @@ if (!TOKEN) {
 const app = express();
 app.use(express.json({ limit: '20mb' })); // 会话快照可能较大
 
+// ===================== CORS 中间件（必须在 auth 之前）=====================
+// App（Capacitor WebView，origin=https://localhost 等）跨域访问本服务，
+// 浏览器先发 OPTIONS 预检——若被 auth 拦成 401 或响应无 CORS 头，
+// WebView 侧统一报 "Failed to fetch"（2026-10-25 v77 实测事故）。
+// 白名单回显 Origin（不用 *：请求带 Authorization 头，* 会被浏览器拒绝）。
+// 注：安全边界是 Bearer token，CORS 仅为放行自家客户端。
+const CORS_ORIGINS = new Set([
+  'https://localhost',      // Capacitor 默认 androidScheme
+  'http://localhost',
+  'capacitor://localhost',
+  'https://sync.klai.top',  // 自身 /m/ 静态页（同源也显式放行）
+  'https://api.klai.top',
+]);
+function cors(req, res, next) {
+  const origin = req.headers.origin;
+  if (origin && (CORS_ORIGINS.has(origin) || origin === 'null')) {
+    res.setHeader('Access-Control-Allow-Origin', origin === 'null' ? 'null' : origin);
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Authorization,Content-Type');
+    res.setHeader('Access-Control-Max-Age', '86400');
+    res.setHeader('Vary', 'Origin');
+  }
+  if (req.method === 'OPTIONS') {
+    // 预检直接放行（不带业务鉴权，浏览器凭 CORS 头决定后续真实请求）
+    return res.status(204).end();
+  }
+  next();
+}
+app.use(cors);
+
 // ===================== 鉴权中间件 =====================
 function bearerToken(req) {
   const m = /^Bearer\s+(.+)$/i.exec(req.headers.authorization || '');

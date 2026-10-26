@@ -2,21 +2,29 @@
 晋江市飞虹智科技企业管理有限公司 / 飞虹智研发中心 / 负责人 吴赐虹
 */
 
-/* ===== 错误提示条 ===== */
-.sync-error-bar {
-  position: fixed;
-  top: 60px;
-  left: 12px;
-  right: 12px;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #dc2626;
-  padding: 10px 14px;
-  border-radius: 8px;
-  font-size: 13px;
-  z-index: 9999;
-  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.15);
+/* ===== 顶部导航栏（返回首页） ===== */
+.sync-topbar {
+  position: sticky; top: 0; z-index: 1000;
+  min-height: calc(48px + env(safe-area-inset-top));
+  padding-top: env(safe-area-inset-top);
+  padding-left: 6px; padding-right: 12px;
+  background: var(--card);
+  border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; justify-content: space-between;
 }
+.sync-back-btn {
+  width: 38px; height: 38px; min-width: 38px; padding: 0;
+  border: none; background: transparent; color: var(--ink);
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%; cursor: pointer; font-size: 21px; line-height: 1;
+}
+.sync-back-btn:active { background: var(--bg); }
+.sync-topbar-title {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  font-size: 17px; font-weight: 700; color: var(--ink);
+  letter-spacing: 0.3px; white-space: nowrap;
+}
+.sync-topbar-right { width: 38px; min-width: 38px; }
 
 /* ===== 任务列表 ===== */
 .task-list {
@@ -212,16 +220,19 @@ body {
   font-size: 15px;
 }
 
-/* ===== 错误提示条 ===== */
+/* ===== 错误提示条（贴顶栏下方，不遮挡导航） ===== */
 .sync-error-bar {
   position: fixed;
-  top: 0; left: 0; right: 0;
+  top: calc(48px + env(safe-area-inset-top));
+  left: 10px; right: 10px;
   z-index: 999;
-  padding: 10px 16px;
+  padding: 10px 14px;
   background: var(--err);
   color: #fff;
   font-size: 13px;
   text-align: center;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(229, 72, 77, 0.25);
 }
 
 /* ===== 配置区 ===== */

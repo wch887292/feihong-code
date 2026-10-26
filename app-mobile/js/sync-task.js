@@ -13,9 +13,9 @@
 
   // 内置默认令牌（2026-10-25 吴总要求「该填的全部内置、无需填写」）：
   // 真实值由构建脚本 scripts/inject-mobile-token.cjs 从本机 ~/.feihong-code/web-token.json
-  // 注入并替换下方占位符（与 app.js 的 FH_DEFAULT_TOKEN 同一注入链路）；
+  // 注入并替换下方占位符（与 app.js 的 FH_SYNC_TOKEN 同一注入链路，token 字段）；
   // 源码仓库永远只含占位符，真实令牌不出本机。用户仍可在「服务器配置」页修改，优先级更高。
-  const BUILTIN_TOKEN = '<FH_DEFAULT_TOKEN>';
+  const BUILTIN_TOKEN = '<FH_SYNC_TOKEN>';
 
   let state = {
     url: '',
@@ -53,6 +53,24 @@
   };
 
   // ===== 工具函数 =====
+  // 错误文案本地化：把浏览器/网络的原始报错翻译成用户看得懂的中文提示
+  function friendlyError(e) {
+    const msg = (e && e.message) || String(e || '未知错误');
+    if (/failed to fetch|networkerror|load failed/i.test(msg)) {
+      return '网络连接失败，请检查网络或服务器状态后重试';
+    }
+    if (/未配置/.test(msg)) return msg;
+    const m = msg.match(/API 错误 \((\d+)\)/);
+    if (m) {
+      const code = Number(m[1]);
+      if (code === 401 || code === 403) return '访问令牌错误或已失效，请更新令牌后重试';
+      if (code === 404) return '请求的服务不存在（404）';
+      if (code >= 500) return '服务器暂时异常，请稍后重试';
+      return '请求失败（HTTP ' + code + '），请稍后重试';
+    }
+    return msg;
+  }
+
   function showError(msg) {
     if (!els.errorBar) return;
     els.errorBar.textContent = msg;
@@ -78,11 +96,11 @@
     try {
       const url = localStorage.getItem(CONFIG_KEYS.URL) || 'https://sync.klai.top';
       // 内置令牌兜底：localStorage 无用户值时才用（占位符未注入时等同空串，退回手动填写）
-      const builtin = BUILTIN_TOKEN.indexOf('<FH_DEFAULT_TOKEN>') === 0 ? '' : BUILTIN_TOKEN;
+      const builtin = BUILTIN_TOKEN.indexOf('<FH_SYNC_TOKEN>') === 0 ? '' : BUILTIN_TOKEN;
       const token = localStorage.getItem(CONFIG_KEYS.TOKEN) || builtin;
       return { url, token };
     } catch (e) {
-      const builtin = BUILTIN_TOKEN.indexOf('<FH_DEFAULT_TOKEN>') === 0 ? '' : BUILTIN_TOKEN;
+      const builtin = BUILTIN_TOKEN.indexOf('<FH_SYNC_TOKEN>') === 0 ? '' : BUILTIN_TOKEN;
       return { url: 'https://sync.klai.top', token: builtin };
     }
   }
@@ -268,7 +286,7 @@
       renderTaskDetail(task);
       if (els.detailSheet) els.detailSheet.classList.add('show');
     } catch (e) {
-      showError('加载详情失败：' + e.message);
+      showError('加载详情失败：' + friendlyError(e));
     }
   }
 
@@ -282,7 +300,7 @@
       tasks.sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
       renderTaskList(tasks);
     } catch (e) {
-      els.taskList.innerHTML = `<div class="empty" style="color:#dc2626;">加载失败：${escapeHtml(e.message)}</div>`;
+      els.taskList.innerHTML = `<div class="empty" style="color:var(--err);">${escapeHtml(friendlyError(e))}<br><span style="font-size:12px;color:var(--ink-2);">页面每 5 秒自动重试，也可点右上角「刷新」</span></div>`;
     }
   }
 
@@ -407,7 +425,7 @@
       alert('任务已创建并下发（' + (executor === 'cloud' ? '云端执行' : '本机执行') + '，runId: ' + runId + '）');
       refreshTaskList();
     } catch (e) {
-      showError('下发失败：' + e.message);
+      showError('下发失败：' + friendlyError(e));
     }
   }
 

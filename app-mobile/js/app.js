@@ -1051,7 +1051,7 @@ function getCloudToken() {
   // ~/.feihong-code/web-token.json 注入并替换下方占位符，源码仓库不含真实令牌。
   // 若占位符未被替换（如未执行注入），则回退到用户手动保存的 token。
   var DEFAULT_TOKEN = (typeof window !== 'undefined' && window.FH_DEFAULT_TOKEN) ||
-    '<FH_DEFAULT_TOKEN>' ||
+    '<FH_BRIDGE_TOKEN>' ||
     '';
   // 旧版内置令牌迁移：历史版本曾内置固定令牌，若 localStorage 残留失效旧值，
   // 在检测到服务端返回 401 时会引导用户在设置中重新填写（具体旧令牌值已从源码移除）。
@@ -1071,6 +1071,52 @@ function getCloudToken() {
   } catch (e) { return DEFAULT_TOKEN; }
 }
 function setCloudToken(t) { try { localStorage.setItem('fh.pc.token', t); } catch (e) {} }
+
+/* ========== 手机端对话快照同步（信息同步，2026-10-25 吴总要求） ==========
+ * 背景：手机端聊天此前只存本机 localStorage，sync-server / 同步任务页 / CLI 侧看不到，形成信息孤岛。
+ * 方案：每轮对话结束（成功或失败）后，把会话快照 POST 到 sync-server（POST /api/sessions，merge upsert），
+ *       同步任务页即可直接查看手机端对话上下文；地址与令牌构建期内置，app 打开即用。
+ * 约定：同步失败仅记 console，绝不冒泡影响对话主流程；runId 用手机端 task.id（t_ 前缀，与 CLI syn- 不碰撞）。 */
+function getSyncUrl() {
+  try { return (localStorage.getItem('FHCODE_SYNC_URL') || 'https://sync.klai.top').replace(/\/+$/, ''); }
+  catch (e) { return 'https://sync.klai.top'; }
+}
+function getSyncToken() {
+  // 同步体系令牌：真实值由构建脚本 scripts/inject-mobile-token.cjs 从本机
+  // ~/.feihong-code/web-token.json 的 token 字段注入并替换下方占位符（与 sync-task.js 同一注入链路）。
+  var SYNC_TOKEN = '<FH_SYNC_TOKEN>';
+  try {
+    // 占位符未被替换（未执行注入）时等同空串，退回用户手动保存的配置
+    if (SYNC_TOKEN.indexOf('<FH_SYNC_TOKEN>') === 0) SYNC_TOKEN = '';
+    return localStorage.getItem('FHCODE_SYNC_TOKEN') || SYNC_TOKEN;
+  } catch (e) { return SYNC_TOKEN; }
+}
+function syncChatSnapshot(task) {
+  try {
+    if (!task) return;
+    var token = getSyncToken();
+    if (!token) return; // 未配置同步令牌：静默跳过，不影响对话
+    var msgs = (task.messages || []).map(function (m) {
+      return { role: m.role, content: String(m.content == null ? '' : m.content).slice(0, 4000) };
+    });
+    if (msgs.length > 60) msgs = msgs.slice(-60); // 只带最近 60 条，避免快照过大
+    fetch(getSyncUrl() + '/api/sessions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({
+        runId: task.id,
+        goal: task.goal || '手机端对话',
+        status: task.status === 'failed' ? 'failed' : 'done',
+        messages: msgs
+      })
+    }).then(function (r) { return r.json(); }).then(function (j) {
+      if (j && j.ok) console.log('[sync] 对话快照已同步 runId=' + task.id);
+      else console.warn('[sync] 对话快照同步被拒:', j && j.error);
+    }).catch(function (e) {
+      console.warn('[sync] 对话快照同步失败（不影响对话）:', e && e.message);
+    });
+  } catch (e) { /* 同步异常绝不冒泡到对话流程 */ }
+}
 
 /* ========== 电脑连接状态（顶栏胶囊：未连接灰 / 本地电脑绿 / 云电脑蓝） ========== */
 var connState = { local: false, cloud: false, checking: false };
@@ -1813,12 +1859,14 @@ function sendMessage() {
         stopThinking();
         appendAssistantMessage(pcTask.id, formatComputerResult(data, finalText));
         renderThread(getTask(pcTask.id));
+        syncChatSnapshot(pcTask); // 信息同步：手机端对话快照上报 sync-server
         updateSendBtn(false);
       },
       function (err) {
         stopThinking();
         pcMsgEl.innerHTML = '<div style="color:var(--err);white-space:pre-wrap;">❌ 电脑执行失败：' + esc(friendlyError(err)) + '</div>';
         pcTask.status = 'failed'; pcTask.error = err.message; saveTasks();
+        syncChatSnapshot(pcTask); // 信息同步：失败也留档，便于跨端续查
         updateSendBtn(false);
       }
     );
@@ -1860,12 +1908,14 @@ function sendMessage() {
         agentMsgEl.appendChild(pre);
         attachSvgPreview(agentMsgEl, data.text);
         appendAssistantMessage(aTask.id, data.text);
+        syncChatSnapshot(aTask); // 信息同步：手机端对话快照上报 sync-server
         updateSendBtn(false);
       },
       function (err) {
         stopThinking();
         agentMsgEl.innerHTML = '<div style="color:var(--err);white-space:pre-wrap;">❌ 电脑端执行失败：' + esc(friendlyError(err)) + '</div>';
         aTask.status = 'failed'; aTask.error = err.message; saveTasks();
+        syncChatSnapshot(aTask); // 信息同步：失败也留档，便于跨端续查
         updateSendBtn(false);
       },
       function (cv) {
@@ -1925,6 +1975,7 @@ function sendMessage() {
       msgEl.innerHTML = renderMarkdown(full || assistantContent);
       appendAssistantMessage(task.id, full || assistantContent);
       renderThread(getTask(task.id));
+      syncChatSnapshot(task); // 信息同步：手机端对话快照上报 sync-server
       updateSendBtn(false);
       // Hermes Agent：对话结束后沉淀记忆
       try {
@@ -1937,6 +1988,7 @@ function sendMessage() {
       stopThinking();
       msgEl.innerHTML = '<div style="color:var(--err);white-space:pre-wrap;">❌ 生成失败：' + esc(friendlyError(err)) + '</div>';
       task.status = 'failed'; task.error = err.message; saveTasks();
+      syncChatSnapshot(task); // 信息同步：失败也留档，便于跨端续查
       updateSendBtn(false);
     }
   );
@@ -1991,11 +2043,13 @@ function sendImageMessage(userText) {
       task.status = 'done';
       saveTasks();
       renderThread(getTask(task.id));
+      syncChatSnapshot(task); // 信息同步：手机端对话快照上报 sync-server
       updateSendBtn(false);
     },
     function (err) {
       msgEl.innerHTML = '<div style="color:var(--err);white-space:pre-wrap;">❌ 图片识别失败：' + esc(friendlyError(err)) + '<br><br>请在设置中配置视觉大模型（API 地址 + Key + 模型 ID）</div>';
       task.status = 'failed'; task.error = err.message; saveTasks();
+      syncChatSnapshot(task); // 信息同步：失败也留档，便于跨端续查
       updateSendBtn(false);
     }
   );
@@ -3484,10 +3538,14 @@ function initSkillCenter() {
   $('drawerClose').addEventListener('click', closeDrawer);
   $('drawerMask').addEventListener('click', closeDrawer);
 
-  // 电脑连接（fhrelay 桥接）已于 2026-10-25 下线：入口全摘、检测/心跳停止。
-  // 模式兜底：历史版本可能把 fh.pc.mode 存为 direct/cloud（指令会发往已废弃的桥接），
-  // 统一归位 phone（纯手机对话）；远程指挥电脑请改用侧栏「同步任务」页（sync.klai.top）。
-  try { if (getPcMode() !== 'phone') setPcMode('phone'); } catch (e) {}
+  // 电脑连接：顶栏胶囊点击打开设置；初始化面板；启动检测 + 30s 心跳
+  // （fhrelay 桥接 2026-10-25 恢复：吴总确认手机同时连接本地电脑与云电脑，令牌走
+  //  <FH_BRIDGE_TOKEN> 构建期注入，与 sync 体系令牌双轨分离）
+  var connPill = $('connPill');
+  if (connPill) connPill.addEventListener('click', openDrawer);
+  initPcConnPanel();
+  checkAllConns();
+  setInterval(checkAllConns, 30000);
 
   // 功能按钮
   document.querySelectorAll('.q-btn').forEach(function (b) {

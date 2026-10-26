@@ -37,7 +37,8 @@ function resolveToken() {
     const tokenFile = path.join(home, '.feihong-code', 'web-token.json');
     if (fs.existsSync(tokenFile)) {
       const saved = JSON.parse(fs.readFileSync(tokenFile, 'utf8'));
-      if (saved && saved.token) return saved.token;
+      // v78 双令牌：桥接侧（云端探测 + bridge 注册）统一用 bridgeToken，与手机一致；saved.token 是同步体系令牌。
+      if (saved && saved.bridgeToken) return saved.bridgeToken;
     }
   } catch (e) {}
   return '';
