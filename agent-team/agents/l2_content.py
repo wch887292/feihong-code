@@ -1,6 +1,7 @@
 """L2 内容生产层：05 同行爆款雷达 / 12 老板短视频获客脚本官 / 13 博主账号深度拆解官 / 14 AI短视频自动剪辑师 / 15 公众号自动运营发布官。"""
 import json
 import time
+import uuid
 from datetime import datetime
 
 from core.agent import BaseAgent
@@ -8,6 +9,11 @@ from core.agent import BaseAgent
 
 def _ts() -> str:
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+
+def _content_id() -> str:
+    """生成唯一内容 ID：时间戳 + 随机后缀，避免同秒冲突。"""
+    return f"A{int(time.time()) % 100000000}{uuid.uuid4().hex[:6]}"
 
 
 # ---------------------------------------------------------------- 05
@@ -44,7 +50,7 @@ class ViralRadarAgent(BaseAgent):
     def persist(self, output, task):
         from core import models
         models.insert_asset({
-            "content_id": f"A{int(time.time()) % 100000000}",
+            "content_id": _content_id(),
             "content_type": "爆款分析",
             "topic": "同行爆款雷达",
             "script": json.dumps(output.get("hot_contents", []), ensure_ascii=False),
@@ -91,7 +97,7 @@ class VideoScriptAgent(BaseAgent):
     def persist(self, output, task):
         from core import models
         models.insert_asset({
-            "content_id": f"A{int(time.time()) % 100000000}",
+            "content_id": _content_id(),
             "content_type": "脚本",
             "topic": task.input_json.get("topic", ""),
             "script": json.dumps(output.get("script", {}), ensure_ascii=False),
@@ -135,7 +141,7 @@ class BloggerTeardownAgent(BaseAgent):
     def persist(self, output, task):
         from core import models
         models.insert_asset({
-            "content_id": f"A{int(time.time()) % 100000000}",
+            "content_id": _content_id(),
             "content_type": "账号拆解",
             "topic": task.input_json.get("account", ""),
             "script": json.dumps(output.get("report", {}), ensure_ascii=False),
@@ -150,7 +156,7 @@ def run_logic_14(data, llm=None):
     script = data.get("script", "")
     template = data.get("template", "口播标准模板")
     video = {
-        "asset_id": f"V{int(time.time()) % 100000000}",
+        "asset_id": f"V{int(time.time()) % 100000000}{uuid.uuid4().hex[:6]}",
         "clips_used": clips,
         "template": template,
         "duration_sec": 45,
@@ -183,7 +189,7 @@ class AutoEditorAgent(BaseAgent):
         from core import models
         video = output.get("video", {})
         models.insert_asset({
-            "content_id": video.get("asset_id", f"A{int(time.time()) % 100000000}"),
+            "content_id": video.get("asset_id", _content_id()),
             "content_type": "成片",
             "topic": task.input_json.get("script", "")[:60],
             "script": json.dumps(video, ensure_ascii=False),
@@ -229,7 +235,7 @@ class GzhPublisherAgent(BaseAgent):
         from core import models
         article = output.get("article", {})
         models.insert_asset({
-            "content_id": f"A{int(time.time()) % 100000000}",
+            "content_id": _content_id(),
             "content_type": "文章",
             "topic": article.get("title", ""),
             "script": article.get("body", ""),

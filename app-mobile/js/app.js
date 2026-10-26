@@ -1046,6 +1046,31 @@ function getPcDeviceId() {
 function setPcDeviceId(id) { try { localStorage.setItem('fh.pc.deviceId', id); } catch (e) {} }
 function isDevicePinned() { try { return localStorage.getItem('fh.pc.devicePinned') === '1'; } catch (e) { return false; } }
 function setDevicePinned() { try { localStorage.setItem('fh.pc.devicePinned', '1'); } catch (e) {} }
+/* v8.13.3：pcUrl 是否为 fhrelay 云中继（其 /api/tasks 由云端执行体认领，创作任务会错跑到云电脑） */
+function isRelayPcUrl(u) { return /\/fhrelay(\/|$)/.test(String(u || '')); }
+/* 解析「家里电脑」设备 ID：优先缓存，其次设备名含「家里电脑」，再次任一非云端在线设备 */
+function fetchHomeDeviceId(cb) {
+  var cached = null;
+  try { cached = localStorage.getItem('fh.pc.homeDeviceId'); } catch (e) {}
+  var base = getCloudUrl().replace(/\/+$/, '');
+  var token = getCloudToken();
+  var headers = token ? { Authorization: 'Bearer ' + token } : {};
+  getJson(base + '/api/bridge/devices', headers, function (d) {
+    var devs = (d && d.devices) || [];
+    var online = devs.filter(function (x) { return x && x.status === 'online'; });
+    var home = online.filter(function (x) { return (x.name || '').indexOf('云端') < 0; });
+    var pick = null;
+    if (cached) {
+      for (var i = 0; i < home.length; i++) { if (home[i].deviceId === cached) { pick = home[i]; break; } }
+    }
+    if (!pick) {
+      for (var j = 0; j < home.length; j++) { if ((home[j].name || '').indexOf('家里电脑') >= 0) { pick = home[j]; break; } }
+    }
+    if (!pick) pick = home[0] || null;
+    if (pick) { try { localStorage.setItem('fh.pc.homeDeviceId', pick.deviceId); } catch (e) {} }
+    cb(pick ? pick.deviceId : null);
+  }, function () { cb(cached); });
+}
 function getCloudToken() {
   // 预置云端令牌：真实值由构建脚本 scripts/inject-mobile-token.cjs 从本机
   // ~/.feihong-code/web-token.json 注入并替换下方占位符，源码仓库不含真实令牌。
@@ -1478,8 +1503,8 @@ function callComputer(text, onDone, onError) {
   state.pcCtl = ctl;
   var done = function (fn, arg) { if (ctl.cancelled) return; state.pcCtl = null; fn(arg); };
   var mode = getPcMode();
-  if (mode === 'direct') {
-    // 直连模式：同局域网，直接调电脑端（带内置 token，匹配 FH_WEB_TOKEN 启动的直连服务）
+  if (mode === 'direct' && !isRelayPcUrl(getPcUrl())) {
+    // 直连模式（局域网自设地址）：直接调电脑端（带内置 token，匹配 FH_WEB_TOKEN 启动的直连服务）
     var pcToken = getCloudToken();
     var pcHeaders = pcToken ? { Authorization: 'Bearer ' + pcToken } : {};
     postJson(getPcUrl().replace(/\/+$/, '') + '/api/computer/nl', { text: text }, pcHeaders,
@@ -1487,36 +1512,50 @@ function callComputer(text, onDone, onError) {
       function (e) { done(onError, e); });
     return;
   }
+  /* 定向指令流：手机 → 云端 /api/bridge/command（带 deviceId）→ 目标电脑桥接代理认领执行 → 轮询回传 */
+  function bridgeCommandFlow(targetDeviceId) {
+    var cloudBase = getCloudUrl().replace(/\/+$/, '');
+    var token = getCloudToken();
+    var headers = token ? { Authorization: 'Bearer ' + token } : {};
+    postJson(cloudBase + '/api/bridge/command', { deviceId: targetDeviceId, text: text }, headers,
+      function (data) {
+        if (ctl.cancelled) return;
+        if (!data || !data.ok) { done(onError, new Error((data && data.error) || '云端下发失败')); return; }
+        // 轮询结果
+        var cmdId = data.cmdId;
+        var tries = 0;
+        (function poll() {
+          if (ctl.cancelled) return;
+          tries++;
+          getJson(cloudBase + '/api/bridge/command/' + cmdId, headers,
+            function (d) {
+              if (ctl.cancelled) return;
+              if (!d || !d.ok || !d.command) { done(onError, new Error('查询指令状态失败')); return; }
+              var c = d.command;
+              if (c.status === 'done') { done(onDone, { ok: true, action: 'bridge', app: c.text, message: '已在' + getExecEndLabel() + '执行完成', bridge: c }); }
+              else if (c.status === 'failed') { done(onError, new Error(c.error || getExecEndLabel() + '执行失败')); }
+              else if (tries > 60) { done(onError, new Error('等待电脑执行超时（60 次轮询）')); }
+              else { setTimeout(poll, 1500); }
+            },
+            function (e) { done(onError, e); });
+        })();
+      },
+      function (e) { done(onError, e); });
+  }
+  if (mode === 'direct') {
+    // v8.13.3：「本地电脑」外网场景（pcUrl 为 fhrelay 中继）→ 定向到「家里电脑」设备，
+    // 修复此前 POST /fhrelay/api/tasks 被云端执行体认领、任务错跑到云电脑的问题
+    fetchHomeDeviceId(function (hid) {
+      if (ctl.cancelled) return;
+      if (!hid) { done(onError, new Error('云端设备列表中未找到在线的「家里电脑」')); return; }
+      bridgeCommandFlow(hid);
+    });
+    return;
+  }
   // 云端桥接模式
   var deviceId = getPcDeviceId();
   if (!deviceId) { done(onError, new Error('未配置目标电脑（deviceId）。请在设置中填写电脑端设备 ID，或用「fhcode bridge id」查看')); return; }
-  var cloudBase = getCloudUrl().replace(/\/+$/, '');
-  var token = getCloudToken();
-  var headers = token ? { Authorization: 'Bearer ' + token } : {};
-  postJson(cloudBase + '/api/bridge/command', { deviceId: deviceId, text: text }, headers,
-    function (data) {
-      if (ctl.cancelled) return;
-      if (!data || !data.ok) { done(onError, new Error((data && data.error) || '云端下发失败')); return; }
-      // 轮询结果
-      var cmdId = data.cmdId;
-      var tries = 0;
-      (function poll() {
-        if (ctl.cancelled) return;
-        tries++;
-        getJson(cloudBase + '/api/bridge/command/' + cmdId, headers,
-          function (d) {
-            if (ctl.cancelled) return;
-            if (!d || !d.ok || !d.command) { done(onError, new Error('查询指令状态失败')); return; }
-            var c = d.command;
-            if (c.status === 'done') { done(onDone, { ok: true, action: 'bridge', app: c.text, message: '已在' + getExecEndLabel() + '执行完成', bridge: c }); }
-            else if (c.status === 'failed') { done(onError, new Error(c.error || getExecEndLabel() + '执行失败')); }
-            else if (tries > 60) { done(onError, new Error('等待电脑执行超时（60 次轮询）')); }
-            else { setTimeout(poll, 1500); }
-          },
-          function (e) { done(onError, e); });
-      })();
-    },
-    function (e) { done(onError, e); });
+  bridgeCommandFlow(deviceId);
 }
 /* 渲染电脑执行结果到对话流 */
 
@@ -1549,48 +1588,103 @@ function callComputerAgent(text, onDone, onError, onProgress) {
   var ctl = { cancelled: false };
   state.pcCtl = ctl;
   var done = function (fn, arg) { if (ctl.cancelled) return; state.pcCtl = null; fn(arg); };
-  var base = (getPcMode() === 'direct' ? getPcUrl() : getCloudUrl()).replace(/\/+$/, '');
-  var token = getCloudToken();
-  var headers = token ? { Authorization: 'Bearer ' + token } : {};
-  postJson(base + '/api/tasks', { goal: text }, headers,
-    function (data) {
-      if (ctl.cancelled) return;
-      if (!data || !data.ok || !data.task) { done(onError, new Error((data && data.error) || '任务创建失败')); return; }
-      var taskId = data.task.id;
-      var tries = 0, seen = 0;
-      (function poll() {
+  /* agent 任务流：POST {base}/api/tasks + 轮询（保留实时 steps 进度与对话流） */
+  function agentTaskFlow(base) {
+    base = base.replace(/\/+$/, '');
+    var token = getCloudToken();
+    var headers = token ? { Authorization: 'Bearer ' + token } : {};
+    postJson(base + '/api/tasks', { goal: text }, headers,
+      function (data) {
         if (ctl.cancelled) return;
-        tries++;
-        getJson(base + '/api/tasks/' + taskId, headers,
-          function (d) {
-            if (ctl.cancelled) return;
-            if (!d || !d.ok || !d.task) { done(onError, new Error('查询任务状态失败')); return; }
-            var t = d.task;
-            var st = t.steps || [];
-            if (st.length) {
-              var stx = stepStatusText(st[st.length - 1]);
-              if (stx) setThinkingStatus(stx);
-            }
-            var cv = t.conversation || [];
-            if (onProgress && cv.length > seen) { seen = cv.length; onProgress(cv); }
-            if (t.status === 'done') {
-              var ans = (t.result && t.result.finalAnswer) || (cv.length ? cv[cv.length - 1].content : '') || '（电脑端已完成，无文本输出）';
-              done(onDone, { ok: true, action: 'agent-task', taskId: taskId, text: ans });
-            } else if (t.status === 'failed') {
-              done(onError, new Error((t.result && t.result.error) || '电脑端任务执行失败'));
-            } else if (t.status === 'stopped') {
-              done(onError, new Error('任务已停止'));
-            } else if (tries > 300) {
-              done(onError, new Error('等待电脑端任务完成超时（10 分钟）'));
-            } else { setTimeout(poll, 2000); }
-          },
-          function (e) {
-            if (ctl.cancelled) return;
-            if (tries > 3) { done(onError, e); } else { setTimeout(poll, 2000); }
-          });
-      })();
-    },
-    function (e) { done(onError, e); });
+        if (!data || !data.ok || !data.task) { done(onError, new Error((data && data.error) || '任务创建失败')); return; }
+        var taskId = data.task.id;
+        var tries = 0, seen = 0;
+        (function poll() {
+          if (ctl.cancelled) return;
+          tries++;
+          getJson(base + '/api/tasks/' + taskId, headers,
+            function (d) {
+              if (ctl.cancelled) return;
+              if (!d || !d.ok || !d.task) { done(onError, new Error('查询任务状态失败')); return; }
+              var t = d.task;
+              var st = t.steps || [];
+              if (st.length) {
+                var stx = stepStatusText(st[st.length - 1]);
+                if (stx) setThinkingStatus(stx);
+              }
+              var cv = t.conversation || [];
+              if (onProgress && cv.length > seen) { seen = cv.length; onProgress(cv); }
+              if (t.status === 'done') {
+                var ans = (t.result && t.result.finalAnswer) || (cv.length ? cv[cv.length - 1].content : '') || '（电脑端已完成，无文本输出）';
+                done(onDone, { ok: true, action: 'agent-task', taskId: taskId, text: ans });
+              } else if (t.status === 'failed') {
+                done(onError, new Error((t.result && t.result.error) || '电脑端任务执行失败'));
+              } else if (t.status === 'stopped') {
+                done(onError, new Error('任务已停止'));
+              } else if (tries > 300) {
+                done(onError, new Error('等待电脑端任务完成超时（10 分钟）'));
+              } else { setTimeout(poll, 2000); }
+            },
+            function (e) {
+              if (ctl.cancelled) return;
+              if (tries > 3) { done(onError, e); } else { setTimeout(poll, 2000); }
+            });
+        })();
+      },
+      function (e) { done(onError, e); });
+  }
+  /* 定向 agent 流：经云端 /api/bridge/command 到指定设备，由该电脑桥接代理在本机执行 agent 任务
+   * （无实时 steps，仅最终 finalAnswer；家电脑端 execute() 已支持创作类任务落本机 8082） */
+  function bridgeAgentFlow(targetDeviceId) {
+    var cloudBase = getCloudUrl().replace(/\/+$/, '');
+    var token = getCloudToken();
+    var headers = token ? { Authorization: 'Bearer ' + token } : {};
+    postJson(cloudBase + '/api/bridge/command', { deviceId: targetDeviceId, text: text }, headers,
+      function (data) {
+        if (ctl.cancelled) return;
+        if (!data || !data.ok) { done(onError, new Error((data && data.error) || '云端下发失败')); return; }
+        var cmdId = data.cmdId;
+        var tries = 0;
+        (function poll() {
+          if (ctl.cancelled) return;
+          tries++;
+          getJson(cloudBase + '/api/bridge/command/' + cmdId, headers,
+            function (d) {
+              if (ctl.cancelled) return;
+              if (!d || !d.ok || !d.command) { done(onError, new Error('查询指令状态失败')); return; }
+              var c = d.command;
+              if (c.status === 'done') {
+                var r = c.result || {};
+                done(onDone, { ok: true, action: 'agent-task', taskId: r.taskId || null, text: r.text || '（电脑端已完成）' });
+              } else if (c.status === 'failed') {
+                done(onError, new Error(c.error || '电脑端执行失败'));
+              } else if (tries > 300) {
+                done(onError, new Error('等待电脑端任务完成超时（10 分钟）'));
+              } else { setTimeout(poll, 2000); }
+            },
+            function (e) { done(onError, e); });
+        })();
+      },
+      function (e) { done(onError, e); });
+  }
+  var mode = getPcMode();
+  if (mode === 'direct' && !isRelayPcUrl(getPcUrl())) {
+    // 局域网直连（自设 pcUrl）：POST 本机 /api/tasks，保留实时进度
+    agentTaskFlow(getPcUrl());
+    return;
+  }
+  if (mode === 'direct') {
+    // v8.13.3：「本地电脑」外网场景（pcUrl 为 fhrelay 中继）——其 /api/tasks 由云端执行体认领，
+    // 创作任务会错跑到云电脑 → 改走定向指令通道，由「家里电脑」桥接代理认领并在本机执行
+    fetchHomeDeviceId(function (hid) {
+      if (ctl.cancelled) return;
+      if (!hid) { done(onError, new Error('云端设备列表中未找到在线的「家里电脑」')); return; }
+      bridgeAgentFlow(hid);
+    });
+    return;
+  }
+  // 云电脑模式：POST 云端 /api/tasks，由云端执行体认领（原语义）
+  agentTaskFlow(getCloudUrl());
 }
 
 /* v8.8.4：结果中含 SVG 时附「点击预览」，WebView 直接渲染动画（SMIL/CSS 动画均可） */

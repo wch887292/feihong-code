@@ -668,7 +668,37 @@ export async function runBridge(action: string, _args: string[]): Promise<void> 
     return null;
   }
 
-  // 指令→执行：优先云端式解析（文件/命令/网页/系统状态），未命中回退 runComputer 自然语言（GUI 操作）
+  // 本机 fhcode serve（8082）地址：桥接收到创作类指令时，提交为本机 agent 任务执行
+  const LOCAL_SERVE = (process.env.FH_LOCAL_SERVE_URL || 'http://127.0.0.1:8082').replace(/\/+$/, '');
+
+  /** 把指令作为 agent 任务提交本机 8082 /api/tasks 执行（创作类大任务：写代码/生成内容等）。
+   *  bridgeFetch 自带 HMAC 签名（密钥=FH_BRIDGE_TOKEN=8082 的 FH_WEB_TOKEN），无需重复实现。
+   *  成功返回 finalAnswer（截断 12000 字防云端回传超限）；提交失败/超时/任务失败返回 null（调用方回退 GUI nl）。 */
+  async function runLocalAgentTask(text: string): Promise<string | null> {
+    try {
+      const created = await bridgeFetch(`${LOCAL_SERVE}/api/tasks`, { headers: authHeaders, body: { goal: text } });
+      const task = (created as { task?: { id?: string } }).task;
+      if (!created.ok || !task?.id) return null;
+      const deadline = Date.now() + 10 * 60 * 1000;
+      while (Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 3000));
+        try {
+          const d = await bridgeFetch(`${LOCAL_SERVE}/api/tasks/${task.id}`, { headers: authHeaders });
+          const t = (d as { task?: { status?: string; result?: { finalAnswer?: string }; conversation?: Array<{ role: string; content: string }> } }).task;
+          if (!d.ok || !t) continue;
+          if (t.status === 'done') {
+            const ans = t.result?.finalAnswer || (t.conversation?.length ? t.conversation[t.conversation.length - 1].content : '') || '（电脑端已完成，无文本输出）';
+            return String(ans).slice(0, 12000);
+          }
+          if (t.status === 'failed' || t.status === 'stopped') return null;
+        } catch { /* 单次轮询失败忽略，下轮重试 */ }
+      }
+      return null;
+    } catch { return null; }
+  }
+
+  // 指令→执行：优先云端式解析（文件/命令/网页/系统状态），未命中提交本机 agent 任务（创作类），
+  // 任务提交失败再回退 runComputer 自然语言（GUI 操作）
   async function execute(text: string): Promise<{ ok: boolean; result?: Record<string, unknown>; error?: string }> {
     mkdirSync(LOCAL_WORK, { recursive: true });
     try {
@@ -677,6 +707,10 @@ export async function runBridge(action: string, _args: string[]): Promise<void> 
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) };
     }
+    try {
+      const ans = await runLocalAgentTask(text);
+      if (ans !== null) return { ok: true, result: { action: 'agent-task', text: ans } };
+    } catch { /* 回退 GUI */ }
     try {
       await runComputer('nl', [text]);
       return { ok: true, result: { text, executed: true } };

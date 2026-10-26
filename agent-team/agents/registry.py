@@ -14,6 +14,7 @@ from agents.l2_content import (
 from agents.l3_conversion import ChatAnalysisAgent, FollowUpAgent, TieringAgent
 from agents.l4_analysis import GeoDiagnosisAgent, IndustryAnalystAgent, InvestResearchAgent
 from agents.l5_management import DispatcherAgent
+from agents.l0_command import HeartflowCommander, StrategyCommander, DecomposeCommander
 
 # 模块类注册表（顺序即展示顺序）
 AGENT_CLASSES: List[type] = [
@@ -34,6 +35,10 @@ AGENT_CLASSES: List[type] = [
     GzhPublisherAgent,     # 15
     IndustryAnalystAgent,  # 16
     InvestResearchAgent,   # 17
+    # L0 指挥层（卿听三使者 · 执行指挥官）
+    HeartflowCommander,    # 18
+    StrategyCommander,     # 19
+    DecomposeCommander,    # 20
 ]
 
 

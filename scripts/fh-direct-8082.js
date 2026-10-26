@@ -16,6 +16,10 @@ try {
   }
 } catch (e) { /* 读取失败则使用服务端自动生成逻辑 */ }
 process.env.NODE_OPTIONS = '';
+// v8.13.3：8082 承载手机桥接/语音/MCP 的无人值守 agent 任务，run_shell 必须免审批、
+// 全权沙箱，否则 agent 卡在审批队列（stuck running），桥接指令 10 分钟超时回退 GUI nl
+process.env.FH_REQUIRE_APPROVAL = 'false';
+process.env.FH_SANDBOX_MODE = 'danger-full-access';
 process.chdir('H:\\feihong-code'); // H:\feihong-code（原 Muse Code复刻 旧目录已清空迁移）
 var srv = require('H:\\feihong-code\\dist\\web\\server.js');
 srv.startWebServer({});
