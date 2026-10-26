@@ -248,7 +248,8 @@ export function startWebServer(opts: ServeOptions = {}): {
     process.env.FH_TASK_PERSIST_DIR?.trim() ||
     join(resolveAccountHome(), 'tasks');
   const queue = new TaskQueue({
-    concurrency: Number(process.env.FH_TASK_CONCURRENCY ?? 2),
+    // v8.13.3：默认并发 2→4，配合 task-queue 的僵尸回收兜底，多任务并行不再因单个挂起任务堵死整条队列
+    concurrency: Number(process.env.FH_TASK_CONCURRENCY ?? 4),
     webhookUrl: process.env.FH_TASK_WEBHOOK_URL,
     persistDir,
     // P3-1: AI 生成的文件修改自动暂存到变更面板

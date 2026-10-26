@@ -594,7 +594,12 @@ export class TaskQueue {
             touchedFiles: [],
           }
         : undefined;
-      const result = await executeTask(taskGoal, {
+      // 僵尸回收硬兜底：executeTask 若挂起不结算（模型流式 fetch 未消费 abort、
+      // 子进程树持有管道句柄不触发 close、死循环等），看门狗的 controller.abort() 打不断它，
+      // 则 finally 的 this.running-- 永不执行 → 并发槽泄漏 → pump() 队列死锁（实测 519bcc40 挂 34min）。
+      // 这里用 Promise.race 加一道宽限兜底：maxDurationMs+5min 后仍未结算就强制以 failed 结算，
+      // 确保 finally 一定执行、并发槽一定释放（后台残留的挂起 Promise 随 abort+各层 timeout 最终自行清理，无害）。
+      const execPromise = executeTask(taskGoal, {
         offline: this.offline,
         // 实时捕获编排器事件，写入该任务的思维链路步骤
         renderer: (ev) => this.appendStep(id, ev),
@@ -611,6 +616,24 @@ export class TaskQueue {
         stageChange: this.stageChange, // P3-1：AI 生成的文件修改自动暂存到变更面板
         mode: record.mode ?? 'interactive', // 开发模式：交互/自主
       });
+      const result = await Promise.race([
+        execPromise,
+        new Promise<ReturnType<typeof executeTask>>((resolveZombie) => {
+          setTimeout(() => {
+            controller.abort();
+            logger.warn('task zombie reaped', { taskId: id, waitedMin: Math.round(this.maxDurationMs / 60000) + 5 });
+            const reapMsg = `执行挂起超过 ${Math.round(this.maxDurationMs / 60000) + 5} 分钟被强制回收（并发槽保护，避免僵尸任务死锁队列）`;
+            resolveZombie({
+              ok: false,
+              finalAnswer: reapMsg,
+              iterations: 0,
+              costUsd: 0,
+              logFile: undefined,
+              selfHealed: false,
+            } as unknown as ReturnType<typeof executeTask>);
+          }, this.maxDurationMs + 5 * 60000);
+        }),
+      ]);
       // 多轮续接：持久化本轮完整消息历史（含上一轮），供下一轮 resume 与前端对话流展示
       if (Array.isArray(result.messages) && result.messages.length > 0) {
         record.conversation = result.messages.slice(-300); // 上限保护，保留最近 300 条（原来80条太少，长任务前面内容被截断）
