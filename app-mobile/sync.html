@@ -68,6 +68,19 @@
       <div id="detailMessages" class="messages-list"></div>
       <h3 class="sub-title">子任务队列</h3>
       <div id="detailGoals" class="goals-list"></div>
+
+      <!-- 续聊 / 随时介入：对运行中任务追加指令（后端 POST /api/sessions/:runId/goals） -->
+      <h3 class="sub-title">续聊 · 随时介入</h3>
+      <p class="intervene-tip">给运行中的任务追加一条指令，电脑端认领后继续执行（可切本机 / 云端）。</p>
+      <div class="executor-picker" id="interveneExecutorPicker">
+        <button type="button" class="executor-option active" data-executor="local">本机</button>
+        <button type="button" class="executor-option" data-executor="cloud">云端</button>
+      </div>
+      <textarea id="interveneInput" class="intervene-input" rows="3" placeholder="例如：先停一下，改用方案 B / 把结果输出到桌面 / 继续下一步"></textarea>
+      <button id="interveneBtn" class="btn-primary">下发指令</button>
+      <div id="interveneMsg" class="intervene-msg"></div>
+
+      <button id="detailBackBtn" class="btn-secondary detail-back">返回列表</button>
     </div>
   </div>
 

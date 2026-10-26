@@ -301,7 +301,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 16px 4px;
+  padding: 22px 16px 8px;
 }
 .refresh-btn {
   padding: 6px 14px;
@@ -314,14 +314,14 @@ body {
 .task-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 10px 16px 90px;
+  gap: 12px;
+  padding: 12px 16px 96px;
 }
 .task-item {
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 12px 14px;
+  padding: 14px 16px;
 }
 .task-header {
   display: flex;
@@ -352,7 +352,7 @@ body {
   display: none;
   position: fixed;
   inset: 0;
-  z-index: 100;
+  z-index: 1001;
   background: rgba(0, 0, 0, 0.4);
 }
 .sheet-mask.show { display: block; }
@@ -461,4 +461,37 @@ body {
   color: #534AB7;
   font-size: 11px;
   line-height: 18px;
+}
+
+/* ===== 续聊 / 随时介入 ===== */
+.intervene-tip {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.intervene-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  font-size: 15px;
+  background: var(--card);
+  color: var(--ink);
+  outline: none;
+  resize: vertical;
+  font-family: inherit;
+}
+.intervene-input:focus {
+  border-color: var(--brand);
+}
+.intervene-msg {
+  min-height: 16px;
+  margin: 8px 0 0;
+  font-size: 13px;
+  text-align: center;
+}
+.detail-back {
+  margin-top: 6px;
+  width: 100%;
 }

@@ -21,6 +21,7 @@
     url: '',
     token: '',
     pollingTimer: null,
+    detailTimer: null,
     currentTaskId: null
   };
 
@@ -41,6 +42,10 @@
     detailUpdated: document.getElementById('detailUpdated'),
     detailMessages: document.getElementById('detailMessages'),
     detailGoals: document.getElementById('detailGoals'),
+    interveneInput: document.getElementById('interveneInput'),
+    interveneBtn: document.getElementById('interveneBtn'),
+    interveneMsg: document.getElementById('interveneMsg'),
+    detailBackBtn: document.getElementById('detailBackBtn'),
     newTaskSheet: document.getElementById('newTaskSheet'),
     newGoalInput: document.getElementById('newGoalInput'),
     confirmSheet: document.getElementById('confirmSheet'),
@@ -285,8 +290,66 @@
       const task = await getSession(runId);
       renderTaskDetail(task);
       if (els.detailSheet) els.detailSheet.classList.add('show');
+      startDetailPolling(runId);
     } catch (e) {
       showError('加载详情失败：' + friendlyError(e));
+    }
+  }
+
+  /** 仅刷新详情内容（不影响弹层开关），用于详情打开时的自动轮询 */
+  async function refreshTaskDetail(runId) {
+    try {
+      const task = await getSession(runId);
+      if (task) renderTaskDetail(task);
+    } catch (e) {
+      // 瞬断忽略，下次轮询重试
+    }
+  }
+
+  /** 详情打开期间每 4 秒拉一次最新上下文（读上下文 / 看电脑端实时执行） */
+  function startDetailPolling(runId) {
+    stopDetailPolling();
+    state.detailTimer = setInterval(() => {
+      if (!els.detailSheet || !els.detailSheet.classList.contains('show')) {
+        stopDetailPolling();
+        return;
+      }
+      refreshTaskDetail(runId);
+    }, 4000);
+  }
+
+  function stopDetailPolling() {
+    if (state.detailTimer) {
+      clearInterval(state.detailTimer);
+      state.detailTimer = null;
+    }
+  }
+
+  /** 续聊 / 随时介入：对运行中任务追加一条指令（POST /api/sessions/:runId/goals） */
+  async function handleIntervene() {
+    const runId = state.currentTaskId;
+    const cmd = els.interveneInput ? els.interveneInput.value.trim() : '';
+    if (!runId) {
+      if (els.interveneMsg) { els.interveneMsg.textContent = '当前没有打开的任务'; els.interveneMsg.style.color = '#dc2626'; }
+      return;
+    }
+    if (!cmd) {
+      if (els.interveneMsg) { els.interveneMsg.textContent = '请输入要下发的指令'; els.interveneMsg.style.color = '#dc2626'; }
+      return;
+    }
+    if (els.interveneBtn) els.interveneBtn.disabled = true;
+    try {
+      await postGoal(runId, cmd, selectedExecutor);
+      if (els.interveneInput) els.interveneInput.value = '';
+      if (els.interveneMsg) {
+        els.interveneMsg.textContent = '指令已下发（' + (selectedExecutor === 'cloud' ? '云端' : '本机') + '），电脑端将认领执行';
+        els.interveneMsg.style.color = '#16a34a';
+      }
+      refreshTaskDetail(runId);
+    } catch (e) {
+      if (els.interveneMsg) { els.interveneMsg.textContent = '下发失败：' + friendlyError(e); els.interveneMsg.style.color = '#dc2626'; }
+    } finally {
+      if (els.interveneBtn) els.interveneBtn.disabled = false;
     }
   }
 
@@ -355,29 +418,31 @@
     if (els.newTaskSheet) els.newTaskSheet.classList.add('show');
   }
 
-  /** 关闭弹层：移除 show 类 */
+  /** 关闭弹层：移除 show 类（关闭详情时停止其轮询） */
   function hideSheet(id) {
     const sheet = document.getElementById(id);
     if (sheet) sheet.classList.remove('show');
+    if (id === 'detailSheet') stopDetailPolling();
   }
 
   // ===== 执行端选择（本机 / 云端） =====
   let selectedExecutor = 'local';
 
   function initExecutorPicker() {
-    const picker = document.getElementById('executorPicker');
-    const hint = document.getElementById('executorHint');
-    if (!picker) return;
-    picker.querySelectorAll('.executor-option').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        picker.querySelectorAll('.executor-option').forEach((b) => b.classList.remove('active'));
-        btn.classList.add('active');
-        selectedExecutor = btn.getAttribute('data-executor') || 'local';
-        if (hint) {
-          hint.textContent = selectedExecutor === 'cloud'
-            ? '云端执行：任务由服务器上的 fhcode 云电脑认领，本机不开机也照跑'
-            : '本机执行：任务由 H 盘 fhcode 认领，本机开机才会跑';
-        }
+    // 绑定页面上所有 .executor-picker（新建任务 + 详情续聊），共享 selectedExecutor
+    document.querySelectorAll('.executor-picker').forEach((picker) => {
+      const hint = picker.parentElement.querySelector('.executor-hint');
+      picker.querySelectorAll('.executor-option').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          picker.querySelectorAll('.executor-option').forEach((b) => b.classList.remove('active'));
+          btn.classList.add('active');
+          selectedExecutor = btn.getAttribute('data-executor') || 'local';
+          if (hint) {
+            hint.textContent = selectedExecutor === 'cloud'
+              ? '云端执行：任务由服务器上的 fhcode 云电脑认领，本机不开机也照跑'
+              : '本机执行：任务由 H 盘 fhcode 认领，本机开机才会跑';
+          }
+        });
       });
     });
   }
@@ -467,6 +532,14 @@
       els.backBtn.addEventListener('click', () => {
         window.location.href = 'index.html';
       });
+    }
+
+    // 详情页：续聊下发指令 + 返回列表
+    if (els.interveneBtn) {
+      els.interveneBtn.addEventListener('click', handleIntervene);
+    }
+    if (els.detailBackBtn) {
+      els.detailBackBtn.addEventListener('click', () => hideSheet('detailSheet'));
     }
 
     // 弹层关闭按钮（右上角 ×）
