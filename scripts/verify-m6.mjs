@@ -205,21 +205,31 @@ TESTS.push({
     const expDir = join(home, 'experiences');
 
     // 创建简单 mock provider
+    // 说明：orchestrator 的防空转机制会拦截「连续 N 轮输出完全相同文本 + 重复相同工具调用」。
+    // mock 必须模拟真实模型的行为：第一轮写文件；若后续收到「原地打转」提示（orchestrator 注入
+    // loop-break prompt），则视为模型已收敛——不再调用工具、直接输出结束语，任务正常完成。
     const mockProvider = {
       id: 'mock',
       model: 'mock',
       tags: ['code-gen'],
       costPer1k: 0,
-      chat: async () => ({
-        message: {
-          role: 'assistant',
-          content: '已完成',
-          toolCalls: [{ id: '1', name: 'write_file', arguments: { path: 'test.ts', content: 'test' } }],
-        },
-        providerId: 'mock',
-        model: 'mock',
-        costUsd: 0,
-      }),
+      chat: async (req) => {
+        const msgs = (req && req.messages) || [];
+        const lastUserContent = [...msgs].reverse().find((m) => m.role === 'user')?.content || '';
+        const loopHint = String(lastUserContent).includes('检测到你连续') || String(lastUserContent).includes('原地打转');
+        return {
+          message: loopHint
+            ? { role: 'assistant', content: '已收到提示，文件已写入，任务完成。' }
+            : {
+                role: 'assistant',
+                content: '已完成',
+                toolCalls: [{ id: '1', name: 'write_file', arguments: { path: 'test.ts', content: 'test' } }],
+              },
+          providerId: 'mock',
+          model: 'mock',
+          costUsd: 0,
+        };
+      },
     };
 
     const router = new ModelRouter([mockProvider], 'cost', 0);
