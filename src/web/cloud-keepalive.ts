@@ -27,8 +27,7 @@ import * as https from 'https';
 
 const CLOUD_URL = process.env.FH_KEEPALIVE_CLOUD_URL || 'https://api.klai.top/fhrelay';
 // v8.8.7：本机 serve 端点（本地控制台直连，绕过服务器）。可用环境变量覆盖。
-const LOCAL_SERVE_URL = (process.env.FH_KEEPALIVE_LOCAL_URL || 'http://127.0.0.1:18085').replace(/\/+$/, '');
-const LOCAL_SERVE_PORT = Number(process.env.FH_KEEPALIVE_LOCAL_PORT || (LOCAL_SERVE_URL.match(/:(\d+)$/)?.[1] || 18085));
+const LOCAL_SERVE_URL = (process.env.FH_KEEPALIVE_LOCAL_URL || 'http://127.0.0.1:8082').replace(/\/+$/, '');
 const HOME_DEVICE_NAME = '家里电脑';
 const LOCAL_DEVICE_NAME = process.env.FH_KEEPALIVE_LOCAL_NAME || '家里电脑-本地';
 const LOCK_PORT = 18777;
@@ -88,29 +87,10 @@ function killChild(c: ReturnType<typeof spawn> | null): void {
   if (c) { try { c.kill(); } catch { /* 忽略 */ } }
 }
 
-/** 本机 serve（本地控制台端点）：失败不影响 bridge 链路 */
-let serveChild: ReturnType<typeof spawn> | null = null;
 /** 云端 bridge（手机远程，优先保障） */
 let cloudBridgeChild: ReturnType<typeof spawn> | null = null;
 /** 本机 bridge（注册到本机 serve，供本地控制台使用） */
 let localBridgeChild: ReturnType<typeof spawn> | null = null;
-
-function spawnServe(): void {
-  killChild(serveChild); serveChild = null;
-  const env = Object.assign({}, process.env, {
-    FH_WEB_PORT: String(LOCAL_SERVE_PORT),
-    FH_HOME: USER_HOME,
-    // 强制注入本机 web-token.json 的稳定令牌，覆盖可能被运行环境注入的错误 FH_WEB_TOKEN / FH_SIGN_SECRET
-    FH_WEB_TOKEN: CLOUD_TOKEN,
-    FH_SIGN_SECRET: CLOUD_TOKEN
-  });
-  serveChild = spawn(process.execPath,
-    [path.join(ROOT, 'dist', 'cli', 'index.js'), 'serve', '--port', String(LOCAL_SERVE_PORT)],
-    { cwd: ROOT, detached: false, stdio: ['ignore', 'pipe', 'pipe'], env });
-  log('本地 serve 已拉起 pid=' + serveChild.pid + ' port=' + LOCAL_SERVE_PORT);
-  serveChild.stderr?.on('data', (d) => log('[serve stderr] ' + d.toString().slice(0, 400)));
-  serveChild.on('exit', (c) => { log('本地 serve 退出 code=' + c); serveChild = null; });
-}
 
 function spawnBridge(url: string, name: string): ReturnType<typeof spawn> {
   const child = spawn(process.execPath,
@@ -135,7 +115,12 @@ function isAlive(c: ReturnType<typeof spawn> | null): boolean {
 
 function ensureLocalServe(): void {
   fetchJson(LOCAL_SERVE_URL + '/api/health', {}, (_data, err) => {
-    if (err) { log('本地 serve 未响应（' + (err.message || '?') + '），重拉'); spawnServe(); return; }
+    if (err) {
+      // v78 单端口：本地 serve 由 FHDirect8082 计划任务独立常驻，保活不再拉起第二份 serve；
+      // 此处只巡检，失联则告警（由 FHDirect8082 守护/重启）。
+      log('本地 serve(8082) 未响应（' + (err.message || '?') + '），待 FHDirect8082 守护拉起');
+      return;
+    }
     log('巡检正常：本地 serve 健康');
   });
 }
@@ -163,9 +148,9 @@ export function startCloudKeepalive(): void { /* no-op，保留导出兼容 serv
 function main(): void {
   acquireLock(LOCK_PORT, (ok) => {
     if (!ok) { log('已有保活实例（锁 18777 被占），退出'); return; }
-    log('=== 保活启动（双注册 + 本地 serve v8.8.7）===');
+    log('=== 保活启动（双注册 + 单端口 8082 v8.9.1）===');
     log('启动上下文：USER_HOME=' + USER_HOME + ' dataHome=' + FH_DATA_HOME + ' token8=' + (CLOUD_TOKEN ? CLOUD_TOKEN.slice(0, 8) : 'EMPTY'));
-    spawnServe();
+    // v78 单端口：本地 serve 由 FHDirect8082 计划任务独立常驻，保活不再拉起第二份 serve（18085 已弃用）。
     cloudBridgeChild = spawnBridge(CLOUD_URL, HOME_DEVICE_NAME);
     localBridgeChild = spawnBridge(LOCAL_SERVE_URL, LOCAL_DEVICE_NAME);
     setInterval(() => {

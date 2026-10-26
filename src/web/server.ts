@@ -14,7 +14,8 @@
  * 安全：三层防护——传输层(HTTPS/TLS) + 应用层(请求签名/防重放/暴力破解锁定) + 数据层(AES-256-GCM 落盘加密)
  */
 import express, { type Request, type Response, type Handler } from 'express';
-import { randomBytes } from 'crypto';
+import { randomBytes, createHmac } from 'crypto';
+import { exec } from 'child_process';
 import type { AddressInfo } from 'net';
 import { join, resolve, relative, isAbsolute, dirname } from 'path';
 import {
@@ -917,6 +918,144 @@ export function startWebServer(opts: ServeOptions = {}): {
   registerCodexRoutes(app, { homeDir });
   /* ========== 云桥接（手机指令→电脑执行）+ 授权 → routes/cloud-bridge.ts ========== */
   registerCloudBridgeRoutes(app, { homeDir, loadJsonFile, saveJsonFile, bruteForce, queue });
+  /* ========== v8.9.1 单端口：MCP 端点（顶层 /mcp，绕过 /api 签名/令牌中间件，仅回环 WeKnora 调用） ==========
+     替代独立 python fhcode-mcp(8083)：把 fhcode_run/local_exec 等工具直接挂载到 8082，实现单端口。
+     协议：stateless streamable HTTP（与 python 版一致），响应 SSE 格式 event: message\ndata: ... */
+  const mcpPending = new Map<string, { desc: string; command: string; timeout: number; ts: number; status: string }>();
+  function mcpSign(bodyStr: string) {
+    const ts = String(Date.now());
+    const nonce = randomBytes(12).toString('hex');
+    const sig = createHmac('sha256', token).update(ts + '|' + nonce + '|' + bodyStr).digest('hex');
+    return { ts, nonce, sig };
+  }
+  async function mcpSelfPost(path: string, payload: any) {
+    const bodyStr = JSON.stringify(payload);
+    const s = mcpSign(bodyStr);
+    const headers = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token, 'x-fh-ts': s.ts, 'x-fh-nonce': s.nonce, 'x-fh-sig': s.sig };
+    return await fetch('http://127.0.0.1:' + port + path, { method: 'POST', headers, body: bodyStr });
+  }
+  async function mcpSelfGet(path: string) {
+    return await fetch('http://127.0.0.1:' + port + path, { method: 'GET', headers: { Authorization: 'Bearer ' + token } });
+  }
+  const AGENT_TYPE_MAP: Record<string, string> = { 'write-code': 'solo', 'fix-code': 'solo', 'exec-command': 'solo', 'code-review': 'solo', 'general': 'solo', 'swe': 'swe', 'planner': 'planner', 'team': 'team', 'event-driven': 'event-driven', 'custom': 'custom', 'solo': 'solo' };
+  function mapAgentType(a: any): string { return AGENT_TYPE_MAP[String(a || '').toLowerCase()] || 'solo'; }
+  async function mcpSubmitTask(goal: string, agentType: string, modelId: string, workspaceDir: string, timeout: number) {
+    const payload: any = { goal };
+    const at = mapAgentType(agentType);
+    if (at) payload.agentType = at;
+    if (modelId) payload.modelId = modelId;
+    if (workspaceDir) payload.workspaceDir = workspaceDir;
+    const r = await mcpSelfPost('/api/tasks', payload);
+    if (r.status === 401 || r.status === 403) throw new Error('fhcode 鉴权失败 HTTP ' + r.status);
+    if (r.status !== 201) throw new Error('fhcode 任务提交失败 HTTP ' + r.status + ': ' + (await r.text()).slice(0, 200));
+    const task = (await r.json()).task || {};
+    const taskId = task.id;
+    if (!taskId) throw new Error('fhcode 未返回任务 ID');
+    const deadline = Date.now() + (Number(timeout) || 300) * 1000;
+    while (Date.now() < deadline) {
+      await new Promise((res) => setTimeout(res, 2000));
+      const g = await mcpSelfGet('/api/tasks/' + encodeURIComponent(taskId));
+      if (g.status !== 200) continue;
+      const t = (await g.json()).task || {};
+      if (t.status === 'done') {
+        const ans = (t.result && (t.result.finalAnswer || '')) || '';
+        if (ans) return ans;
+        const msgs = t.conversation || [];
+        for (let i = msgs.length - 1; i >= 0; i--) if (msgs[i].role === 'assistant' && msgs[i].content) return msgs[i].content;
+        return 'fhcode 任务已完成（' + taskId + '），但未返回文本结果。';
+      }
+      if (t.status === 'failed') throw new Error('fhcode 任务执行失败：' + (t.error || '未知错误'));
+    }
+    throw new Error('fhcode 任务 ' + taskId + ' 等待超时');
+  }
+  function mcpLocalExec(command: any, timeout: any) {
+    return new Promise<string>((resolve) => {
+      let cmd = String(command || '').replace(/~\/|%USERPROFILE%/g, 'C:\\Users\\Administrator\\');
+      // 归一化路径斜杠：把"非空格引导"的正斜杠转反斜杠（空格引导的 /b 这类才是命令开关，须保留），
+      // 避免 cmd.exe 的 mkdir/cd 等把 /Users、/Admin 当成开关参数而报"命令语法不正确"
+      cmd = cmd.replace(/(^|\S)\//g, '$1\\');
+      if (!cmd.trim()) { resolve('exec fail: 空命令'); return; }
+      try {
+        exec(cmd, { timeout: (Number(timeout) || 120) * 1000, cwd: 'C:\\Users\\Administrator', windowsHide: true } as any, (err: any, stdout: string, stderr: string) => {
+          if (err && err.code === 'ENOENT') { resolve('exec fail: 命令不存在'); return; }
+          resolve('exit=' + (err ? (err.signal ? 'killed' : 1) : 0) + '\n' + (stdout || '') + (stderr || ''));
+        });
+      } catch (e: any) { resolve('exec fail: ' + e.message); }
+    });
+  }
+  const MCP_TOOLS = [
+    { name: 'fhcode_health', description: '检查底层 fhcode 编程引擎服务是否在线、返回版本信息。无需参数。', inputSchema: { type: 'object', properties: {}, required: [] } },
+    { name: 'fhcode_list_models', description: '列出 fhcode 当前配置的可用大模型与默认模型。无需参数。', inputSchema: { type: 'object', properties: {}, required: [] } },
+    { name: 'fhcode_run', description: '调用 fhcode 在真实沙箱中执行工程级编程任务（写/改/重构代码、跑测试、执行命令、修 bug、审查）。参数：goal(必填), agent_type(write-code/fix-code/exec-command/code-review/general), workspace_dir, model_id, timeout。', inputSchema: { type: 'object', properties: { goal: { type: 'string' }, agent_type: { type: 'string' }, workspace_dir: { type: 'string' }, model_id: { type: 'string' }, timeout: { type: 'number' } }, required: ['goal'] } },
+    { name: 'fhcode_local_exec', description: '在本地 Windows 电脑直接执行一条 shell 命令并返回输出（不经审批，即时生效）。参数：command(必填), timeout。用绝对路径 C:\\Users\\Administrator\\...。', inputSchema: { type: 'object', properties: { command: { type: 'string' }, timeout: { type: 'number' } }, required: ['command'] } },
+    { name: 'fhcode_run_with_approval', description: '申请一次需手机审批的本地电脑操作，进入待审批队列，返回 approval_id；用户在飞虹智语音App审批通过后由 fhcode_approve 执行。参数：command(必填), timeout, reason。', inputSchema: { type: 'object', properties: { command: { type: 'string' }, timeout: { type: 'number' }, reason: { type: 'string' } }, required: ['command'] } },
+    { name: 'fhcode_approve', description: '对 fhcode_run_with_approval 产生的待审批操作决定并落地：approve=true 执行，approve=false 取消。参数：approval_id(必填), approve(必填), timeout。', inputSchema: { type: 'object', properties: { approval_id: { type: 'string' }, approve: { type: 'boolean' }, timeout: { type: 'number' } }, required: ['approval_id', 'approve'] } },
+    { name: 'fhcode_list_pending', description: '列出所有待手机审批的操作（pending 状态），返回 JSON 数组。无需参数。', inputSchema: { type: 'object', properties: {}, required: [] } },
+  ];
+  function mcpSse(res: any, payload: any) {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.write('event: message\ndata: ' + JSON.stringify(payload) + '\n\n');
+    res.end();
+  }
+  async function mcpHandleTool(name: any, args: any) {
+    try {
+      if (name === 'fhcode_health') {
+        const r = await mcpSelfGet('/api/health');
+        if (r.status === 200) { const d = await r.json(); return 'fhcode 在线：' + (d.product || '?') + ' v' + (d.version || '?') + '（ok=' + d.ok + '）'; }
+        return 'fhcode 健康检查异常 HTTP ' + r.status;
+      }
+      if (name === 'fhcode_list_models') {
+        const r = await mcpSelfGet('/api/models');
+        if (r.status !== 200) return '获取模型失败 HTTP ' + r.status;
+        const d = await r.json(); const def = d.defaultId || '';
+        return '可用模型：\n' + (d.models || []).map((m: any) => '- ' + (m.name || m.id) + ((m.default || m.id === def) ? '（默认）' : '')).join('\n');
+      }
+      if (name === 'fhcode_run') return await mcpSubmitTask(args.goal, args.agent_type || 'write-code', args.model_id || '', args.workspace_dir || '', args.timeout || 300);
+      if (name === 'fhcode_local_exec') return await mcpLocalExec(args.command, args.timeout || 120);
+      if (name === 'fhcode_run_with_approval') {
+        const cmd = String(args.command || '').trim().replace(/~\/|%USERPROFILE%/g, 'C:\\Users\\Administrator\\');
+        if (!cmd) return 'exec fail: 空命令';
+        const aid = randomBytes(6).toString('hex');
+        mcpPending.set(aid, { desc: (args.reason || cmd).slice(0, 200), command: cmd, timeout: (Number(args.timeout) || 120), ts: Date.now(), status: 'pending' });
+        return JSON.stringify({ approval_id: aid, desc: (args.reason || cmd).slice(0, 200), status: 'pending', tip: '操作已暂停，请在飞虹智语音App审批通过后执行' }, null, 2);
+      }
+      if (name === 'fhcode_approve') {
+        const item = mcpPending.get(String(args.approval_id || ''));
+        if (!item) return 'exec fail: 审批id不存在或已处理';
+        mcpPending.delete(String(args.approval_id || ''));
+        if (!args.approve) return '已拒绝执行：' + item.desc;
+        return await mcpLocalExec(item.command, item.timeout);
+      }
+      if (name === 'fhcode_list_pending') {
+        const items: any[] = [];
+        for (const [aid, info] of mcpPending) if (info.status === 'pending') items.push({ approval_id: aid, desc: info.desc, status: 'pending', ts: info.ts });
+        return JSON.stringify(items, null, 2);
+      }
+      return '未知工具：' + name;
+    } catch (e: any) { return '工具执行失败：' + (e && e.message ? e.message : String(e)); }
+  }
+  app.post('/mcp', async (req: any, res: any) => {
+    const body = req.body;
+    const id = body && body.id;
+    try {
+      if (!body || !body.method) { mcpSse(res, { jsonrpc: '2.0', id: id || null, error: { code: -32600, message: 'Invalid Request' } }); return; }
+      const method = body.method;
+      if (method === 'initialize') { mcpSse(res, { jsonrpc: '2.0', id, result: { protocolVersion: '2024-11-05', capabilities: { tools: {} }, serverInfo: { name: 'fhcode-engine', version: '1.0.0' } } }); return; }
+      if (method === 'notifications/initialized' || method === 'ping' || !id) { res.status(202).end(); return; }
+      if (method === 'tools/list') { mcpSse(res, { jsonrpc: '2.0', id, result: { tools: MCP_TOOLS } }); return; }
+      if (method === 'tools/call') {
+        const name = body.params && body.params.name;
+        const args = (body.params && body.params.arguments) || {};
+        const text = await mcpHandleTool(name, args);
+        mcpSse(res, { jsonrpc: '2.0', id, result: { content: [{ type: 'text', text }], isError: false } });
+        return;
+      }
+      mcpSse(res, { jsonrpc: '2.0', id, error: { code: -32601, message: 'Method not found: ' + method } });
+    } catch (e: any) {
+      mcpSse(res, { jsonrpc: '2.0', id, result: { content: [{ type: 'text', text: 'error: ' + (e && e.message ? e.message : String(e)) }], isError: true } });
+    }
+  });
   /* ========== P-7 自建商城（支付 + 自动发码闭环）→ routes/shop.ts ========== */
   registerShopRoutes(app, { token, sessions });
 
