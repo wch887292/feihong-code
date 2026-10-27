@@ -64,6 +64,16 @@ export function registerCloudBridgeRoutes(app: ExpressApp, deps: CloudBridgeDeps
     /** 任务执行过程回传（2026-10-27）：kind|text 单行条目数组，
      *  kind ∈ think / tool / tool_result / result / error；上限 300 条，超出丢弃最旧。 */
     progress?: string[];
+    /** 任务产物回传（2026-10-28）：产物文件清单（含小文件 base64 内容） */
+    artifacts?: ArtifactItem[];
+  }
+  /** 产物文件条目（2026-10-28 新增）：relPath 相对路径 + name 文件名 + size 字节 + kind 类型 + contentBase64 可选内容 */
+  interface ArtifactItem {
+    relPath: string;
+    name: string;
+    size: number;
+    kind: string;
+    contentBase64?: string;
   }
   const bridgeFile = join(homeDir, 'bridge-devices.json');
   const bridgeCmdsFile = join(homeDir, 'bridge-commands.json');
@@ -270,6 +280,33 @@ export function registerCloudBridgeRoutes(app: ExpressApp, deps: CloudBridgeDeps
     cmd.progress = [...(cmd.progress ?? []), ...items].slice(-300);
     saveBridgeCommands(list);
     res.json({ ok: true, cmdId, count: cmd.progress!.length });
+  });
+
+  // 电脑端：上报任务产物文件（2026-10-28 新增，让手机端查看任务产出物）
+  // body: { deviceId, items: [{ relPath, name, size, kind, contentBase64? }, ...] }
+  // 校验 deviceId 与 cmdId 匹配，不匹配返回 404；items 上限 50 条。
+  app.post('/api/bridge/command/:cmdId/artifacts', (req: Request, res: Response) => {
+    const cmdId = req.params.cmdId;
+    const body = (req.body ?? {}) as Record<string, any>;
+    const deviceId = String(body?.deviceId ?? '').trim();
+    if (!deviceId) { res.status(400).json({ ok: false, error: '缺少 deviceId' }); return; }
+    const list = loadBridgeCommands();
+    const cmd = list.find((c) => c.cmdId === cmdId && c.deviceId === deviceId);
+    if (!cmd) { res.status(404).json({ ok: false, error: '指令不存在或 deviceId 不匹配' }); return; }
+    const rawItems = Array.isArray(body?.items) ? body.items : [];
+    const items: ArtifactItem[] = rawItems
+      .filter((it: any) => it && typeof it.relPath === 'string' && typeof it.name === 'string')
+      .map((it: any) => ({
+        relPath: String(it.relPath),
+        name: String(it.name),
+        size: Number(it.size) || 0,
+        kind: String(it.kind || 'other'),
+        ...(typeof it.contentBase64 === 'string' && it.contentBase64 ? { contentBase64: it.contentBase64 } : {}),
+      }))
+      .slice(0, 50);
+    cmd.artifacts = items;
+    saveBridgeCommands(list);
+    res.json({ ok: true, cmdId, count: cmd.artifacts.length });
   });
 
   // 手机端：列出已注册电脑设备

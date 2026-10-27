@@ -17,7 +17,7 @@ import express, { type Request, type Response, type Handler } from 'express';
 import { randomBytes, createHmac } from 'crypto';
 import { exec } from 'child_process';
 import type { AddressInfo } from 'net';
-import { join, resolve, relative, isAbsolute, dirname } from 'path';
+import { join, resolve, relative, isAbsolute, dirname, basename, sep } from 'path';
 import {
   existsSync,
   readFileSync,
@@ -25,6 +25,9 @@ import {
   mkdirSync,
   renameSync,
   unlinkSync,
+  statSync,
+  readdirSync,
+  type Dirent,
 } from 'fs';
 import { securityHeaders, verifyRequestSignature, BruteForceGuard } from '../security';
 import {
@@ -648,6 +651,132 @@ export function startWebServer(opts: ServeOptions = {}): {
       return;
     }
     res.json({ ok: true, task: publicTask(record, true) });
+  });
+  // 任务产物文件清单（2026-10-28 新增）：递归扫描任务工作区，返回相对路径/大小/类型/修改时间
+  // 限制：深度≤3、跳过隐藏目录与 node_modules/.git/.fhcode/dist/build、累计文件数上限 200
+  app.get('/api/tasks/:id/artifacts', (req: Request, res: Response) => {
+    const record = queue.get(req.params.id);
+    if (!record) {
+      res.status(404).json({ ok: false, error: '任务不存在' });
+      return;
+    }
+    if (!record.workspaceDir) {
+      res.json({ ok: true, items: [] });
+      return;
+    }
+    const workspaceDir = record.workspaceDir;
+    const SKIP_DIRS = new Set(['node_modules', '.git', '.fhcode', 'dist', 'build']);
+    const TEXT_EXT = new Set(['txt', 'md', 'json', 'csv', 'log', 'xml', 'yml', 'yaml', 'toml', 'ini']);
+    const CODE_EXT = new Set(['js', 'ts', 'tsx', 'jsx', 'mjs', 'cjs', 'py', 'c', 'cpp', 'h', 'go', 'rs', 'java', 'sh', 'bash', 'ps1', 'css', 'scss', 'html', 'htm', 'vue', 'sql']);
+    const IMAGE_EXT = new Set(['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'svg']);
+    const DOC_EXT = new Set(['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'zip', 'rar', '7z']);
+    function classifyKind(ext: string): string {
+      if (TEXT_EXT.has(ext)) return 'text';
+      if (CODE_EXT.has(ext)) return 'code';
+      if (IMAGE_EXT.has(ext)) return 'image';
+      if (DOC_EXT.has(ext)) return 'doc';
+      return 'other';
+    }
+    const items: Array<{ relPath: string; name: string; size: number; kind: string; mtime: string }> = [];
+    function scanDir(dir: string, depth: number): void {
+      if (items.length >= 200 || depth > 3) return;
+      let entries: Dirent[];
+      try {
+        entries = readdirSync(dir, { withFileTypes: true });
+      } catch {
+        return;
+      }
+      for (const entry of entries) {
+        if (items.length >= 200) return;
+        const full = join(dir, entry.name);
+        if (entry.isDirectory()) {
+          if (entry.name.startsWith('.') || SKIP_DIRS.has(entry.name)) continue;
+          scanDir(full, depth + 1);
+        } else if (entry.isFile()) {
+          try {
+            const stat = statSync(full);
+            const ext = entry.name.includes('.') ? entry.name.split('.').pop()!.toLowerCase() : '';
+            items.push({
+              relPath: relative(workspaceDir, full).replace(/\\/g, '/'),
+              name: entry.name,
+              size: stat.size,
+              kind: classifyKind(ext),
+              mtime: new Date(stat.mtimeMs).toISOString(),
+            });
+          } catch { /* 单文件 stat 失败忽略 */ }
+        }
+      }
+    }
+    scanDir(workspaceDir, 0);
+    items.sort((a, b) => b.mtime.localeCompare(a.mtime));
+    res.json({ ok: true, items });
+  });
+  // 任务产物文件下载（2026-10-28 新增）：按 relPath 读取文件内容，base64 返回
+  // 安全：路径穿越防护（绝对路径必须在 workspaceDir 内）；大小/类型限制（>200KB 或非 text/code/image 仅返回元信息）
+  app.get('/api/tasks/:id/artifacts/download', (req: Request, res: Response) => {
+    const record = queue.get(req.params.id);
+    if (!record) {
+      res.status(404).json({ ok: false, error: '任务不存在' });
+      return;
+    }
+    if (!record.workspaceDir || !req.query.relPath) {
+      res.status(400).json({ ok: false, error: '缺少参数' });
+      return;
+    }
+    const workspaceDir = record.workspaceDir;
+    const abs = resolve(workspaceDir, String(req.query.relPath));
+    if (abs !== workspaceDir && !abs.startsWith(workspaceDir + sep)) {
+      res.status(403).json({ ok: false, error: '路径越界' });
+      return;
+    }
+    let stat: import('fs').Stats;
+    try {
+      stat = statSync(abs);
+    } catch {
+      res.status(404).json({ ok: false, error: '文件不存在' });
+      return;
+    }
+    if (!stat.isFile()) {
+      res.status(404).json({ ok: false, error: '不是文件' });
+      return;
+    }
+    // 按扩展名算 kind（与清单端点同一规则）
+    const base = basename(abs);
+    const ext = base.includes('.') ? base.split('.').pop()!.toLowerCase() : '';
+    const kind = (() => {
+      const text = new Set(['txt', 'md', 'json', 'csv', 'log', 'xml', 'yml', 'yaml', 'toml', 'ini']);
+      const code = new Set(['js', 'ts', 'tsx', 'jsx', 'mjs', 'cjs', 'py', 'c', 'cpp', 'h', 'go', 'rs', 'java', 'sh', 'bash', 'ps1', 'css', 'scss', 'html', 'htm', 'vue', 'sql']);
+      const image = new Set(['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'svg']);
+      if (text.has(ext)) return 'text';
+      if (code.has(ext)) return 'code';
+      if (image.has(ext)) return 'image';
+      return 'other';
+    })();
+    if (stat.size > 200 * 1024 || !['text', 'code', 'image'].includes(kind)) {
+      res.json({ ok: true, tooLarge: true, name: base, size: stat.size });
+      return;
+    }
+    try {
+      const buf = readFileSync(abs);
+      const mimeMap: Record<string, string> = {
+        txt: 'text/plain', md: 'text/plain', log: 'text/plain', csv: 'text/csv',
+        json: 'application/json', xml: 'application/xml',
+        yml: 'text/yaml', yaml: 'text/yaml', toml: 'text/plain', ini: 'text/plain',
+        js: 'application/javascript', ts: 'text/plain', tsx: 'text/plain', jsx: 'text/plain',
+        mjs: 'application/javascript', cjs: 'application/javascript',
+        py: 'text/plain', c: 'text/plain', cpp: 'text/plain', h: 'text/plain',
+        go: 'text/plain', rs: 'text/plain', java: 'text/plain',
+        sh: 'text/plain', bash: 'text/plain', ps1: 'text/plain',
+        css: 'text/css', scss: 'text/css', html: 'text/html', htm: 'text/html',
+        vue: 'text/plain', sql: 'text/plain',
+        png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif',
+        bmp: 'image/bmp', webp: 'image/webp', svg: 'image/svg+xml',
+      };
+      const mime = mimeMap[ext] || 'application/octet-stream';
+      res.json({ ok: true, name: base, size: stat.size, mime, contentBase64: buf.toString('base64') });
+    } catch (e: any) {
+      res.status(500).json({ ok: false, error: '读取失败: ' + e.message });
+    }
   });
   // 多轮续接：向当前任务追加一条用户消息，所有对话归属同一任务生命周期
   app.post('/api/tasks/:id/messages', validateBody(taskMessageBodySchema), (req: Request, res: Response) => {

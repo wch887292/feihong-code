@@ -787,6 +787,31 @@ export async function runBridge(action: string, _args: string[]): Promise<void> 
                 });
               } catch { /* 结果上报失败静默忽略 */ }
             }
+            // 产物文件回传（2026-10-28 新增）：拉取任务工作区文件清单，小文件附带 base64 内容上报云端
+            try {
+              const artResp = await bridgeFetch(`${LOCAL_SERVE}/api/tasks/${task.id}/artifacts`, { headers: authHeaders });
+              const artItems: Array<{ relPath: string; name: string; size: number; kind: string }> = (artResp as any)?.items || [];
+              if (artItems.length > 0 && cmdId) {
+                const reportItems: Array<{ relPath: string; name: string; size: number; kind: string; contentBase64?: string }> = [];
+                for (const it of artItems) {
+                  const entry: any = { relPath: it.relPath, name: it.name, size: it.size, kind: it.kind };
+                  if ((it.kind === 'text' || it.kind === 'code' || it.kind === 'image') && it.size <= 200 * 1024) {
+                    try {
+                      const dl = await bridgeFetch(`${LOCAL_SERVE}/api/tasks/${task.id}/artifacts/download?relPath=${encodeURIComponent(it.relPath)}`, { headers: authHeaders });
+                      const d = dl as any;
+                      if (d?.ok && d.contentBase64) entry.contentBase64 = d.contentBase64;
+                    } catch { /* 单文件拉取失败忽略 */ }
+                  }
+                  reportItems.push(entry);
+                }
+                if (reportItems.length > 0) {
+                  await bridgeFetch(`${cloudBase}/api/bridge/command/${cmdId}/artifacts`, {
+                    method: 'POST', headers: authHeaders,
+                    body: { deviceId, items: reportItems },
+                  });
+                }
+              }
+            } catch { /* 产物上报失败静默忽略，不中断主流程 */ }
             return String(ans).slice(0, 12000);
           }
           if (t.status === 'failed' || t.status === 'stopped') return null;
