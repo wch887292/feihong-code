@@ -1057,8 +1057,16 @@ function fetchHomeDeviceId(cb) {
   var headers = token ? { Authorization: 'Bearer ' + token } : {};
   getJson(base + '/api/bridge/devices', headers, function (d) {
     var devs = (d && d.devices) || [];
-    var online = devs.filter(function (x) { return x && x.status === 'online'; });
-    var home = online.filter(function (x) { return (x.name || '').indexOf('云端') < 0; });
+    // v8.13.5：云端设备表不会自动把关机设备标 offline（只在心跳时标 online），
+    // 家电脑关机后 status 仍可能是 online 但 lastSeenAt 陈旧，必须用 lastSeenAt 新鲜度判断真正在线
+    var HOME_ONLINE_MS = 120000; // 2 分钟内心跳视为真正在线
+    var home = devs.filter(function (x) {
+      if (!x || (x.name || '').indexOf('云端') >= 0) return false;
+      if (!x.lastSeenAt) return false;
+      var ts = Date.parse(x.lastSeenAt);
+      if (isNaN(ts)) return false;
+      return (Date.now() - ts) <= HOME_ONLINE_MS;
+    });
     var pick = null;
     if (cached) {
       for (var i = 0; i < home.length; i++) { if (home[i].deviceId === cached) { pick = home[i]; break; } }
@@ -1554,7 +1562,7 @@ function callComputer(text, onDone, onError) {
     // 修复此前 POST /fhrelay/api/tasks 被云端执行体认领、任务错跑到云电脑的问题
     fetchHomeDeviceId(function (hid) {
       if (ctl.cancelled) return;
-      if (!hid) { done(onError, new Error('云端设备列表中未找到在线的「家里电脑」')); return; }
+      if (!hid) { setThinkingStatus('家里电脑离线，已转云端执行体续跑'); agentTaskFlow(getCloudUrl(), text, ctl, done, null); return; }
       bridgeCommandFlow(hid);
     });
     return;
@@ -1612,55 +1620,57 @@ function bridgeProgressText(item) {
   } catch (e) { return ''; }
 }
 
+/* v8.13.5：agent 任务流提升为模块级函数，供 callComputer / callComputerAgent 共用
+ * （家电脑离线 fallback 到云端执行体时，callComputer 也复用此链路） */
+function agentTaskFlow(base, text, ctl, done, onProgress) {
+  base = base.replace(/\/+$/, '');
+  var token = getCloudToken();
+  var headers = token ? { Authorization: 'Bearer ' + token } : {};
+  postJson(base + '/api/tasks', { goal: text }, headers,
+    function (data) {
+      if (ctl.cancelled) return;
+      if (!data || !data.ok || !data.task) { done(onError, new Error((data && data.error) || '任务创建失败')); return; }
+      var taskId = data.task.id;
+      var tries = 0, seen = 0;
+      (function poll() {
+        if (ctl.cancelled) return;
+        tries++;
+        getJson(base + '/api/tasks/' + taskId, headers,
+          function (d) {
+            if (ctl.cancelled) return;
+            if (!d || !d.ok || !d.task) { done(onError, new Error('查询任务状态失败')); return; }
+            var t = d.task;
+            var st = t.steps || [];
+            if (st.length) {
+              var stx = stepStatusText(st[st.length - 1]);
+              if (stx) setThinkingStatus(stx);
+            }
+            var cv = t.conversation || [];
+            if (onProgress && cv.length > seen) { seen = cv.length; onProgress(cv); }
+            if (t.status === 'done') {
+              var ans = (t.result && t.result.finalAnswer) || (cv.length ? cv[cv.length - 1].content : '') || '（电脑端已完成，无文本输出）';
+              done(onDone, { ok: true, action: 'agent-task', taskId: taskId, text: ans });
+            } else if (t.status === 'failed') {
+              done(onError, new Error((t.result && t.result.error) || '电脑端任务执行失败'));
+            } else if (t.status === 'stopped') {
+              done(onError, new Error('任务已停止'));
+            } else if (tries > 300) {
+              done(onError, new Error('等待电脑端任务完成超时（10 分钟）'));
+            } else { setTimeout(poll, 2000); }
+          },
+          function (e) {
+            if (ctl.cancelled) return;
+            if (tries > 3) { done(onError, e); } else { setTimeout(poll, 2000); }
+          });
+      })();
+    },
+    function (e) { done(onError, e); });
+}
+
 function callComputerAgent(text, onDone, onError, onProgress) {
   var ctl = { cancelled: false };
   state.pcCtl = ctl;
   var done = function (fn, arg) { if (ctl.cancelled) return; state.pcCtl = null; fn(arg); };
-  /* agent 任务流：POST {base}/api/tasks + 轮询（保留实时 steps 进度与对话流） */
-  function agentTaskFlow(base) {
-    base = base.replace(/\/+$/, '');
-    var token = getCloudToken();
-    var headers = token ? { Authorization: 'Bearer ' + token } : {};
-    postJson(base + '/api/tasks', { goal: text }, headers,
-      function (data) {
-        if (ctl.cancelled) return;
-        if (!data || !data.ok || !data.task) { done(onError, new Error((data && data.error) || '任务创建失败')); return; }
-        var taskId = data.task.id;
-        var tries = 0, seen = 0;
-        (function poll() {
-          if (ctl.cancelled) return;
-          tries++;
-          getJson(base + '/api/tasks/' + taskId, headers,
-            function (d) {
-              if (ctl.cancelled) return;
-              if (!d || !d.ok || !d.task) { done(onError, new Error('查询任务状态失败')); return; }
-              var t = d.task;
-              var st = t.steps || [];
-              if (st.length) {
-                var stx = stepStatusText(st[st.length - 1]);
-                if (stx) setThinkingStatus(stx);
-              }
-              var cv = t.conversation || [];
-              if (onProgress && cv.length > seen) { seen = cv.length; onProgress(cv); }
-              if (t.status === 'done') {
-                var ans = (t.result && t.result.finalAnswer) || (cv.length ? cv[cv.length - 1].content : '') || '（电脑端已完成，无文本输出）';
-                done(onDone, { ok: true, action: 'agent-task', taskId: taskId, text: ans });
-              } else if (t.status === 'failed') {
-                done(onError, new Error((t.result && t.result.error) || '电脑端任务执行失败'));
-              } else if (t.status === 'stopped') {
-                done(onError, new Error('任务已停止'));
-              } else if (tries > 300) {
-                done(onError, new Error('等待电脑端任务完成超时（10 分钟）'));
-              } else { setTimeout(poll, 2000); }
-            },
-            function (e) {
-              if (ctl.cancelled) return;
-              if (tries > 3) { done(onError, e); } else { setTimeout(poll, 2000); }
-            });
-        })();
-      },
-      function (e) { done(onError, e); });
-  }
   /* 定向 agent 流：经云端 /api/bridge/command 到指定设备，由该电脑桥接代理在本机执行 agent 任务
    * （无实时 steps，仅最终 finalAnswer；家电脑端 execute() 已支持创作类任务落本机 8082） */
   function bridgeAgentFlow(targetDeviceId) {
@@ -1704,7 +1714,7 @@ function callComputerAgent(text, onDone, onError, onProgress) {
   var mode = getPcMode();
   if (mode === 'direct' && !isRelayPcUrl(getPcUrl())) {
     // 局域网直连（自设 pcUrl）：POST 本机 /api/tasks，保留实时进度
-    agentTaskFlow(getPcUrl());
+    agentTaskFlow(getPcUrl(), text, ctl, done, onProgress);
     return;
   }
   if (mode === 'direct') {
@@ -1712,7 +1722,7 @@ function callComputerAgent(text, onDone, onError, onProgress) {
     // 创作任务会错跑到云电脑 → 改走定向指令通道，由「家里电脑」桥接代理认领并在本机执行
     fetchHomeDeviceId(function (hid) {
       if (ctl.cancelled) return;
-      if (!hid) { done(onError, new Error('云端设备列表中未找到在线的「家里电脑」')); return; }
+      if (!hid) { setThinkingStatus('家里电脑离线，已转云端执行体续跑'); agentTaskFlow(getCloudUrl(), text, ctl, done, onProgress); return; }
       bridgeAgentFlow(hid);
     });
     return;
