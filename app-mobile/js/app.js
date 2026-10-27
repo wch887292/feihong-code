@@ -1532,6 +1532,13 @@ function callComputer(text, onDone, onError) {
               if (ctl.cancelled) return;
               if (!d || !d.ok || !d.command) { done(onError, new Error('查询指令状态失败')); return; }
               var c = d.command;
+              // v8.13.4：家电脑执行体把 agent 每一步（思考/工具调用/结果）经
+              // POST /api/bridge/command/:cmdId/progress 回传云端，这里实时渲染为实况文案，
+              // 解决「看不到任务执行过程与思考过程、无法确定任务执行情况」
+              if (c.progress && c.progress.length) {
+                var px = bridgeProgressText(c.progress[c.progress.length - 1]);
+                if (px) setThinkingStatus(px);
+              }
               if (c.status === 'done') { done(onDone, { ok: true, action: 'bridge', app: c.text, message: '已在' + getExecEndLabel() + '执行完成', bridge: c }); }
               else if (c.status === 'failed') { done(onError, new Error(c.error || getExecEndLabel() + '执行失败')); }
               else if (tries > 60) { done(onError, new Error('等待电脑执行超时（60 次轮询）')); }
@@ -1582,6 +1589,27 @@ function stepStatusText(s) {
     }
   } catch (e) {}
   return '';
+}
+
+/* v8.13.4：把云端 bridge 回传的进度条目（形如 "kind|text"）翻译成手机上的实况文案
+ * 与 stepStatusText 同源思路，但输入是家电脑 bridge 上报后的扁平化字符串 */
+function bridgeProgressText(item) {
+  try {
+    if (!item) return '';
+    var s = String(item);
+    var i = s.indexOf('|');
+    if (i < 0) return s ? ('· ' + s.slice(0, 60)) : '';
+    var kind = s.slice(0, i);
+    var text = String(s.slice(i + 1) || '').replace(/\s+/g, ' ').trim();
+    if (!text) return '';
+    var cut = function (t) { return t.length > 60 ? t.slice(0, 60) + '…' : t; };
+    if (kind === 'think') return '💭 ' + cut(text);
+    if (kind === 'tool') return '🔧 ' + cut(text);
+    if (kind === 'tool_result') return '📄 ' + cut(text);
+    if (kind === 'result') return '✅ ' + cut(text);
+    if (kind === 'error') return '❌ ' + cut(text);
+    return '· ' + cut(text);
+  } catch (e) { return ''; }
 }
 
 function callComputerAgent(text, onDone, onError, onProgress) {
@@ -1653,6 +1681,12 @@ function callComputerAgent(text, onDone, onError, onProgress) {
               if (ctl.cancelled) return;
               if (!d || !d.ok || !d.command) { done(onError, new Error('查询指令状态失败')); return; }
               var c = d.command;
+              // v8.13.4：家电脑桥接执行体把 agent 执行过程经 progress 端点回传，
+              // 这里实时渲染（此前 v81 改走定向通道后退化为只看最终结果）
+              if (c.progress && c.progress.length) {
+                var px = bridgeProgressText(c.progress[c.progress.length - 1]);
+                if (px) setThinkingStatus(px);
+              }
               if (c.status === 'done') {
                 var r = c.result || {};
                 done(onDone, { ok: true, action: 'agent-task', taskId: r.taskId || null, text: r.text || '（电脑端已完成）' });

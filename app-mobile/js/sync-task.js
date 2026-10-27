@@ -41,6 +41,7 @@
     detailGoal: document.getElementById('detailGoal'),
     detailUpdated: document.getElementById('detailUpdated'),
     detailMessages: document.getElementById('detailMessages'),
+    detailProgress: document.getElementById('detailProgress'),
     detailGoals: document.getElementById('detailGoals'),
     interveneInput: document.getElementById('interveneInput'),
     interveneBtn: document.getElementById('interveneBtn'),
@@ -180,6 +181,12 @@
     return data && data.session ? data.session : null;
   }
 
+  /** 拉取执行过程事件流（手机端轮询渲染「执行过程·思考轨迹」） */
+  async function getProgress(runId) {
+    const data = await fetchApi(`/api/sessions/${encodeURIComponent(runId)}/progress`);
+    return data && Array.isArray(data.events) ? data.events : [];
+  }
+
   async function createSession(runId, goal) {
     return await fetchApi('/api/sessions', {
       method: 'POST',
@@ -277,6 +284,48 @@
     }
   }
 
+  /* ===== 执行过程渲染 =====
+   * v8.13.4：补「执行过程 · 思考轨迹」——此前详情页只有空的「助手」与空队列，
+   * 用户无法判断任务到底跑到哪一步。事件来源：sync-server /api/sessions/:runId/progress
+   * （执行端在 model.response / tool.call / tool.result 时增量上报）。
+   */
+  const PROGRESS_KIND_LABEL = {
+    think: '💭 思考',
+    model: '💭 思考',
+    tool: '🔧 工具',
+    tool_call: '🔧 工具',
+    tool_result: '📄 结果',
+    result: '📄 结果',
+    error: '❌ 错误',
+    done: '✅ 完成',
+    step: '· 步骤',
+  };
+
+  function renderProgress(events) {
+    if (!els.detailProgress) return;
+    if (!events || events.length === 0) {
+      els.detailProgress.innerHTML =
+        '<div style="padding:10px;color:var(--ink-2);text-align:center;">执行端尚未回传过程（电脑端开始执行后此处会实时刷新）</div>';
+      return;
+    }
+    els.detailProgress.innerHTML = events.map(ev => {
+      const label = PROGRESS_KIND_LABEL[ev.kind] || '· 步骤';
+      const text = ev.text ? escapeHtml(String(ev.text)) : '';
+      const time = ev.at ? formatTime(ev.at) : '';
+      return `
+        <div class="progress-item ${escapeHtml(ev.kind || 'step')}">
+          <div class="progress-head">
+            <span class="progress-kind">${label}</span>
+            ${time ? `<span class="progress-time">${time}</span>` : ''}
+          </div>
+          ${text ? `<div class="progress-text">${text}</div>` : ''}
+        </div>
+      `;
+    }).join('');
+    // 保持滚动在底部，新事件自动可见
+    els.detailProgress.scrollTop = els.detailProgress.scrollHeight;
+  }
+
   function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
@@ -301,6 +350,9 @@
     try {
       const task = await getSession(runId);
       if (task) renderTaskDetail(task);
+      // 执行过程事件流：单独拉取（append-only，增量渲染）
+      const events = await getProgress(runId);
+      renderProgress(events);
     } catch (e) {
       // 瞬断忽略，下次轮询重试
     }
@@ -340,7 +392,10 @@
     if (els.interveneBtn) els.interveneBtn.disabled = true;
     try {
       await postGoal(runId, cmd, selectedExecutor);
-      if (els.interveneInput) els.interveneInput.value = '';
+      if (els.interveneInput) {
+        els.interveneInput.value = '';
+        autoGrow(els.interveneInput); // 清空后回落到 min-height
+      }
       if (els.interveneMsg) {
         els.interveneMsg.textContent = '指令已下发（' + (selectedExecutor === 'cloud' ? '云端' : '本机') + '），电脑端将认领执行';
         els.interveneMsg.style.color = '#16a34a';
@@ -380,6 +435,25 @@
       clearInterval(state.pollingTimer);
       state.pollingTimer = null;
     }
+  }
+
+  /** 文本域随输入自动增高（配合 CSS min-height，解决「输入框太小无法输入」） */
+  function autoGrow(el) {
+    if (!el) return;
+    el.style.height = 'auto';
+    const minH = 108;
+    const maxH = Math.max(minH, Math.floor(window.innerHeight * 0.4));
+    const next = Math.min(el.scrollHeight, maxH);
+    el.style.height = next + 'px';
+    el.style.overflowY = el.scrollHeight > maxH ? 'auto' : 'hidden';
+  }
+
+  function bindAutoGrow(el) {
+    if (!el) return;
+    el.addEventListener('input', () => autoGrow(el));
+    el.addEventListener('focus', () => autoGrow(el));
+    // 初始按内容撑开
+    setTimeout(() => autoGrow(el), 0);
   }
 
   // ===== 事件处理 =====
@@ -541,6 +615,10 @@
     if (els.detailBackBtn) {
       els.detailBackBtn.addEventListener('click', () => hideSheet('detailSheet'));
     }
+
+    // v8.13.4：下指令输入框 / 新建任务输入框随内容自动增高
+    bindAutoGrow(els.interveneInput);
+    bindAutoGrow(els.newGoalInput);
 
     // 弹层关闭按钮（右上角 ×）
     document.querySelectorAll('.sheet-close').forEach((btn) => {

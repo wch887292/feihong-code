@@ -116,14 +116,38 @@ function isAlive(c: ReturnType<typeof spawn> | null): boolean {
 function ensureLocalServe(): void {
   fetchJson(LOCAL_SERVE_URL + '/api/health', {}, (_data, err) => {
     if (err) {
-      // v78 单端口：本地 serve 由 FHDirect8082 计划任务独立常驻，保活不再拉起第二份 serve；
-      // 此处只巡检，失联则告警（由 FHDirect8082 守护/重启）。
-      log('本地 serve(8082) 未响应（' + (err.message || '?') + '），待 FHDirect8082 守护拉起');
+      // v78 单端口：本地 serve 原则上由 FHDirect8082 计划任务独立常驻，保活不再拉起第二份 serve。
+      // 但 2026-10-27 实测：8082 曾静默死亡（端口无监听），导致家电脑 bridge 提交 agent 任务失败 →
+      // 回退 GUI nl → 手机端完全看不到执行过程。故保活在此兜底主动拉起，避免整条链路哑掉。
+      log('本地 serve(8082) 未响应（' + (err.message || '?') + '），保活主动拉起 serve');
+      spawnLocalServe();
       return;
     }
     log('巡检正常：本地 serve 健康');
   });
 }
+
+/** 拉起本机 8082 serve（与 FHDirect8082 计划任务同一入口脚本，重复启动时端口冲突会自动退出） */
+function spawnLocalServe(): void {
+  try {
+    const script = path.join(ROOT, 'scripts', 'fh-direct-8082.js');
+    if (!fs.existsSync(script)) { log('serve 启动脚本不存在：' + script); return; }
+    const child = spawn(process.execPath, [script], {
+      cwd: ROOT, detached: true, stdio: ['ignore', 'ignore', 'ignore'], windowsHide: true,
+      env: Object.assign({}, process.env, { FH_WEB_PORT: '8082' }),
+    });
+    child.unref();
+    log('serve 已拉起 pid=' + child.pid);
+  } catch (e) {
+    log('serve 拉起失败：' + (e instanceof Error ? e.message : String(e)));
+  }
+}
+
+/** 本地 bridge 连续失败次数（2026-10-27）：本机 serve 未起时注册必然 401，
+ *  无脑重拉只会每 60 秒刷一次失败日志，故失败达阈值后退避到 10 分钟一次。 */
+let localBridgeFailStreak = 0;
+const LOCAL_BRIDGE_BACKOFF_MS = 10 * 60 * 1000;
+let localBridgeNextRetryAt = 0;
 
 function ensureDevice(url: string, name: string): void {
   fetchJson(url + '/api/bridge/devices', { Authorization: 'Bearer ' + CLOUD_TOKEN }, (data, err) => {
@@ -131,11 +155,25 @@ function ensureDevice(url: string, name: string): void {
     const devices = (data as { devices?: DeviceInfo[] })?.devices || [];
     const mine = devices.find((d) => (d.name || '').indexOf(name) >= 0);
     if (mine && mine.lastSeenAt && (Date.now() - new Date(mine.lastSeenAt).getTime()) < STALE_MS) {
+      localBridgeFailStreak = 0;
       log('巡检正常：「' + name + '」心跳新鲜'); return;
     }
     log(mine ? '「' + name + '」心跳过期，重拉 bridge' : '设备表缺「' + name + '」，拉起 bridge');
     if (name === LOCAL_DEVICE_NAME) {
-      if (!isAlive(localBridgeChild)) { killChild(localBridgeChild); localBridgeChild = spawnBridge(LOCAL_SERVE_URL, LOCAL_DEVICE_NAME); }
+      // 退避：本地 serve 未就绪时反复注册必然 401，避免无意义重拉刷屏
+      if (localBridgeFailStreak >= 3 && Date.now() < localBridgeNextRetryAt) {
+        log('「' + name + '」连续失败 ' + localBridgeFailStreak + ' 次，退避至 ' + new Date(localBridgeNextRetryAt).toLocaleTimeString('zh-CN') + ' 后重试');
+        return;
+      }
+      if (!isAlive(localBridgeChild)) {
+        killChild(localBridgeChild);
+        localBridgeChild = spawnBridge(LOCAL_SERVE_URL, LOCAL_DEVICE_NAME);
+        localBridgeFailStreak++;
+        if (localBridgeFailStreak >= 3) {
+          localBridgeNextRetryAt = Date.now() + LOCAL_BRIDGE_BACKOFF_MS;
+          log('「' + name + '」注册连续失败 ' + localBridgeFailStreak + ' 次（多为本机 serve 未就绪），进入 10 分钟退避');
+        }
+      }
     } else {
       if (!isAlive(cloudBridgeChild)) { killChild(cloudBridgeChild); cloudBridgeChild = spawnBridge(CLOUD_URL, HOME_DEVICE_NAME); }
     }

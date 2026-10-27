@@ -70,6 +70,7 @@ function summarize(s) {
     messageCount: Array.isArray(s.messages) ? s.messages.length : 0,
     goalCount: goals.length,
     hasCloudGoal: goals.some((g) => g.executor === 'cloud'),
+    progressCount: Array.isArray(s.progress) ? s.progress.length : 0,
   };
 }
 
@@ -200,8 +201,81 @@ function updateStatus(runId, status) {
   return s;
 }
 
+/* ===================== 执行过程事件流（progress） =====================
+ * 背景（2026-10-26）：手机端此前只能看到「最终答案」，看不到 agent 的工具调用与思考摘要，
+ * 导致「无法确定任务执行情况」。本通道让执行端（家电脑 8082 / 云端执行体）把每一步
+ * 以事件形式增量追加到会话下，手机端轮询 GET /api/sessions/:runId 即可实时渲染。
+ * 设计约束：
+ *   - 追加式（append-only），不覆盖 messages，保留原有对话语义；
+ *   - 单会话最多 PROGRESS_MAX 条、单条文本截断，避免 1.9G 内存服务器被撑爆；
+ *   - 会话不存在时自动创建（执行端可能先于手机端建会话上报过程）。
+ */
+const PROGRESS_MAX = 300;
+const PROGRESS_TEXT_MAX = 2000;
+
+/** 追加一条执行过程事件（幂等：同 seq 覆盖，避免重试导致重复） */
+function appendProgress(runId, event) {
+  if (!runId || typeof runId !== 'string') throw new Error('runId 必填且为字符串');
+  const now = new Date().toISOString();
+  let s = sessions.get(runId);
+  if (!s) {
+    s = {
+      runId,
+      goal: '',
+      goals: [],
+      status: 'running',
+      messages: [],
+      progress: [],
+      createdAt: now,
+      updatedAt: now,
+    };
+  }
+  if (!Array.isArray(s.progress)) s.progress = [];
+
+  const kind = String(event?.kind || 'step').slice(0, 32);
+  const text = String(event?.text == null ? '' : event.text).slice(0, PROGRESS_TEXT_MAX);
+  const seq = Number.isFinite(Number(event?.seq)) ? Number(event.seq) : s.progress.length + 1;
+
+  // 同 seq 视为重试覆盖（幂等）
+  const existingIdx = s.progress.findIndex((p) => p.seq === seq);
+  const item = {
+    seq,
+    kind,
+    text,
+    at: now,
+    ...(event?.meta && typeof event.meta === 'object' ? { meta: event.meta } : {}),
+  };
+  if (existingIdx >= 0) s.progress[existingIdx] = item;
+  else s.progress.push(item);
+
+  // 环形裁剪：保留最新 PROGRESS_MAX 条
+  if (s.progress.length > PROGRESS_MAX) s.progress = s.progress.slice(-PROGRESS_MAX);
+  s.updatedAt = now;
+  sessions.set(runId, s);
+  persist();
+  return item;
+}
+
+/** 读取执行过程事件流（按 seq 升序） */
+function getProgress(runId) {
+  const s = sessions.get(runId);
+  if (!s) return [];
+  return Array.isArray(s.progress) ? s.progress.slice().sort((a, b) => a.seq - b.seq) : [];
+}
+
+/** 批量追加（执行端一次性上报多条时用，减少 HTTP 往返与落盘次数） */
+function appendProgressBatch(runId, events) {
+  const list = Array.isArray(events) ? events : [];
+  const out = [];
+  for (const ev of list) {
+    try { out.push(appendProgress(runId, ev)); } catch { /* 单条失败不影响整批 */ }
+  }
+  return out;
+}
+
 module.exports = {
   TASK_STATUSES,
+  PROGRESS_MAX,
   load,
   upsertSession,
   listSummaries,
@@ -210,5 +284,8 @@ module.exports = {
   claimNextQueued,
   listCloudPending,
   updateStatus,
+  appendProgress,
+  appendProgressBatch,
+  getProgress,
   _reset() { sessions = new Map(); }, // 仅供测试
 };

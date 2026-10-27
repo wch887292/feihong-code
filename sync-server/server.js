@@ -156,6 +156,39 @@ app.post('/api/sessions/:runId/status', (req, res) => {
   }
 });
 
+/* ===================== 执行过程事件流（progress） =====================
+ * 让手机端能看到「任务执行过程与思考过程」：
+ *   POST /api/sessions/:runId/progress        追加一条（或一批）过程事件
+ *   GET  /api/sessions/:runId/progress        拉取过程事件流（手机端轮询渲染）
+ *   GET  /api/sessions/:runId                 会话详情已内含 progress 字段
+ * 执行端（家电脑 8082 / 云端执行体）在 agent 每一步（model.response / tool.call / tool.result）
+ * 后调用 POST 上报；手机端在同步任务详情页每 4 秒轮询 GET 渲染执行轨迹。
+ */
+app.post('/api/sessions/:runId/progress', (req, res) => {
+  try {
+    const body = req.body || {};
+    const runId = req.params.runId;
+    if (Array.isArray(body.events) && body.events.length) {
+      const items = store.appendProgressBatch(runId, body.events);
+      res.json({ ok: true, runId, count: items.length });
+      return;
+    }
+    const item = store.appendProgress(runId, body);
+    res.json({ ok: true, runId, item });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message });
+  }
+});
+
+app.get('/api/sessions/:runId/progress', (req, res) => {
+  try {
+    const events = store.getProgress(req.params.runId);
+    res.json({ ok: true, runId: req.params.runId, events });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message });
+  }
+});
+
 // ===================== 静态文件服务（app-mobile） ======
 const MOBILE_DIR = path.join(__dirname, '..', 'app-mobile');
 

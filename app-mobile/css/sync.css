@@ -463,27 +463,95 @@ body {
   line-height: 18px;
 }
 
+/* ===== 执行过程 · 思考轨迹（v8.13.4） ===== */
+.progress-list {
+  max-height: 240px;
+  overflow-y: auto;
+  background: var(--bg-2);
+  border-radius: 8px;
+  padding: 10px;
+}
+.progress-item {
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  background: var(--bg-3);
+  border-left: 3px solid var(--line);
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.progress-item:last-child { margin-bottom: 0; }
+.progress-item.think,
+.progress-item.model { border-left-color: #8b5cf6; }
+.progress-item.tool,
+.progress-item.tool_call { border-left-color: #2563eb; }
+.progress-item.tool_result,
+.progress-item.result { border-left-color: #16a34a; }
+.progress-item.error { border-left-color: #dc2626; }
+.progress-item.done { border-left-color: #16a34a; }
+.progress-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 3px;
+}
+.progress-kind {
+  font-weight: 600;
+  color: var(--brand);
+}
+.progress-time {
+  flex-shrink: 0;
+  font-size: 10px;
+  color: var(--ink-3);
+}
+.progress-text {
+  color: var(--ink);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 /* ===== 续聊 / 随时介入 ===== */
 .intervene-tip {
   margin: 0 0 8px;
   font-size: 12px;
   color: var(--ink-3);
 }
+/* v8.13.4：补 min-height/line-height —— 此前 textarea 在 .sheet 弹性布局内被压缩到一行高，
+   占位文字被裁切、无法正常输入长指令；同时启用字段集（fieldset）以避免 flex 布局压缩。 */
 .intervene-input {
+  display: block;
   width: 100%;
   box-sizing: border-box;
+  min-height: 108px;
+  max-height: 40vh;
   padding: 11px 12px;
   border: 1px solid var(--line);
   border-radius: 12px;
   font-size: 15px;
+  line-height: 1.55;
   background: var(--card);
   color: var(--ink);
   outline: none;
   resize: vertical;
   font-family: inherit;
+  /* 输入时由 JS 自动增高（auto-grow），此处禁止浏览器默认的滚动条跳动 */
+  overflow-y: auto;
 }
 .intervene-input:focus {
   border-color: var(--brand);
+}
+.intervene-input::placeholder {
+  color: var(--ink-3);
+  opacity: 1;
+  line-height: 1.55;
+}
+/* 新建任务的目标输入框同样给足高度（此前 rows=4 也会被压扁） */
+.form-group textarea {
+  min-height: 96px;
+  line-height: 1.55;
+  font-family: inherit;
+  resize: vertical;
 }
 .intervene-msg {
   min-height: 16px;

@@ -61,6 +61,9 @@ export function registerCloudBridgeRoutes(app: ExpressApp, deps: CloudBridgeDeps
     error?: string;
     createdAt: string;
     executedAt?: string;
+    /** 任务执行过程回传（2026-10-27）：kind|text 单行条目数组，
+     *  kind ∈ think / tool / tool_result / result / error；上限 300 条，超出丢弃最旧。 */
+    progress?: string[];
   }
   const bridgeFile = join(homeDir, 'bridge-devices.json');
   const bridgeCmdsFile = join(homeDir, 'bridge-commands.json');
@@ -246,6 +249,27 @@ export function registerCloudBridgeRoutes(app: ExpressApp, deps: CloudBridgeDeps
     const cmd = loadBridgeCommands().find((c) => c.cmdId === cmdId);
     if (!cmd) { res.status(404).json({ ok: false, error: '指令不存在' }); return; }
     res.json({ ok: true, command: cmd });
+  });
+
+  // 电脑端：上报任务执行过程（2026-10-27 新增，让手机端实时看到任务跑到哪一步）
+  // body: { deviceId, items: ["kind|text", ...] }，kind ∈ think / tool / tool_result / result / error
+  // 校验 deviceId 与 cmdId 匹配，不匹配返回 404；items 追加到 progress 末尾，上限 300 条丢弃最旧。
+  app.post('/api/bridge/command/:cmdId/progress', (req: Request, res: Response) => {
+    const cmdId = req.params.cmdId;
+    const body = (req.body ?? {}) as Record<string, any>;
+    const deviceId = String(body?.deviceId ?? '').trim();
+    const rawItems = Array.isArray(body?.items) ? body.items : [];
+    // 过滤出合法字符串条目，并剔除空文本
+    const items = rawItems
+      .map((it) => String(it ?? '').trim())
+      .filter((it) => it.length > 0 && it.includes('|'));
+    if (!deviceId) { res.status(400).json({ ok: false, error: '缺少 deviceId' }); return; }
+    const list = loadBridgeCommands();
+    const cmd = list.find((c) => c.cmdId === cmdId && c.deviceId === deviceId);
+    if (!cmd) { res.status(404).json({ ok: false, error: '指令不存在或 deviceId 不匹配' }); return; }
+    cmd.progress = [...(cmd.progress ?? []), ...items].slice(-300);
+    saveBridgeCommands(list);
+    res.json({ ok: true, cmdId, count: cmd.progress!.length });
   });
 
   // 手机端：列出已注册电脑设备

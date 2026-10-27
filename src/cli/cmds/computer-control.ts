@@ -330,6 +330,71 @@ interface BridgeResp {
   [k: string]: unknown;
 }
 
+/** agent 任务步骤（本机 8082 /api/tasks 返回的 task.steps 元素，2026-10-27） */
+interface AgentTaskStep {
+  type?: string;
+  data?: Record<string, unknown>;
+}
+
+/**
+ * 步骤 → 进度条目映射（2026-10-27 新增，供 runLocalAgentTask 上报执行过程）。
+ * 输出 "kind|text" 单行文本，kind ∈ think / tool / tool_result / result / error。
+ * 规则：
+ * - model.response → think，text 取 data.text（归一化后 8082 落盘的真实字段名，兼容 content）
+ * - plan → think，text 取 data.steps 各元素用顿号连接（归一化后是字符串数组，非对象数组）
+ * - tool.call → tool，text 为 "调用 " + data.name
+ * - tool.result → tool_result，text 为 data.name + ":" + output（归一化后字段是 outputPreview，兼容 output）
+ * - 其余类型 → think，text 取 data 里第一个字符串值字段，截断 300 字
+ */
+export function stepToProgressItem(step: AgentTaskStep): string | null {
+  const data = step.data ?? {};
+  const text300 = (s: string): string => s.slice(0, 300);
+  switch (step.type) {
+    case 'model.response': {
+      // 2026-10-27 修正：normalizeThinkingStep 产出的是 data.text（不是 data.content），
+      // 原实现只读 content 会导致 model.response 全部落空 → 手机端看不到任何思考过程
+      const content = typeof data.content === 'string' ? data.content : '';
+      const text = typeof data.text === 'string' ? data.text : '';
+      const picked = text || content;
+      if (!picked) return null; // 空响应跳过，不上报
+      return `think|${text300(picked)}`;
+    }
+    case 'plan': {
+      // 2026-10-27 修正：归一化后 data.steps 是字符串数组（原实现按对象取 description 会全空）
+      const steps = Array.isArray(data.steps) ? data.steps : [];
+      const descs = steps
+        .map((s) => {
+          if (typeof s === 'string') return s;
+          const obj = s as Record<string, unknown> | null;
+          const d = obj?.description ?? obj?.title ?? obj?.text;
+          return typeof d === 'string' ? d : '';
+        })
+        .filter((d) => d.length > 0);
+      if (descs.length === 0) return null;
+      return `think|${text300(descs.join('、'))}`;
+    }
+    case 'tool.call': {
+      const name = typeof data.name === 'string' ? data.name : '';
+      return `tool|调用 ${name}`;
+    }
+    case 'tool.result': {
+      const name = typeof data.name === 'string' ? data.name : '';
+      // 2026-10-27 修正：归一化后字段是 outputPreview（原实现只读 output 会拿到空串）
+      const output = typeof data.outputPreview === 'string' && data.outputPreview
+        ? data.outputPreview
+        : (typeof data.output === 'string' ? data.output : '');
+      return `tool_result|${text300(name + ':' + output)}`;
+    }
+    default: {
+      // 其余类型（self-heal / context.compact 等）：取 data 里第一个字符串值字段
+      for (const v of Object.values(data)) {
+        if (typeof v === 'string' && v.length > 0) return `think|${text300(v)}`;
+      }
+      return null;
+    }
+  }
+}
+
 let _insecureAgent: HttpsAgent | undefined;
 function bridgeInsecureAgent(): HttpsAgent | undefined {
   if (!_insecureAgent) _insecureAgent = new HttpsAgent({ rejectUnauthorized: false });
@@ -673,8 +738,12 @@ export async function runBridge(action: string, _args: string[]): Promise<void> 
 
   /** 把指令作为 agent 任务提交本机 8082 /api/tasks 执行（创作类大任务：写代码/生成内容等）。
    *  bridgeFetch 自带 HMAC 签名（密钥=FH_BRIDGE_TOKEN=8082 的 FH_WEB_TOKEN），无需重复实现。
-   *  成功返回 finalAnswer（截断 12000 字防云端回传超限）；提交失败/超时/任务失败返回 null（调用方回退 GUI nl）。 */
-  async function runLocalAgentTask(text: string): Promise<string | null> {
+   *  成功返回 finalAnswer（截断 12000 字防云端回传超限）；提交失败/超时/任务失败返回 null（调用方回退 GUI nl）。
+   *  cmdId 为当前云端指令 ID：执行过程中把 task.steps 增量上报到云端 progress 通道，
+   *  让手机端实时看到任务跑到哪一步（2026-10-27 新增）。上报失败静默忽略，不阻断主流程。 */
+  async function runLocalAgentTask(text: string, cmdId?: string): Promise<string | null> {
+    // 已上报的 steps 条数（增量上报游标，2026-10-27）
+    let lastReportedStepCount = 0;
     try {
       const created = await bridgeFetch(`${LOCAL_SERVE}/api/tasks`, { headers: authHeaders, body: { goal: text } });
       const task = (created as { task?: { id?: string } }).task;
@@ -684,10 +753,40 @@ export async function runBridge(action: string, _args: string[]): Promise<void> 
         await new Promise((r) => setTimeout(r, 3000));
         try {
           const d = await bridgeFetch(`${LOCAL_SERVE}/api/tasks/${task.id}`, { headers: authHeaders });
-          const t = (d as { task?: { status?: string; result?: { finalAnswer?: string }; conversation?: Array<{ role: string; content: string }> } }).task;
+          const t = (d as { task?: { status?: string; result?: { finalAnswer?: string }; conversation?: Array<{ role: string; content: string }>; steps?: Array<{ type?: string; data?: Record<string, unknown> }> } }).task;
           if (!d.ok || !t) continue;
+          // 增量上报执行过程：task.steps 比上次多出的部分转成 "kind|text" 批量回传云端（2026-10-27）
+          const steps = Array.isArray(t.steps) ? t.steps : [];
+          if (cmdId && steps.length > lastReportedStepCount) {
+            const fresh = steps.slice(lastReportedStepCount);
+            const items: string[] = [];
+            for (const step of fresh) {
+              const item = stepToProgressItem(step);
+              if (item) items.push(item);
+            }
+            if (items.length > 0) {
+              try {
+                await bridgeFetch(`${cloudBase}/api/bridge/command/${cmdId}/progress`, {
+                  method: 'POST',
+                  headers: authHeaders,
+                  body: { deviceId, items },
+                });
+              } catch { /* 过程上报失败静默忽略，不中断主流程 */ }
+            }
+            lastReportedStepCount = steps.length;
+          }
           if (t.status === 'done') {
             const ans = t.result?.finalAnswer || (t.conversation?.length ? t.conversation[t.conversation.length - 1].content : '') || '（电脑端已完成，无文本输出）';
+            // 最终答案作为 "result|" 条目一并上报，让手机端显示最终结论（2026-10-27）
+            if (cmdId && ans) {
+              try {
+                await bridgeFetch(`${cloudBase}/api/bridge/command/${cmdId}/progress`, {
+                  method: 'POST',
+                  headers: authHeaders,
+                  body: { deviceId, items: [`result|${String(ans).slice(0, 300)}`] },
+                });
+              } catch { /* 结果上报失败静默忽略 */ }
+            }
             return String(ans).slice(0, 12000);
           }
           if (t.status === 'failed' || t.status === 'stopped') return null;
@@ -698,8 +797,9 @@ export async function runBridge(action: string, _args: string[]): Promise<void> 
   }
 
   // 指令→执行：优先云端式解析（文件/命令/网页/系统状态），未命中提交本机 agent 任务（创作类），
-  // 任务提交失败再回退 runComputer 自然语言（GUI 操作）
-  async function execute(text: string): Promise<{ ok: boolean; result?: Record<string, unknown>; error?: string }> {
+  // 任务提交失败再回退 runComputer 自然语言（GUI 操作）。
+  // cmdId 为当前指令 ID，透传给 runLocalAgentTask 用于上报执行过程（2026-10-27）。
+  async function execute(text: string, cmdId?: string): Promise<{ ok: boolean; result?: Record<string, unknown>; error?: string }> {
     mkdirSync(LOCAL_WORK, { recursive: true });
     try {
       const local = await tryLocalExec(text);
@@ -708,7 +808,7 @@ export async function runBridge(action: string, _args: string[]): Promise<void> 
       return { ok: false, error: e instanceof Error ? e.message : String(e) };
     }
     try {
-      const ans = await runLocalAgentTask(text);
+      const ans = await runLocalAgentTask(text, cmdId);
       if (ans !== null) return { ok: true, result: { action: 'agent-task', text: ans } };
     } catch { /* 回退 GUI */ }
     try {
@@ -727,7 +827,7 @@ export async function runBridge(action: string, _args: string[]): Promise<void> 
       const cmd = data.command;
       if (cmd && cmd.cmdId) {
         log(`收到指令: ${cmd.text}`);
-        const outcome = await execute(cmd.text);
+        const outcome = await execute(cmd.text, cmd.cmdId);
         log(`执行完成: ${outcome.ok ? '成功' : '失败'}`);
         await bridgeFetch(`${cloudBase}/api/bridge/result`, {
           method: 'POST',
