@@ -563,3 +563,57 @@ body {
   margin-top: 6px;
   width: 100%;
 }
+/* v8.13.5：任务产物区块（手机端查看/下载电脑端执行产物） */
+.art-block {
+  margin-top: 8px;
+  background: rgba(127, 127, 127, .06);
+  border: 1px solid rgba(127, 127, 127, .14);
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+.art-title {
+  font-size: 12px;
+  color: var(--ink-2);
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+.art-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  border-top: 1px solid rgba(127, 127, 127, .1);
+}
+.art-row:first-of-type {
+  border-top: none;
+}
+.art-icon {
+  font-size: 15px;
+  flex: 0 0 auto;
+}
+.art-name {
+  flex: 1 1 auto;
+  font-size: 13px;
+  color: var(--ink-1);
+  word-break: break-all;
+}
+.art-size {
+  font-size: 11px;
+  color: var(--ink-2);
+  flex: 0 0 auto;
+}
+.art-dl {
+  font-size: 12px;
+  color: #4a7dff;
+  background: rgba(74, 125, 255, .1);
+  border: none;
+  border-radius: 6px;
+  padding: 4px 8px;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.art-big {
+  font-size: 11px;
+  color: var(--ink-2);
+  flex: 0 0 auto;
+}

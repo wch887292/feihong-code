@@ -992,6 +992,13 @@ function renderThread(task) {
     else if (m.role === 'assistant') html += '<div class="msg assistant">' + renderMarkdown(beautifyStoredComputerMsg(m.content)) + '</div>';
   });
   box.innerHTML = html;
+  // v8.13.5：任务产物区块（持久化于 task.artifacts，刷新重渲染后仍在）
+  if (task.artifacts && task.artifacts.length) {
+    var awrap = document.createElement('div');
+    awrap.innerHTML = renderArtifactsBlock(task.artifacts);
+    box.appendChild(awrap.firstElementChild);
+    bindArtifactsDownload(box);
+  }
   box.scrollTop = box.scrollHeight;
 }
 function appendAssistantMessage(taskId, content) {
@@ -1547,7 +1554,12 @@ function callComputer(text, onDone, onError) {
                 var px = bridgeProgressText(c.progress[c.progress.length - 1]);
                 if (px) setThinkingStatus(px);
               }
-              if (c.status === 'done') { done(onDone, { ok: true, action: 'bridge', app: c.text, message: '已在' + getExecEndLabel() + '执行完成', bridge: c }); }
+              if (c.status === 'done') {
+                getArtifacts(cloudBase, cmdId, headers).then(function (arts) {
+                  done(onDone, { ok: true, action: 'bridge', app: c.text, message: '已在' + getExecEndLabel() + '执行完成', bridge: c, artifacts: arts });
+                });
+                return;
+              }
               else if (c.status === 'failed') { done(onError, new Error(c.error || getExecEndLabel() + '执行失败')); }
               else if (tries > 60) { done(onError, new Error('等待电脑执行超时（60 次轮询）')); }
               else { setTimeout(poll, 1500); }
@@ -1618,6 +1630,61 @@ function bridgeProgressText(item) {
     if (kind === 'error') return '❌ ' + cut(text);
     return '· ' + cut(text);
   } catch (e) { return ''; }
+}
+
+/* v8.13.5：产物回传手机 —— 拉取云端 bridge command 的 artifacts 并渲染下载
+ * 家电脑 8082 执行 agent 任务完成后，把 workspaceDir 产物清单 + 小文件 base64
+ * 经 POST /api/bridge/command/:cmdId/artifacts 上报云端；手机端任务完成后拉取展示。 */
+function getArtifacts(cloudBase, cmdId, headers) {
+  return new Promise(function (resolve) {
+    getJson(cloudBase + '/api/bridge/command/' + cmdId + '/artifacts', headers,
+      function (d) { resolve((d && d.ok && Array.isArray(d.items)) ? d.items : []); },
+      function () { resolve([]); }); // 端点未部署/网络异常：优雅降级，不阻塞结果
+  });
+}
+
+var ARTIFACT_KIND_ICON = { code: '📜', text: '📄', image: '🖼️', other: '📦' };
+function renderArtifactsBlock(items) {
+  if (!items || !items.length) return '';
+  var rows = items.map(function (it, i) {
+    var icon = ARTIFACT_KIND_ICON[it.kind] || '📦';
+    var kb = it.size != null ? (it.size >= 1024 ? (it.size / 1024).toFixed(1) + ' KB' : it.size + ' B') : '';
+    var dl = it.contentBase64
+      ? '<button class="art-dl" data-i="' + i + '">⬇️ 存手机</button>'
+      : '<span class="art-big">大文件·电脑端查看</span>';
+    return '<div class="art-row">' + '<span class="art-icon">' + icon + '</span>'
+      + '<span class="art-name">' + esc(it.name || it.relPath) + '</span>'
+      + '<span class="art-size">' + kb + '</span>' + dl + '</div>';
+  }).join('');
+  return '<div class="art-block" data-items="' + esc(JSON.stringify(items)) + '">' + '<div class="art-title">📦 任务产物（' + items.length + '）</div>' + rows + '</div>';
+}
+
+function bindArtifactsDownload(scope) {
+  if (!scope) return;
+  scope.querySelectorAll('.art-block').forEach(function (block) {
+    if (block.dataset.bound) return;
+    block.dataset.bound = '1';
+    var items = [];
+    try { items = JSON.parse(block.getAttribute('data-items') || '[]'); } catch (e) {}
+    block.querySelectorAll('.art-dl').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var it = items[Number(btn.getAttribute('data-i'))];
+        if (!it || !it.contentBase64) { toast('该文件较大，请在电脑端查看'); return; }
+        try {
+          var bin = atob(it.contentBase64);
+          var arr = new Uint8Array(bin.length);
+          for (var k = 0; k < bin.length; k++) arr[k] = bin.charCodeAt(k);
+          var blob = new Blob([arr], { type: 'application/octet-stream' });
+          var url = URL.createObjectURL(blob);
+          var a = document.createElement('a');
+          a.href = url; a.download = it.name || 'artifact';
+          document.body.appendChild(a); a.click();
+          setTimeout(function () { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
+          toast('已保存到下载：' + (it.name || 'artifact'));
+        } catch (e) { toast('下载失败：' + e.message); }
+      });
+    });
+  });
 }
 
 /* v8.13.5：agent 任务流提升为模块级函数，供 callComputer / callComputerAgent 共用
@@ -1699,7 +1766,10 @@ function callComputerAgent(text, onDone, onError, onProgress) {
               }
               if (c.status === 'done') {
                 var r = c.result || {};
-                done(onDone, { ok: true, action: 'agent-task', taskId: r.taskId || null, text: r.text || '（电脑端已完成）' });
+                getArtifacts(cloudBase, cmdId, headers).then(function (arts) {
+                  done(onDone, { ok: true, action: 'agent-task', taskId: r.taskId || null, text: r.text || '（电脑端已完成）', artifacts: arts });
+                });
+                return;
               } else if (c.status === 'failed') {
                 done(onError, new Error(c.error || '电脑端执行失败'));
               } else if (tries > 300) {
@@ -1996,6 +2066,7 @@ function sendMessage() {
       function (data) {
         stopThinking();
         appendAssistantMessage(pcTask.id, formatComputerResult(data, finalText));
+        if (data.artifacts && data.artifacts.length) pcTask.artifacts = data.artifacts;
         renderThread(getTask(pcTask.id));
         syncChatSnapshot(pcTask); // 信息同步：手机端对话快照上报 sync-server
         updateSendBtn(false);
@@ -2046,6 +2117,13 @@ function sendMessage() {
         agentMsgEl.appendChild(pre);
         attachSvgPreview(agentMsgEl, data.text);
         appendAssistantMessage(aTask.id, data.text);
+        if (data.artifacts && data.artifacts.length) {
+          aTask.artifacts = data.artifacts;
+          var awrap = document.createElement('div');
+          awrap.innerHTML = renderArtifactsBlock(data.artifacts);
+          agentMsgEl.appendChild(awrap.firstElementChild);
+          bindArtifactsDownload(agentMsgEl);
+        }
         syncChatSnapshot(aTask); // 信息同步：手机端对话快照上报 sync-server
         updateSendBtn(false);
       },
