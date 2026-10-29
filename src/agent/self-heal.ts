@@ -10,6 +10,7 @@
 import type { ChatMessage } from '../models/model.interface';
 import type { EventLog } from '../runtime/event-log';
 import { logger } from '../shared/logger';
+import { emitCounter } from '../runtime/otel';
 
 export type ErrorCategory =
   | 'compile-error'
@@ -102,6 +103,8 @@ export function classifyError(output: string, error?: string): ErrorAnalysis {
   const text = (error || output).toLowerCase();
   for (const rule of ERROR_RULES) {
     if (rule.keywords.some((kw) => text.includes(kw))) {
+      // OTLP metrics：识别出具体错误类别（非 unknown）时打点，已启用才上报
+      emitCounter('fh.selfheal.error', 1);
       return { category: rule.category, message: error || output, fixHint: rule.fixHint };
     }
   }

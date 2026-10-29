@@ -19,6 +19,7 @@ import { execSync } from 'child_process';
 import { selfEvolveHook } from './hook';
 import { summarizeMemory } from '../memory/auto-summarize';
 import { logger } from '../shared/logger';
+import { loadMemExpConfig, isNowWithinWindow } from '../memory/mem-exp-config';
 
 const SELF_HEAL_STATE_FILE = 'self-heal-state.json';
 
@@ -26,6 +27,7 @@ interface SelfHealState {
   lastDate: string; // YYYY-MM-DD
   lastRunAt: string; // ISO
   ok: boolean;
+  reflectExecuted: boolean; // 是否实际执行了经验反思（受三开关+窗口门控）
   summary: string;
 }
 
@@ -41,7 +43,15 @@ function readState(): SelfHealState | null {
   const p = getStatePath();
   if (!existsSync(p)) return null;
   try {
-    return JSON.parse(readFileSync(p, 'utf-8')) as SelfHealState;
+    const parsed = JSON.parse(readFileSync(p, 'utf-8')) as Partial<SelfHealState>;
+    // 向后兼容：旧状态文件可能没有 reflectExecuted 字段，缺省 false
+    return {
+      lastDate: parsed.lastDate ?? '',
+      lastRunAt: parsed.lastRunAt ?? '',
+      ok: parsed.ok ?? true,
+      reflectExecuted: parsed.reflectExecuted ?? false,
+      summary: parsed.summary ?? '',
+    };
   } catch {
     return null;
   }
@@ -72,8 +82,17 @@ function runDoctorCheck(): string {
   }
 }
 
-/** 统一自我修复流程：自进化复盘 + 环境自检 + 记忆总结，并记录当天状态。 */
-export async function runSelfHeal(): Promise<SelfHealState> {
+/**
+ * 统一自我修复流程：自进化复盘 + 环境自检 + 记忆反思总结，并记录当天状态。
+ *
+ * @param opts.now 可选注入当前时间（测试用），用于调度窗口判定。
+ *
+ * 经验学习三开关门控（P0 · 对标 CodeArts mem-exp-config）：
+ *  - 记忆总结（反思）仅在 `enableExperienceReflect === true` 且当前落在调度窗口内时执行，
+ *    默认全关 = 老行为关闭（不反思），向后兼容。
+ *  - 环境自检 doctor 与自进化复盘不受三开关影响，照常执行。
+ */
+export async function runSelfHeal(opts?: { now?: Date }): Promise<SelfHealState> {
   const date = todayStr();
   console.log(`[自我修复] 开始统一自我修复 (${date})...`);
   const parts: string[] = [];
@@ -94,18 +113,29 @@ export async function runSelfHeal(): Promise<SelfHealState> {
     parts.push(`环境自检: 跳过 (${e?.message})`);
   }
 
-  // 3) 记忆总结（整理当日短期记忆）
-  try {
-    const r = await summarizeMemory();
-    parts.push(`记忆总结: ${r.summary || (r.success ? 'ok' : r.error)}`);
-  } catch (e: any) {
-    parts.push(`记忆总结: 跳过 (${e?.message})`);
+  // 3) 记忆反思总结：受 enableExperienceReflect 开关 + 调度窗口门控
+  const memExpCfg = loadMemExpConfig(process.cwd());
+  let reflectExecuted = false;
+  const withinWindow = isNowWithinWindow(memExpCfg, opts?.now);
+  if (memExpCfg.enableExperienceReflect && withinWindow) {
+    try {
+      const r = await summarizeMemory();
+      reflectExecuted = true;
+      parts.push(`记忆总结: ${r.summary || (r.success ? 'ok' : r.error)}`);
+    } catch (e: any) {
+      parts.push(`记忆总结: 跳过 (${e?.message})`);
+    }
+  } else {
+    parts.push(
+      `记忆总结: 跳过 (reflect=${memExpCfg.enableExperienceReflect ? '开' : '关'}, 窗口=${withinWindow ? '内' : '外'} ${memExpCfg.scheduledTimeStart}~${memExpCfg.scheduledTimeEnd})`,
+    );
   }
 
   const state: SelfHealState = {
     lastDate: date,
     lastRunAt: new Date().toISOString(),
     ok: true,
+    reflectExecuted,
     summary: parts.join(' | '),
   };
   writeState(state);

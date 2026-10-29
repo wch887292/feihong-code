@@ -3,7 +3,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, rmSync, existsSync, readFileSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, rmSync, existsSync, readFileSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { ChatMessage } from '../../src/models/model.interface';
@@ -100,8 +100,14 @@ test('extractFixPattern 无修复信号时返回 null', () => {
 
 test('SelfImprover.reflect 真实分析对话并写入统一经验库', async () => {
   const dir = tmpDir();
+  // P0 契约：reflect 写库需 enableExperienceCollect 开启。用受控 memExpBaseDir 注入
+  // .fhcode/mem-exp.json 显式开 collect，避免依赖真实工作区配置（否则默认关=不写库）。
+  const memBase = mkdtempSync(join(tmpdir(), 'fhcode-selflearn-memexp-'));
   try {
-    const improver = createSelfImprover({ experienceDir: dir });
+    mkdirSync(join(memBase, '.fhcode'), { recursive: true });
+    writeFileSync(join(memBase, '.fhcode', 'mem-exp.json'),
+      JSON.stringify({ enable_experience_collect: true, auto_experience_retrieve: true }), 'utf8');
+    const improver = createSelfImprover({ experienceDir: dir, memExpBaseDir: memBase });
     const msgs: ChatMessage[] = [
       { role: 'assistant', content: '', toolCalls: [{ id: '1', name: 'read_file', arguments: {} }] },
       { role: 'tool', content: 'ok', toolCallId: '1' },
@@ -122,5 +128,6 @@ test('SelfImprover.reflect 真实分析对话并写入统一经验库', async ()
     assert.ok(prompt.includes('经验'), '学习提示应基于既往经验生成');
   } finally {
     rmSync(dir, { recursive: true, force: true });
+    rmSync(memBase, { recursive: true, force: true });
   }
 });

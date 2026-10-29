@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'crypto';
-import { mkdtempSync, rmSync } from 'fs';
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { Orchestrator, type OrchestratorDeps } from '../../src/agent/orchestrator';
@@ -206,11 +206,19 @@ test('run: 正常完成时 checkpoint 标为 done', async () => {
   assert.strictEqual(checkpoints[checkpoints.length - 1].status, 'done');
 });
 
-test('run: 经验目录写入经验条目', async () => {
+test('run: 经验目录写入经验条目（P0 契约：collect 默认关，需显式开 .fhcode/mem-exp.json）', async () => {
   const experienceDir = mkdtempSync(join(tmpdir(), 'fhcode-expo-'));
+  const workCwd = mkdtempSync(join(tmpdir(), 'fhcode-memexp-cwd-'));
   try {
+    // P0：经验收集三开关默认全关。要让 run 提取并写经验，必须在工作区 .fhcode/mem-exp.json
+    // 显式开启 enable_experience_collect（对齐 CodeArts mem-exp-config 语义）。
+    mkdirSync(join(workCwd, '.fhcode'), { recursive: true });
+    writeFileSync(join(workCwd, '.fhcode', 'mem-exp.json'),
+      JSON.stringify({ enable_experience_collect: true }), 'utf-8');
+
     const orch = new Orchestrator(
       baseDeps({
+        cwd: workCwd,
         experienceDir,
         router: {
           chat: async (req: ChatReq) => {
@@ -235,9 +243,49 @@ test('run: 经验目录写入经验条目', async () => {
     );
     const result = await orch.run('多工具任务');
     assert.ok(result.ok);
-    assert.ok((result.experiencesExtracted ?? 0) >= 1, '应提取至少 1 条经验');
+    assert.ok((result.experiencesExtracted ?? 0) >= 1, 'collect 开关开启后应提取至少 1 条经验');
   } finally {
     rmSync(experienceDir, { recursive: true, force: true });
+    rmSync(workCwd, { recursive: true, force: true });
+  }
+});
+
+test('run: collect 开关默认关闭时不提取经验（P0 向后兼容回归）', async () => {
+  const experienceDir = mkdtempSync(join(tmpdir(), 'fhcode-expo-def-'));
+  const workCwd = mkdtempSync(join(tmpdir(), 'fhcode-memexp-cwd-def-'));
+  try {
+    // 与上一用例工具结构完全一致，仅不写 .fhcode/mem-exp.json → loadMemExpConfig 回退默认（collect 关）
+    const orch = new Orchestrator(
+      baseDeps({
+        cwd: workCwd,
+        experienceDir,
+        router: {
+          chat: async (req: ChatReq) => {
+            const last = req.messages[req.messages.length - 1];
+            if (last.role === 'tool') {
+              return { providerId: 'mock', model: 'mock', costUsd: 0, message: { role: 'assistant', content: '完成', toolCalls: [] } };
+            }
+            return {
+              providerId: 'mock',
+              model: 'mock',
+              costUsd: 0,
+              message: { role: 'assistant', content: '', toolCalls: [{ id: 't', name: 'read_file', arguments: { path: 'x.ts' } }, { id: 't2', name: 'write_file', arguments: { path: 'y.ts' } }, { id: 't3', name: 'run_shell', arguments: { command: 'echo' } }] },
+            };
+          },
+          getStats: () => [],
+        } as unknown as OrchestratorDeps['router'],
+        tools: {
+          definitions: () => [{ name: 'read_file', description: '', inputSchema: {} }, { name: 'write_file', description: '', inputSchema: {} }, { name: 'run_shell', description: '', inputSchema: {} }],
+          execute: async () => ({ ok: true, output: 'ok' }),
+        } as unknown as OrchestratorDeps['tools'],
+      }),
+    );
+    const result = await orch.run('多工具任务（默认关 collect）');
+    assert.ok(result.ok);
+    assert.equal(result.experiencesExtracted ?? 0, 0, 'collect 默认关时不应提取任何经验');
+  } finally {
+    rmSync(experienceDir, { recursive: true, force: true });
+    rmSync(workCwd, { recursive: true, force: true });
   }
 });
 
@@ -338,4 +386,237 @@ test('run: 同文原地打转时注入强化提示并列出已成功工具（202
   assert.ok(fortified, '应注入强化卡死提示（含「选项 A」）');
   assert.ok(fortified.content.includes('write_file'), '强化提示应列出最近成功执行的工具名');
   assert.ok(fortified.content.includes('不要调用任何工具'), '强化提示应明确禁止再调用工具（选项 A）');
+});
+
+test('改造②: 自愈 cap 切路线时注入已落盘进度（touchedFiles 非空）', async () => {
+  // 先 write_file 成功（touchedFiles 非空），再连续 run_shell 失败触发 cap 分支，
+  // bypassOnCapPrompt 必须包含「已落盘进度」与「续跑纪律」，并列出已改动文件。
+  let round = 0;
+  let sawProgressPrompt = false;
+  let sawDisciplinePrompt = false;
+  let sawFileList = false;
+  const orch = new Orchestrator(
+    baseDeps({
+      maxIterations: 15,
+      router: {
+        chat: async (req: ChatReq) => {
+          const lastMsg = req.messages[req.messages.length - 1];
+          if (lastMsg?.role === 'user' && typeof lastMsg.content === 'string') {
+            if (lastMsg.content.includes('已落盘进度')) sawProgressPrompt = true;
+            if (lastMsg.content.includes('续跑纪律')) sawDisciplinePrompt = true;
+            if (lastMsg.content.includes('test.ts')) sawFileList = true;
+          }
+          round++;
+          if (round === 1) {
+            // 第 1 轮：write_file 成功 → touchedFiles = ['test.ts']
+            return { providerId: 'mock', model: 'mock', costUsd: 0, message: { 
+              role: 'assistant', content: '', 
+              toolCalls: [{ id: 'w1', name: 'write_file', arguments: { path: 'test.ts', content: 'x' } }] 
+            }};
+          }
+          if (round >= 4) {
+            // 第 4 轮：最终答案（无 toolCalls）
+            return { providerId: 'mock', model: 'mock', costUsd: 0, message: { role: 'assistant', content: 'done' } };
+          }
+          // 第 2-3 轮：run_shell 失败触发自愈
+          return { providerId: 'mock', model: 'mock', costUsd: 0, message: { 
+            role: 'assistant', content: '', 
+            toolCalls: Array.from({ length: 2 }, (_, i) => ({ id: `f${round}-${i}`, name: 'run_shell', arguments: { command: 'bad' } })) 
+          }};
+        },
+        getStats: () => [],
+      } as unknown as OrchestratorDeps['router'],
+      tools: {
+        definitions: () => [{ name: 'write_file', description: '', inputSchema: {} }, { name: 'run_shell', description: '', inputSchema: {} }],
+        execute: async (name: string) => {
+          if (name === 'write_file') return { ok: true, output: 'ok' };
+          return { ok: false, output: '', error: 'boom failed' };
+        },
+      } as unknown as OrchestratorDeps['tools'],
+    }),
+  );
+  const result = await orch.run('test');
+  assert.ok(sawProgressPrompt, 'cap 分支应包含「已落盘进度」');
+  assert.ok(sawDisciplinePrompt, 'cap 分支应包含「续跑纪律」');
+  assert.ok(sawFileList, 'cap 分支应列出已改动文件');
+});
+
+test('改造②: 自愈 cap 切路线时 touchedFiles 为空提示尚未改动任何文件', async () => {
+  // 全程 0 文件改动时，cap 分支的「已落盘进度」应提示「尚未改动任何文件」。
+  let round = 0;
+  let sawNoFilesHint = false;
+  const orch = new Orchestrator(
+    baseDeps({
+      maxIterations: 15,
+      router: {
+        chat: async (req: ChatReq) => {
+          const lastMsg = req.messages[req.messages.length - 1];
+          if (lastMsg?.role === 'user' && typeof lastMsg.content === 'string') {
+            if (lastMsg.content.includes('尚未改动任何文件')) sawNoFilesHint = true;
+          }
+          round++;
+          if (round >= 4) {
+            return { providerId: 'mock', model: 'mock', costUsd: 0, message: { role: 'assistant', content: 'done' } };
+          }
+          return { providerId: 'mock', model: 'mock', costUsd: 0, message: { 
+            role: 'assistant', content: '', 
+            toolCalls: Array.from({ length: 2 }, (_, i) => ({ id: `f${round}-${i}`, name: 'run_shell', arguments: { command: 'bad' } })) 
+          }};
+        },
+        getStats: () => [],
+      } as unknown as OrchestratorDeps['router'],
+      tools: {
+        definitions: () => [{ name: 'run_shell', description: '', inputSchema: {} }],
+        execute: async () => ({ ok: false, output: '', error: 'boom failed' }),
+      } as unknown as OrchestratorDeps['tools'],
+    }),
+  );
+  const result = await orch.run('test');
+  assert.ok(sawNoFilesHint, 'touchedFiles 为空时 cap 分支应提示「尚未改动任何文件」');
+});
+
+test('改造②: 自愈 cap 切路线时 touchedFiles 为空提示尚未改动任何文件', async () => {
+  // 全程 0 文件改动时，cap 分支的「已落盘进度」应提示「尚未改动任何文件」。
+  let round = 0;
+  let sawNoFilesHint = false;
+  const orch = new Orchestrator(
+    baseDeps({
+      maxIterations: 12,
+      router: {
+        chat: async (req: ChatReq) => {
+          const last = req.messages[req.messages.length - 1];
+          if (last?.role === 'user' && typeof last.content === 'string') {
+            if (last.content.includes('尚未改动任何文件')) sawNoFilesHint = true;
+          }
+          round++;
+          const callCount = round === 1 ? 1 : round + 1;
+          const toolCalls = Array.from({ length: callCount }, (_, i) => ({
+            id: `t${round}-${i}`,
+            name: 'run_shell',
+            arguments: { command: `fail-${round}-${i}` },
+          }));
+          return { providerId: 'mock', model: 'mock', costUsd: 0, message: { role: 'assistant', content: '', toolCalls } };
+        },
+        getStats: () => [],
+      } as unknown as OrchestratorDeps['router'],
+      tools: {
+        definitions: () => [{ name: 'run_shell', description: '', inputSchema: {} }],
+        execute: async () => ({ ok: false, output: '', error: 'boom failed' }),
+      } as unknown as OrchestratorDeps['tools'],
+    }),
+  );
+  const result = await orch.run('必败任务');
+  assert.ok(sawNoFilesHint, 'touchedFiles 为空时 cap 分支应提示「尚未改动任何文件」');
+  assert.match(result.finalAnswer, /最大迭代/);
+});
+
+test('改造③: 改动文件 + 收尾验证通过 → ok=true 且 finalAnswer 含收尾验证小节', async () => {
+  let round = 0;
+  let verifierCalledWith: string[] = [];
+  const orch = new Orchestrator(
+    baseDeps({
+      router: {
+        chat: async (req: ChatReq) => {
+          round++;
+          if (round === 1) {
+            return { providerId: 'mock', model: 'mock', costUsd: 0, message: { role: 'assistant', content: '', toolCalls: [{ id: 'w1', name: 'write_file', arguments: { path: 'src/a.ts', content: 'x' } }] } };
+          }
+          return { providerId: 'mock', model: 'mock', costUsd: 0, message: { role: 'assistant', content: '完成', toolCalls: [] } };
+        },
+        getStats: () => [],
+      } as unknown as OrchestratorDeps['router'],
+      tools: {
+        definitions: () => [{ name: 'write_file', description: '', inputSchema: {} }],
+        execute: async () => ({ ok: true, output: 'written' }),
+      } as unknown as OrchestratorDeps['tools'],
+      closeoutVerifier: {
+        verify: async (_snap: unknown, _cwd: string, files: string[]) => {
+          verifierCalledWith = files;
+          return { overall: 'pass', steps: [], errorSummary: '（全部通过）', durationMs: 1, log: '' };
+        },
+      },
+    }),
+  );
+  const result = await orch.run('改文件任务');
+  assert.ok(result.ok, '收尾验证通过时任务应判 ok');
+  assert.ok(result.closeoutVerification, '应生成 closeoutVerification');
+  assert.strictEqual(result.closeoutVerification!.overall, 'pass');
+  assert.ok(result.closeoutVerification!.summary.includes('全部通过'));
+  assert.ok(result.finalAnswer.includes('收尾验证（P2 closeout）'), 'finalAnswer 应附收尾验证小节');
+  assert.deepStrictEqual(verifierCalledWith, ['src/a.ts'], '收尾验证应收到本次改动的文件列表');
+});
+
+test('改造③: 改动文件 + 收尾验证失败 → ok=false', async () => {
+  let round = 0;
+  const orch = new Orchestrator(
+    baseDeps({
+      router: {
+        chat: async (req: ChatReq) => {
+          round++;
+          if (round === 1) {
+            return { providerId: 'mock', model: 'mock', costUsd: 0, message: { role: 'assistant', content: '', toolCalls: [{ id: 'w1', name: 'write_file', arguments: { path: 'src/b.ts', content: 'x' } }] } };
+          }
+          return { providerId: 'mock', model: 'mock', costUsd: 0, message: { role: 'assistant', content: '完成', toolCalls: [] } };
+        },
+        getStats: () => [],
+      } as unknown as OrchestratorDeps['router'],
+      tools: {
+        definitions: () => [{ name: 'write_file', description: '', inputSchema: {} }],
+        execute: async () => ({ ok: true, output: 'written' }),
+      } as unknown as OrchestratorDeps['tools'],
+      closeoutVerifier: {
+        verify: async () => ({ overall: 'fail', steps: [], errorSummary: 'tsc 报错 3 处', durationMs: 5, log: 'ts errors' }),
+      },
+    }),
+  );
+  const result = await orch.run('改文件任务（验证应失败）');
+  assert.ok(!result.ok, '收尾验证失败时 ok 必须为 false');
+  assert.strictEqual(result.closeoutVerification!.overall, 'fail');
+});
+
+test('改造③: 无文件改动 → 不生成 closeoutVerification（纯问答不空跑）', async () => {
+  const orch = new Orchestrator(
+    baseDeps({
+      // 默认 baseDeps：router 直接返回「任务完成」无工具调用 → touchedFiles 为空
+      closeoutVerifier: {
+        verify: async () => {
+          throw new Error('verifier 不应被调用');
+        },
+      },
+    }),
+  );
+  const result = await orch.run('纯问答');
+  assert.ok(result.ok);
+  assert.equal(result.closeoutVerification, undefined, '无文件改动时不应触发收尾验证');
+});
+
+test('改造③: enableCloseoutVerify=false 时即使有改动也跳过收尾验证（向后兼容）', async () => {
+  let round = 0;
+  const orch = new Orchestrator(
+    baseDeps({
+      enableCloseoutVerify: false,
+      router: {
+        chat: async (req: ChatReq) => {
+          round++;
+          if (round === 1) {
+            return { providerId: 'mock', model: 'mock', costUsd: 0, message: { role: 'assistant', content: '', toolCalls: [{ id: 'w1', name: 'write_file', arguments: { path: 'src/c.ts', content: 'x' } }] } };
+          }
+          return { providerId: 'mock', model: 'mock', costUsd: 0, message: { role: 'assistant', content: '完成', toolCalls: [] } };
+        },
+        getStats: () => [],
+      } as unknown as OrchestratorDeps['router'],
+      tools: {
+        definitions: () => [{ name: 'write_file', description: '', inputSchema: {} }],
+        execute: async () => ({ ok: true, output: 'written' }),
+      } as unknown as OrchestratorDeps['tools'],
+      closeoutVerifier: {
+        verify: async () => {
+          throw new Error('enableCloseoutVerify=false 时 verifier 不应被调用');
+        },
+      },
+    }),
+  );
+  const result = await orch.run('改文件但关闭收尾验证');
+  assert.ok(result.ok, '关闭收尾验证时不因验证影响 ok');
+  assert.equal(result.closeoutVerification, undefined, '显式关闭时不应生成 closeoutVerification');
 });

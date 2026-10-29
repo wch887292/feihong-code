@@ -19,6 +19,7 @@ import {
   normalizeExperienceId,
   type Experience,
 } from './experience';
+import { loadMemExpConfig } from '../memory/mem-exp-config';
 
 export interface ReflectionResult {
   success: boolean;
@@ -32,6 +33,10 @@ export interface SelfImprovementConfig {
   maxPatternsPerTask: number;
   /** 与 orchestrator 共用同一经验库，默认就是 experiences 目录 */
   experienceDir: string;
+  /** P0 契约：门控所用的经验学习配置解析目录（.fhcode/mem-exp.json 所在工作区根）。
+   *  缺省 undefined → loadMemExpConfig() 走 process.cwd()（向后兼容）。
+   *  测试可注入受控目录，显式开启 collect，避免依赖真实工作区配置。 */
+  memExpBaseDir?: string;
 }
 
 const DEFAULT_CONFIG: SelfImprovementConfig = {
@@ -106,7 +111,9 @@ export class SelfImprover {
     });
 
     // 写入统一经验库（与 orchestrator 共用，实现回流）
-    if (this.config.reflectionEnabled) {
+    // 经验学习三开关门控：enableExperienceCollect 为 false 时跳过经验写入（默认关=老行为）
+    // P0 契约：经 memExpBaseDir 注入缝解析配置（缺省 process.cwd()，向后兼容；测试可受控开 collect）
+    if (this.config.reflectionEnabled && loadMemExpConfig(this.config.memExpBaseDir).enableExperienceCollect) {
       const key = `reflect:${result.patterns.slice(0, 2).join('|')}`;
       const exp: Experience = {
         id: normalizeExperienceId(success ? 'success-pattern' : 'error-pattern', key),
@@ -131,6 +138,9 @@ export class SelfImprover {
 
   /** 基于目标召回既往学习，生成注入模型的「学习提示」 */
   async getLearnedPrompt(goal: string): Promise<string> {
+    // 经验学习三开关门控：autoExperienceRetrieve 为 false 时跳过检索（默认关=老行为）
+    // P0 契约：经 memExpBaseDir 注入缝解析配置（缺省 process.cwd()，向后兼容；测试可受控开 retrieve）
+    if (!loadMemExpConfig(this.config.memExpBaseDir).autoExperienceRetrieve) return '';
     const exps = await retrieveRelevantExperiences(this.config.experienceDir, goal);
     return generateExperiencePrompt(exps);
   }

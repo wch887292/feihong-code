@@ -91,3 +91,14 @@ test('edit_file: newText 带末尾换行不会产生多余空行', withTempDir(a
   assert.ok(r.ok, r.error);
   assert.equal(readFileSync(p, 'utf8'), 'aaa\nB2\nccc\n');
 }));
+
+test('改造①: oldText 不命中时强制模型重读最新内容并禁用旧失败 oldText', withTempDir(async (dir) => {
+  const p = join(dir, 'f.json');
+  writeFileSync(p, '{"a":1}', 'utf8');
+  const r = await editFileTool.execute({ path: 'f.json', oldText: '"zzz-not-there": "x"', newText: 'X' }, makeCtx(dir));
+  assert.ok(!r.ok, '全新 oldText 应匹配失败');
+  const err = r.error || '';
+  assert.ok(err.includes('必须先用 read_file 读取该文件的最新完整内容'), '改造①：错误摘要应强制模型重读文件最新完整内容');
+  assert.ok(err.includes('禁止复用上一轮失败的 oldText'), '改造①：错误摘要应禁止复用上一轮失败的 oldText');
+  assert.equal(readFileSync(p, 'utf8'), '{"a":1}', '文件不应被改动');
+}));

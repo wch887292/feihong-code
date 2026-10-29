@@ -1,5 +1,12 @@
 ﻿# 飞虹 Code 更新日志 / Changelog
 
+## v8.13.6 · 版本一致性校准（消除 check:version/cross 漂移）(2026-10-29)
+
+**主题**：将版本权威源 `package.json` 从 8.13.3 拉齐至 android 端既有 8.13.6，消除 `check:version` / `check:cross` 报告的 `android versionName=8.13.6 != package.json 8.13.3` 漂移；`npm run check:version` / `check:cross` 恢复全绿。
+
+- **版本一致性校准（`bump-version.mjs 8.13.3 -> 8.13.6`）**：`package.json` / `src/cli/version.ts` / `README JSON-LD` / `mcp-server.ts` / `vscode-extension` / `app-mobile/index.html` / `tool-schema.json` 全部同步至 8.13.6；android `versionName` 8.13.6（保持不变）、`versionCode` 84→85；`npm run check:version` / `check:cross` 恢复全绿
+- **本期一并累积的改造（尚未提交，将随 8.13.6 提交）**：P0 经验学习三开关 + 夜间窗口配置面；P1 轻量 OpenTelemetry 埋点（含 `withSpan` 泛型修复）；P2 框架遗留三改造（① edit_file 失败强制重读 ② 自愈 cap 切路线注入已落盘进度 ③ 收尾强制验证 closeout）；以及助手兜底修复的 4 处 fhcode 退化遗留（含 1 个 P0 契约回归：`self-improver` 门控无参读 cwd 挡老测试写库）
+
 ## v8.13.3 · 手机端「本地电脑」外网场景定向修复 + 版本一致性校准 (2026-10-26)
 
 **主题**：修复手机端在「本地电脑」外网场景（pcUrl 为 fhrelay 云中继）下，创作任务被云端执行体认领、错跑到云电脑的问题——改为定向到「家里电脑」设备；并将 package.json 权威源同步至 8.13.3，修复 `check:version` 门禁红。

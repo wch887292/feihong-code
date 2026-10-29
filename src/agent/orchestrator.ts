@@ -38,6 +38,7 @@ import { buildRagContext } from './code-rag';
 import type { LayeredMemory } from './layered-memory';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { withSpan } from '../runtime/otel';
 import {
   classifyError,
   injectReflection,
@@ -45,6 +46,9 @@ import {
   logRecoveryAttempt,
   type ErrorAnalysis,
 } from './self-heal';
+// P2 框架遗留修复③：任务收尾强制验证——复用现成基建，不新写验证器
+import { readRepository, type RepoSnapshot } from './repo-reader';
+import { verifyBuild, verifyTests, type VerifyResult, type VerifyStep, type VerifyStatus } from './swe-verifier';
 
 /** 全局空转熔断阈值（2026-10-05 第三次事故修复）：
  *  跨工具累计「重复调用强制失败」达 WARN 次注入强指令，达 ABORT 次硬终止。
@@ -66,6 +70,7 @@ import {
   extractFixPattern,
   type Experience,
 } from './experience';
+import { loadMemExpConfig } from '../memory/mem-exp-config';
 
 /**
  * 完成协议（2026-10-05「叙述即完成」缺陷修复）：
@@ -195,6 +200,14 @@ export interface OrchestratorDeps {
   extraSystemPrompt?: string;
   /** M9：steer 事件源（人工指挥/中途改向，由 agent-session 注入） */
   steerSource?: import('./steer').SteerSource;
+  /** P2 框架遗留修复③：任务收尾强制验证（默认 true）。
+   *  仅当「本次改动了文件 且 仓库有 build/test 命令」时触发，复用 swe-verifier 校验改动产物；
+   *  改 0 文件的纯问答/诊断任务不触发，避免空跑。设为 false 可完全关闭（向后兼容）。 */
+  enableCloseoutVerify?: boolean;
+  /** P2 框架遗留修复③：收尾验证器注入缝（测试可 mock；缺省用 swe-verifier 的 verifyBuild/verifyTests + readRepository） */
+  closeoutVerifier?: {
+    verify: (snapshot: RepoSnapshot, cwd: string, touchedFiles: string[]) => Promise<VerifyResult>;
+  };
 }
 
 /** M3 resume 上下文：携带已完成的对话与计数，避免重复执行 */
@@ -216,6 +229,14 @@ export interface RunResult {
   selfHealed?: boolean;
   /** M6: 经验提取数量 */
   experiencesExtracted?: number;
+  /** P2 框架遗留修复③：任务收尾强制验证结果（改动文件 + 有 build/test 命令时生成；验证失败时 ok 应为 false） */
+  closeoutVerification?: {
+    overall: 'pass' | 'fail' | 'skipped';
+    /** 每步命令摘要（name / status / exit） */
+    steps: string[];
+    /** 验证失败摘要（pass 时为「全部通过」或「未检测到命令，跳过」） */
+    summary: string;
+  };
 }
 
 export class Orchestrator {
@@ -242,6 +263,11 @@ export class Orchestrator {
   private fileFailHits = new Map<string, number>();
 
   async run(goal: string, resume?: ResumeContext): Promise<RunResult> {
+    // OTLP 根 span：任务边界。已启用则创建 span 并上报；未启用则透传，零开销
+    return await withSpan('fh.task', () => this.runInner(goal, resume));
+  }
+
+  private async runInner(goal: string, resume?: ResumeContext): Promise<RunResult> {
     const {
       router, tools, eventLog, session, cwd, security, approve, persist, guard,
       maxRetryErrors = 3,
@@ -250,6 +276,8 @@ export class Orchestrator {
     } = this.deps;
     const maxIter = this.deps.maxIterations ?? 50;
     const maxCost = this.deps.maxCostUsd ?? 0;
+    // 经验学习三开关配置（默认全关=老行为，文件缺失/损坏回退默认，绝不抛错）
+    const memExpCfg = loadMemExpConfig(cwd);
     // 上下文长度控制：消息条数阈值（默认 30）+ token 预算（默认 200000，可经 FH_CONTEXT_MAX_TOKENS 调大）
     const compactThreshold = getCompactionThreshold({ compactEvery: contextCompactEvery });
     const contextMaxTokens = this.deps.contextMaxTokens ?? (process.env.FH_CONTEXT_MAX_TOKENS ? Number(process.env.FH_CONTEXT_MAX_TOKENS) : undefined);
@@ -276,7 +304,10 @@ export class Orchestrator {
       await eventLog.append('session.resume', { fromIterations: baselineIterations });
     } else {
       // M6: 加权检索相关历史经验（强化学习召回）
-      loadedExperiences = experienceDir ? await retrieveRelevantExperiences(experienceDir, goal) : [];
+      // 经验学习三开关门控：autoExperienceRetrieve 为 false 时跳过检索（默认关=老行为）
+      loadedExperiences = (experienceDir && memExpCfg.autoExperienceRetrieve)
+        ? await retrieveRelevantExperiences(experienceDir, goal)
+        : [];
       const experiencePrompt = generateExperiencePrompt(loadedExperiences);
       // P0-4: 仓库级 AGENTS.md 指令自动注入（存在时）
       const repoPrompt = buildRepoInstructionsPrompt(cwd);
@@ -704,6 +735,7 @@ ${toolHint}
           errorHistory,
           messages,
           sessionRunId: session.runId,
+          touchedFiles,
         });
         if (rec.signal === 'break') {
           finalAnswer = rec.finalAnswer;
@@ -767,8 +799,9 @@ ${toolHint}
     }
 
     // M6: 提取经验并以 upsert 强化写入（同一模式多次验证会累积权重，而非无限追加）
+    // 经验学习三开关门控：enableExperienceCollect 为 false 时跳过经验提取与保存（默认关=老行为）
     let experiencesExtracted = 0;
-    if (experienceDir && finalAnswer) {
+    if (experienceDir && finalAnswer && memExpCfg.enableExperienceCollect) {
       const experiences = extractExperience(messages, session.runId);
       for (const exp of experiences) {
         await upsertExperience(experienceDir, exp);
@@ -817,8 +850,63 @@ ${toolHint}
       ok: !abnormalEnd && finalAnswer.length > 0,
     });
 
+    // P2 框架遗留修复③：任务收尾强制验证（默认开，可经 enableCloseoutVerify=false 关闭）
+    // 触发条件：本次改动了文件（touchedFiles>0）且非异常终止——纯问答/诊断/空输出任务不空跑。
+    // 复用 swe-verifier（verifyBuild/verifyTests）按仓库命令校验改动产物；验证失败则 ok 置 false。
+    let closeoutVerification: RunResult['closeoutVerification'];
+    let closeoutFailed = false;
+    const closeoutEnabled = this.deps.enableCloseoutVerify !== false;
+    if (closeoutEnabled && !abnormalEnd && finalAnswer.length > 0 && touchedFiles.length > 0) {
+      try {
+        // 仅当仓库探测到 build/test 命令才实际跑（snapshot 无命令 → skipped，不空跑）
+        const snapshot = readRepository(cwd, { includePreviews: false, maxFiles: 2000 });
+        const verifier = this.deps.closeoutVerifier
+          ?? {
+            verify: async (snap: RepoSnapshot, dir: string, _files: string[]): Promise<VerifyResult> => {
+              // 复用现成 swe-verifier：有 build 先验 build，有 test 再验 test，都无则 skipped
+              if (snap.buildCommand || snap.hasPackageJson) {
+                const b = await verifyBuild(snap, dir);
+                if (b.overall === 'fail') return b;
+                if (snap.testCommand) {
+                  const t = await verifyTests(snap, dir);
+                  if (t.overall === 'fail') return t;
+                  // build pass + test pass/skipped：合并为 pass
+                  return { overall: 'pass', steps: [...b.steps, ...t.steps], errorSummary: '（全部通过）', durationMs: b.durationMs + t.durationMs, log: `${b.log}\n${t.log}` };
+                }
+                return b;
+              }
+              // 既无 build 也无 package.json：无可验证命令
+              return { overall: 'skipped', steps: [], errorSummary: '（仓库未检测到构建/测试命令，跳过收尾验证）', durationMs: 0, log: 'no verification command available' };
+            },
+          };
+        const vr = await verifier.verify(snapshot, cwd, touchedFiles);
+        closeoutFailed = vr.overall === 'fail';
+        const stepLines = vr.steps.map((s: VerifyStep) => `  - ${s.name}: ${s.status} (exit ${s.exitCode})`).join('\n');
+        closeoutVerification = {
+          overall: vr.overall as VerifyStatus,
+          steps: stepLines ? stepLines.split('\n') : [],
+          summary: vr.overall === 'pass' ? '收尾验证全部通过' : vr.overall === 'skipped' ? vr.errorSummary : `收尾验证失败：\n${vr.errorSummary}`,
+        };
+        // 验证结果写回 finalAnswer 末尾「收尾验证」小节，并落审计日志
+        const closeoutSection = `\n\n## 收尾验证（P2 closeout）\n改动文件 ${touchedFiles.length} 个：\n${touchedFiles.map((f) => `- ${f}`).join('\n')}\n${closeoutVerification.summary}\n${stepLines ? `\n${stepLines}` : ''}`;
+        finalAnswer += closeoutSection;
+        await eventLog.append('closeout.verify', {
+          overall: vr.overall,
+          touchedFiles,
+          summary: closeoutVerification.summary,
+        });
+        if (closeoutFailed) {
+          logger.warn('closeout verification failed, marking ok=false', { runId: session.runId, touched: touchedFiles.length });
+        }
+      } catch (e) {
+        // 收尾验证本身异常（如仓库探测/命令执行失败）→ 不阻断主任务，仅记录，不让 ok 因验证器 bug 误判
+        logger.warn('closeout verification error (non-blocking)', { runId: session.runId, error: e instanceof Error ? e.message : String(e) });
+        closeoutVerification = { overall: 'skipped', steps: [], summary: `收尾验证执行异常已跳过（${e instanceof Error ? e.message : String(e)}）` };
+      }
+    }
+
     return {
-      ok: !abnormalEnd && finalAnswer.length > 0,
+      ok: !abnormalEnd && finalAnswer.length > 0 && !closeoutFailed,
       finalAnswer,
       iterations: baselineIterations + calls,
       costUsd: cost,
@@ -826,6 +914,7 @@ ${toolHint}
       runId: session.runId,
       selfHealed,
       experiencesExtracted,
+      closeoutVerification,
     };
   }
 
@@ -1016,6 +1105,8 @@ ${toolHint}
       errorHistory: ErrorAnalysis[];
       messages: ChatMessage[];
       sessionRunId: string;
+      /** 已落盘进度：本次任务中已被 write_file/edit_file 改动的文件路径列表（2026-10-28） */
+      touchedFiles: string[];
     },
   ): Promise<{ signal: 'break' | 'continue' | 'none'; messages: ChatMessage[]; consecutiveErrors: number; selfHealed: boolean; finalAnswer: string }> {
     const { messages } = input;
@@ -1059,10 +1150,18 @@ ${toolHint}
       const lastError = input.errorHistory[input.errorHistory.length - 1];
       const capCategory = lastError?.category ?? 'unknown';
       const truncNote = truncated > 0 ? `\n**补充**: 本轮另有 ${truncated} 条错误因达到记录上限未计入统计（已全量写入审计日志）。` : '';
+      const progressLine = input.touchedFiles.length > 0
+        ? input.touchedFiles.join('\n  - ')
+        : '（尚未改动任何文件）';
       const bypassOnCapPrompt = `⚠️ 自愈一次仍未解决（累计失败 ${totalHeals} 次），在当前路径上继续修复已无意义，本任务不再重试自愈。
 
 **错误类型**: ${errorTypes}${truncNote}
 **最后错误**: ${lastError?.message || '未知'}
+
+**已落盘进度**（以下文件已被改动，是你的已完成成果）：
+  - ${progressLine}
+
+**【续跑纪律】** 基于以上已改动文件继续推进，不要推翻已完成的改动、不要从头重做。动手前必须先用 read_file 读取这些文件的当前真实内容，确认现状后再决定下一步。
 
 🚨 **现在必须彻底换路线继续完成任务，而不是停下或重复原路径**：
 
@@ -1076,7 +1175,7 @@ ${toolHint}
 请重新规划执行路径，换一种方式继续推进任务。`;
       const reflectMsg: ChatMessage = { role: 'user', content: bypassOnCapPrompt };
       const newMessages = [...messages, reflectMsg];
-      await input.eventLog.append('self-heal', { category: capCategory, iteration: input.iteration, totalHeals, strategy: 'bypass-and-continue' });
+      await input.eventLog.append('self-heal', { category: capCategory, iteration: input.iteration, totalHeals, strategy: 'bypass-and-continue', touchedFiles: input.touchedFiles });
       this.deps.onEvent?.({ type: 'self-heal', category: capCategory, iteration: input.iteration, strategy: 'bypass-and-continue' });
       logger.warn('orchestrator self-heal cap reached, switching route instead of aborting', { runId: input.sessionRunId, totalHeals, max: Orchestrator.MAX_TOTAL_SELF_HEALS });
       return { signal: 'continue', messages: newMessages, consecutiveErrors: errors, selfHealed: true, finalAnswer: '' };

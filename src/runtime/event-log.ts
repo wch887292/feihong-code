@@ -10,6 +10,7 @@ import { dirname } from 'path';
 import { homedir } from 'os';
 import type { RunId } from '../shared/types';
 import { logger } from '../shared/logger';
+import { emitLog } from './otel';
 
 export type EventType =
   | 'session.start'
@@ -25,6 +26,7 @@ export type EventType =
   | 'self-heal.attempt'
   | 'context.compact'
   | 'experience.extracted'
+  | 'closeout.verify'
   | 'rag.context';
 
 export interface AgentEvent {
@@ -52,6 +54,8 @@ export class EventLog {
     try {
       await mkdir(dirname(this.file), { recursive: true });
       await appendFile(this.file, JSON.stringify(ev) + '\n', 'utf8');
+      // OTLP logs 上报：已启用才上报，未启用走 logger.debug 本地留痕，不抛错
+      emitLog(type, 'info', payload);
     } catch (e) {
       logger.warn('event-log append failed', {
         error: e instanceof Error ? e.message : String(e),

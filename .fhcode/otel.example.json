@@ -1,0 +1,6 @@
+{
+  "enabled": false,
+  "endpoint": "http://localhost:4318",
+  "service": "feihong-code",
+  "otlpProtocol": "http"
+}
