@@ -309,6 +309,15 @@ export function registerCloudBridgeRoutes(app: ExpressApp, deps: CloudBridgeDeps
     res.json({ ok: true, cmdId, count: cmd.artifacts.length });
   });
 
+  // 手机端：拉取任务产物文件（2026-10-30 补充 GET，与手机端 getArtifacts 的 GET 请求对齐）
+  // 仅按 cmdId 返回已上报的 artifacts，无需 deviceId（产物对指令发起者可见）
+  app.get('/api/bridge/command/:cmdId/artifacts', (req: Request, res: Response) => {
+    const cmdId = req.params.cmdId;
+    const cmd = loadBridgeCommands().find((c) => c.cmdId === cmdId);
+    if (!cmd) { res.status(404).json({ ok: false, error: '指令不存在' }); return; }
+    res.json({ ok: true, items: Array.isArray(cmd.artifacts) ? cmd.artifacts : [] });
+  });
+
   // 手机端：列出已注册电脑设备
   app.get('/api/bridge/devices', (_req: Request, res: Response) => {
     res.json({ ok: true, devices: loadBridgeDevices() });
