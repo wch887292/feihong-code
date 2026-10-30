@@ -27,7 +27,7 @@ import type { SessionStore } from '../runtime/session-store';
 import type { SessionCheckpoint, SessionStatus } from '../runtime/session-persist';
 import { buildSystemPrompt } from './self-awareness';
 import { planTask } from './planner';
-import { buildRepoInstructionsPrompt, scopedInstructionsFor } from './repo-context';
+import { buildRepoInstructionsPrompt, buildSpecContextPrompt, scopedInstructionsFor } from './repo-context';
 import { discoverSkills, buildSkillIndexPrompt } from '../skills/skill-loader';
 import { logger } from '../shared/logger';
 import { loadSyncConfig } from '../features/sync-client/config';
@@ -311,6 +311,8 @@ export class Orchestrator {
       const experiencePrompt = generateExperiencePrompt(loadedExperiences);
       // P0-4: 仓库级 AGENTS.md 指令自动注入（存在时）
       const repoPrompt = buildRepoInstructionsPrompt(cwd);
+      // SPEC 意图图谱（对标 ThinkRail）：仓库内存在 SPEC.md 时注入持久意图，缓解大会话吐空
+      const specPrompt = buildSpecContextPrompt(cwd);
       // P1-2: 技能索引渐进式披露（name+description 常驻，正文由 load_skill 按需加载）
       const skillIndex = buildSkillIndexPrompt(discoverSkills(cwd, this.deps.pluginSkillDirs ?? []));
       // v8.6.0 P1: 自我认知注入（tool-schema 自省；加载失败自动回退基础 prompt）
@@ -352,6 +354,7 @@ export class Orchestrator {
       // 完成协议（2026-10-05「叙述即完成」缺陷修复）：执行期必须调工具，收尾用 FINAL:
       systemPrompt += COMPLETION_PROTOCOL_PROMPT;
       if (repoPrompt) systemPrompt += repoPrompt;
+      if (specPrompt) systemPrompt += specPrompt;
       if (skillIndex) systemPrompt += skillIndex;
 
       // P1-2: 分层记忆——从项目记忆中召回相关历史任务，注入 system prompt

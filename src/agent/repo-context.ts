@@ -14,6 +14,7 @@
  */
 import { existsSync, readFileSync } from 'fs';
 import { dirname, join, resolve } from 'path';
+import { discoverSpecs, specGraph } from './spec-graph';
 
 /** 候选指令文件名（AGENTS.md 优先，别名兜底） */
 const INSTRUCTION_FILES = ['AGENTS.md', 'CLAUDE.md', '.atomcode.md'];
@@ -177,4 +178,18 @@ export function scopedInstructionsFor(cwd: string, filePath: string): string {
   if (hits.length === 0) return '';
   const content = hits.map((r) => r.content).join('\n\n').slice(0, 4096);
   return `\n\n=== 路径级规则（匹配 ${filePath}）===\n${content}\n=== 规则结束 ===`;
+}
+
+/**
+ * 构建 SPEC 意图图谱上下文（对标 JetBrains ThinkRail 的 SPEC.md 事实源机制）。
+ * 若仓库内存在 SPEC.md，则注入图谱摘要（≤8KB，复用 repo-context 的 8KB 上限思路），
+ * 让会话开局即获得可查询的持久意图，缓解「大会话吐空」根因（判别性上下文缺失）。
+ * 无 SPEC.md 时返回空串，保持离线/无指令场景无感。
+ */
+export function buildSpecContextPrompt(cwd: string): string {
+  const { nodes } = discoverSpecs(cwd);
+  if (nodes.size === 0) return '';
+  const graph = specGraph(nodes);
+  const capped = graph.length > 8192 ? graph.slice(0, 8192) + '\n...[意图图谱已截断]' : graph;
+  return `\n\n=== 项目意图图谱（SPEC.md 事实源）===\n${capped}\n=== 意图图谱结束 ===`;
 }
