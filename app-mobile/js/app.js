@@ -7,6 +7,7 @@
 var LS_MODELS = 'fh.app.models';
 var LS_DEFAULT = 'fh.app.defaultModel';
 var LS_TASKS = 'fh.app.tasks';
+var LS_CURRENT_TASK = 'fh.app.currentTask'; // v8.13.8：记住上次打开的任务，重开 App 恢复历史对话
 var LS_THEME = 'fh.app.theme';
 
 var state = {
@@ -241,12 +242,96 @@ function saveModels() {
   if (state.defaultModelId) localStorage.setItem(LS_DEFAULT, state.defaultModelId);
 }
 function loadTasks() {
-  try { state.tasks = JSON.parse(localStorage.getItem(LS_TASKS) || '[]'); }
+  try {
+    var raw = localStorage.getItem(LS_TASKS) || '[]';
+    var arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) arr = [];
+    // v8.13.8 容错：历史数据可能是旧结构（无 messages / messages 非数组），统一补齐，
+    // 否则 renderThread 读 task.messages.length 会抛错，整页白屏。
+    state.tasks = arr.filter(function (t) { return t && t.id; }).map(function (t) {
+      if (!Array.isArray(t.messages)) t.messages = [];
+      if (!t.createdAt) t.createdAt = new Date().toISOString();
+      if (!t.status) t.status = 'done';
+      return t;
+    });
+  }
   catch (e) { state.tasks = []; }
 }
+/* v8.13.8：任务历史持久化「瘦身 + 分级降级」。
+ * 根因：v8.13.6 起 task.artifacts 内联 base64（单文件 ≤200KB → base64 ≈270KB，最多 50 项），
+ * 加上长对话累积，state.tasks 整体 JSON 极易突破 WebView localStorage 配额（通常 5MB）。
+ * 一旦 setItem 抛 QuotaExceededError，旧代码 catch 后只 toast 一句「存储已满」，
+ * 此后每一次 saveTasks 都失败 → 新消息写不进去 → 重开任务/App 看不到历史对话。
+ * 本次修复：
+ *   ① 持久化时剥离 artifacts 的 contentBase64（体积大、可按需从云端重拉）；
+ *   ② 单条消息超过上限时截断存储（内存中的完整内容不受影响）；
+ *   ③ setItem 失败时分级降级：先裁最旧任务 → 再裁每任务消息数 → 再只留骨架，
+ *      只要降级后写得进就保住最近的历史，绝不「一失败全丢」。
+ */
+var TASK_STORE_MAX_BYTES = 3.5 * 1024 * 1024; // 主动降级阈值（留出 localStorage 余量）
+var TASK_MSG_MAX_CHARS = 8000;               // 单条消息持久化上限
+function stripHeavyForStore(task) {
+  var t = {
+    id: task.id, goal: task.goal, type: task.type, status: task.status,
+    createdAt: task.createdAt, error: task.error,
+    artifactsCmdId: task.artifactsCmdId || null
+  };
+  t.messages = (task.messages || []).map(function (m) {
+    var o = { role: m.role, content: String(m.content == null ? '' : m.content) };
+    if (o.content.length > TASK_MSG_MAX_CHARS) o.content = o.content.slice(0, TASK_MSG_MAX_CHARS) + '\n…（历史记录已截断）';
+    if (m.image) o.image = m.image;
+    return o;
+  });
+  // 产物只保留元数据（不含 base64），下载时按 artifactsCmdId 从云端重拉
+  if (task.artifacts && task.artifacts.length) {
+    t.artifacts = task.artifacts.map(function (it) {
+      return { relPath: it.relPath, name: it.name, size: it.size, kind: it.kind };
+    });
+  }
+  return t;
+}
 function saveTasks() {
-  try { localStorage.setItem(LS_TASKS, JSON.stringify(state.tasks)); }
-  catch (e) { toast('存储已满，请清理旧任务'); }
+  var base = (state.tasks || []).map(stripHeavyForStore);
+  // 每级独立派生（深拷贝），避免上一级就地修改污染下一级
+  function clone(l) {
+    return l.map(function (t) {
+      return { id: t.id, goal: t.goal, type: t.type, status: t.status, createdAt: t.createdAt,
+               error: t.error, artifactsCmdId: t.artifactsCmdId, artifacts: t.artifacts,
+               messages: t.messages.slice() };
+    });
+  }
+  /* 自适应降级：先按「保留最近 N 个任务 × 每任务最近 M 条消息」逐步收缩，
+   * 每一级都真实尝试写入（setItem 失败即继续收缩），
+   * 直到写进为止 —— 保证任何配额下都至少保住最近一次会话，绝不「一失败全丢」。 */
+  var keepCounts = [base.length, 40, 20, 10, 5, 3, 2, 1];
+  var msgCounts = [Infinity, 12, 6, 3, 1];
+  var lastError = null;
+  for (var ki = 0; ki < keepCounts.length; ki++) {
+    var keep = Math.min(keepCounts[ki], base.length);
+    if (keep <= 0) break;
+    for (var mi = 0; mi < msgCounts.length; mi++) {
+      var m = msgCounts[mi];
+      var cand = clone(base).slice(0, keep).map(function (t) {
+        if (m !== Infinity) t.messages = t.messages.slice(-m);
+        return t;
+      });
+      var s = JSON.stringify(cand);
+      if (s.length > TASK_STORE_MAX_BYTES && mi < msgCounts.length - 1) break; // 本级仍太大 → 换更小 keep
+      try {
+        localStorage.setItem(LS_TASKS, s);
+        if (ki > 0 || mi > 0) toast('存储空间紧张，已精简部分旧任务');
+        return true;
+      } catch (e) {
+        lastError = e;
+        // 配额确实不够（不是阈值判断失败）→ 继续更激进收缩
+        if (mi < msgCounts.length - 1) continue;
+      }
+    }
+  }
+  // 全部收缩都写不进：至少不要静默，明确告知用户
+  console.warn('[App] 任务历史写入失败（存储配额耗尽）', lastError && lastError.message);
+  toast('存储已满，请清理旧任务');
+  return false;
 }
 function getDefaultModel() {
   return state.models.find(function (m) { return m.id === state.defaultModelId; }) || state.models[0] || null;
@@ -664,8 +749,10 @@ function openConnectorSheet() {
 function updateConnectorPills() {
   var local = $('connectorPcPill'), cloud = $('connectorCloudPill');
   if (!local || !cloud) return;
-  local.textContent = connState.local ? '● 已连接' : '● 未连接';
-  local.className = 'conn-pill ' + (connState.local ? 'local' : 'off');
+  // v8.13.8：本地电脑胶囊与任务下发同源（家电脑心跳），不再测「中继 URL 是否可达」
+  var localOnline = localPcOnline();
+  local.textContent = localOnline ? '● 已连接' : '● 未连接';
+  local.className = 'conn-pill ' + (localOnline ? 'local' : 'off');
   cloud.textContent = connState.cloud ? '● 已连接' : '● 未连接';
   cloud.className = 'conn-pill ' + (connState.cloud ? 'cloud' : 'off');
 }
@@ -866,10 +953,22 @@ function createTask(goal, type) {
   saveTasks();
   return task;
 }
+/* v8.13.8：切换当前任务时同步持久化（重开 App 恢复上次对话） */
+function setCurrentTask(id) {
+  state.currentTaskId = id;
+  try {
+    if (id) localStorage.setItem(LS_CURRENT_TASK, id);
+    else localStorage.removeItem(LS_CURRENT_TASK);
+  } catch (e) {}
+}
 function deleteTask(id) {
   if (!confirm('确定删除该任务？')) return;
   state.tasks = state.tasks.filter(function (t) { return t.id !== id; });
-  if (state.currentTaskId === id) { state.currentTaskId = null; renderThread(null); }
+  if (state.currentTaskId === id) {
+    state.currentTaskId = null;
+    try { localStorage.removeItem(LS_CURRENT_TASK); } catch (e) {}
+    renderThread(null);
+  }
   saveTasks();
   renderTaskList();
   renderDocList();
@@ -931,6 +1030,7 @@ function stopTask(id) {
 }
 function openTask(id) {
   state.currentTaskId = id;
+  try { localStorage.setItem(LS_CURRENT_TASK, id); } catch (e) {}
   switchPage('convPage');
   renderThread(getTask(id));
 }
@@ -993,9 +1093,10 @@ function renderThread(task) {
   });
   box.innerHTML = html;
   // v8.13.5：任务产物区块（持久化于 task.artifacts，刷新重渲染后仍在）
+  // v8.13.8：只存元数据 + cmdId，base64 按需从云端懒加载（避免撑爆 localStorage）
   if (task.artifacts && task.artifacts.length) {
     var awrap = document.createElement('div');
-    awrap.innerHTML = renderArtifactsBlock(task.artifacts);
+    awrap.innerHTML = renderArtifactsBlock(task.artifacts, task.artifactsCmdId);
     box.appendChild(awrap.firstElementChild);
     bindArtifactsDownload(box);
   }
@@ -1074,6 +1175,7 @@ function fetchHomeDeviceId(cb) {
       if (isNaN(ts)) return false;
       return (Date.now() - ts) <= HOME_ONLINE_MS;
     });
+    connState.homeOnline = home.length > 0;
     var pick = null;
     if (cached) {
       for (var i = 0; i < home.length; i++) { if (home[i].deviceId === cached) { pick = home[i]; break; } }
@@ -1084,7 +1186,13 @@ function fetchHomeDeviceId(cb) {
     if (!pick) pick = home[0] || null;
     if (pick) { try { localStorage.setItem('fh.pc.homeDeviceId', pick.deviceId); } catch (e) {} }
     cb(pick ? pick.deviceId : null);
-  }, function () { cb(cached); });
+    // v8.13.8：设备列表拉取失败（云端不可达）→ 无法确认家电脑在线，置离线，
+    // 否则会退回缓存 deviceId 继续下发指令，任务最终失败但页面仍显示「已连接」。
+  }, function () {
+    connState.homeOnline = false;
+    updateConnectorPills(); renderConnStatus();
+    cb(null);
+  });
 }
 function getCloudToken() {
   // 预置云端令牌：真实值由构建脚本 scripts/inject-mobile-token.cjs 从本机
@@ -1159,7 +1267,34 @@ function syncChatSnapshot(task) {
 }
 
 /* ========== 电脑连接状态（顶栏胶囊：未连接灰 / 本地电脑绿 / 云电脑蓝） ========== */
-var connState = { local: false, cloud: false, checking: false };
+var connState = { local: false, cloud: false, checking: false, homeOnline: false };
+
+/* 家电脑「真在线」判据（与 fetchHomeDeviceId 同源）：云端设备表中存在非云端设备且 lastSeenAt 在 120s 内。
+ * v8.13.8：设备页「本地电脑」胶囊/状态必须与任务下发的在线判据一致，否则会出现
+ * 「页面显示已连接、下发却判离线」的矛盾（relay 模式下原逻辑只测云端中继 URL 是否可达，永远在线）。 */
+function computeHomeOnline(devices) {
+  if (!devices || !devices.length) return false;
+  var HOME_ONLINE_MS = 120000, now = Date.now();
+  return devices.some(function (x) {
+    if (!x || (x.name || '').indexOf('云端') >= 0) return false;
+    if (!x.lastSeenAt) return false;
+    var ts = Date.parse(x.lastSeenAt);
+    if (isNaN(ts)) return false;
+    return (now - ts) <= HOME_ONLINE_MS;
+  });
+}
+
+/* v8.13.8：唯一的「家电脑在线」判据（供设备页胶囊 / 顶栏胶囊 / 任务下发三处共用）。
+ * 旧逻辑三处各判各的：
+ *   - 设备页与顶栏测 pcUrl/api/health 可达性 → pcUrl 指向 fhrelay 中继时永远可达 → 永远显示「已连接」；
+ *   - 任务下发测云端设备表 lastSeenAt 心跳 → 家电脑真离线时判离线。
+ * 于是出现「页面显示已连接、任务下发却判离线」的矛盾。本函数统一到心跳判据。 */
+function localPcOnline() {
+  if (connState.homeOnline) return true;
+  // 局域网自设 pcUrl（用户自己填的直连地址）→ 走直连可达性判断
+  if (!isRelayPcUrl(getPcUrl()) && connState.local) return true;
+  return false;
+}
 
 /* 检测本地电脑（局域网直连）：GET {pcUrl}/api/health，4s 超时 */
 function testLocalConn(cb) {
@@ -1201,11 +1336,15 @@ function testCloudConn(cb) {
           }
         }
       } catch (e) { /* ignore */ }
+      connState.homeOnline = computeHomeOnline(devs); updateConnectorPills(); renderConnStatus();
       cb && cb(connState.cloud, connState.cloud ? 'ok' : 'empty-devices');
     },
     function (e, st) {
       if (fired) return; fired = true;
       connState.cloud = false;
+      // v8.13.8：云端不可达 → 无法确认家电脑在线，置为离线（两端状态同步的关键）
+      connState.homeOnline = false;
+      updateConnectorPills(); renderConnStatus();
       var msg = (e && e.message) || '';
       var reason = st ? String(st) : (msg.indexOf('超时') >= 0 ? 'timeout' : 'network');
       if (reason === 'unauthorized' || msg.indexOf('unauthorized') >= 0) reason = '令牌错误（Token 无效，请核对云端令牌）';
@@ -1228,14 +1367,15 @@ function renderConnStatus() {
   var mode = getPcMode();
   var pill = $('connPill');
   var label = '● 未连接'; var cls = 'off';
+  var pcOnline = localPcOnline(); // v8.13.8：与设备页/任务下发同源
   if (mode === 'phone') { label = '📱 手机对话'; cls = 'local'; }
-  else if (mode === 'direct' && connState.local) { label = '● 本地电脑'; cls = 'local'; }
+  else if (mode === 'direct' && pcOnline) { label = '● 本地电脑'; cls = 'local'; }
   else if (mode === 'cloud' && connState.cloud) { label = '● 云电脑'; cls = 'cloud'; }
   else if (mode === 'direct') { label = '● 本地未连'; cls = 'off'; }
   else { label = '● 云未连接'; cls = 'off'; }
   if (pill) { pill.className = 'conn-pill ' + cls; pill.innerHTML = label; }
   var lDot = $('pcStatusDot'), cDot = $('cloudStatusDot');
-  if (lDot) lDot.style.background = connState.local ? 'var(--ok)' : 'var(--ink-3)';
+  if (lDot) lDot.style.background = pcOnline ? 'var(--ok)' : 'var(--ink-3)';
   if (cDot) cDot.style.background = connState.cloud ? 'var(--brand)' : 'var(--ink-3)';
 }
 
@@ -1556,7 +1696,8 @@ function callComputer(text, onDone, onError) {
               }
               if (c.status === 'done') {
                 getArtifacts(cloudBase, cmdId, headers).then(function (arts) {
-                  done(onDone, { ok: true, action: 'bridge', app: c.text, message: '已在' + getExecEndLabel() + '执行完成', bridge: c, artifacts: arts });
+                  cacheArtifacts(cmdId, arts);
+                  done(onDone, { ok: true, action: 'bridge', app: c.text, message: '已在' + getExecEndLabel() + '执行完成', bridge: c, artifacts: arts, artifactsCmdId: cmdId });
                 });
                 return;
               }
@@ -1644,19 +1785,46 @@ function getArtifacts(cloudBase, cmdId, headers) {
 }
 
 var ARTIFACT_KIND_ICON = { code: '📜', text: '📄', image: '🖼️', other: '📦' };
-function renderArtifactsBlock(items) {
+/* v8.13.8：产物内容缓存（仅内存，不持久化）。
+ * base64 体积大，写进 localStorage 会撑爆配额导致任务历史丢失，
+ * 因此持久化只留元数据，下载时按 cmdId 从云端重新拉取。 */
+var ARTIFACT_MEMO = {};
+function cacheArtifacts(cmdId, items) { if (cmdId) ARTIFACT_MEMO[cmdId] = items || []; }
+function renderArtifactsBlock(items, cmdId) {
   if (!items || !items.length) return '';
   var rows = items.map(function (it, i) {
     var icon = ARTIFACT_KIND_ICON[it.kind] || '📦';
     var kb = it.size != null ? (it.size >= 1024 ? (it.size / 1024).toFixed(1) + ' KB' : it.size + ' B') : '';
-    var dl = it.contentBase64
+    // 有 base64 或知道 cmdId 都能下载（cmdId 走云端懒加载）
+    var dl = (it.contentBase64 || cmdId)
       ? '<button class="art-dl" data-i="' + i + '">⬇️ 存手机</button>'
       : '<span class="art-big">大文件·电脑端查看</span>';
-    return '<div class="art-row">' + '<span class="art-icon">' + icon + '</span>'
+    return '<div class="art-row"><span class="art-icon">' + icon + '</span>'
       + '<span class="art-name">' + esc(it.name || it.relPath) + '</span>'
       + '<span class="art-size">' + kb + '</span>' + dl + '</div>';
   }).join('');
-  return '<div class="art-block" data-items="' + esc(JSON.stringify(items)) + '">' + '<div class="art-title">📦 任务产物（' + items.length + '）</div>' + rows + '</div>';
+  // data-items 只放元数据（剥离 base64），避免 DOM 与 localStorage 被撑爆
+  var meta = items.map(function (it) {
+    return { relPath: it.relPath, name: it.name, size: it.size, kind: it.kind };
+  });
+  return '<div class="art-block" data-items="' + esc(JSON.stringify(meta)) + '" data-cmd="' + esc(cmdId || '') + '">'
+    + '<div class="art-title">📦 任务产物（' + items.length + '）</div>' + rows + '</div>';
+}
+
+/* 保存单个产物文件到手机 */
+function saveArtifactFile(it) {
+  try {
+    var bin = atob(it.contentBase64);
+    var arr = new Uint8Array(bin.length);
+    for (var k = 0; k < bin.length; k++) arr[k] = bin.charCodeAt(k);
+    var blob = new Blob([arr], { type: 'application/octet-stream' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = it.name || 'artifact';
+    document.body.appendChild(a); a.click();
+    setTimeout(function () { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
+    toast('已保存到下载：' + (it.name || 'artifact'));
+  } catch (e) { toast('下载失败：' + e.message); }
 }
 
 function bindArtifactsDownload(scope) {
@@ -1666,22 +1834,34 @@ function bindArtifactsDownload(scope) {
     block.dataset.bound = '1';
     var items = [];
     try { items = JSON.parse(block.getAttribute('data-items') || '[]'); } catch (e) {}
+    var cmdId = block.getAttribute('data-cmd') || '';
     block.querySelectorAll('.art-dl').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var it = items[Number(btn.getAttribute('data-i'))];
-        if (!it || !it.contentBase64) { toast('该文件较大，请在电脑端查看'); return; }
-        try {
-          var bin = atob(it.contentBase64);
-          var arr = new Uint8Array(bin.length);
-          for (var k = 0; k < bin.length; k++) arr[k] = bin.charCodeAt(k);
-          var blob = new Blob([arr], { type: 'application/octet-stream' });
-          var url = URL.createObjectURL(blob);
-          var a = document.createElement('a');
-          a.href = url; a.download = it.name || 'artifact';
-          document.body.appendChild(a); a.click();
-          setTimeout(function () { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
-          toast('已保存到下载：' + (it.name || 'artifact'));
-        } catch (e) { toast('下载失败：' + e.message); }
+        if (!it) { toast('产物信息缺失'); return; }
+        // ① 内存缓存命中（同会话内刚完成的任务）
+        var memo = ARTIFACT_MEMO[cmdId] || [];
+        for (var i = 0; i < memo.length; i++) {
+          if (memo[i] && memo[i].relPath === it.relPath && memo[i].contentBase64) { saveArtifactFile(memo[i]); return; }
+        }
+        // ② 按 cmdId 从云端懒加载（历史任务重开后的下载）
+        if (!cmdId) { toast('该文件较大，请在电脑端查看'); return; }
+        var old = btn.textContent;
+        btn.textContent = '加载中…';
+        var base = getCloudUrl().replace(/\/+$/, '');
+        var token = getCloudToken();
+        var headers = token ? { Authorization: 'Bearer ' + token } : {};
+        getArtifacts(base, cmdId, headers).then(function (all) {
+          btn.textContent = old;
+          if (!all || !all.length) { toast('产物已过期，请在电脑端查看'); return; }
+          cacheArtifacts(cmdId, all);
+          var hit = null;
+          for (var j = 0; j < all.length; j++) {
+            if (all[j] && all[j].relPath === it.relPath && all[j].contentBase64) { hit = all[j]; break; }
+          }
+          if (!hit) { toast('该文件较大，请在电脑端查看'); return; }
+          saveArtifactFile(hit);
+        });
       });
     });
   });
@@ -1767,7 +1947,8 @@ function callComputerAgent(text, onDone, onError, onProgress) {
               if (c.status === 'done') {
                 var r = c.result || {};
                 getArtifacts(cloudBase, cmdId, headers).then(function (arts) {
-                  done(onDone, { ok: true, action: 'agent-task', taskId: r.taskId || null, text: r.text || '（电脑端已完成）', artifacts: arts });
+                  cacheArtifacts(cmdId, arts);
+                  done(onDone, { ok: true, action: 'agent-task', taskId: r.taskId || null, text: r.text || '（电脑端已完成）', artifacts: arts, artifactsCmdId: cmdId });
                 });
                 return;
               } else if (c.status === 'failed') {
@@ -1970,7 +2151,7 @@ function sendFileToCloud() {
     var pcTask;
     if (!state.currentTaskId || !getTask(state.currentTaskId)) {
       pcTask = createTask('上传文件 ' + file.name, 'chat');
-      state.currentTaskId = pcTask.id;
+      setCurrentTask(pcTask.id);
     } else { pcTask = getTask(state.currentTaskId); }
     pcTask.messages.push({ role: 'user', content: '📁 发送文件到电脑：' + file.name });
     pcTask.status = 'running'; saveTasks();
@@ -2045,7 +2226,7 @@ function sendMessage() {
     var pcTask;
     if (!state.currentTaskId || !getTask(state.currentTaskId)) {
       pcTask = createTask(finalText.slice(0, 30), 'chat');
-      state.currentTaskId = pcTask.id;
+      setCurrentTask(pcTask.id);
     } else {
       pcTask = getTask(state.currentTaskId);
     }
@@ -2066,7 +2247,11 @@ function sendMessage() {
       function (data) {
         stopThinking();
         appendAssistantMessage(pcTask.id, formatComputerResult(data, finalText));
-        if (data.artifacts && data.artifacts.length) pcTask.artifacts = data.artifacts;
+        if (data.artifacts && data.artifacts.length) {
+          pcTask.artifacts = data.artifacts;
+          pcTask.artifactsCmdId = data.artifactsCmdId || null;
+          saveTasks();
+        }
         renderThread(getTask(pcTask.id));
         syncChatSnapshot(pcTask); // 信息同步：手机端对话快照上报 sync-server
         updateSendBtn(false);
@@ -2089,7 +2274,7 @@ function sendMessage() {
     var aTask;
     if (!state.currentTaskId || !getTask(state.currentTaskId)) {
       aTask = createTask(finalText.slice(0, 30), 'chat');
-      state.currentTaskId = aTask.id;
+      setCurrentTask(aTask.id);
     } else {
       aTask = getTask(state.currentTaskId);
     }
@@ -2119,8 +2304,10 @@ function sendMessage() {
         appendAssistantMessage(aTask.id, data.text);
         if (data.artifacts && data.artifacts.length) {
           aTask.artifacts = data.artifacts;
+          aTask.artifactsCmdId = data.artifactsCmdId || null;
+          saveTasks();
           var awrap = document.createElement('div');
-          awrap.innerHTML = renderArtifactsBlock(data.artifacts);
+          awrap.innerHTML = renderArtifactsBlock(data.artifacts, aTask.artifactsCmdId);
           agentMsgEl.appendChild(awrap.firstElementChild);
           bindArtifactsDownload(agentMsgEl);
         }
@@ -2159,7 +2346,7 @@ function sendMessage() {
   var task;
   if (!state.currentTaskId || !getTask(state.currentTaskId)) {
     task = createTask(finalText.slice(0, 30), 'chat');
-    state.currentTaskId = task.id;
+    setCurrentTask(task.id);
   } else {
     task = getTask(state.currentTaskId);
   }
@@ -2222,7 +2409,7 @@ function sendImageMessage(userText) {
   var task;
   if (!state.currentTaskId || !getTask(state.currentTaskId)) {
     task = createTask('图片识别：' + (userText ? userText.slice(0, 15) : images.length + '张图'), 'chat');
-    state.currentTaskId = task.id;
+    setCurrentTask(task.id);
   } else {
     task = getTask(state.currentTaskId);
   }
@@ -2295,7 +2482,7 @@ function runPromptTask(goal, type, prompt) {
   var model = getDefaultModel();
   if (!model) { toast('请先配置大模型'); openDrawer(); return; }
   var task = createTask(goal, type);
-  state.currentTaskId = task.id;
+  setCurrentTask(task.id);
   task.messages.push({ role: 'user', content: prompt });
   task.status = 'running';
   saveTasks();
@@ -2675,6 +2862,7 @@ function toggleTheme() {
 /* ========== 新建对话 ========== */
 function newChat() {
   state.currentTaskId = null;
+  try { localStorage.removeItem(LS_CURRENT_TASK); } catch (e) {}
   setFunc('chat');
   switchPage('convPage');
   renderThread(null);
@@ -2966,7 +3154,7 @@ function runFlashApp() {
     '直接输出完整的 HTML 代码，用 ```html 包裹，不要输出任何解释文字。';
 
   var task = createTask('✨ ' + desc.slice(0, 20), 'flashapp');
-  state.currentTaskId = task.id;
+  setCurrentTask(task.id);
   task.messages.push({ role: 'user', content: prompt });
   task.status = 'running';
   saveTasks();
@@ -3736,6 +3924,16 @@ function initSkillCenter() {
   loadTasks();
   initHermes(); // Hermes 风格持久记忆 + 技能沉淀
   if (localStorage.getItem(LS_THEME) === 'dark') document.documentElement.classList.add('dark');
+
+  // v8.13.8：恢复上次打开的任务（重开 App 直接看到上次的对话历史，不再是空白页）
+  try {
+    var lastId = localStorage.getItem(LS_CURRENT_TASK);
+    if (lastId && getTask(lastId)) {
+      state.currentTaskId = lastId;
+      renderThread(getTask(lastId));
+      updateTopicTitle(getTask(lastId));
+    }
+  } catch (e) { /* 恢复失败不阻塞启动 */ }
 
   // 顶栏
   $('menuBtn').addEventListener('click', openSidenav);
