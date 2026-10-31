@@ -68,8 +68,14 @@ class Scheduler:
             task.output_json = output
             task.append_trace("executed", "ok")
             # 结果落库（失败视为任务失败，走重试）
-            agent.persist(output, task)
-            task.append_trace("persisted", "ok")
+            # 能力升级 2026-10-31：持久化是副业，失败不应让已生成的主体产出作废。
+            # 这里改为记录 trace 后继续，保证「产出可用」优先于「副产物入库」。
+            try:
+                agent.persist(output, task)
+                task.append_trace("persisted", "ok")
+            except Exception as pe:  # noqa: BLE001
+                task.append_trace("persist_failed", str(pe)[:200])
+                log.warning("任务 %s 持久化异常（不影响产出）: %s", task.task_id, pe)
             if task.need_human:
                 task.transition(TaskStatus.AWAITING_HUMAN)
                 task.append_trace("human_gate", "等待人工确认")

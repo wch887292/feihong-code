@@ -29,7 +29,12 @@ _load_dotenv(BASE_DIR / ".env")
 DB_PATH = os.getenv("DB_PATH", str(BASE_DIR / "feihongzhi.db"))
 
 # LLM
-LLM_PROVIDER = os.getenv("LLM_PROVIDER", "mock")          # mock | doubao
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "mock")          # mock | openai_compat | doubao
+# 通用 OpenAI 兼容接口（火山方舟 / 硅基流动 / OpenAI / 本地 Ollama 均可）
+LLM_API_KEY = os.getenv("LLM_API_KEY", "")
+LLM_MODEL = os.getenv("LLM_MODEL", "")
+LLM_BASE_URL = os.getenv("LLM_BASE_URL", "")
+# 旧变量（豆包专用），在通用变量未设置时作为回退
 DOUBAO_API_KEY = os.getenv("DOUBAO_API_KEY", "")
 DOUBAO_MODEL = os.getenv("DOUBAO_MODEL", "doubao-seed-1-6-250615")
 DOUBAO_BASE_URL = os.getenv("DOUBAO_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3")

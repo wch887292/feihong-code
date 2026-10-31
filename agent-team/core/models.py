@@ -11,6 +11,7 @@
 import json
 import sqlite3
 import threading
+import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -105,7 +106,22 @@ def _uj(s: str) -> Any:
 
 
 # ---------------------------------------------------------------- leads
+def _gen_lead_id() -> str:
+    """生成唯一 lead_id（时间戳 + 随机后缀，避免并发写入冲突）。"""
+    stamp = utcnow().replace("-", "").replace(":", "").replace(" ", "").replace("T", "")[:14]
+    return f"L{stamp}{uuid.uuid4().hex[:4].upper()}"
+
+
 def insert_lead(lead: Dict[str, str]) -> Dict[str, str]:
+    """写入一条线索。
+
+    lead_id 缺失时自动生成（能力升级 2026-10-31）：
+    此前 lead_id 是硬索引，LLM 产出的线索若未带该字段会抛 KeyError，
+    导致整个任务被判失败并重试至 blocked。现改为容错自动生成。
+    """
+    lead = dict(lead or {})
+    if not lead.get("lead_id"):
+        lead["lead_id"] = _gen_lead_id()
     conn = _connect()
     try:
         with _lock:
@@ -151,7 +167,15 @@ def update_lead(lead_id: str, **fields: str) -> None:
 
 # ------------------------------------------------------------- customers
 def insert_customer(cust: Dict[str, str]) -> Dict[str, str]:
-    """客户五列格式入库：公司名称 / 客户姓名 / 联系电话 / 联系时间 / 备注。"""
+    """客户五列格式入库：公司名称 / 客户姓名 / 联系电话 / 联系时间 / 备注。
+
+    customer_id 缺失时自动生成（能力升级 2026-10-31）：
+    与 insert_lead 同理，避免 LLM 产出字段不全导致任务整体失败。
+    """
+    cust = dict(cust or {})
+    if not cust.get("customer_id"):
+        stamp = utcnow().replace("-", "").replace(":", "").replace(" ", "").replace("T", "")[:14]
+        cust["customer_id"] = f"C{stamp}{uuid.uuid4().hex[:4].upper()}"
     conn = _connect()
     try:
         with _lock:

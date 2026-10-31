@@ -17,6 +17,14 @@ import argparse
 import json
 import sys
 
+# 强制 stdout 使用 UTF-8：Windows 控制台默认 GBK，输出 emoji/生僻字会抛
+# UnicodeEncodeError（曾导致 19 号「卿听战略指挥官」任务因 🌱 字符直接失败）。
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
+
 
 def main():
     p = argparse.ArgumentParser()
@@ -58,14 +66,16 @@ def main():
         except Exception:
             output = {"raw": str(output_json)[:2000]}
 
+        # 用 ensure_ascii=True：emoji/生僻字转义为 \uXXXX，纯 ASCII 输出，
+        # 避免 Windows 控制台 GBK 编码下 print 抛 UnicodeEncodeError（曾导致 19 号任务失败）。
         print(json.dumps({
             "ok": True,
             "task_id": task.task_id,
             "status": status,
             "output_json": output,
-        }, ensure_ascii=False))
+        }, ensure_ascii=True))
     except Exception as e:  # noqa: BLE001
-        print(json.dumps({"ok": False, "error": str(e)}, ensure_ascii=False))
+        print(json.dumps({"ok": False, "error": str(e)}, ensure_ascii=True))
         sys.exit(1)
 
 

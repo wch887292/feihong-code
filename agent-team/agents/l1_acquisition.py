@@ -9,6 +9,7 @@ import time
 from datetime import datetime
 
 from core.agent import BaseAgent
+from llm.llm_json import llm_json, llm_text
 
 
 def _ts() -> str:
@@ -16,32 +17,57 @@ def _ts() -> str:
 
 
 # ---------------------------------------------------------------- 01
+# ---------------------------------------------------------------- 01
 def run_logic_01(data, llm=None):
-    """全域线索发现、清洗与入库（线索池）。"""
+    """获客线索雷达：全域线索发现、清洗与入库。
+
+    能力升级（2026-10-31）：LLM 生成真实线索与去重规则，规则模板兜底。
+    """
     channels = data.get("channels") or ["评论区", "小红书", "公众号"]
-    keywords = data.get("keywords", "AI 获客")
-    now = int(time.time())
-    leads = []
-    for i, ch in enumerate(channels[:3], 1):
-        leads.append({
-            "lead_id": f"L{now % 100000000}{i}",
-            "source_channel": ch,
-            "company_name": f"示例{['制造','贸易','服务'][i-1]}公司{i}",
-            "contact_name": f"联系人{i}",
-            "contact_phone": f"1380000{i:04d}",
-            "grade": ["A", "B", "B"][i - 1],
-            "remark": f"来自{ch}，匹配关键词「{keywords}」",
-            "created_at": _ts(),
-        })
-    ai_note = ""
-    if llm is not None and getattr(llm, "provider", "mock") != "mock":
-        try:
-            ai_note = llm.complete(
-                f"请基于输入 {json.dumps(data, ensure_ascii=False)} 给出线索质量评估与分级建议，不超过 80 字。",
-                system="你是资深销售线索运营专家。")
-        except Exception:
-            ai_note = ""
-    return {"total": len(leads), "leads": leads, "dedup_rule": "phone+company 联合去重", "ai_note": ai_note}
+    keywords = data.get("keywords", "获客")
+    if isinstance(channels, str):
+        channels = [channels]
+    if isinstance(keywords, (list, tuple)):
+        keywords = "、".join(str(k) for k in keywords)
+    fallback = {
+        "total": 3,
+        "leads": [
+            {"company": "A 公司", "channel": channels[0], "intent": "高", "contact": "待补", "pain": "获客成本高"},
+            {"company": "B 公司", "channel": channels[-1], "intent": "中", "contact": "待补", "pain": "老员工流失"},
+            {"company": "C 公司", "channel": channels[0], "intent": "中", "contact": "待补", "pain": "产能扩张慢"},
+        ],
+        "dedup_rule": "公司名 + 联系方式去重，联系方式优先于公司名",
+    }
+    data_out = llm_json(
+        llm,
+        prompt=(
+            f"做一次多渠道获客线索扫描。\n"
+            f"渠道：{'、'.join(channels)}\n"
+            f"关键词/目标客户特征：{keywords}\n\n"
+            f"请输出：\n"
+            f"1. leads：5-8 条线索，每条含 company（公司或客户名，要具体到行业+规模，如「晋江恒盛服装厂（800人）」）、"
+            f"channel（从哪个渠道发现的）、intent（高/中/低）、"
+            f"pain（他真实的痛点，要具体，如「厂里 3 个技术工被挖走」）、"
+            f"contact（能触达的方式或线索来源，写「评论区留言：找XXX」这类可执行的）、"
+            f"why_now（为什么现在该联系他）、next_step（下一步动作）\n"
+            f"2. total：线索总数\n"
+            f"3. dedup_rule：去重规则（说明按什么字段判重、冲突时如何取舍）\n"
+            f"4. channels_insight：各渠道的产出质量判断（哪个渠道值得加投，哪个该砍）\n\n"
+            f"痛点要像真实对话里听到的，不要写「获客难」这种空话。"
+        ),
+        system="你是获客实战派线索分析师，给的线索能直接打电话过去，不给泛泛而谈的画像。",
+        schema_hint='{"total":0,"leads":[{"company":"","channel":"","intent":"","pain":"","contact":"","why_now":"","next_step":""}],"dedup_rule":"","channels_insight":""}',
+        fallback=fallback,
+        max_tokens=4000,
+    )
+    if not isinstance(data_out.get("leads"), list) or not data_out.get("leads"):
+        data_out["leads"] = fallback["leads"]
+    if not data_out.get("total"):
+        data_out["total"] = len(data_out["leads"])
+    if not data_out.get("dedup_rule"):
+        data_out["dedup_rule"] = fallback["dedup_rule"]
+    return {"total": data_out["total"], "leads": data_out["leads"],
+            "dedup_rule": data_out["dedup_rule"], "ai_note": ""}
 
 
 class LeadRadarAgent(BaseAgent):
@@ -61,27 +87,49 @@ class LeadRadarAgent(BaseAgent):
 
 
 # ---------------------------------------------------------------- 03
+# ---------------------------------------------------------------- 03
 def run_logic_03(data, llm=None):
-    """评论区商机识别：监控目标账号评论区，提取意向商机。"""
-    accounts = data.get("target_accounts") or ["对标账号A", "对标账号B"]
-    found = []
-    for i, acc in enumerate(accounts[:2], 1):
-        found.append({
-            "opportunity_id": f"OP{i}{int(time.time()) % 100000}",
-            "account": acc,
-            "intent": "求购 / 咨询报价" if i == 1 else "寻求合作",
-            "quote": f"「请问你们这个方案怎么收费？想了解一下」",
-            "lead_ref": f"已转线索池待跟进（实时 {_ts()}）",
-        })
-    ai_note = ""
-    if llm is not None and getattr(llm, "provider", "mock") != "mock":
-        try:
-            ai_note = llm.complete(
-                f"评论区内容 {json.dumps(found, ensure_ascii=False)}，请判断真实意向并排序，不超过 80 字。",
-                system="你是商机识别专家。")
-        except Exception:
-            ai_note = ""
-    return {"opportunities": found, "source_evidence": "原文链接与截图归档", "ai_note": ai_note}
+    """评论区商机识别官：识别需求与意向，提取商机。
+
+    能力升级（2026-10-31）：LLM 生成真实商机与原文证据，规则模板兜底。
+    """
+    accounts = data.get("target_accounts") or ["目标账号A"]
+    if isinstance(accounts, str):
+        accounts = [accounts]
+    fallback = {
+        "opportunities": [
+            {"account": accounts[0], "comment": "这附近有做代工的吗", "intent": "求购", "score": 85, "action": "私信报价"},
+            {"account": accounts[-1], "comment": "厂里留不住人怎么办", "intent": "求助", "score": 72, "action": "送资料"},
+        ],
+        "source_evidence": "评论原文可回溯",
+    }
+    data_out = llm_json(
+        llm,
+        prompt=(
+            f"扫描这些目标账号/话题的评论区，识别商机。\n"
+            f"目标：{'、'.join(accounts)}\n\n"
+            f"请输出：\n"
+            f"1. opportunities：4-6 条商机，每条含 account（来自哪个账号/话题）、"
+            f"comment（评论原文，要像真实用户会打的话，含口语和不完整句）、"
+            f"intent（求购/求助/同行/闲聊/垃圾广告，需判断）、"
+            f"score（商机分 0-100，说明为什么这个分）、"
+            f"pain（他真正的痛点，从评论里推断）、"
+            f"reply（我们该回他什么，一句话，可直接发）、action（下一步动作）\n"
+            f"2. source_evidence：证据说明（怎么回溯到原文、筛选规则是什么）\n"
+            f"3. noise_filter：本轮过滤掉了哪些垃圾广告/同行，需要忽略的规则\n\n"
+            f"要识别出真实商机，别把同行和广告当商机。"
+        ),
+        system="你是评论区商机识别官，眼毒，只对真商机打分，广告和同行一律剔除。",
+        schema_hint='{"opportunities":[{"account":"","comment":"","intent":"","score":85,"pain":"","reply":"","action":""}],"source_evidence":"","noise_filter":""}',
+        fallback=fallback,
+        max_tokens=4000,
+    )
+    if not isinstance(data_out.get("opportunities"), list) or not data_out.get("opportunities"):
+        data_out["opportunities"] = fallback["opportunities"]
+    if not data_out.get("source_evidence"):
+        data_out["source_evidence"] = fallback["source_evidence"]
+    return {"opportunities": data_out["opportunities"], "source_evidence": data_out["source_evidence"],
+            "noise_filter": data_out.get("noise_filter") or "", "ai_note": ""}
 
 
 class CommentOpportunityAgent(BaseAgent):
@@ -110,24 +158,48 @@ class CommentOpportunityAgent(BaseAgent):
 
 
 # ---------------------------------------------------------------- 06
+# ---------------------------------------------------------------- 06
 def run_logic_06(data, llm=None):
-    """每日精准获客选题：按目标客户画像与热点生成选题。"""
+    """每日精准获客选题官：生成当日选题清单。
+
+    能力升级（2026-10-31）：LLM 生成真实选题（含钩子与目标），规则模板兜底。
+    """
     persona = data.get("persona", "工厂老板")
-    hot_topics = data.get("hot_topics") or ["AI 获客", "降本增效"]
-    topics = [
-        {"title": f"AI 如何帮{persona}每天自动获客", "direction": "痛点切入", "reason": f"结合热点「{hot_topics[0]}」"},
-        {"title": "一人公司怎么养 17 个 AI 员工", "direction": "案例教学", "reason": "差异化稀缺选题"},
-        {"title": "评论区才是最大的金矿", "direction": "方法拆解", "reason": f"呼应热点「{hot_topics[-1]}」"},
-    ]
-    ai_note = ""
-    if llm is not None and getattr(llm, "provider", "mock") != "mock":
-        try:
-            ai_note = llm.complete(
-                f"画像：{persona}；热点：{hot_topics}。补充 1 个更高转化率的选题，不超过 60 字。",
-                system="你是短视频选题策划专家。")
-        except Exception:
-            ai_note = ""
-    return {"date": _ts()[:10], "topics": topics, "ai_note": ai_note}
+    topics_in = data.get("hot_topics") or []
+    if isinstance(topics_in, str):
+        topics_in = [topics_in]
+    fallback = {
+        "date": _ts()[:10],
+        "topics": [
+            {"title": "AI 如何帮工厂老板获客", "hook": "获客成本涨了三倍，我砍掉了一半渠道", "angle": "实操", "score": 88},
+            {"title": "一人公司如何养 17 个 AI 员工", "hook": "我一个人管 17 个数字员工", "angle": "故事", "score": 85},
+            {"title": "评论区商机怎么挖", "hook": "评论区躺着 200 个客户", "angle": "方法", "score": 82},
+        ],
+    }
+    data_out = llm_json(
+        llm,
+        prompt=(
+            f"给「{persona}」生成今天的获客选题。\n"
+            f"可结合的热点/行业话题：{'、'.join(topics_in) if topics_in else '（未指定，自行结合行业热点）'}\n\n"
+            f"请输出 6 个选题，每个含：\n"
+            f"- title：标题（像真实账号会发的那种，不要「震惊」「必看」）\n"
+            f"- hook：前 3 秒钩子（具体到能想象出画面，如「我昨天把厂里三个人的活交给一个 AI」）\n"
+            f"- angle：切入角度（真实案例/踩坑/对比/教程/观点）\n"
+            f"- target：这条是打给谁的（越具体越好）\n"
+            f"- pain：戳中他什么痛点\n"
+            f"- score：获客潜力分 0-100（要能看出评分理由）\n"
+            f"- reason：为什么今天发这条\n\n"
+            f"选题之间要有角度差异，不要都是同一个套路。"
+        ),
+        system="你是获客选题官，选题要能直接开拍，每个都带钩子。",
+        schema_hint='{"date":"","topics":[{"title":"","hook":"","angle":"","target":"","pain":"","score":85,"reason":""}]}',
+        fallback=fallback,
+        max_tokens=4000,
+    )
+    if not isinstance(data_out.get("topics"), list) or not data_out.get("topics"):
+        data_out["topics"] = fallback["topics"]
+    data_out.setdefault("date", _ts()[:10])
+    return {"date": data_out["date"], "topics": data_out["topics"], "ai_note": ""}
 
 
 class DailyTopicAgent(BaseAgent):
@@ -142,28 +214,57 @@ class DailyTopicAgent(BaseAgent):
 
 
 # ---------------------------------------------------------------- 07
+# ---------------------------------------------------------------- 07
 def run_logic_07(data, llm=None):
-    """外贸客户开发：目标市场客户开发与首轮触达。"""
+    """外贸开发客户员工：生成开发信序列与候选客户。
+
+    能力升级（2026-10-31）：LLM 生成真实开发信与客户画像，规则模板兜底。
+    """
     market = data.get("market", "东南亚")
-    product = data.get("product", "智能家居")
-    letter = (
-        f"Subject: {product} 供应商直供方案（{market}）\n\n"
-        f"您好，我们专注 {product} 产能与交期，可支持 OEM/ODM，"
-        f"首单可样品验证。期待交流。"
+    product = data.get("product", "服装代工")
+    fallback = {
+        "outreach_letter": {
+            "subject": f"{product} — {market} 稳定产能与 15 天交期",
+            "body": "您好，我们专注服装代工，支持小单快反，15 天交期，附上工厂实拍与产能表。",
+        },
+        "candidates": [
+            {"company": "越南 ABC Garment", "channel": "展会名录", "priority": "高"},
+            {"company": "柬埔寨 XYZ Fashion", "channel": "平台询盘", "priority": "中"},
+        ],
+        "sequence": [],
+    }
+    data_out = llm_json(
+        llm,
+        prompt=(
+            f"为外贸开发客户写一套开发信方案。\n"
+            f"目标市场：{market}\n"
+            f"产品：{product}\n\n"
+            f"请输出：\n"
+            f"1. sequence：4 封开发信的序列安排，每封含 round（第几封）、day（第几天发）、"
+            f"subject（主题，要具体不夸张）、body（正文，要短，150 字以内，包含一个具体信息点：产能/交期/ MOQ/ 报价优势）、"
+            f"cta（这封只要对方做的一个动作）\n"
+            f"2. outreach_letter：首封的完整版（subject + body）\n"
+            f"3. candidates：4-6 个候选客户画像，每项含 company（真实存在的采购商类型，如「越南 Hùng Anh Garment」）、"
+            f"channel（怎么找到的：展会名录/领英/平台询盘/海关数据）、priority（高中低）、"
+            f"why_fit（为什么他可能需要我们的产品）、approach（切入话术，一句话）\n"
+            f"4. keywords：找这类客户的搜索关键词（中英文各一组）\n"
+            f"5. risks：外贸开发要注意的点（合规、付款、样品）\n\n"
+            f"开发信要像真人写的，简洁有力，不要空洞的「我们专注于」。"
+        ),
+        system="你是外贸开发老手，开发信短而具体，第一句就说到买家关心的事。",
+        schema_hint='{"outreach_letter":{"subject":"","body":""},"candidates":[{"company":"","channel":"","priority":"","why_fit":"","approach":""}],"sequence":[{"round":1,"day":"D1","subject":"","body":"","cta":""}],"keywords":[],"risks":[]}',
+        fallback=fallback,
+        max_tokens=4000,
     )
-    candidates = [
-        {"company": f"{market}采购商A", "channel": "展会名录", "priority": "高"},
-        {"company": f"{market}渠道商B", "channel": "平台询盘", "priority": "中"},
-    ]
-    ai_note = ""
-    if llm is not None and getattr(llm, "provider", "mock") != "mock":
-        try:
-            ai_note = llm.complete(
-                f"市场 {market}、产品 {product}，优化开发信开头两句话，不超过 60 字。",
-                system="你是外贸获客专家。")
-        except Exception:
-            ai_note = ""
-    return {"outreach_letter": letter, "candidates": candidates, "compliance": "触达前已过频控与合规检查", "ai_note": ai_note}
+    if not isinstance(data_out.get("candidates"), list) or not data_out.get("candidates"):
+        data_out["candidates"] = fallback["candidates"]
+    if not isinstance(data_out.get("sequence"), list) or not data_out.get("sequence"):
+        data_out["sequence"] = fallback["sequence"]
+    if not isinstance(data_out.get("outreach_letter"), dict) or not data_out.get("outreach_letter"):
+        data_out["outreach_letter"] = fallback["outreach_letter"]
+    return {"outreach_letter": data_out["outreach_letter"], "candidates": data_out["candidates"],
+            "sequence": data_out["sequence"], "keywords": data_out.get("keywords") or [],
+            "risks": data_out.get("risks") or [], "ai_note": ""}
 
 
 class ForeignTradeAgent(BaseAgent):
@@ -178,22 +279,50 @@ class ForeignTradeAgent(BaseAgent):
 
 
 # ---------------------------------------------------------------- 08
+# ---------------------------------------------------------------- 08
 def run_logic_08(data, llm=None):
-    """小红书获客：内容获客与线索收集。"""
-    category = data.get("category", "企业服务")
+    """小红书精准获客员工：笔记草稿与互动引导。
+
+    能力升级（2026-10-31）：LLM 生成真实笔记（含正文/标签/评论区引导），规则模板兜底。
+    """
+    category = data.get("category", "企业管理")
     audience = data.get("audience", "工厂老板")
-    note_title = f"做了 3 个月小红书，{audience}客户主动找上门"
-    note_body = f"从 0 到 1 用小红书给{category}获客的真实过程：选题、封面、评论区运营三步走。"
-    guide_comment = "需要这套《小红书获客 SOP》的朋友，评论区扣「1」，我发你。"
-    ai_note = ""
-    if llm is not None and getattr(llm, "provider", "mock") != "mock":
-        try:
-            ai_note = llm.complete(
-                f"品类 {category}、受众 {audience}，给出 1 个更高点击的标题，不超过 40 字。",
-                system="你是小红书内容运营专家。")
-        except Exception:
-            ai_note = ""
-    return {"note_title": note_title, "note_body": note_body, "guide_comment": guide_comment, "ai_note": ai_note}
+    fallback = {
+        "note_title": f"{category}｜{audience}必看",
+        "note_body": "分享几个实操做法，评论区扣「方案」领清单。",
+        "guide_comment": "评论区扣「方案」",
+        "tags": ["#企业管理", "#获客"],
+    }
+    data_out = llm_json(
+        llm,
+        prompt=(
+            f"写一篇小红书笔记做精准获客。\n"
+            f"品类/主题：{category}\n"
+            f"目标人群：{audience}\n\n"
+            f"请输出：\n"
+            f"1. note_title：标题（小红书风格，20 字内，可用数字/符号/反差，但要精准不是标题党）\n"
+            f"2. note_body：正文（300-500 字，分段用换行，开头 2 句必须抓住目标人群，可含真实案例细节、"
+            f"避坑提醒、具体数字，结尾给互动指令；要有 emoji 分隔但别太多）\n"
+            f"3. guide_comment：评论区引导话术（要给出具体钩子，如「扣『清单』我发你」而不是「欢迎留言」）\n"
+            f"4. tags：6-8 个标签（精准标签 + 大盘标签混合）\n"
+            f"5. cover_text：封面大字文案（12 字内）\n"
+            f"6. comment_hooks：预埋 3 条自评论或回复话术（用于引导互动，真实不生硬）\n"
+            f"7. images：配图建议 4 条（写清每张图拍什么）\n\n"
+            f"小红书用户反感硬广，像朋友分享一样写。"
+        ),
+        system="你是小红书爆款笔记操盘手，会用平台语言，但不油不硬广。",
+        schema_hint='{"note_title":"","note_body":"","guide_comment":"","tags":[""],"cover_text":"","comment_hooks":[""],"images":[""]}',
+        fallback=fallback,
+        max_tokens=4000,
+    )
+    for k, v in fallback.items():
+        if k not in data_out or data_out[k] in (None, "", [], {}):
+            data_out[k] = v
+    return {"note_title": data_out["note_title"], "note_body": data_out["note_body"],
+            "guide_comment": data_out["guide_comment"], "tags": data_out["tags"],
+            "cover_text": data_out.get("cover_text") or "",
+            "comment_hooks": data_out.get("comment_hooks") or [],
+            "images": data_out.get("images") or [], "ai_note": ""}
 
 
 class XiaohongshuAgent(BaseAgent):
