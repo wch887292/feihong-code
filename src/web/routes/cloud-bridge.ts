@@ -36,6 +36,13 @@ export interface CloudBridgeDeps {
   bruteForce: BruteForceGuard;
   /** v8.9.0：手机指令完成时同步注入 Web 任务队列，桌面端对话流可见 */
   queue?: import('../task-queue').TaskQueue;
+  /**
+   * v8.13.9：判定请求是否携带主令牌（Bearer）= 所有者身份。
+   * 用于 /api/bridge/register 的死锁旁路：设备心跳过期后重新注册必须被允许，
+   * 否则「恢复心跳的唯一途径是注册成功」形成永久死锁。
+   * 未注入时该旁路不生效（保持原有严格鉴权行为）。
+   */
+  isOwnerRequest?: (req: Request) => boolean;
 }
 
 export function registerCloudBridgeRoutes(app: ExpressApp, deps: CloudBridgeDeps): void {
@@ -106,6 +113,19 @@ export function registerCloudBridgeRoutes(app: ExpressApp, deps: CloudBridgeDeps
     return createHash('sha256').update('fhcode-bridge-device-secret:' + secret).digest('hex');
   }
 
+  /**
+   * v8.13.9：所有者身份判定（请求是否携带主令牌）。
+   * deps.isOwnerRequest 由 server.ts 注入，内部用 safeEqual 与主令牌/轮换宽限旧令牌比对，
+   * 不在路由层直接持有令牌，避免多处泄露面。
+   */
+  function ownerAuthorized(req: Request): boolean {
+    try {
+      return deps.isOwnerRequest ? !!deps.isOwnerRequest(req) : false;
+    } catch {
+      return false;
+    }
+  }
+
   app.post('/api/bridge/register', (req: Request, res: Response) => {
     const body = (req.body ?? {}) as Record<string, any>;
     const deviceId = String(body?.deviceId ?? '').trim();
@@ -129,6 +149,12 @@ export function registerCloudBridgeRoutes(app: ExpressApp, deps: CloudBridgeDeps
         res.status(401).json({ ok: false, error: '设备密钥校验失败（deviceSecret）' });
         return;
       }
+    } else if (ownerAuthorized(req)) {
+      // v8.13.9 死锁修复：持有主令牌（Bearer）= 所有者身份，允许无条件重新注册。
+      // 原逻辑对「已注册但心跳过期」的设备直接 401，而恢复心跳的唯一途径就是 register 成功 →
+      // 设备一旦停机超宽限期即永久无法自愈（本地「家里电脑-本地」实测卡死 22 天）。
+      // 此旁路不放宽匿名注册（无令牌仍走下方 bootstrap/宽限分支），仅放行持有者本人。
+      console.log(`[bridge] 所有者令牌授权重新注册设备「${name}」(${deviceId})`);
     } else if (!found) {
       // 无 secret 且未注册过 → 匿名注册，拒绝（H1 修复核心）。
       // 迁移兜底：宽限期（FH_BRIDGE_MIGRATION_MS，默认 7 天）内允许所有者经一次性 bootstrap

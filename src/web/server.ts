@@ -1047,7 +1047,30 @@ export function startWebServer(opts: ServeOptions = {}): {
   /* ========== Codex 进程级嫁接 → routes/codex.ts ========== */
   registerCodexRoutes(app, { homeDir });
   /* ========== 云桥接（手机指令→电脑执行）+ 授权 → routes/cloud-bridge.ts ========== */
-  registerCloudBridgeRoutes(app, { homeDir, loadJsonFile, saveJsonFile, bruteForce, queue });
+  // v8.13.9：注入所有者身份判定（持主令牌/轮换宽限旧令牌 = 所有者），
+  // 用于 register 端点的死锁旁路（设备心跳过期后必须能重新注册，否则永久无法自愈）。
+  registerCloudBridgeRoutes(app, {
+    homeDir,
+    loadJsonFile,
+    saveJsonFile,
+    bruteForce,
+    queue,
+    isOwnerRequest: (req: Request): boolean => {
+      const header = req.header('authorization') || '';
+      const m = /^Bearer\s+(.+)$/i.exec(header);
+      if (!m) return false;
+      const presented = m[1];
+      const curB = Buffer.from(presented);
+      const tokB = Buffer.from(token);
+      if (curB.length === tokB.length && timingSafeEqual(curB, tokB)) return true;
+      for (const ot of oldTokens) {
+        if (Date.now() >= ot.expiresAt) continue;
+        const ob = Buffer.from(ot.value);
+        if (curB.length === ob.length && timingSafeEqual(curB, ob)) return true;
+      }
+      return false;
+    },
+  });
   /* ========== v8.9.1 单端口：MCP 端点（顶层 /mcp，绕过 /api 签名/令牌中间件，仅回环 WeKnora 调用） ==========
      替代独立 python fhcode-mcp(8083)：把 fhcode_run/local_exec 等工具直接挂载到 8082，实现单端口。
      协议：stateless streamable HTTP（与 python 版一致），响应 SSE 格式 event: message\ndata: ... */
