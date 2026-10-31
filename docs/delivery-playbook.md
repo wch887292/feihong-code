@@ -165,34 +165,30 @@ cd android && ./gradlew assembleRelease
 ### 步骤 6 · 核验：解包实证（不信构建日志）
 
 ```bash
-# aapt 解析版本号
-AAPT=$(ls /c/Users/Administrator/AppData/Local/Android/Sdk/build-tools/*/aapt.exe | head -1)
-"$AAPT" dump badging android/app/build/outputs/apk/release/app-release.apk | grep "^package:"
-
-# 解包核验令牌注入 + 函数存在性 + 与磁盘源码一致性
-python - <<'PYEOF'
-import zipfile, io, re, difflib
-apk = r"H:/feihong-code/android/app/build/outputs/apk/release/app-release.apk"
-z = zipfile.ZipFile(apk)
-apkjs = z.read([n for n in z.namelist() if n.endswith("assets/public/js/app.js")][0]).decode("utf-8","ignore")
-disk = io.open(r"H:/feihong-code/app-mobile/js/app.js", encoding="utf-8").read()
-norm = lambda s: [l.rstrip() for l in re.sub(r"[0-9a-f]{64}","<TOKEN>",s).splitlines() if l.strip()]
-diff = list(difflib.unified_diff(norm(apkjs), norm(disk), lineterm="", n=0))
-print("✅ APK 与源码一致" if not diff else "⚠️ 存在差异")
-print("守卫保留:", "<FH_DEFAULT_TOKEN>" in apkjs)
-PYEOF
+# 一键核验（推荐）：版本号/双令牌/守卫/函数/源码一致性，10 项
+node scripts/verify-apk.cjs
 ```
 
 **核验清单（每次出包必查）**：
 
 | 项 | 判据 |
 |---|---|
-| 版本号 | `versionCode` / `versionName` 与预期一致（aapt 实证） |
+| 版本号 | `versionCode` / `versionName` 与预期一致 |
 | 双令牌 | app.js 命中 bridge+sync 各 1 次；sync-task.js 命中 sync 1 次 |
 | 守卫占位符 | `<FH_DEFAULT_TOKEN>` **仍在包内** |
 | 功能函数 | 本次新增函数全部命中 |
-| 源码一致 | APK 内 app.js ≡ 磁盘 app.js（除令牌值） |
-| 签名 | aapt dump 正常，无签名错误 |
+| 源码一致 | APK 内 app.js ≡ 磁盘 app.js（见下方归一化说明） |
+| 交叉验证 | 版本号须与 `aapt dump badging` 同值 |
+
+> **归一化说明（避免假阳性）**：APK 内是注入后的真实令牌（64 位 hex），
+> 磁盘源码里是占位符 `<FH_BRIDGE_TOKEN>`。比对时**两侧都要归一化**：
+> `re.sub(r"[0-9a-f]{64}", "<TOKEN>")` **且** `re.sub(r"<FH_(BRIDGE|SYNC|DEFAULT)_TOKEN>", "<TOKEN>")`。
+> 只归一化一侧会产生"存在差异"的**假阳性**（本次实测踩到并修正）。
+
+> **交叉验证原则**：关键结论至少用**两个独立工具**确认。
+> 本次用自研 `verify-apk.cjs`（纯 Node 解 AXML）与 `aapt dump badging` 双测 versionCode，
+> 一致才算通过。首个版本的 AXML 解析器因 `TYPE_INT_DEC` 的值存在属性数据区
+> （而非 rawValue 字段）而返回 -1 —— **核验脚本自身也要被核验**。
 
 ### 步骤 7 · 部署 + 提交 + 交付
 
@@ -269,6 +265,8 @@ present_files([apk_path, ...])
 | **云端精简副本** | v885 是 8.8.5 副本（356 行 vs 本地 460 行），**不可整体覆盖** | 只用 Python 精确插入端点 + 备份 + `--check` + pm2 |
 | **提交漏夹具** | 619ed33 提交了测试却漏了 fixtures → 新克隆必然失败 | 提交前查 `git status`，判定未跟踪文件性质 |
 | **`log()` 不存在** | 在路由模块里误用未定义的 log → 编译失败 | 先 grep 确认辅助函数存在 |
+| **核验脚本自身有 bug** | 自研 AXML 解析器把 `TYPE_INT_DEC` 的值读成 rawValue → versionCode 报 -1 | **核验脚本也要被核验**：与 aapt 交叉验证，两工具同值才算过 |
+| **单侧归一化假阳性** | 只把 APK 侧令牌抹成 `<TOKEN>`，磁盘侧占位符没抹 → 误报"源码有差异" | 两侧都要归一化（hex + `<FH_*_TOKEN>`） |
 
 ---
 
@@ -278,10 +276,13 @@ present_files([apk_path, ...])
 
 ```bash
 cd /h/feihong-code
-node scripts/check-home-alive.cjs
+node scripts/check-home-alive.cjs    # 家电脑保活体检（9 项）
+node scripts/verify-apk.cjs          # APK 产物核验（10 项）
+node scripts/test-task-persist.cjs   # 任务持久化回归（28 项）
+node scripts/smoke-artifacts.cjs     # 产物回传链路冒烟
 ```
 
-9 项：计划任务命令完整性（含 `by user disabled` 损坏特征检测）/ 8082 健康 / 18777 守护锁 / 本地设备心跳 / deviceSecret 落盘 / 云端心跳 / 近 10 分钟 401 计数。
+`check-home-alive.cjs` 9 项：计划任务命令完整性（含 `by user disabled` 损坏特征检测）/ 8082 健康 / 18777 守护锁 / 本地设备心跳 / deviceSecret 落盘 / 云端心跳 / 近 10 分钟 401 计数。
 
 退出码 0 = 全绿，1 = 有故障项。
 
