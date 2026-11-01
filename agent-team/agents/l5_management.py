@@ -8,6 +8,7 @@ from datetime import datetime
 
 from core.agent import BaseAgent
 from llm.llm_json import llm_json, llm_text, pick
+from agents.kb_utils import kb_prefix_for, kb_refs_for
 
 
 def _ts() -> str:
@@ -21,14 +22,20 @@ def run_logic_11(data, llm=None):
       1) LLM 生成主体调度计划与风险判断（原先只有固定 order 列表）
       2) 修复硬索引崩溃：任务项字段名不固定（module_id / title / task_type）时不再 KeyError
     """
-    tasks = data.get("tasks") or [
+    _default_tasks = [
         {"module_id": "01", "task_type": "lead_scan", "priority": "P0"},
         {"module_id": "02", "task_type": "follow_up", "priority": "P0"},
         {"module_id": "04", "task_type": "chat_analysis", "priority": "P0"},
         {"module_id": "09", "task_type": "tiering", "priority": "P0"},
     ]
-    if not isinstance(tasks, list):
-        tasks = [tasks]
+    # 输入归一：列表直接用；单条 dict 视为单列；标量/字符串等异常输入回落默认编排，绝不阻断链路
+    raw = data.get("tasks")
+    if isinstance(raw, list):
+        tasks = raw
+    elif isinstance(raw, dict):
+        tasks = [raw]
+    else:
+        tasks = _default_tasks
 
     def _tid(t, i):
         return str(t.get("module_id") or t.get("id") or t.get("module") or f"T{i + 1}")
@@ -56,7 +63,7 @@ def run_logic_11(data, llm=None):
     data_out = llm_json(
         llm,
         prompt=(
-            f"为这批任务设计一份可执行的调度编排方案。\n"
+            f"{kb_prefix_for(data)}为这批任务设计一份可执行的调度编排方案。\n"
             f"任务清单：{json.dumps(tasks, ensure_ascii=False)}\n\n"
             f"请输出：\n"
             f"1. order：任务执行顺序（用任务的 module_id 或 id，没有就用序号）\n"
@@ -107,7 +114,7 @@ def run_logic_11(data, llm=None):
         if k not in schedule or schedule[k] in (None, "", [], {}):
             schedule[k] = v
     schedule["planned_at"] = _ts()
-    return {"schedule": schedule, "risks": risks, "ai_note": ""}
+    return {"schedule": schedule, "risks": risks, "知识依据": kb_refs_for(data), "ai_note": ""}
 
 
 class DispatcherAgent(BaseAgent):
@@ -117,5 +124,6 @@ class DispatcherAgent(BaseAgent):
     priority = "基建"
     description = "编排、调度、监控全部 AI 员工，管理任务全生命周期"
     input_schema = {"tasks": "待编排任务列表"}
+    input_type_hints = {"tasks": "list"}
     output_keys = {"schedule": "执行顺序与策略"}
     run_logic = staticmethod(run_logic_11)

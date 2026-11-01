@@ -10,6 +10,7 @@ from datetime import datetime
 
 from core.agent import BaseAgent
 from llm.llm_json import llm_json, llm_text
+from agents.kb_utils import kb_prefix_for, kb_refs_for
 
 
 def _ts() -> str:
@@ -41,7 +42,7 @@ def run_logic_01(data, llm=None):
     data_out = llm_json(
         llm,
         prompt=(
-            f"做一次多渠道获客线索扫描。\n"
+            f"{kb_prefix_for(data)}做一次多渠道获客线索扫描。\n"
             f"渠道：{'、'.join(channels)}\n"
             f"关键词/目标客户特征：{keywords}\n\n"
             f"请输出：\n"
@@ -67,7 +68,7 @@ def run_logic_01(data, llm=None):
     if not data_out.get("dedup_rule"):
         data_out["dedup_rule"] = fallback["dedup_rule"]
     return {"total": data_out["total"], "leads": data_out["leads"],
-            "dedup_rule": data_out["dedup_rule"], "ai_note": ""}
+            "dedup_rule": data_out["dedup_rule"], "知识依据": kb_refs_for(data), "ai_note": ""}
 
 
 class LeadRadarAgent(BaseAgent):
@@ -77,6 +78,7 @@ class LeadRadarAgent(BaseAgent):
     priority = "P0"
     description = "全域线索发现、清洗与入库，构建线索池"
     input_schema = {"channels": "线索渠道列表，如 [\"评论区\",\"小红书\",\"公众号\"]", "keywords": "获客关键词"}
+    input_type_hints = {"channels": "list"}
     output_keys = {"total": "线索总数", "leads": "线索列表", "dedup_rule": "去重规则"}
     run_logic = staticmethod(run_logic_01)
 
@@ -106,7 +108,7 @@ def run_logic_03(data, llm=None):
     data_out = llm_json(
         llm,
         prompt=(
-            f"扫描这些目标账号/话题的评论区，识别商机。\n"
+            f"{kb_prefix_for(data)}扫描这些目标账号/话题的评论区，识别商机。\n"
             f"目标：{'、'.join(accounts)}\n\n"
             f"请输出：\n"
             f"1. opportunities：4-6 条商机，每条含 account（来自哪个账号/话题）、"
@@ -129,7 +131,7 @@ def run_logic_03(data, llm=None):
     if not data_out.get("source_evidence"):
         data_out["source_evidence"] = fallback["source_evidence"]
     return {"opportunities": data_out["opportunities"], "source_evidence": data_out["source_evidence"],
-            "noise_filter": data_out.get("noise_filter") or "", "ai_note": ""}
+            "noise_filter": data_out.get("noise_filter") or "", "知识依据": kb_refs_for(data), "ai_note": ""}
 
 
 class CommentOpportunityAgent(BaseAgent):
@@ -139,6 +141,7 @@ class CommentOpportunityAgent(BaseAgent):
     priority = "P1"
     description = "监控目标账号与话题评论区，识别需求与意向，提取商机"
     input_schema = {"target_accounts": "目标账号/话题列表"}
+    input_type_hints = {"target_accounts": "list"}
     output_keys = {"opportunities": "商机列表", "source_evidence": "原文证据"}
     run_logic = staticmethod(run_logic_03)
 
@@ -179,7 +182,7 @@ def run_logic_06(data, llm=None):
     data_out = llm_json(
         llm,
         prompt=(
-            f"给「{persona}」生成今天的获客选题。\n"
+            f"{kb_prefix_for(data)}给「{persona}」生成今天的获客选题。\n"
             f"可结合的热点/行业话题：{'、'.join(topics_in) if topics_in else '（未指定，自行结合行业热点）'}\n\n"
             f"请输出 6 个选题，每个含：\n"
             f"- title：标题（像真实账号会发的那种，不要「震惊」「必看」）\n"
@@ -192,14 +195,15 @@ def run_logic_06(data, llm=None):
             f"选题之间要有角度差异，不要都是同一个套路。"
         ),
         system="你是获客选题官，选题要能直接开拍，每个都带钩子。",
-        schema_hint='{"date":"","topics":[{"title":"","hook":"","angle":"","target":"","pain":"","score":85,"reason":""}]}',
+        schema_hint='{"topics":[{"title":"","hook":"","angle":"","target":"","pain":"","score":85,"reason":""}]}',
         fallback=fallback,
         max_tokens=4000,
     )
     if not isinstance(data_out.get("topics"), list) or not data_out.get("topics"):
         data_out["topics"] = fallback["topics"]
-    data_out.setdefault("date", _ts()[:10])
-    return {"date": data_out["date"], "topics": data_out["topics"], "ai_note": ""}
+    # 选题日期属系统事实字段，由代码强制覆盖，不采信模型生成值
+    data_out["date"] = _ts()[:10]
+    return {"date": data_out["date"], "topics": data_out["topics"], "知识依据": kb_refs_for(data), "ai_note": ""}
 
 
 class DailyTopicAgent(BaseAgent):
@@ -209,6 +213,7 @@ class DailyTopicAgent(BaseAgent):
     priority = "P1"
     description = "按目标客户画像与行业热点生成每日获客选题"
     input_schema = {"persona": "目标客户画像", "hot_topics": "行业热点列表"}
+    input_type_hints = {"hot_topics": "list"}
     output_keys = {"date": "选题日期", "topics": "选题清单"}
     run_logic = staticmethod(run_logic_06)
 
@@ -236,7 +241,7 @@ def run_logic_07(data, llm=None):
     data_out = llm_json(
         llm,
         prompt=(
-            f"为外贸开发客户写一套开发信方案。\n"
+            f"{kb_prefix_for(data)}为外贸开发客户写一套开发信方案。\n"
             f"目标市场：{market}\n"
             f"产品：{product}\n\n"
             f"请输出：\n"
@@ -264,7 +269,7 @@ def run_logic_07(data, llm=None):
         data_out["outreach_letter"] = fallback["outreach_letter"]
     return {"outreach_letter": data_out["outreach_letter"], "candidates": data_out["candidates"],
             "sequence": data_out["sequence"], "keywords": data_out.get("keywords") or [],
-            "risks": data_out.get("risks") or [], "ai_note": ""}
+            "risks": data_out.get("risks") or [], "知识依据": kb_refs_for(data), "ai_note": ""}
 
 
 class ForeignTradeAgent(BaseAgent):
@@ -296,7 +301,7 @@ def run_logic_08(data, llm=None):
     data_out = llm_json(
         llm,
         prompt=(
-            f"写一篇小红书笔记做精准获客。\n"
+            f"{kb_prefix_for(data)}写一篇小红书笔记做精准获客。\n"
             f"品类/主题：{category}\n"
             f"目标人群：{audience}\n\n"
             f"请输出：\n"
@@ -322,7 +327,7 @@ def run_logic_08(data, llm=None):
             "guide_comment": data_out["guide_comment"], "tags": data_out["tags"],
             "cover_text": data_out.get("cover_text") or "",
             "comment_hooks": data_out.get("comment_hooks") or [],
-            "images": data_out.get("images") or [], "ai_note": ""}
+            "images": data_out.get("images") or [], "知识依据": kb_refs_for(data), "ai_note": ""}
 
 
 class XiaohongshuAgent(BaseAgent):

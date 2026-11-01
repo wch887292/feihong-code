@@ -6,6 +6,7 @@ from datetime import datetime
 
 from core.agent import BaseAgent
 from llm.llm_json import llm_json, llm_text
+from agents.kb_utils import kb_prefix_for, kb_refs_for
 
 
 def _ts() -> str:
@@ -35,7 +36,7 @@ def run_logic_05(data, llm=None):
     data_out = llm_json(
         llm,
         prompt=(
-            f"监控同行账号近 {days} 天的爆款内容：{'、'.join(accounts)}\n\n"
+            f"{kb_prefix_for(data)}监控同行账号近 {days} 天的爆款内容：{'、'.join(accounts)}\n\n"
             f"请输出：\n"
             f"1. hot_contents：3-5 条该赛道的典型爆款，每条含 title（标题）、views（播放量估算）、"
             f"account（账号）、days（发布天数）、hook（它为什么火，一句话）\n"
@@ -53,7 +54,7 @@ def run_logic_05(data, llm=None):
         data_out["hot_contents"] = fallback["hot_contents"]
     if not isinstance(data_out.get("patterns"), list) or not data_out.get("patterns"):
         data_out["patterns"] = fallback["patterns"]
-    return {"hot_contents": data_out["hot_contents"], "patterns": data_out["patterns"], "ai_note": ""}
+    return {"hot_contents": data_out["hot_contents"], "patterns": data_out["patterns"], "知识依据": kb_refs_for(data), "ai_note": ""}
 
 
 class ViralRadarAgent(BaseAgent):
@@ -63,6 +64,7 @@ class ViralRadarAgent(BaseAgent):
     priority = "P2"
     description = "监控同行爆款内容，提炼可复制模式"
     input_schema = {"competitor_accounts": "同行账号列表"}
+    input_type_hints = {"competitor_accounts": "list"}
     output_keys = {"hot_contents": "爆款列表", "patterns": "可复用模式"}
     run_logic = staticmethod(run_logic_05)
 
@@ -101,7 +103,7 @@ def run_logic_12(data, llm=None):
     script = llm_json(
         llm,
         prompt=(
-            f"为「{audience}」写一条短视频口播脚本。\n"
+            f"{kb_prefix_for(data)}为「{audience}」写一条短视频口播脚本。\n"
             f"选题：{topic}\n"
             f"核心卖点：{'、'.join(points)}\n\n"
             f"要求：\n"
@@ -129,7 +131,7 @@ def run_logic_12(data, llm=None):
     if not isinstance(script.get("shots"), list) or not script["shots"]:
         script["shots"] = fallback_script["shots"]
     ai_note = ""
-    return {"script": script, "ai_note": ai_note}
+    return {"script": script, "知识依据": kb_refs_for(data), "ai_note": ai_note}
 
 
 class VideoScriptAgent(BaseAgent):
@@ -139,6 +141,7 @@ class VideoScriptAgent(BaseAgent):
     priority = "P1"
     description = "生成获客向短视频脚本（口播 + 分镜）"
     input_schema = {"topic": "选题", "selling_points": "卖点列表", "audience": "目标客户"}
+    input_type_hints = {"selling_points": "list"}
     output_keys = {"script": "脚本（hook/body/cta/shots）"}
     run_logic = staticmethod(run_logic_12)
 
@@ -172,7 +175,7 @@ def run_logic_13(data, llm=None):
     report = llm_json(
         llm,
         prompt=(
-            f"深度拆解对标账号：{account}\n\n"
+            f"{kb_prefix_for(data)}深度拆解对标账号：{account}\n\n"
             f"请输出：\n"
             f"1. positioning：它到底在卖什么（不是简介，是它的真实商业定位，一句话点透）\n"
             f"2. audience：它的粉丝是谁、有什么共同特征\n"
@@ -193,7 +196,7 @@ def run_logic_13(data, llm=None):
         if k not in report or report[k] in (None, "", [], {}):
             report[k] = v
     report["takedown_at"] = _ts()
-    return {"report": report, "ai_note": ""}
+    return {"report": report, "知识依据": kb_refs_for(data), "ai_note": ""}
 
 
 class BloggerTeardownAgent(BaseAgent):
@@ -246,7 +249,7 @@ def run_logic_14(data, llm=None):
     video = llm_json(
         llm,
         prompt=(
-            f"为这条短视频制定剪辑方案。\n"
+            f"{kb_prefix_for(data)}为这条短视频制定剪辑方案。\n"
             f"素材列表：{clips_json}\n"
             f"脚本/口播要点：{script[:300]}\n"
             f"模板风格：{template}\n\n"
@@ -274,7 +277,7 @@ def run_logic_14(data, llm=None):
     video["template"] = template
     video["rendered_at"] = _ts()
     video["status"] = "rendered"
-    return {"video": video, "ai_note": ""}
+    return {"video": video, "知识依据": kb_refs_for(data), "ai_note": ""}
 
 
 class AutoEditorAgent(BaseAgent):
@@ -284,6 +287,7 @@ class AutoEditorAgent(BaseAgent):
     priority = "P1"
     description = "素材自动剪辑成片、批量出片"
     input_schema = {"clips": "素材列表", "script": "脚本", "template": "模板"}
+    input_type_hints = {"clips": "list"}
     output_keys = {"video": "成片元数据"}
     run_logic = staticmethod(run_logic_14)
 
@@ -328,7 +332,7 @@ def run_logic_15(data, llm=None):
     article = llm_json(
         llm,
         prompt=(
-            f"写一篇公众号文章。\n"
+            f"{kb_prefix_for(data)}写一篇公众号文章。\n"
             f"选题：{topic}\n"
             f"计划发布时间：{schedule}\n\n"
             f"请输出：\n"
@@ -353,7 +357,7 @@ def run_logic_15(data, llm=None):
     article["publish_time"] = schedule
     article["status"] = "scheduled"
     article["created_at"] = _ts()
-    return {"article": article, "ai_note": ""}
+    return {"article": article, "知识依据": kb_refs_for(data), "ai_note": ""}
 
 
 class GzhPublisherAgent(BaseAgent):

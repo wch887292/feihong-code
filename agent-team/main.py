@@ -4,14 +4,14 @@
 
 命令：
     init-db          初始化数据库
-    list-agents      查看 17 个 AI 员工清单
+    list-agents      查看 31 个 AI 员工清单
     submit           提交单个任务（--module 编号 --type 类型 --input JSON）
     run-once         执行一轮 pending 任务
     run-loop         持续执行（--times N）
     approve          人工确认任务（--task-id --no 表示驳回）
     stats            任务统计
     demo-pipeline    M1 销售闭环演示（01→02→04→09）
-    export-skills    导出 17 个 Skill 包到 skills/
+    export-skills    导出 31 个 Skill 包到 skills/
     install-skills   安装 Skill 包到指定 Skill 根目录
 """
 import argparse
@@ -180,7 +180,7 @@ def build_parser():
     sub.add_parser("list-agents", help="查看 AI 员工清单")
 
     sp = sub.add_parser("submit", help="提交任务")
-    sp.add_argument("--module", required=True, help="模块编号 01-17")
+    sp.add_argument("--module", required=True, help="模块编号 01-31")
     sp.add_argument("--type", default="manual", help="任务类型")
     sp.add_argument("--input", default="", help="输入 JSON")
     sp.add_argument("--priority", default="P1", choices=["P0", "P1", "P2", "P3"])

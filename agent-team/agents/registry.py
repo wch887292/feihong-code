@@ -1,4 +1,4 @@
-"""模块注册表：集中注册 17 个 AI 员工，支持按 module_id 查询与实例化。"""
+"""模块注册表：集中注册 31 个 AI 员工，支持按 module_id 查询与实例化。"""
 from typing import Dict, List, Optional
 
 from core.agent import BaseAgent
@@ -15,6 +15,12 @@ from agents.l3_conversion import ChatAnalysisAgent, FollowUpAgent, TieringAgent
 from agents.l4_analysis import GeoDiagnosisAgent, IndustryAnalystAgent, InvestResearchAgent
 from agents.l5_management import DispatcherAgent
 from agents.l0_command import HeartflowCommander, StrategyCommander, DecomposeCommander
+from agents.l6_ip_service import (
+    EnterpriseDiagnosisAgent, FamilyIsolationAdvisor, HealthWealthPlanner,
+    LifelongEscortKeeper, OrgExecutionCoachAgent, PartnershipArchitectAgent,
+    ServiceMatcher, WealthInheritanceAdvisor,
+    AiEfficiencyArchitect, CaseWitnessOfficer,
+)
 
 # 模块类注册表（顺序即展示顺序）
 AGENT_CLASSES: List[type] = [
@@ -39,6 +45,17 @@ AGENT_CLASSES: List[type] = [
     HeartflowCommander,    # 18
     StrategyCommander,     # 19
     DecomposeCommander,    # 20
+    # L6 IP 服务层（三位一体利他服务人设生态 · 22-31）
+    EnterpriseDiagnosisAgent,   # 22
+    PartnershipArchitectAgent,  # 23
+    OrgExecutionCoachAgent,     # 24
+    FamilyIsolationAdvisor,     # 25
+    HealthWealthPlanner,        # 26
+    WealthInheritanceAdvisor,   # 27
+    ServiceMatcher,             # 28
+    LifelongEscortKeeper,       # 29
+    AiEfficiencyArchitect,      # 30
+    CaseWitnessOfficer,         # 31
 ]
 
 

@@ -13,6 +13,7 @@ from datetime import datetime
 
 from core.agent import BaseAgent
 from llm.llm_json import llm_json, llm_text
+from agents.kb_utils import kb_prefix_for, kb_refs_for
 
 
 def _ts() -> str:
@@ -46,7 +47,7 @@ def run_logic_18(data, llm=None):
     data_out = llm_json(
         llm,
         prompt=(
-            f"为一个正在经历「{theme}」的人写一份关怀引导指令。\n"
+            f"{kb_prefix_for(data)}为一个正在经历「{theme}」的人写一份关怀引导指令。\n"
             f"已知用户画像：{json.dumps(profile, ensure_ascii=False) if profile else '（暂无）'}\n\n"
             f"请输出：\n"
             f"1. 目标主题：本次关怀的主题（要具体到这一阶段的课题，不是泛泛的「成长」）\n"
@@ -59,16 +60,18 @@ def run_logic_18(data, llm=None):
             f"语气温暖但不黏人，尊重对方自己说，教练式引导不代劳。"
         ),
         system="你是文科心流教练，温暖、朋友式，教练式引导不代劳，绝不评判。",
-        schema_hint='{"directive":{"目标主题":"","引导基调":"","关怀要点":[{"point":"","how":"","avoid":""}],"第一个问题":"","陪伴节奏":{"晨间":"","晚间":"","周复盘":""},"情绪红线":"","产出物":"","planned_at":""},"handoff_to":""}',
+        schema_hint='{"directive":{"目标主题":"","引导基调":"","关怀要点":[{"point":"","how":"","avoid":""}],"第一个问题":"","陪伴节奏":{"晨间":"","晚间":"","周复盘":""},"情绪红线":"","产出物":"","planned_at":""}}',
         fallback=fallback,
         max_tokens=4000,
     )
     directive = data_out.get("directive")
     if not isinstance(directive, dict) or not directive:
         directive = fallback["directive"]
-    directive.setdefault("planned_at", _ts())
-    handoff = data_out.get("handoff_to") or "1号卿听心流拍档"
-    return {"directive": directive, "handoff_to": handoff, "ai_note": ""}
+    # 系统事实字段由代码强制覆盖，不采信模型生成值
+    directive["planned_at"] = _ts()
+    # 交接对象由 SPEC 固化，不采信模型输出
+    handoff = "1号卿听心流拍档"
+    return {"directive": directive, "handoff_to": handoff, "知识依据": kb_refs_for(data), "ai_note": ""}
 
 
 class HeartflowCommander(BaseAgent):
@@ -112,7 +115,7 @@ def run_logic_19(data, llm=None):
     data_out = llm_json(
         llm,
         prompt=(
-            f"把业务目标拆成可执行的战略铺排。\n"
+            f"{kb_prefix_for(data)}把业务目标拆成可执行的战略铺排。\n"
             f"目标：{goal}\n"
             f"已知情况：{context}\n"
             f"协同模式：{mode}\n\n"
@@ -128,7 +131,7 @@ def run_logic_19(data, llm=None):
             f"要具体到「谁在什么时间做什么」，不要只讲道理。"
         ),
         system="你是理科战略参谋，直接犀利，只讲能落地的动作。",
-        schema_hint='{"directive":{"目标校准":"","路径":[{"path":"","pros":"","cons":"","risk":"","fit":""}],"推荐路径":"","执行铺排":[{"who":"","when":"","what":"","checkpoint":""}],"里程碑":[{"milestone":"","measure":"","deadline":""}],"风险清单":[{"risk":"","trigger":"","countermeasure":""}],"固定动作":"","planned_at":""},"handoff_to":""}',
+        schema_hint='{"directive":{"目标校准":"","路径":[{"path":"","pros":"","cons":"","risk":"","fit":""}],"推荐路径":"","执行铺排":[{"who":"","when":"","what":"","checkpoint":""}],"里程碑":[{"milestone":"","measure":"","deadline":""}],"风险清单":[{"risk":"","trigger":"","countermeasure":""}],"固定动作":"","planned_at":""}}',
         fallback=fallback,
         max_tokens=4000,
     )
@@ -137,9 +140,11 @@ def run_logic_19(data, llm=None):
         directive = fallback["directive"]
     directive["业务目标"] = goal
     directive["协同模式"] = mode
-    directive.setdefault("planned_at", _ts())
-    handoff = data_out.get("handoff_to") or "2号卿听战略拍档"
-    return {"directive": directive, "handoff_to": handoff, "ai_note": ""}
+    # 系统事实字段由代码强制覆盖，不采信模型生成值
+    directive["planned_at"] = _ts()
+    # 交接对象由 SPEC 固化，不采信模型输出
+    handoff = "2号卿听战略拍档"
+    return {"directive": directive, "handoff_to": handoff, "知识依据": kb_refs_for(data), "ai_note": ""}
 
 
 class StrategyCommander(BaseAgent):
@@ -179,7 +184,7 @@ def run_logic_20(data, llm=None):
     data_out = llm_json(
         llm,
         prompt=(
-            f"把这个场景彻底拆透。\n"
+            f"{kb_prefix_for(data)}把这个场景彻底拆透。\n"
             f"场景：{scenario}\n\n"
             f"请按黑箱四步输出：\n"
             f"1. 发现问题：场景类型是什么；涉及哪些人的什么利益（爱与利他：爱事+爱人+爱自己）；"
@@ -195,7 +200,7 @@ def run_logic_20(data, llm=None):
             f"教练式引导，不代劳，输出要能让对方自己想明白。"
         ),
         system="你是黑箱拆解思维教练，教练式引导不代劳，每步都追问'还能再拆吗'。",
-        schema_hint='{"directive":{"场景":"","发现问题":"","拆事的目的":"","拆人的利益点":"","场景策略闭环":{"之前":"","中间":"","之后":""},"PRD骨架":{"场景定义":"","场景逻辑":"","场景步骤":""},"关键追问":[""],"最小可行动作":"","planned_at":""},"handoff_to":""}',
+        schema_hint='{"directive":{"场景":"","发现问题":"","拆事的目的":"","拆人的利益点":"","场景策略闭环":{"之前":"","中间":"","之后":""},"PRD骨架":{"场景定义":"","场景逻辑":"","场景步骤":""},"关键追问":[""],"最小可行动作":"","planned_at":""}}',
         fallback=fallback,
         max_tokens=4000,
     )
@@ -203,9 +208,11 @@ def run_logic_20(data, llm=None):
     if not isinstance(directive, dict) or not directive:
         directive = fallback["directive"]
     directive["场景"] = scenario
-    directive.setdefault("planned_at", _ts())
-    handoff = data_out.get("handoff_to") or "3号卿听黑箱拆解使者 → 4号灵魂技能使者"
-    return {"directive": directive, "handoff_to": handoff, "ai_note": ""}
+    # 系统事实字段由代码强制覆盖，不采信模型生成值
+    directive["planned_at"] = _ts()
+    # 交接对象由 SPEC 固化，不采信模型输出
+    handoff = "3号卿听黑箱拆解使者 → 4号灵魂技能使者"
+    return {"directive": directive, "handoff_to": handoff, "知识依据": kb_refs_for(data), "ai_note": ""}
 
 
 class DecomposeCommander(BaseAgent):

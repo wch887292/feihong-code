@@ -4,6 +4,7 @@ from datetime import datetime
 
 from core.agent import BaseAgent
 from llm.llm_json import llm_json, llm_text
+from agents.kb_utils import kb_prefix_for, kb_refs_for
 
 
 def _ts() -> str:
@@ -33,7 +34,7 @@ def run_logic_10(data, llm=None):
     diagnosis = llm_json(
         llm,
         prompt=(
-            f"做一次生成式引擎（GEO）视角的商机诊断。\n"
+            f"{kb_prefix_for(data)}做一次生成式引擎（GEO）视角的商机诊断。\n"
             f"目标区域：{region}\n"
             f"业态/行业：{business}\n"
             f"我方能力：{capability or '（未提供，按通用咨询公司假设）'}\n\n"
@@ -58,7 +59,7 @@ def run_logic_10(data, llm=None):
     diagnosis["region"] = region
     diagnosis["business_type"] = business
     diagnosis["diagnosed_at"] = _ts()
-    return {"diagnosis": diagnosis, "ai_note": ""}
+    return {"diagnosis": diagnosis, "知识依据": kb_refs_for(data), "ai_note": ""}
 
 
 class GeoDiagnosisAgent(BaseAgent):
@@ -94,7 +95,7 @@ def run_logic_16(data, llm=None):
     report = llm_json(
         llm,
         prompt=(
-            f"做一份行业深度分析。\n"
+            f"{kb_prefix_for(data)}做一份行业深度分析。\n"
             f"行业：{industry}\n"
             f"分析范围：{scope}\n\n"
             f"请输出：\n"
@@ -119,7 +120,7 @@ def run_logic_16(data, llm=None):
     report["industry"] = industry
     report["scope"] = scope
     report["generated_at"] = _ts()
-    return {"report": report, "ai_note": ""}
+    return {"report": report, "知识依据": kb_refs_for(data), "ai_note": ""}
 
 
 class IndustryAnalystAgent(BaseAgent):
@@ -158,7 +159,7 @@ def run_logic_17(data, llm=None):
     data_out = llm_json(
         llm,
         prompt=(
-            f"写一份投资研究简报。\n"
+            f"{kb_prefix_for(data)}写一份投资研究简报。\n"
             f"标的：{company}\n"
             f"已知材料：{materials}\n\n"
             f"请输出：\n"
@@ -185,7 +186,7 @@ def run_logic_17(data, llm=None):
     report.setdefault("disclaimer", "本文仅为研究参考，不构成投资建议。")
     report["company"] = company
     report["generated_at"] = _ts()
-    return {"report": report, "ai_note": ""}
+    return {"report": report, "知识依据": kb_refs_for(data), "ai_note": ""}
 
 
 class InvestResearchAgent(BaseAgent):

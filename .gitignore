@@ -253,3 +253,7 @@ logs/
 
 # ── 2026-10-26 技能整理：upstream 临时缓存（不入库）──
 .tmp-upstream/
+
+# agent-team 一次性重构脚本与模块副本（不重复入库）
+agent-team/_refactor_*.py
+agent-team/_l6_test.py

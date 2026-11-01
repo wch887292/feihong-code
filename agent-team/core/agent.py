@@ -22,6 +22,7 @@ class BaseAgent:
     input_schema: Dict[str, str] = EMPTY_SCHEMA      # 必填字段: 说明
     output_keys: Dict[str, str] = EMPTY_SCHEMA       # 输出字段: 说明
     need_human: bool = False                          # 是否需人工确认
+    input_type_hints: Dict[str, str] = {}              # 字段名 -> 期望类型(list/dict/str)，可选；用于从源头拦截畸形输入
     run_logic: Callable[[Dict[str, Any], Any], Dict[str, Any]] = staticmethod(
         lambda data, llm: {"result": data}
     )
@@ -36,6 +37,22 @@ class BaseAgent:
         for field, desc in self.input_schema.items():
             if field not in data:
                 raise TaskError(f"[{self.module_id}] 缺少必填输入字段 {field}（{desc}）")
+            # 字段类型校验（可选）：从源头拦截畸形输入，避免下游 .get() 抛 AttributeError
+            hint = self.input_type_hints.get(field)
+            if hint:
+                val = data[field]
+                if hint == "list" and not isinstance(val, list):
+                    raise TaskError(
+                        f"[{self.module_id}] 字段 {field} 应为数组(list)，收到 {type(val).__name__}（已拦截，避免下游崩溃）"
+                    )
+                elif hint == "dict" and not isinstance(val, dict):
+                    raise TaskError(
+                        f"[{self.module_id}] 字段 {field} 应为对象(dict)，收到 {type(val).__name__}（已拦截，避免下游崩溃）"
+                    )
+                elif hint == "str" and isinstance(val, (list, dict)):
+                    raise TaskError(
+                        f"[{self.module_id}] 字段 {field} 应为字符串/标量(str)，收到 {type(val).__name__}（已拦截，避免下游崩溃）"
+                    )
         return data
 
     def validate_output(self, output: Any) -> Dict[str, Any]:

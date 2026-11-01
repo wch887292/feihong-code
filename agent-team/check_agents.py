@@ -112,7 +112,7 @@ def check_contracts():
                                      f"input_schema 声明了 {field}，但 run_logic 未读取"))
             # run_logic 读取了但 schema 未声明的字段（会导致契约校验失败）
             for field in sorted(used):
-                if field not in schema and field not in ("clips", "days", "script", "template"):
+                if field not in schema and field not in ("clips", "days", "script", "template", "knowledge_context"):
                     problems.append((f"agents/{fn}", "-", f"读取未声明字段 [{node.name}]",
                                      f"run_logic 读取 data['{field}']，但 input_schema 未声明"))
 

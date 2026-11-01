@@ -5,6 +5,7 @@ from datetime import datetime
 
 from core.agent import BaseAgent
 from llm.llm_json import llm_json, llm_text
+from agents.kb_utils import kb_prefix_for, kb_refs_for
 
 
 def _ts() -> str:
@@ -37,7 +38,7 @@ def run_logic_02(data, llm=None):
     data_out = llm_json(
         llm,
         prompt=(
-            f"给这个客户设计一套多轮跟进方案。\n"
+            f"{kb_prefix_for(data)}给这个客户设计一套多轮跟进方案。\n"
             f"客户：{cname}（联系人 {cperson}）\n"
             f"已定策略：{strategy}\n\n"
             f"请输出：\n"
@@ -63,7 +64,7 @@ def run_logic_02(data, llm=None):
     return {"customer": data_out["customer"], "follow_up": data_out["follow_up"],
             "next_step": data_out["next_step"],
             "objection_handling": data_out.get("objection_handling") or [],
-            "hooks": data_out.get("hooks") or [], "ai_note": ""}
+            "hooks": data_out.get("hooks") or [], "知识依据": kb_refs_for(data), "ai_note": ""}
 
 
 class FollowUpAgent(BaseAgent):
@@ -73,6 +74,7 @@ class FollowUpAgent(BaseAgent):
     priority = "P0"
     description = "按话术自动跟进、多轮触达客户（对外动作需人工确认）"
     input_schema = {"customer": "客户对象（company_name/contact_name）", "strategy": "跟进策略"}
+    input_type_hints = {"customer": "dict"}
     output_keys = {"follow_up": "跟进消息与下一步"}
     need_human = True
     run_logic = staticmethod(run_logic_02)
@@ -121,7 +123,7 @@ def run_logic_04(data, llm=None):
     data_out = llm_json(
         llm,
         prompt=(
-            f"分析这段客户聊天记录，诊断成交卡点并给出话术。\n"
+            f"{kb_prefix_for(data)}分析这段客户聊天记录，诊断成交卡点并给出话术。\n"
             f"聊天原文：\n{transcript}\n\n"
             f"请输出：\n"
             f"1. temperature：成交温度分 0-100（0=没戏，100=马上签），并给一句判断依据\n"
@@ -142,7 +144,7 @@ def run_logic_04(data, llm=None):
     diag = data_out.get("diagnosis")
     if not isinstance(diag, dict) or not diag:
         diag = fallback["diagnosis"]
-    return {"diagnosis": diag, "ai_note": ""}
+    return {"diagnosis": diag, "知识依据": kb_refs_for(data), "ai_note": ""}
 
 
 class ChatAnalysisAgent(BaseAgent):
@@ -164,13 +166,19 @@ def run_logic_09(data, llm=None):
       1) LLM 生成主体分层依据与跟进计划（原先只按顺序硬派 A/B/C，无业务依据）
       2) 修复硬索引崩溃：客户字段名不固定（customer_id / name / company_name…）时不再 KeyError
     """
-    customers = data.get("customers") or [
+    _default_customers = [
         {"customer_id": "C1", "company_name": "客户A", "contact_name": "李总", "contact_phone": "13800000001"},
         {"customer_id": "C2", "company_name": "客户B", "contact_name": "张总", "contact_phone": "13800000002"},
         {"customer_id": "C3", "company_name": "客户C", "contact_name": "陈总", "contact_phone": "13800000003"},
     ]
-    if not isinstance(customers, list):
-        customers = [customers]
+    # 输入归一：列表直接用；单条 dict 视为单列；标量/字符串等异常输入回落默认名单，绝不阻断链路
+    raw = data.get("customers")
+    if isinstance(raw, list):
+        customers = raw
+    elif isinstance(raw, dict):
+        customers = [raw]
+    else:
+        customers = _default_customers
 
     def _cid(c, i):
         return str(c.get("customer_id") or c.get("id") or c.get("uid") or f"C{i + 1}")
@@ -193,7 +201,7 @@ def run_logic_09(data, llm=None):
     data_out = llm_json(
         llm,
         prompt=(
-            f"给这批私域客户做分层并给出跟进计划。\n"
+            f"{kb_prefix_for(data)}给这批私域客户做分层并给出跟进计划。\n"
             f"客户名单（含活跃度/成交次数/金额等线索）：{json.dumps(customers, ensure_ascii=False)}\n\n"
             f"请输出：\n"
             f"1. tiers：每位客户的分层结果，每项含 customer_id（沿用名单里的 id，没有就用序号）、"
@@ -215,7 +223,7 @@ def run_logic_09(data, llm=None):
     plan = data_out.get("follow_up_plan")
     if not isinstance(plan, list) or not plan:
         data_out["follow_up_plan"] = fallback_plan
-    return {"tiers": data_out["tiers"], "follow_up_plan": data_out["follow_up_plan"], "ai_note": ""}
+    return {"tiers": data_out["tiers"], "follow_up_plan": data_out["follow_up_plan"], "知识依据": kb_refs_for(data), "ai_note": ""}
 
 
 class TieringAgent(BaseAgent):
@@ -225,6 +233,7 @@ class TieringAgent(BaseAgent):
     priority = "P0"
     description = "私域客户分层、差异化跟进与维护"
     input_schema = {"customers": "客户列表"}
+    input_type_hints = {"customers": "list"}
     output_keys = {"tiers": "分层标签", "follow_up_plan": "跟进计划"}
     run_logic = staticmethod(run_logic_09)
 

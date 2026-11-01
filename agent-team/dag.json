@@ -1,0 +1,382 @@
+{
+  "nodes": {
+    "01": {
+      "module_id": "01",
+      "name": "AI获客线索雷达",
+      "layer": "L1",
+      "kind": "internal"
+    },
+    "02": {
+      "module_id": "02",
+      "name": "AI销售跟进销冠",
+      "layer": "L3",
+      "kind": "internal"
+    },
+    "03": {
+      "module_id": "03",
+      "name": "评论区商机识别官",
+      "layer": "L1",
+      "kind": "internal"
+    },
+    "04": {
+      "module_id": "04",
+      "name": "客户聊天成交分析官",
+      "layer": "L3",
+      "kind": "internal"
+    },
+    "05": {
+      "module_id": "05",
+      "name": "同行爆款雷达",
+      "layer": "L2",
+      "kind": "internal"
+    },
+    "06": {
+      "module_id": "06",
+      "name": "每日精准获客选题官",
+      "layer": "L1",
+      "kind": "internal"
+    },
+    "07": {
+      "module_id": "07",
+      "name": "AI外贸开发客户员工",
+      "layer": "L1",
+      "kind": "internal"
+    },
+    "08": {
+      "module_id": "08",
+      "name": "小红书精准获客员工",
+      "layer": "L1",
+      "kind": "internal"
+    },
+    "09": {
+      "module_id": "09",
+      "name": "私域客户分层跟进官",
+      "layer": "L3",
+      "kind": "internal"
+    },
+    "10": {
+      "module_id": "10",
+      "name": "GEO商机诊断官",
+      "layer": "L4",
+      "kind": "internal"
+    },
+    "11": {
+      "module_id": "11",
+      "name": "一人公司AI员工调度官",
+      "layer": "L5",
+      "kind": "internal"
+    },
+    "12": {
+      "module_id": "12",
+      "name": "老板短视频获客脚本官",
+      "layer": "L2",
+      "kind": "internal"
+    },
+    "13": {
+      "module_id": "13",
+      "name": "博主账号深度拆解官",
+      "layer": "L2",
+      "kind": "internal"
+    },
+    "14": {
+      "module_id": "14",
+      "name": "AI短视频自动剪辑师",
+      "layer": "L2",
+      "kind": "internal"
+    },
+    "15": {
+      "module_id": "15",
+      "name": "公众号自动运营发布官",
+      "layer": "L2",
+      "kind": "internal"
+    },
+    "16": {
+      "module_id": "16",
+      "name": "行业深度分析师",
+      "layer": "L4",
+      "kind": "internal"
+    },
+    "17": {
+      "module_id": "17",
+      "name": "投资研究咨询官",
+      "layer": "L4",
+      "kind": "internal"
+    },
+    "18": {
+      "module_id": "18",
+      "name": "卿听心流指挥官",
+      "layer": "L0",
+      "kind": "internal"
+    },
+    "19": {
+      "module_id": "19",
+      "name": "卿听战略指挥官",
+      "layer": "L0",
+      "kind": "internal"
+    },
+    "20": {
+      "module_id": "20",
+      "name": "卿听拆解指挥官",
+      "layer": "L0",
+      "kind": "internal"
+    },
+    "22": {
+      "module_id": "22",
+      "name": "企业实况诊断官",
+      "layer": "L6",
+      "kind": "internal"
+    },
+    "23": {
+      "module_id": "23",
+      "name": "合伙机制架构师",
+      "layer": "L6",
+      "kind": "internal"
+    },
+    "24": {
+      "module_id": "24",
+      "name": "组织落地教练",
+      "layer": "L6",
+      "kind": "internal"
+    },
+    "25": {
+      "module_id": "25",
+      "name": "家业风险隔离顾问",
+      "layer": "L6",
+      "kind": "internal"
+    },
+    "26": {
+      "module_id": "26",
+      "name": "健康财富规划师",
+      "layer": "L6",
+      "kind": "internal"
+    },
+    "27": {
+      "module_id": "27",
+      "name": "财富传承顾问",
+      "layer": "L6",
+      "kind": "internal"
+    },
+    "28": {
+      "module_id": "28",
+      "name": "服务匹配官",
+      "layer": "L6",
+      "kind": "internal"
+    },
+    "29": {
+      "module_id": "29",
+      "name": "终身陪跑管家",
+      "layer": "L6",
+      "kind": "internal"
+    },
+    "30": {
+      "module_id": "30",
+      "name": "AI降本增效架构师",
+      "layer": "L6",
+      "kind": "internal"
+    },
+    "31": {
+      "module_id": "31",
+      "name": "案例见证官",
+      "layer": "L6",
+      "kind": "internal"
+    },
+    "21": {
+      "module_id": "21",
+      "name": "太上老君AI炼丹炉",
+      "layer": "L7/独立App",
+      "kind": "internal"
+    },
+    "ext:1号卿听心流拍档": {
+      "module_id": "ext:1号卿听心流拍档",
+      "name": "1号卿听心流拍档",
+      "layer": "外部协同",
+      "kind": "external",
+      "desc": "文科心流教练协同体（用户档案接收方）"
+    },
+    "ext:2号卿听战略拍档": {
+      "module_id": "ext:2号卿听战略拍档",
+      "name": "2号卿听战略拍档",
+      "layer": "外部协同",
+      "kind": "external",
+      "desc": "理科战略参谋协同体（战略执行铺排接收方）"
+    },
+    "ext:3号卿听黑箱拆解使者": {
+      "module_id": "ext:3号卿听黑箱拆解使者",
+      "name": "3号卿听黑箱拆解使者",
+      "layer": "外部协同",
+      "kind": "external",
+      "desc": "黑箱拆解思维教练协同体"
+    },
+    "ext:4号灵魂技能使者": {
+      "module_id": "ext:4号灵魂技能使者",
+      "name": "4号灵魂技能使者",
+      "layer": "外部协同",
+      "kind": "external",
+      "desc": "Skill 搭建协同体"
+    }
+  },
+  "edges": [
+    {
+      "from": "01",
+      "to": "02"
+    },
+    {
+      "from": "03",
+      "to": "02"
+    },
+    {
+      "from": "07",
+      "to": "02"
+    },
+    {
+      "from": "08",
+      "to": "02"
+    },
+    {
+      "from": "02",
+      "to": "04"
+    },
+    {
+      "from": "04",
+      "to": "09"
+    },
+    {
+      "from": "05",
+      "to": "12"
+    },
+    {
+      "from": "06",
+      "to": "12"
+    },
+    {
+      "from": "12",
+      "to": "14"
+    },
+    {
+      "from": "14",
+      "to": "15"
+    },
+    {
+      "from": "13",
+      "to": "15"
+    },
+    {
+      "from": "09",
+      "to": "22"
+    },
+    {
+      "from": "10",
+      "to": "11"
+    },
+    {
+      "from": "16",
+      "to": "11"
+    },
+    {
+      "from": "17",
+      "to": "11"
+    },
+    {
+      "from": "11",
+      "to": "19"
+    },
+    {
+      "from": "18",
+      "to": "ext:1号卿听心流拍档"
+    },
+    {
+      "from": "19",
+      "to": "ext:2号卿听战略拍档"
+    },
+    {
+      "from": "20",
+      "to": "ext:3号卿听黑箱拆解使者"
+    },
+    {
+      "from": "20",
+      "to": "ext:4号灵魂技能使者"
+    },
+    {
+      "from": "22",
+      "to": "28"
+    },
+    {
+      "from": "28",
+      "to": "23"
+    },
+    {
+      "from": "23",
+      "to": "24"
+    },
+    {
+      "from": "24",
+      "to": "29"
+    },
+    {
+      "from": "29",
+      "to": "31"
+    },
+    {
+      "from": "31",
+      "to": "22"
+    },
+    {
+      "from": "25",
+      "to": "26"
+    },
+    {
+      "from": "26",
+      "to": "27"
+    },
+    {
+      "from": "27",
+      "to": "29"
+    },
+    {
+      "from": "30",
+      "to": "24"
+    },
+    {
+      "from": "21",
+      "to": "14"
+    }
+  ],
+  "health": {
+    "total_nodes": 35,
+    "total_edges": 31,
+    "broken_edges": [],
+    "islands": [],
+    "sources": [
+      "01",
+      "03",
+      "05",
+      "06",
+      "07",
+      "08",
+      "10",
+      "13",
+      "16",
+      "17",
+      "18",
+      "20",
+      "21",
+      "25",
+      "30"
+    ],
+    "sinks": [
+      "15"
+    ],
+    "cycles": [
+      [
+        "22",
+        "28",
+        "23",
+        "24",
+        "29",
+        "31",
+        "22"
+      ]
+    ]
+  },
+  "warnings": []
+}
