@@ -257,3 +257,15 @@ logs/
 # agent-team 一次性重构脚本与模块副本（不重复入库）
 agent-team/_refactor_*.py
 agent-team/_l6_test.py
+
+# ── 2026-11-01 SWE-bench 第二轮：工作区克隆产物与运行日志（不入库）──
+# base_images/<repo>/src 是整仓克隆（含未来提交），体积大且不应入库
+bench/real/base_images/
+# 运行日志与临时产物
+bench/real/*.log
+bench/real/tmp_test_patch_*.diff
+bench/real/patches/
+bench/real/runs/
+# 临时/一次性脚本（历史遗留）
+make-desktop-bh.cjs
+tmpggjv1b0n

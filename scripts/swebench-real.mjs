@@ -44,20 +44,33 @@ if (!MODEL.apiKey) {
   console.error('缺少环境变量 AGNES_API_KEY（评测专用，勿提交任何真实密钥到仓库）');
   process.exit(1);
 }
-const MAX_ITER = 28;
-const MAX_TOOL_CALLS = 60;
+const MAX_ITER = Number(process.env.SWEBENCH_MAX_ITER || 40);
+const MAX_TOOL_CALLS = Number(process.env.SWEBENCH_MAX_TOOL_CALLS || 70);
 const SHELL_TIMEOUT_MS = 60000;
+
+// Git Bash 路径：让 run_shell 支持模型习惯的 bash 语法
+const BASH_SHELL = process.env.FH_BASH_SHELL
+  || (process.platform === 'win32'
+    ? 'C:\\Program Files\\Git\\bin\\bash.exe'
+    : '/bin/bash');
 
 const SYSTEM_PROMPT = `你是一个严谨的软件工程智能体，正在修复一个真实开源项目的 GitHub issue。
 工作目录就是该仓库在对应 commit 的源码根目录，你可以直接读写其中的文件。
 
-任务要求：
+【运行环境】
+- run_shell 使用 Git Bash（类 Unix），可使用 \`cat\`、\`ls\`、\`grep\`、\`sed\`、\`python\`、\`head\` 等常规命令。
+- 仓库依赖通常【未安装】。不要试图 pip install / 编译安装依赖来跑测试 —— 那会浪费大量轮次。
+  你的任务是定位并修改源码，不是把测试环境跑起来。
+- 若某个 python 命令因缺依赖报错，直接放弃该验证路线，回到读代码定位问题。
+
+【任务要求】
 1. 先阅读理解 issue 描述与报错，定位相关源码文件。
 2. 通过读文件、列目录、grep 搜索来充分理解代码，再动手修改。
 3. 只修改“修复 bug 所需的源码文件”，不要改动测试文件（测试会由评测系统另行应用）。
 4. 必要时可以用 run_shell 运行局部验证（如 python -c 检查逻辑、git diff 自查），但不要运行完整测试套件。
 5. 修改要最小且精准，避免无关改动。
-6. 当你确信已修复问题、且工作区只含源码修复时，调用 finish 工具结束。
+6. 【重要】不要只输出分析报告就结束 —— 必须真正用 edit_file 改动源码。
+7. 当你确信已修复问题、且工作区只含源码修复时，调用 finish 工具结束。
 
 你必须用工具来完成任务，不要只在文字里描述方案。`;
 
@@ -158,14 +171,18 @@ function toolCall(name, args, cwd) {
     }
     if (name === 'list_dir') {
       const p = join(cwd, args.path || '.');
-      const out = execSync(`ls -la "${p}"`, { cwd, encoding: 'utf8', timeout: SHELL_TIMEOUT_MS });
+      const out = execSync(`ls -la "${p}"`, {
+        cwd, encoding: 'utf8', timeout: SHELL_TIMEOUT_MS, shell: BASH_SHELL, maxBuffer: 8 * 1024 * 1024,
+      });
       return out;
     }
     if (name === 'grep') {
       const start = join(cwd, args.path || '.');
-      const globArg = args.glob ? `--glob ${args.glob}` : '';
+      // 注意：GNU grep 没有 --glob 选项（那是 ripgrep 的），会报
+      // "grep: unknown option -- glob" 并中止搜索。改用 --include。
+      const globArg = args.glob ? `--include=${args.glob}` : '';
       const out = execSync(`grep -rn ${globArg} --exclude-dir=.git -E "${args.pattern}" "${start}" | head -40`, {
-        cwd, encoding: 'utf8', timeout: SHELL_TIMEOUT_MS,
+        cwd, encoding: 'utf8', timeout: SHELL_TIMEOUT_MS, shell: BASH_SHELL, maxBuffer: 8 * 1024 * 1024,
       });
       return out || '(无匹配)';
     }
@@ -197,7 +214,18 @@ function toolCall(name, args, cwd) {
       return '已更新 ' + args.path;
     }
     if (name === 'run_shell') {
-      const out = execSync(args.command, { cwd, encoding: 'utf8', timeout: SHELL_TIMEOUT_MS });
+      // 关键：Windows 上 execSync 默认走 cmd.exe，而模型习惯写 bash 语法
+      // （cat > f << 'EOF'、2>/dev/null、which、ls -la 等），在 cmd 下会集体报错，
+      // 导致模型把全部迭代浪费在「工具报错 → 重试 → 再报错」的空转上
+      // （实测 u2-flash 28 轮 0 次 edit_file，20 次 run_shell 全废）。
+      // 这里统一改用 Git Bash 执行，与模型的心智模型对齐。
+      const out = execSync(args.command, {
+        cwd,
+        encoding: 'utf8',
+        timeout: SHELL_TIMEOUT_MS,
+        shell: BASH_SHELL,
+        maxBuffer: 8 * 1024 * 1024,
+      });
       return (out || '(空输出)').slice(0, 3000);
     }
     if (name === 'finish') {
@@ -259,20 +287,53 @@ async function chat(messages) {
 function gitDiff(cwd) {
   try {
     // 含 staged + unstaged 相对 HEAD 的改动（覆盖模型 git add 的情况）
-    return execSync('git --no-pager diff HEAD', { cwd, encoding: 'utf8', timeout: SHELL_TIMEOUT_MS });
+    const raw = execSync('git --no-pager diff HEAD', {
+      cwd, encoding: 'utf8', timeout: SHELL_TIMEOUT_MS,
+      shell: BASH_SHELL, maxBuffer: 16 * 1024 * 1024,
+    });
+    return stripTestFiles(raw);
   } catch (e) {
     return '';
   }
 }
 
+// SWE-bench 铁律：模型 patch 只能改源码，不能改测试文件。
+// 官方 test_patch 会另行应用到测试文件；若模型也改了同一文件，
+// patch 会在评测时 apply 失败 → 结果失真。
+// 这里从 diff 中剔除所有测试文件相关的 hunk。
+function stripTestFiles(diffText) {
+  if (!diffText || !diffText.includes('diff --git')) return diffText;
+  const chunks = diffText.split(/(?=^diff --git )/m);
+  const kept = [];
+  const dropped = [];
+  for (const c of chunks) {
+    if (!c.trim()) continue;
+    const m = c.match(/^diff --git a\/(\S+) b\/(\S+)/);
+    const path = m ? m[1] : '';
+    const isTest = /(^|\/)(tests?\/|test_[^/]*\.py$|[^/]*_test\.py$|[^/]*\/test[^/]*\.py$)/.test(path)
+      || /(^|\/)tests?\//.test(path)
+      || /(^|\/)conftest\.py$/.test(path);
+    if (isTest) dropped.push(path);
+    else kept.push(c);
+  }
+  if (dropped.length) {
+    console.log(`    [过滤] 剔除测试文件改动: ${dropped.join(', ')}`);
+  }
+  return kept.join('');
+}
+
 function resetWorkdir(cwd) {
   try {
-    execSync('git checkout -- . && git clean -fd', { cwd, encoding: 'utf8', timeout: SHELL_TIMEOUT_MS });
+    execSync('git checkout -- . && git clean -fd', {
+      cwd, encoding: 'utf8', timeout: SHELL_TIMEOUT_MS,
+      shell: BASH_SHELL, maxBuffer: 8 * 1024 * 1024,
+    });
   } catch {}
 }
 
 async function runInstance(inst) {
-  const repoDir = inst.workdir || inst.repo.split('/')[1];
+  // 工作区按 instance_id 隔离（同一仓库多实例的 base_commit 不同，共用目录会互相踩踏）
+  const repoDir = inst.workdir || inst.instance_id || inst.repo.split('/')[1];
   const cwd = join(WORK_DIR, repoDir);
   if (!existsSync(cwd)) throw new Error('工作区不存在（未克隆?）: ' + cwd);
   resetWorkdir(cwd);
@@ -310,6 +371,13 @@ async function runInstance(inst) {
     if (!msg) {
       trace.push({ iter: iterations, error: '空响应' });
       break;
+    }
+    // 兼容「思考型」厂商模型：部分模型（u2-flash / u2 / 若干国产 reasoning 模型）
+    // 会把正文放在 reasoning_content，而 content 返回 null。
+    // 若 content 为空则回落取 reasoning_content，否则整轮会被当成「模型没说话」而空转。
+    if (!msg.content && msg.reasoning_content) {
+      msg.content = msg.reasoning_content;
+      trace.push({ iter: iterations, note: 'content 为空，已回落 reasoning_content' });
     }
     messages.push(msg);
     const calls = msg.tool_calls || [];

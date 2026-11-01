@@ -52,13 +52,30 @@ def setup_venv(cwd, instance_id, repo, no_venv=False):
     if no_venv:
         pkgs = {"django/django": ["-e", ".", "pytz", "tblib", "docutils", "jinja2", "pytest"],
                 "astropy/astropy": ["-e", ".", "pytest", "pytest-astropy", "numpy", "pyerfa"]}.get(repo, ["-e", ".", "pytest"])
-        rc, out = run([sys.executable, "-m", "pip", "install"] + pkgs, cwd, timeout=900)
+        rc, out = run([sys.executable, "-m", "pip", "install"] + pkgs, cwd, timeout=2400)
         if rc != 0:
             return sys.executable, "依赖安装失败(部分): " + out[-2000:]
+        chk = run([sys.executable, "-c", "import pytest; print(pytest.__version__)"], cwd, timeout=120)
+        if chk[0] != 0:
+            return sys.executable, "pytest 自检失败(依赖未就绪): " + chk[1][-800:]
         return sys.executable, None
     venv = os.path.join(cwd, ".verify_venv")
+    # 【关键】不能只看目录存在：曾因批量删除被安全策略拦截，残留空壳 venv（只有 Lib/
+    # 没有 Scripts/python.exe），os.path.exists 判真 → 跳过重建 → ensurepip 也找不到
+    # 解释器 → 报 "命令不存在"。必须校验解释器真的存在，否则删掉重建。
+    py = os.path.join(venv, "Scripts", "python.exe") if os.name == "nt" else os.path.join(venv, "bin", "python")
+    if os.path.isdir(venv) and not os.path.exists(py):
+        log_ = "残留空壳 venv（无解释器），删除重建"
+        shutil.rmtree(venv, ignore_errors=True)
+        if os.path.exists(venv):
+            # 仍删不掉（文件占用等），换名后再删
+            try:
+                os.rename(venv, venv + "__stale")
+                shutil.rmtree(venv + "__stale", ignore_errors=True)
+            except Exception as e:
+                return None, f"{log_} 且无法清理: {e}"
     if not os.path.exists(venv):
-        rc, out = run([sys.executable, "-m", "venv", venv], cwd, timeout=120)
+        rc, out = run([sys.executable, "-m", "venv", venv], cwd, timeout=180)
         if rc != 0:
             return None, "venv 创建失败: " + out
     py = os.path.join(venv, "Scripts", "python.exe") if os.name == "nt" else os.path.join(venv, "bin", "python")
@@ -85,11 +102,16 @@ def setup_venv(cwd, instance_id, repo, no_venv=False):
     else:
         pkgs = ["-e", ".", "pytest"]
     if pip:
-        rc, out = run([pip, "install"] + pkgs, cwd, timeout=900)
+        rc, out = run([pip, "install"] + pkgs, cwd, timeout=2400)
     else:
-        rc, out = run([py, "-m", "pip", "install"] + pkgs, cwd, timeout=900)
+        rc, out = run([py, "-m", "pip", "install"] + pkgs, cwd, timeout=2400)
     if rc != 0:
         return py, "依赖安装失败(部分): " + out[-2000:]
+    # 装完必须自检 pytest 真的可用：否则后续测试会因 "No module named pytest"
+    # 全部失败，被误判成「补丁无效」，掩盖真实结论。
+    chk = run([py, "-c", "import pytest; print(pytest.__version__)"], cwd, timeout=120)
+    if chk[0] != 0:
+        return py, "pytest 自检失败(依赖未就绪): " + chk[1][-800:]
     return py, None
 
 def run_tests(py, cwd, repo, ftp, ptp):
@@ -119,7 +141,14 @@ def run_tests(py, cwd, repo, ftp, ptp):
 
 def verify_instance(inst, no_venv=False):
     repo_dir = inst["repo"].split("/")[1]
-    cwd = os.path.join(WORK, repo_dir)
+    # 工作区按 instance_id 隔离：同一仓库常有多个实例（如 astropy-12907 与 astropy-7746），
+    # 共用 work/<repo> 会互相切换 base_commit，导致 test_patch 贴不上、结论失真。
+    cwd = os.path.join(WORK, inst["instance_id"])
+    if not os.path.isdir(os.path.join(cwd, ".git")):
+        # 兼容旧的按仓库名布局
+        legacy = os.path.join(WORK, repo_dir)
+        if os.path.isdir(os.path.join(legacy, ".git")):
+            cwd = legacy
     patch_file = os.path.join(PATCHES, inst["instance_id"] + ".patch")
     if not os.path.exists(patch_file):
         return {"instance_id": inst["instance_id"], "verified": False, "reason": "无模型 patch（未生成）"}
