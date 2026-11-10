@@ -1,0 +1,5 @@
+# npm 打包排除：.gitignore 只作用于 git，files 白名单会把整个目录打进 npm 包。
+# 本地私有配置（含 LLM_API_KEY 等真实密钥）绝不外发。
+.env
+.env.*
+!.env.example
