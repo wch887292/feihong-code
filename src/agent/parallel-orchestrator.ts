@@ -31,6 +31,10 @@ export interface ParallelOptions {
   cleanup?: boolean;
   /** 最大并发子代理数（默认 3，防止 API 限流和资源耗尽） */
   maxConcurrent?: number;
+  /** 2026-11-09 修复：外部中断信号，透传给每个子代理 */
+  signal?: AbortSignal;
+  /** 并行任务总超时（毫秒，默认 15 分钟；0=禁用） */
+  timeoutMs?: number;
 }
 
 export interface ParallelResult {
@@ -46,6 +50,16 @@ export async function runParallel(goal: string, opts: ParallelOptions = {}): Pro
   const repoRoot = opts.repoRoot ?? (await getRepoRoot(process.cwd()));
   const cleanup = opts.cleanup ?? true;
   const maxConcurrent = opts.maxConcurrent ?? 3;
+  // 2026-11-09 修复：并行链路原本没有 AbortController / 超时，子代理收不到中断信号，
+  // 单个子代理空转就会把整批任务拖到队列看门狗（30 分钟）才结束。
+  const controller = new AbortController();
+  const onExternalAbort = (): void => controller.abort();
+  if (opts.signal) {
+    if (opts.signal.aborted) controller.abort();
+    else opts.signal.addEventListener('abort', onExternalAbort, { once: true });
+  }
+  const parallelTimeoutMs = opts.timeoutMs ?? 15 * 60 * 1000;
+  const timer = parallelTimeoutMs > 0 ? setTimeout(() => controller.abort(), parallelTimeoutMs) : undefined;
 
   const tasks = decomposeGoal(goal);
   const router = opts.router ?? new ModelRouter([], 'cost', 0); // 离线时子代理自带 mock
@@ -68,6 +82,7 @@ export async function runParallel(goal: string, opts: ParallelOptions = {}): Pro
         router,
         offline,
         approve: opts.approve,
+        signal: controller.signal,
         mockSteps: offline ? (opts.mockFor ? opts.mockFor(task, i) : undefined) : undefined,
       }).then((r) => ({ ...r, task })),
     );
@@ -78,6 +93,8 @@ export async function runParallel(goal: string, opts: ParallelOptions = {}): Pro
       else logger.error('subagent failed', { error: String(s.reason) });
     }
   } finally {
+    if (timer) clearTimeout(timer);
+    if (opts.signal) opts.signal.removeEventListener('abort', onExternalAbort);
     if (cleanup) {
       for (const wt of worktrees) {
         try {

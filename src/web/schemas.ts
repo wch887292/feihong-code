@@ -18,7 +18,7 @@ import { z } from 'zod';
 export const taskBodySchema = z
   .object({
     goal: z.string().min(1, '缺少 goal 字段'),
-    agentType: z.enum(['solo', 'planner', 'swe', 'team', 'event-driven', 'custom']).optional(),
+    agentType: z.enum(['general', 'fix-code', 'write-code', 'exec-command']).optional(),
     workspaceDir: z.string().optional(),
     modelId: z.string().optional(),
     mode: z.enum(['interactive', 'autonomous']).optional(),

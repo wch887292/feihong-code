@@ -331,6 +331,30 @@ function resetWorkdir(cwd) {
   } catch {}
 }
 
+// 探测能 import 本仓库的解释器（老仓库需要 py3.8，新仓库 py3.13 也能跑）
+// 候选顺序：项目自带 venv → Python 3.8 → 系统默认
+const PY_CANDIDATES = [
+  '.verify_venv/Scripts/python.exe',
+  '.verify_venv/bin/python',
+  'C:/Users/Administrator/AppData/Roaming/uv/python/cpython-3.8.20-windows-x86_64-none/python.exe',
+];
+
+function detectPython(cwd) {
+  for (const rel of PY_CANDIDATES) {
+    const p = join(cwd, rel);
+    if (!existsSync(p)) continue;
+    try {
+      // 只要解释器能启动即可（依赖是否装好不是判断标准）
+      execSync(`"${p}" -c "print(1)"`, {
+        cwd, encoding: 'utf8', timeout: 30000,
+        shell: BASH_SHELL, maxBuffer: 1024 * 1024,
+      });
+      return p;
+    } catch {}
+  }
+  return '';
+}
+
 async function runInstance(inst) {
   // 工作区按 instance_id 隔离（同一仓库多实例的 base_commit 不同，共用目录会互相踩踏）
   const repoDir = inst.workdir || inst.instance_id || inst.repo.split('/')[1];
@@ -341,6 +365,22 @@ async function runInstance(inst) {
   // 避免多实例并行时串到别的 worktree 的 django。
   process.env.PYTHONPATH = cwd;
 
+  // 【关键】为老仓库挑一个能 import 它的解释器。
+  // 背景：SWE-bench 里大量项目是 Python 3.8 时代的老代码（如 sympy-12236 用
+  // `from collections import Mapping`、依赖 distutils），在 Python 3.13 上必然
+  // ImportError。模型不知道这点，会把整轮预算耗在「反复重试同一条失败命令」上
+  // （实测 sympy 实例 40 轮 edit_file=0）。
+  // 这里预先探测可用解释器，并在提示里明确告知，避免无谓空转。
+  const pyExe = detectPython(cwd);
+  if (pyExe) {
+    process.env.FH_PYTHON = pyExe;
+    try {
+      writeFileSync(join(cwd, '.python_exe'), pyExe + '\n', 'utf8');
+    } catch {}
+  } else {
+    process.env.FH_PYTHON = '';
+  }
+
   const messages = [
     { role: 'system', content: SYSTEM_PROMPT },
     {
@@ -348,6 +388,12 @@ async function runInstance(inst) {
       content:
         `仓库: ${inst.repo}（工作区已是对应 commit 的源码）\n` +
         `问题编号(instance): ${inst.instance_id}\n\n` +
+        (process.env.FH_PYTHON
+          ? `【Python 解释器】本仓库需要用这个解释器运行：\n${process.env.FH_PYTHON}\n` +
+            `（系统默认 python 可能是 3.13，而这个老仓库的代码在 3.13 下 import 必然失败。` +
+            `若 import 报错，是解释器版本问题，不是你的修复有问题，请换上面的解释器；` +
+            `若仍失败就直接放弃运行验证，专注改源码，不要反复重试同一条命令。）\n\n`
+          : '') +
         `=== GitHub Issue / 问题描述 ===\n${inst.problem_statement}\n\n` +
         `请开始修复。完成后调用 finish。`,
     },

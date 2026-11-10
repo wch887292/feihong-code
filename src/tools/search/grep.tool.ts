@@ -5,8 +5,8 @@
  * 工具：递归文本搜索
  */
 import { z } from 'zod';
-import { readdir, readFile } from 'fs/promises';
-import { join, relative } from 'path';
+import { readdir, readFile, stat } from 'fs/promises';
+import { join, relative, dirname } from 'path';
 import type { Tool, ToolContext, ToolResult } from '../tool.interface';
 import { safeJoin } from '../safe-path';
 
@@ -48,6 +48,21 @@ async function walk(
   }
 }
 
+/** 单文件检索：逐行匹配正则，命中写入 hits（与 walk 同格式） */
+async function searchFile(abs: string, pattern: RegExp, base: string, hits: string[]): Promise<void> {
+  try {
+    const content = await readFile(abs, 'utf8');
+    const lines = content.split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      if (pattern.test(lines[i])) {
+        hits.push(`${relative(base, abs)}:${i + 1}: ${lines[i].trim().slice(0, 200)}`);
+      }
+    }
+  } catch {
+    // 二进制/无法读取的文件忽略
+  }
+}
+
 export const grepTool: Tool = {
   name: 'grep',
   description: '在工作区内递归搜索匹配文本（忽略 node_modules/.git 等），返回 file:line:content',
@@ -71,7 +86,21 @@ export const grepTool: Tool = {
       }
       const base = safeJoin(ctx.cwd, path ?? '.');
       const hits: string[] = [];
-      await walk(base, 0, regex, base, hits);
+      // 路径可能是文件也可能是目录：文件则直接检索该文件，目录则递归 walk。
+      // 修复（2026-11-07）：此前一律按目录 walk，传入文件路径时 readdir 抛 ENOTDIR 被
+      // 静默吞掉，导致「grep 某文件」返回无匹配、智能体反复确认同一文件陷入循环（grep 0 命中）。
+      let st;
+      try {
+        st = await stat(base);
+      } catch {
+        return { ok: true, output: '无匹配' };
+      }
+      if (st.isFile()) {
+        // 单文件检索：以文件所在目录为相对基准，使输出带文件名（如 file.ts:66:）
+        await searchFile(base, regex, dirname(base), hits);
+      } else {
+        await walk(base, 0, regex, base, hits);
+      }
       return { ok: true, output: hits.length ? hits.slice(0, 50).join('\n') : '无匹配' };
     } catch (err) {
       return { ok: false, output: '', error: `grep 搜索失败: ${err instanceof Error ? err.message : String(err)}` };

@@ -72,6 +72,11 @@ export interface ProviderConfig {
   keyIndex?: number;
   tags: CapabilityTag[];
   costPer1k?: number;
+  /**
+   * 可选自定义 User-Agent（覆盖 fetch 默认）。部分公开网关（如 Kilo AI 免费池）
+   * 按 UA 放行/限制，需携带特定 UA 才能正常返回；留空则使用 fetch 默认 UA。
+   */
+  userAgent?: string;
 }
 
 export interface AppConfig {

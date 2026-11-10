@@ -58,6 +58,8 @@ const ROTATE_ONLY_STATUS = new Set<number>([400, 401, 403, 404]);
 /** key 级错误：优先在本 provider 内切下一把 key，key 池耗尽再跳下一家（对标 FCC fallback key 轮换） */
 const KEY_ROTATE_STATUS = new Set<number>([401, 403, 429]);
 /** 其余状态码（429/500/502/503/504 等瞬时错误）均视为可退避重试 */
+/** 2026-11-09 修复：单家 provider 连续 5xx 时临时冷却 30 秒，避免并发请求集体重打同一家 */
+const PROVIDER_5XX_COOLDOWN_MS = 30_000;
 
 export class ModelRouter {
   private readonly providers: ModelProvider[];
@@ -71,6 +73,8 @@ export class ModelRouter {
   private statsCache: ModelStatsCache | null = null;
   /** 本地模型状态缓存（local tag 路径降级提示用） */
   private localStatus: LocalModelStatus | null = null;
+  /** providerId → 冷却截止时间戳（5xx 熔断，跨 cycle 保持） */
+  private readonly cooldownUntil = new Map<string, number>();
 
   constructor(
     providers: ModelProvider[],
@@ -302,6 +306,10 @@ export class ModelRouter {
    */
   async chat(req: ChatRequest, tags?: CapabilityTag[], exclude?: Set<string>): Promise<ChatResponse> {
     let order = this.rank(tags);
+    // 5xx 熔断：优先剔除冷却中的 provider；全部冷却时回退完整列表，避免死锁
+    const nowCooldown = Date.now();
+    const healthy = order.filter((p) => (this.cooldownUntil.get(p.id) ?? 0) <= nowCooldown);
+    if (healthy.length > 0) order = healthy;
     // 退化轮换：排除已知退化的 provider（编排器注入）；排除后为空则回退完整列表
     if (exclude && exclude.size > 0) {
       const filtered = order.filter((p) => !exclude.has(p.id));
@@ -316,11 +324,25 @@ export class ModelRouter {
       throw new ModelError('未配置任何可用模型 provider', 'router', 500);
     }
     // 同 provider 的多个 key 实例聚拢相邻（keyIndex 升序），保证 401/429 时先切自家 key
-    const grouped = this.groupByProvider(order);
+    const groupedAll = this.groupByProvider(order);
+    // 2026-11-10 修复（选项3·429回退弱模型误操作）：
+    // .env 中标记为 fallback 的 provider（Qwen3-8B / GLM-Z1-9B / DeepSeek-R1-Qwen3-8B 等小参数模型）
+    // 仅应作为轻量档首选或最后兜底，不应在复杂 agentic 任务的错误/限流回退里优先接手——
+    // 否则它接手后会写出结构错误/污染产物（实测曾往 index.html 末尾 append node 脚本）。
+    // 回退候选里把 fallback 整体后置；若已无非 fallback 候选则保留原序（兜底不丢能力）。
+    const hasNonFallback = groupedAll.some((p) => !(p.tags as ReadonlyArray<string>).includes('fallback'));
+    const grouped =
+      hasNonFallback
+        ? [
+            ...groupedAll.filter((p) => !(p.tags as ReadonlyArray<string>).includes('fallback')),
+            ...groupedAll.filter((p) => (p.tags as ReadonlyArray<string>).includes('fallback')),
+          ]
+        : groupedAll;
 
     const maxCycles = this.maxRetries;
     let lastErr: unknown;
     let lastRetryable = true;
+    let lastStatus: number | undefined;
 
     for (let cycle = 0; cycle < maxCycles; cycle++) {
       let i = 0;
@@ -330,6 +352,28 @@ export class ModelRouter {
         try {
           const resp = await p.chat(req);
           const latency = Date.now() - startTime;
+
+          // 空响应熔断（fix 2026-11-07）：provider 返回 HTTP 200 但正文为空且无工具调用
+          // （unisound/xfyun 等大会话退化常见），属无用响应。立即当作可重试失败轮换到下一
+          // provider，避免把空响应回灌编排器后空转/反复 nudge。与编排器 emptyContentStreak
+          // 口径一致：仅 content 为空「且」无 toolCalls 才算 hollow（合法纯文本收尾不算）。
+          const msg = resp.message;
+          const hollow =
+            !((msg?.content ?? '').trim()) && (!msg?.toolCalls || msg.toolCalls.length === 0);
+          if (hollow) {
+            await this.updateStat(p.id, p.model, false, 0, latency, p.keyIndex ?? 1);
+            logger.warn('模型返回空响应（无正文无工具调用），视为失败并轮换下一家', {
+              provider: p.id,
+              model: p.model,
+              cycle: cycle + 1,
+            });
+            lastErr = new ModelError(`provider ${p.id} 返回空响应`, p.id);
+            lastRetryable = true;
+            // 跳过本 provider 剩余 key，直接挑战下一家
+            i += 1;
+            while (i < grouped.length && grouped[i].id === p.id) i += 1;
+            continue;
+          }
 
           // M6: 更新性能统计（成功记录响应模型名）
           await this.updateStat(p.id, resp.model, true, resp.costUsd, latency, p.keyIndex ?? 1);
@@ -343,8 +387,12 @@ export class ModelRouter {
           // M6: 记录失败（用 provider 配置的模型名，避免统计出 model='' 的空条目）
           await this.updateStat(p.id, p.model, false, 0, latency, p.keyIndex ?? 1);
           const status = this.statusOf(e);
+          lastStatus = status;
           lastErr = e;
           lastRetryable = this.isRetryable(e);
+          if (status !== undefined && status >= 500) {
+            this.cooldownUntil.set(p.id, Date.now() + PROVIDER_5XX_COOLDOWN_MS);
+          }
           logger.warn('模型调用失败，自动轮换', {
             provider: p.id,
             keyIndex: p.keyIndex ?? 1,
@@ -368,7 +416,12 @@ export class ModelRouter {
       if (!lastRetryable) break;
       // 瞬时错误（429/500 等）：退避后重试下一轮，直到任务完成或达到上限
       if (cycle < maxCycles - 1) {
-        await this.sleep(this.backoffMs * Math.pow(2, cycle));
+        // 2026-11-09 修复：并发子代理共享同一 router 时，固定退避会让所有请求
+        // 同步 sleep 后再次同时打同一家 → 持续 503。加入随机抖动 + 5xx 额外避让。
+        const base = this.backoffMs * Math.pow(2, cycle);
+        const jitter = 0.6 + Math.random() * 0.8;
+        const serverExtra = lastStatus !== undefined && lastStatus >= 500 ? 1000 * (cycle + 1) : 0;
+        await this.sleep(base * jitter + serverExtra);
       }
     }
 

@@ -11,7 +11,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { mkdtempSync, readFileSync, rmSync } from 'fs';
+import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { evaluateRules, detectRedline, type UserRule } from '../../src/security/rules-engine';
@@ -20,6 +20,13 @@ import { AuditLog, verifyAudit } from '../../src/enterprise/audit';
 
 function tempDir(): string {
   return mkdtempSync(join(tmpdir(), 'fh-p4-'));
+}
+
+const AUDIT_FILE_RE = /^audit-\d{4}-\d{2}(?:\.fallback)?\.jsonl$/;
+
+function readAuditText(dir: string): string {
+  const files = readdirSync(dir).filter((f) => AUDIT_FILE_RE.test(f));
+  return files.map((f) => readFileSync(join(dir, f), 'utf-8')).join('');
 }
 
 const RULES: UserRule[] = [
@@ -199,7 +206,7 @@ test('T4.5b 审计 decision 值正确：submit=info，approve=approved，reject=
 
     const recs = audit.count;
     assert.strictEqual(recs, 4);
-    const text = readFileSync(join(dir, 'audit-2026-10.jsonl'), 'utf-8');
+    const text = readAuditText(dir);
     assert.ok(text.includes('"decision":"info"'));
     assert.ok(text.includes('"decision":"approved"'));
     assert.ok(text.includes('"decision":"rejected"'));
@@ -237,11 +244,8 @@ test('T4.6b 审计日志（含审批事件）无密钥明文', () => {
     const item = box.submit('net:post api_key=sk-supersecret999 https://hook', '外发配置');
     box.decide(item.id, false, '吴总');
 
-    const files = ['audit-2026-10.jsonl'];
-    for (const f of files) {
-      const raw = readFileSync(join(dir, f), 'utf-8');
-      assert.ok(!raw.includes('sk-supersecret999'), `${f} 不得含密钥明文`);
-    }
+    const allAudit = readAuditText(dir);
+    assert.ok(!allAudit.includes('sk-supersecret999'), '审计日志不得含密钥明文');
     assert.strictEqual(verifyAudit(dir).ok, true);
   } finally {
     rmSync(dir, { recursive: true, force: true });

@@ -36,7 +36,7 @@ import type { CodeGraph } from './symbol-index';
 import { buildCodeGraph, loadCachedCodeGraph, cacheCodeGraph, incrementalUpdate } from './symbol-index';
 import { buildRagContext } from './code-rag';
 import type { LayeredMemory } from './layered-memory';
-import { readFileSync } from 'fs';
+import { readFileSync, statSync } from 'fs';
 import { join } from 'path';
 import { withSpan } from '../runtime/otel';
 import {
@@ -49,6 +49,24 @@ import {
 // P2 框架遗留修复③：任务收尾强制验证——复用现成基建，不新写验证器
 import { readRepository, type RepoSnapshot } from './repo-reader';
 import { verifyBuild, verifyTests, type VerifyResult, type VerifyStep, type VerifyStatus } from './swe-verifier';
+import { verifyArtifacts } from './artifact-verifier';
+import { buildContextBrief } from './context-brief';
+
+/**
+ * 判别性目标签名（context-brief 接线，收紧首轮 systemPrompt）：
+ * 用轻量仓库快照（maxFiles 400，不含预览）+ 纯函数 buildContextBrief 抽一段紧凑 markdown，
+ * 前置进首轮 systemPrompt，替代「整段全仓 RAG + 全量记忆」的膨胀。任何异常都静默返回空串，
+ * 绝不因 brief 构建失败影响首轮启动。
+ */
+export function buildOrchestratorBrief(goal: string, cwd: string): string {
+  try {
+    const snapshot = readRepository(cwd, { includePreviews: false, maxFiles: 400 });
+    const brief = buildContextBrief(goal, snapshot);
+    return brief.briefText;
+  } catch {
+    return '';
+  }
+}
 
 /** 全局空转熔断阈值（2026-10-05 第三次事故修复）：
  *  跨工具累计「重复调用强制失败」达 WARN 次注入强指令，达 ABORT 次硬终止。
@@ -60,7 +78,7 @@ const NO_PROGRESS_ABORT = 8;
  *  异常终止并给出诊断（查模型/key、拆窄 goal），不再静默 ok:true 收尾、0 产出。
  *  区别于 NO_PROGRESS（数重复工具调用）与 text-only-nudge（数计划性文字）。 */
 const EMPTY_CONTENT_ABORT = 3;
-import { compactContext, shouldCompact, getCompactionThreshold, shouldCompactByTokens } from './context-compactor';
+import { compactContext, shouldCompact, getCompactionThreshold, shouldCompactByTokens, compactContextByTokens } from './context-compactor';
 import {
   extractExperience,
   upsertExperience,
@@ -77,6 +95,49 @@ import { loadMemExpConfig } from '../memory/mem-exp-config';
  * 免费小模型首轮常输出计划性文字（如「我将创建项目…」）而不调工具，
  * 旧逻辑直接把纯文本当最终答案结束任务，实际未做任何工作。
  */
+
+/**
+ * token 预算默认值（按 token 预算裁剪兜底值）：当 deps.contextMaxTokens 与
+ * 环境变量 FH_CONTEXT_MAX_TOKENS 均未提供时，用此值作为上下文 token 上限，
+ * 避免 token 预算判断因 undefined 被短路。
+ */
+export const DEFAULT_TOKEN_BUDGET = 48000;
+
+/**
+ * 解析 token 压缩预算（纯函数，供主循环与单测复用）：
+ * - FH_TOKEN_COMPACT=0 → 返回 0，表示关闭 token 预算压缩（回退到仅按条数压缩，行为与改造前一致）；
+ * - 否则读 FH_CONTEXT_MAX_TOKENS，若为 ≥1000 的有限数字则原样返回；
+ * - 兜底返回 DEFAULT_TOKEN_BUDGET（48000）。
+ * 用 try 包住 Number 转换，任何异常都不抛。
+ */
+export function resolveTokenBudget(): number {
+  if (process.env.FH_TOKEN_COMPACT === '0') return 0;
+  try {
+    const raw = process.env.FH_CONTEXT_MAX_TOKENS;
+    if (raw) {
+      const n = Number(raw);
+      if (Number.isFinite(n) && n >= 1000) return n;
+    }
+  } catch {
+    // Number 转换异常静默，走默认兜底
+  }
+  return DEFAULT_TOKEN_BUDGET;
+}
+
+/**
+ * 工具输出长度上限（纯函数，避免单条超长输出灌入 messages 导致 token 累积）：
+ * - FH_TOOL_OUTPUT_FULL=1 → 原样返回，不截断（回退开关）；
+ * - text 长度 ≤ cap → 原样返回；
+ * - 否则保留头部 8000 字符 + 尾部 3000 字符，中间插入「… 已截断 N 字符 超长工具输出 …」。
+ */
+export function capToolOutput(text: string, cap: number = 12000): string {
+  if (process.env.FH_TOOL_OUTPUT_FULL === '1') return text;
+  if (text.length <= cap) return text;
+  const head = 8000;
+  const tail = 3000;
+  const omitted = text.length - head - tail;
+  return text.slice(0, head) + `\n… 已截断 ${omitted} 字符 超长工具输出 …\n` + text.slice(text.length - tail);
+}
 
 /** 剥离思考模型的 think 标签与 FINAL: 前缀，得到干净最终答案 */
 export function extractFinalAnswer(raw: string): string {
@@ -95,6 +156,52 @@ export type NoToolCallDecision =
   | { action: 'nudge' };
 
 /**
+ * 2026-11-09 修复：识别「模型把整段代码当纯文本吐出来」的退化。
+ * 旧完成协议只看「是否碰过文件 / FINAL: 前缀 / 连续几轮纯文本」，只要任务早期
+ * 写过任意文件，后续整段代码直接吐正文也会被判定完成。这里做保守启发式：
+ * 必须「足够长 + 明确代码特征」才拦截，普通 FINAL: 总结与简短示例不受影响。
+ */
+export function looksLikeUnfiledCode(text: string): boolean {
+  const t = (text || '').trim();
+  if (!t) return false;
+  if (t.includes('【输出被截断】')) return true;
+  if (/<dots_function_call>[\s\S]*<invoke\s+name=/i.test(t) && !/<\/dots_function_call>/i.test(t)) return true;
+  for (const m of t.matchAll(/```(?:[a-zA-Z0-9_+.-]+)?\s*\n([\s\S]*?)```/g)) {
+    const code = m[1] ?? '';
+    if (code.length >= 400 && /\b(function|const|let|var|import|class|def)\b|<html|<script|=>|\{/.test(code)) return true;
+  }
+  return t.length >= 1200 && /<!doctype html|<html[\s>]|<script\b|```(?:html|js|javascript|ts|typescript)/i.test(t);
+}
+
+/** 与 looksLikeUnfiledCode 配套的 nudge 文案（供主循环与单测复用） */
+export function buildUnfiledCodeNudgeMessage(): string {
+  return '⚠️ 检测到你在正文里直接输出了一整段代码，但这些内容**没有落盘**，任务产物并不存在。\n\n'
+    + '请立即用 write_file 把代码写入目标文件；大文件必须用 append:true 分段写，每段不超过 200 行。\n'
+    + '写完可用 read_file 回读确认闭合标签与语法，再以 FINAL: 开头输出简短总结。禁止把代码贴在回复里当作完成。';
+}
+
+/** 墙钟熔断参数（纯函数，便于单测与现场调参）：
+ *  FH_TASK_DEADLINE_MINUTES 任务总时长上限（默认 20 分钟，0=禁用）
+ *  FH_NO_OUTPUT_TIMEOUT_MINUTES 连续无新增产物的容忍窗口（默认 8 分钟，0=禁用）
+ * 旧熔断只数「重复缓存命中」且被任意新成功调用清零，换工具打转 21 分钟都触发不了。 */
+export function resolveWallClockLimits(): { deadlineMs: number; noOutputMs: number } {
+  const read = (key: string, fallback: number): number => {
+    try {
+      const raw = process.env[key];
+      if (raw === undefined || raw === '') return fallback;
+      const n = Number(raw);
+      return Number.isFinite(n) && n >= 0 ? n * 60000 : fallback;
+    } catch {
+      return fallback;
+    }
+  };
+  return {
+    deadlineMs: read('FH_TASK_DEADLINE_MINUTES', 20 * 60000),
+    noOutputMs: read('FH_NO_OUTPUT_TIMEOUT_MINUTES', 8 * 60000),
+  };
+}
+
+/**
  * 无工具调用轮次的完成协议判定（纯函数，供主循环与单测复用）：
  * - 已有文件改动（touchedCount > 0）→ 维持原「视为完成」语义
  * - 文本以 FINAL: 开头 → 显式最终答案
@@ -110,6 +217,11 @@ export function resolveNoToolCall(
   const t = (text || '').trim();
   const isFinal = /^final\s*:/i.test(t);
   const isDeadLoop = textOnlyStreak >= maxNudges;
+  // 2026-11-09 修复：正文含整段未落盘代码时，无论是否写过文件、是否 FINAL: 都先 nudge；
+  // 仅在连续 nudge 达上限时放行，避免把「吐代码」退化变成永久死循环。
+  if (!isDeadLoop && looksLikeUnfiledCode(t)) {
+    return { action: 'nudge' };
+  }
   if (touchedCount > 0 || isFinal || isDeadLoop) {
     return { action: 'finish', finalAnswer: extractFinalAnswer(t) };
   }
@@ -276,11 +388,18 @@ export class Orchestrator {
     } = this.deps;
     const maxIter = this.deps.maxIterations ?? 50;
     const maxCost = this.deps.maxCostUsd ?? 0;
+    // 2026-11-09 修复：任务级墙钟熔断（不再只依赖「重复缓存命中」计数）
+    const wallLimits = resolveWallClockLimits();
+    const taskStartAt = Date.now();
+    let lastOutputAt = taskStartAt;
+    let noOutputWarned = false;
     // 经验学习三开关配置（默认全关=老行为，文件缺失/损坏回退默认，绝不抛错）
     const memExpCfg = loadMemExpConfig(cwd);
     // 上下文长度控制：消息条数阈值（默认 30）+ token 预算（默认 200000，可经 FH_CONTEXT_MAX_TOKENS 调大）
     const compactThreshold = getCompactionThreshold({ compactEvery: contextCompactEvery });
-    const contextMaxTokens = this.deps.contextMaxTokens ?? (process.env.FH_CONTEXT_MAX_TOKENS ? Number(process.env.FH_CONTEXT_MAX_TOKENS) : undefined);
+    // token 预算：deps 显式值最高优先级，次之环境变量/默认兜底（FH_TOKEN_COMPACT=0 时 tokenBudget=0 关闭 token 压缩）
+    const tokenBudget = resolveTokenBudget();
+    const contextMaxTokens = this.deps.contextMaxTokens ?? (tokenBudget > 0 ? tokenBudget : undefined);
     // 每次 run 重置工具结果缓存与重复调用计数
     this.toolResultCache.clear();
     this.repeatCallHits.clear();
@@ -357,15 +476,33 @@ export class Orchestrator {
       if (specPrompt) systemPrompt += specPrompt;
       if (skillIndex) systemPrompt += skillIndex;
 
+      // context-brief 总开关：FH_CONTEXT_BRIEF=0 时跳过「目标签名 + 记忆截断 + RAG 收紧」三处新逻辑，
+      // 且 RAG 用原值（5/8/6000），一键回退到旧行为。
+      const contextBriefOn = process.env.FH_CONTEXT_BRIEF !== '0';
+      const ragFull = process.env.FH_RAG_FULL === '1';
+
       // P1-2: 分层记忆——从项目记忆中召回相关历史任务，注入 system prompt
       if (this.deps.layeredMemory) {
         try {
           const { systemPrompt: memoryPrompt } = this.deps.layeredMemory.buildContext(goal);
           if (memoryPrompt) {
-            systemPrompt += '\n\n' + memoryPrompt;
+            // 记忆长度上限：超过 3000 字符截取并加省略号，防止历史任务记忆无限膨胀（仅新逻辑生效时截断）
+            const cappedMemory = contextBriefOn && memoryPrompt.length > 3000
+              ? memoryPrompt.slice(0, 3000) + '…'
+              : memoryPrompt;
+            systemPrompt += '\n\n' + cappedMemory;
           }
         } catch (e) {
           logger.warn('layered memory recall failed', { error: e instanceof Error ? (e.stack || e.message) : String(e) });
+        }
+      }
+
+      // 判别性目标签名（context-brief 接线）：在 RAG 注入之前前置一段紧凑的目标+仓库 brief，
+      // 让模型第一轮就拿到判别性上下文，减少全仓 RAG 与探测类空转。
+      if (contextBriefOn) {
+        const briefText = buildOrchestratorBrief(goal, cwd);
+        if (briefText) {
+          systemPrompt += '\n\n📌 目标签名（判别性上下文，非全仓）\n' + briefText;
         }
       }
 
@@ -382,7 +519,11 @@ export class Orchestrator {
             // 传入了预构建图谱，做一次增量更新
             graph = incrementalUpdate(graph, cwd, { maxFiles: 3000 });
           }
-          const ragContext = await buildRagContext(graph, goal, { maxCoreFiles: 5, maxRelatedFiles: 8, maxFileChars: 6000 });
+          // 收紧 RAG 上限：新逻辑默认 3/4/2000；FH_RAG_FULL=1 回退原值 5/8/6000；FH_CONTEXT_BRIEF=0 也回退原值
+          const ragOpts = (contextBriefOn && !ragFull)
+            ? { maxCoreFiles: 3, maxRelatedFiles: 4, maxFileChars: 2000 }
+            : { maxCoreFiles: 5, maxRelatedFiles: 8, maxFileChars: 6000 };
+          const ragContext = await buildRagContext(graph, goal, ragOpts);
           if (ragContext) {
             systemPrompt += '\n\n' + ragContext;
             await eventLog.append('rag.context', { keywords: goal.slice(0, 100), tokens: ragContext.length });
@@ -460,6 +601,40 @@ export class Orchestrator {
     if (!resume) await emitCheckpoint('running');
 
     for (; calls < maxIter; calls++) {
+      // 2026-11-09 修复：任务级墙钟 + 连续无产物熔断，治「换工具/换参数打转 21 分钟」
+      const wallNow = Date.now();
+      const elapsedMin = (wallNow - taskStartAt) / 60000;
+      if (wallLimits.deadlineMs > 0 && wallNow - taskStartAt > wallLimits.deadlineMs) {
+        finalAnswer = `任务已运行 ${elapsedMin.toFixed(1)} 分钟，超过任务级时长上限 ${(wallLimits.deadlineMs / 60000).toFixed(0)} 分钟，已自动终止。请拆窄 goal 或调高 FH_TASK_DEADLINE_MINUTES 后续跑。`;
+        abnormalEnd = true;
+        await eventLog.append('error', { reason: 'wall-clock-deadline', elapsedMin });
+        calls++;
+        break;
+      }
+      const hasTools = (tools.definitions?.()?.length ?? 0) > 0;
+      if (hasTools && wallLimits.noOutputMs > 0 && wallNow - lastOutputAt > wallLimits.noOutputMs) {
+        const idleMin = (wallNow - lastOutputAt) / 60000;
+        if (!noOutputWarned) {
+          noOutputWarned = true;
+          lastOutputAt = wallNow;
+          const stallMsg: ChatMessage = {
+            role: 'user',
+            content: `【墙钟空转警告】已连续 ${idleMin.toFixed(1)} 分钟没有新增产物文件。立即停止一切探测、说明、重试与参数微调，直接推进核心产物（调用 write_file 写目标文件 / 执行真正需要的命令）；若目标文件较大，用 append:true 分段写。再空转一个窗口任务将被强制终止。`,
+          };
+          messages.push(stallMsg);
+          session.append(stallMsg);
+          await eventLog.append('self-heal', { category: 'wall-clock-stall', iteration: calls, strategy: 'no-progress-warn' });
+          this.deps.onEvent?.({ type: 'self-heal', category: 'wall-clock-stall', iteration: calls, strategy: 'no-progress-warn' });
+          continue;
+        }
+        finalAnswer = `检测到连续 ${idleMin.toFixed(1)} 分钟无新增产物（跨工具换参数打转），已自动终止。已采集信息保留在会话中，请拆窄 goal 或调高 FH_NO_OUTPUT_TIMEOUT_MINUTES 后续跑。`;
+        abnormalEnd = true;
+        await eventLog.append('error', { reason: 'wall-clock-no-output-abort', idleMin });
+        this.deps.onEvent?.({ type: 'self-heal', category: 'wall-clock-stall', iteration: calls, strategy: 'no-progress-abort' });
+        calls++;
+        break;
+      }
+      const touchedBeforeRound = touchedFiles.length;
       // P9：任务停止——检查外部中断信号，触发即终止编排循环
       if (this.deps.signal?.aborted) {
         await emitCheckpoint('crashed');
@@ -617,7 +792,10 @@ export class Orchestrator {
             this.deps.onEvent?.({ type: 'self-heal', category: 'model-rotated-degraded', iteration: calls, strategy: 'model-rotated' });
             logger.warn('orchestrator: text-only streak, rotating model', { runId: session.runId, textOnlyStreak, exclude: lastProviderId });
           }
-          const nudgeMsg: ChatMessage = { role: 'user', content: buildTextOnlyNudgeMessage(rawText) };
+          const nudgeMsg: ChatMessage = {
+            role: 'user',
+            content: looksLikeUnfiledCode(rawText) ? buildUnfiledCodeNudgeMessage() : buildTextOnlyNudgeMessage(rawText),
+          };
           messages.push(nudgeMsg);
           session.append(nudgeMsg);
           await eventLog.append('self-heal', { category: 'text-only-nudge', iteration: calls, streak: textOnlyStreak });
@@ -700,6 +878,11 @@ ${toolHint}
       }
 
       const roundErrors = await this.executeToolRound(msg, { tools, eventLog, session, cwd, security, approve, guard }, messages);
+      // 真正出现新的文件产出才刷新「有进展」时间戳（探测/说明/失败重试不算进展）
+      if (touchedFiles.length > touchedBeforeRound) {
+        lastOutputAt = Date.now();
+        noOutputWarned = false;
+      }
 
       // 全局空转熔断（2026-10-05 第三次事故修复）：单 cacheKey 重复检测可被
       // 「换一个工具继续循环」绕过（read_file 循环 → list_dir 循环 → ...），
@@ -760,8 +943,9 @@ ${toolHint}
       await emitCheckpoint('running');
 
       // M6: 上下文压缩（消息条数阈值 或 token 预算超限 均触发）
+      const tokenCompactOn = tokenBudget > 0;
       if (shouldCompact(messages, compactThreshold) ||
-          (contextMaxTokens && shouldCompactByTokens(messages, contextMaxTokens))) {
+          (tokenCompactOn && shouldCompactByTokens(messages, contextMaxTokens))) {
         // P1-2: 如果启用了分层记忆，先同步消息并尝试智能压缩
         if (this.deps.layeredMemory) {
           this.deps.layeredMemory.appendAll(messages);
@@ -773,8 +957,37 @@ ${toolHint}
             }
           }
         }
-        // 回退到普通压缩（如果分层记忆未启用或未压缩）
-        if (!this.deps.layeredMemory || shouldCompact(messages, compactThreshold)) {
+        // token 感知压缩优先路径：token 预算已超限时，用 compactContextByTokens 按预算裁剪（相关性路由 + 退化压缩），
+        // 避免「按条数保留 20 条」把 token 仍压不住；压完用标记跳过下方按条数分支，防止同轮压两次。
+        let tokenCompacted = false;
+        if (tokenCompactOn && contextMaxTokens && shouldCompactByTokens(messages, contextMaxTokens)) {
+          const tokenResult = compactContextByTokens(messages, goal, { maxTokens: contextMaxTokens });
+          const tokenOriginalLength = messages.length;
+          messages = tokenResult.messages;
+          tokenCompacted = true;
+          await eventLog.append('context.compact', {
+            routed: tokenResult.routed,
+            compacted: tokenResult.compacted,
+            tokens: tokenResult.tokens,
+            originalLength: tokenOriginalLength,
+            compressedLength: tokenResult.messages.length,
+            tokenAware: true,
+          } as Record<string, unknown>);
+          this.deps.onEvent?.({
+            type: 'context.compact',
+            originalLength: tokenOriginalLength,
+            compressedLength: tokenResult.messages.length,
+          });
+          logger.info('context compaction applied (token-aware)', {
+            originalLength: tokenOriginalLength,
+            compressedLength: tokenResult.messages.length,
+            tokens: tokenResult.tokens,
+            routed: tokenResult.routed,
+            compacted: tokenResult.compacted,
+          });
+        }
+        // 回退到普通压缩（token 未超预算但按条数达到阈值，或分层记忆未启用/未压缩）
+        if (!tokenCompacted && (!this.deps.layeredMemory || shouldCompact(messages, compactThreshold))) {
           const { messages: compacted, stats } = compactContext(messages, 10);
           messages = compacted;
           await eventLog.append('context.compact', { ...stats } as Record<string, unknown>);
@@ -865,21 +1078,25 @@ ${toolHint}
         const snapshot = readRepository(cwd, { includePreviews: false, maxFiles: 2000 });
         const verifier = this.deps.closeoutVerifier
           ?? {
-            verify: async (snap: RepoSnapshot, dir: string, _files: string[]): Promise<VerifyResult> => {
-              // 复用现成 swe-verifier：有 build 先验 build，有 test 再验 test，都无则 skipped
+            verify: async (snap: RepoSnapshot, dir: string, files: string[]): Promise<VerifyResult> => {
+              // ① 2026-11-09 修复：产物静态校验，无论仓库有无 package.json 都跑。
+              // 独立 HTML/JS 网页（无 package.json）不再直接 skipped，残缺文件与语法错误会被挡下。
+              const art = verifyArtifacts(dir, files);
+              if (art.overall === 'fail') return art;
+              // ② 复用现成 swe-verifier：有 build 先验 build，有 test 再验 test
               if (snap.buildCommand || snap.hasPackageJson) {
                 const b = await verifyBuild(snap, dir);
-                if (b.overall === 'fail') return b;
+                if (b.overall === 'fail') return { ...b, steps: [...art.steps, ...b.steps] };
                 if (snap.testCommand) {
                   const t = await verifyTests(snap, dir);
-                  if (t.overall === 'fail') return t;
+                  if (t.overall === 'fail') return { ...t, steps: [...art.steps, ...b.steps, ...t.steps] };
                   // build pass + test pass/skipped：合并为 pass
-                  return { overall: 'pass', steps: [...b.steps, ...t.steps], errorSummary: '（全部通过）', durationMs: b.durationMs + t.durationMs, log: `${b.log}\n${t.log}` };
+                  return { overall: 'pass', steps: [...art.steps, ...b.steps, ...t.steps], errorSummary: '（全部通过）', durationMs: b.durationMs + t.durationMs, log: `${art.log}\n${b.log}\n${t.log}` };
                 }
-                return b;
+                return { ...b, steps: [...art.steps, ...b.steps] };
               }
-              // 既无 build 也无 package.json：无可验证命令
-              return { overall: 'skipped', steps: [], errorSummary: '（仓库未检测到构建/测试命令，跳过收尾验证）', durationMs: 0, log: 'no verification command available' };
+              // 无 build/test 命令：以产物静态校验结论为准（pass 或 skipped，不再无条件 skipped）
+              return art;
             },
           };
         const vr = await verifier.verify(snapshot, cwd, touchedFiles);
@@ -967,7 +1184,22 @@ ${toolHint}
 
       // 去重检测：相同工具+相同参数如果之前已成功，返回缓存并警告；若多次重复仍不推进，
       // 则升级为「强制失败」，把问题交回大模型重新决策，避免模型在成功动作上原地空转刷屏。
-      const cacheKey = tc.name + '::' + JSON.stringify(tc.arguments ?? {});
+      let cacheKey = tc.name + '::' + JSON.stringify(tc.arguments ?? {});
+      // 2026-11-10 修复（fhcode「read_file 大文件截断诱发死锁」3-2）：read_file 的缓存 key 追加文件
+      // mtimeMs+size。文件被改写后 mtime/size 变化 → 缓存 key 变化 → 回读拿到【最新内容】，既不会被
+      // 旧缓存返回过期内容，也不会因「相同参数重复调用」被强制失败。未变化的文件仍命中缓存，避免反复
+      // 把大文件整篇塞回上下文。仅 read_file 生效，其余工具维持原 cacheKey 行为。
+      if (tc.name === 'read_file') {
+        const rp = (tc.arguments as Record<string, unknown> | undefined)?.path;
+        if (typeof rp === 'string' && rp) {
+          try {
+            const st = statSync(join(ctx.cwd, rp));
+            cacheKey += `::${st.mtimeMs}:${st.size}`;
+          } catch {
+            /* 文件不存在/无权限：不加后缀，维持原行为（失败不入缓存，可重试） */
+          }
+        }
+      }
       // 豁免：run_shell 的状态/幂等敏感命令（stop/status/restart/kill/taskkill/reset/clean/start/mano-cua/docker 等）
       // 不进入结果缓存，避免 stop 这类命令在第二次以相同参数调用时被旧缓存吞掉、不再真正执行。
       const isShellStateCmd =
@@ -1076,8 +1308,13 @@ ${toolHint}
       }
       // P-fix：失败时附带输出尾部（stdout/stderr 中通常含真实报错如 [超时]/编译错误行），
       // 否则 agent 只看到 "exit code 1" 无法自诊断，会反复盲试直至自愈上限（2026-10-05 复盘实测）
+      // 2026-11-10 修复（3-2）：read_file 的结果即文件权威内容，中间截断会毁掉可用性（agent 看不到被砍掉的部分，
+      // 只能写 seg.js 歪招分段读，进而诱发死锁）。故 read_file 豁免 capToolOutput 中间截断，返回完整/区间内容；
+      // 其余工具（run_shell 等）仍按原 cap 截断超长输出以保护上下文。大文件可用 offset/limit 区间读取以控上下文。
       const content = result.ok
-        ? result.output
+        ? tc.name === 'read_file'
+          ? result.output
+          : capToolOutput(result.output)
         : `错误: ${result.error ?? 'unknown'}${
             result.output ? `\n[输出尾部] ${result.output.slice(-1500)}` : '[无输出]'
           }`;

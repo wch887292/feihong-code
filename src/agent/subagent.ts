@@ -40,6 +40,8 @@ export interface SubAgentDeps {
   depth?: number;
   /** P3-4：最大嵌套深度（默认 3） */
   maxDepth?: number;
+  /** 2026-11-09 修复：外部中断信号（并行任务超时/用户停止），否则子代理永不响应 abort */
+  signal?: AbortSignal;
 }
 
 export interface SubAgentResult extends RunResult {
@@ -48,7 +50,7 @@ export interface SubAgentResult extends RunResult {
 }
 
 export async function runSubAgent(deps: SubAgentDeps): Promise<SubAgentResult> {
-  const { worktree, goal, router, offline, security, approve, mockSteps, tags } = deps;
+  const { worktree, goal, router, offline, security, approve, mockSteps, tags, signal } = deps;
   const depth = deps.depth ?? 1;
   const maxDepth = deps.maxDepth ?? MAX_SUBAGENT_DEPTH;
   const runId = randomUUID();
@@ -117,6 +119,7 @@ export async function runSubAgent(deps: SubAgentDeps): Promise<SubAgentResult> {
     security: sec,
     approve,
     tags,
+    signal,
   });
 
   logger.info('subagent start', { runId, worktree: worktree.path, goal, depth });

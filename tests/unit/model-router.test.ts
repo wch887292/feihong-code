@@ -149,6 +149,35 @@ test('chat: 鉴权 401 错误仅轮换不重试', async () => {
   assert.equal(calls, 1, '401 不应退避重试同一模型');
 });
 
+test('chat: HTTP 200 但空正文无工具调用（hollow）视为失败并轮换下一家', async () => {
+  // 回归（2026-11-07 空响应熔断）：unisound/xfyun 等大会话退化常返回 200 + 空正文，
+  // 若不当失败处理会回灌编排器空转。应记为 failedCalls 并轮换到健康 provider。
+  let aCalls = 0;
+  const a: ModelProvider = {
+    id: 'a',
+    model: 'a',
+    tags: ['code-gen'],
+    chat: async () => {
+      aCalls++;
+      return {
+        providerId: 'a',
+        model: 'a',
+        costUsd: 0,
+        usage: { promptTokens: 1, completionTokens: 1, totalTokens: 2 },
+        message: { role: 'assistant', content: '', toolCalls: [] },
+      };
+    },
+  };
+  const router = new ModelRouter([a, mockProvider('good')], 'cost', 0, '', '', 1, 0);
+  const resp = await router.chat({ messages: [] });
+  assert.equal(resp.providerId, 'good', 'hollow 响应应轮换到下一个 provider');
+  assert.equal(aCalls, 1, 'hollow 的 provider 不应被重复调用（已跳出该家）');
+  const stats = router.getStats();
+  const aStat = stats.find((s) => s.providerId === 'a');
+  assert.ok(aStat, 'hollow 的 provider 应记入统计');
+  assert.equal(aStat.failedCalls, 1, 'hollow 响应应记为一次失败');
+});
+
 test('rank: cost 策略优先低成本 provider', () => {
   const router = new ModelRouter(
     [mockProvider('expensive', { costPer1k: 5 }), mockProvider('cheap', { costPer1k: 0.1 })],
@@ -157,4 +186,41 @@ test('rank: cost 策略优先低成本 provider', () => {
   );
   const order = router.rank();
   assert.equal(order[0].id, 'cheap', 'cost 策略应排低成本在前');
+});
+
+test('chat: fallback 标记的 provider 在回退中整体后置（不优先接手复杂任务）', async () => {
+  // qwen 与 agnes 能力分相同（均 code-gen+reasoning），rank 稳定排序保持数组序 [qwen(fallback), agnes]，
+  // 若不后置 qwen 会优先；加防护后 qwen 应被移到末尾，agnes 优先选用。
+  // 直接命中「agnes 429 限流后不该回退到 Qwen3-8B 弱模型误操作」的修复。
+  const router = new ModelRouter(
+    [
+      mockProvider('qwen', { tags: ['code-gen', 'reasoning', 'fallback'] }),
+      mockProvider('agnes', { tags: ['code-gen', 'reasoning'] }),
+    ],
+    'capability',
+    0,
+    '',
+    '',
+    3,
+    0,
+  );
+  const resp = await router.chat({ messages: [] });
+  assert.equal(resp.providerId, 'agnes', 'fallback 应后置，优先选用非 fallback 且能力相当的模型');
+});
+
+test('chat: 非 fallback 全部失败后，fallback 仍作为最后兜底可用（不丢能力）', async () => {
+  const router = new ModelRouter(
+    [
+      mockProvider('agnes', { fail: true, tags: ['code-gen', 'reasoning'] }),
+      mockProvider('qwen', { tags: ['code-gen', 'fallback'] }), // 成功
+    ],
+    'capability',
+    0,
+    '',
+    '',
+    3,
+    0,
+  );
+  const resp = await router.chat({ messages: [] });
+  assert.equal(resp.providerId, 'qwen', '强模型全挂时 fallback 仍应兜底接手');
 });

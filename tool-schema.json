@@ -1,10 +1,10 @@
 {
   "name": "feihong-code",
-  "version": "8.13.6",
+  "version": "8.13.8",
   "description": "Terminal AI Coding Agent — 终端 AI 编程智能体（由 scripts/gen-tool-schema.ts 从运行时工具注册表自动生成）",
-  "generatedAt": "2026-10-29",
-  "sourceRevision": "2dc5f1d",
-  "catalogVersion": "sha256:a73f677de6a5bef26a111c4290a096755384d7193f6faded3c672821aeda5fff",
+  "generatedAt": "2026-11-09",
+  "sourceRevision": "5f21aba",
+  "catalogVersion": "sha256:7106763d6c7308b2751417e01df185fc5159521c1629e0876d3142cf6dbf685f",
   "toolCount": 22,
   "tools": [
     {
@@ -25,7 +25,7 @@
     },
     {
       "name": "write_file",
-      "description": "在工作区内写入/覆盖文件（自动创建父目录）",
+      "description": "在工作区内写入文件（自动创建父目录）。大文件必须用 append:true 分段写入，避免单次输出被截断。",
       "parameters": {
         "type": "object",
         "properties": {
@@ -35,7 +35,11 @@
           },
           "content": {
             "type": "string",
-            "description": "要写入的完整内容"
+            "description": "本段要写入的内容"
+          },
+          "append": {
+            "type": "boolean",
+            "description": "true=追加到文件末尾（分段写大文件）；缺省/false=覆盖写入"
           }
         },
         "required": [

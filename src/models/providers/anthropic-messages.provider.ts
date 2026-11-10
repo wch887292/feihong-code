@@ -175,6 +175,8 @@ export class AnthropicMessagesProvider implements ModelProvider {
       providerId: this.id,
       model: this.model,
       costUsd: estimateCost(usage, this.costPer1k),
+      finishReason: parsed.data.stop_reason ?? undefined,
+      truncated: parsed.data.stop_reason === 'max_tokens',
     };
   }
 }

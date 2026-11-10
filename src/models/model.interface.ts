@@ -54,6 +54,10 @@ export interface ChatResponse {
   providerId: string;
   model: string;
   costUsd: number;
+  /** 上游 finish_reason / stop_reason（length、max_tokens、stop、tool_calls 等） */
+  finishReason?: string;
+  /** true = 本轮输出被 token 上限截断，内容可能不完整，编排器禁止静默收尾 */
+  truncated?: boolean;
 }
 
 export interface ModelProvider {

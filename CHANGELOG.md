@@ -1,5 +1,17 @@
 ﻿# 飞虹 Code 更新日志 / Changelog
 
+## v8.13.8 · 版本一致性校准 + 退化链路修复 (2026-11-09)
+
+**主题**：将版本权威源 `package.json` 从 8.13.6 拉齐至 android / app-mobile 端既有的 8.13.8，消除 `check:version` / `check:cross` 报告的 `android versionName='8.13.8' != package.json 8.13.6` 阻塞；并汇总本轮对 fhcode 自身退化链路的兜底修复。
+
+- **版本一致性校准（`bump-version.mjs 8.13.6 -> 8.13.8`）**：`package.json` / `src/cli/version.ts` / `README JSON-LD` / `mcp-server.ts` / `vscode-extension/package.json` / `tool-schema.json` 全部同步至 8.13.8；`app-mobile/index.html` 原本已是 v8.13.8；android `versionName` 保持 8.13.8 不变，`versionCode` 维持 **86**（与已构建 `app-release.apk` 元数据及 `docs/delivery-playbook.md` 记录一致——本次是权威源校准而非新发版，不做无意义的 code 递增）；`check:version` / `check:cross` 恢复全绿
+- **P0 落盘链路修复**：`ChatResponse` 新增 `finishReason` / `truncated`，OpenAI-compatible 与 Anthropic provider 上抛截断信号；`text-toolcall.ts` 不再把文末半截参数当合法内容，改打 `__truncated__` 标记；`write_file` 拒绝截断参数、首次写 HTML/JSON 做闭合校验并新增 `append:true` 分段写入；`orchestrator` 新增 `looksLikeUnfiledCode` + 专用 nudge，正文吐整段代码不再被判 `done`
+- **P1 空转与并发修复**：任务级墙钟熔断（`FH_TASK_DEADLINE_MINUTES` 默认 20 / `FH_NO_OUTPUT_TIMEOUT_MINUTES` 默认 8）；`parallel-orchestrator` / `subagent` 全链路透传 `AbortSignal` + 15 分钟并行超时；`model-router` 对 5xx 供应商冷却 30 秒、退避加随机抖动打散惊群
+- **收尾强制验证**：新增 `src/agent/artifact-verifier.ts`，对 HTML / JS / JSON / CSS 做闭合与语法校验并强制接入 closeout（独立网页不再 skipped）；新增 `tests/unit/regression-degradation.test.ts` 14 例钉死五类退化
+- **顺带修复既有误判**：`swe-verifier.classify()` 原用泛化 `/error\b/i`，把 `npm test` 输出里的测试用例名 `classifyError: 编译错误分类` 当成真错误，全绿日志被误判 fail、任务误报 `ok:false`；`verify:m6` 由 28/29 恢复 29/29
+- **测试脆弱性加固**：`tests/unit/task-queue.test.ts` 并发上限用例仍用硬编码 200 次（4 秒）轮询，全量并发下偶发 `646/647` flaky（单跑始终 19/19 通过）；统一复用文件头部既有的 `COMPLETE_BUDGET`（30 秒）预算，断言语义不变。
+- **验证矩阵**：`typecheck` / `build` 通过；全量单测 **647/647**；`verify:m4 / m6 / m7 / m8 / m9 / routines / policy` 全绿；`check:catalog` / `check:compliance` / `check:version` / `check:cross` 通过；dist 端到端冒烟 **9/9**（含「半截文件不落盘」「纯文本吐代码不报成功」）
+
 ## v8.13.6 · 版本一致性校准（消除 check:version/cross 漂移）(2026-10-29)
 
 **主题**：将版本权威源 `package.json` 从 8.13.3 拉齐至 android 端既有 8.13.6，消除 `check:version` / `check:cross` 报告的 `android versionName=8.13.6 != package.json 8.13.3` 漂移；`npm run check:version` / `check:cross` 恢复全绿。

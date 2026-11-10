@@ -556,6 +556,9 @@ export class TaskQueue {
     // 为当前任务创建 AbortController，供 cancelTask 精准中止进行中的执行（含模型请求）
     const controller = new AbortController();
     this.controllers.set(id, controller);
+    // 僵尸回收定时器句柄提升到 try 之外，使 finally 可访问（Promise.race 抢先结算时清理，
+    // 否则默认 35 分钟长定时器挂在事件循环里，任务完成后进程仍无法退出）。
+    let zombieTimer: ReturnType<typeof setTimeout> | undefined;
     // 看门狗：运行超过最大时长则强制中断，防止僵尸任务（模型挂起/死循环导致永久 running）
     let watchdogFired = false;
     const watchdog = setTimeout(() => {
@@ -616,10 +619,14 @@ export class TaskQueue {
         stageChange: this.stageChange, // P3-1：AI 生成的文件修改自动暂存到变更面板
         mode: record.mode ?? 'interactive', // 开发模式：交互/自主
       });
+      // 僵尸回收定时器：Promise.race 由 execPromise 抢先结算时，
+      // 这个 maxDurationMs+5min（默认 35 分钟）的 setTimeout 若不清掉会一直挂在事件循环里，
+      // 导致任务完成后进程仍无法退出（单测全量被拖死 / 生产环境每任务残留一个长定时器占内存）。
+      // 在下方 finally 中统一 clearTimeout。
       const result = await Promise.race([
         execPromise,
         new Promise<ReturnType<typeof executeTask>>((resolveZombie) => {
-          setTimeout(() => {
+          zombieTimer = setTimeout(() => {
             controller.abort();
             logger.warn('task zombie reaped', { taskId: id, waitedMin: Math.round(this.maxDurationMs / 60000) + 5 });
             const reapMsg = `执行挂起超过 ${Math.round(this.maxDurationMs / 60000) + 5} 分钟被强制回收（并发槽保护，避免僵尸任务死锁队列）`;
@@ -665,6 +672,7 @@ export class TaskQueue {
       logger.error('task failed', { taskId: id, error: record.error });
     } finally {
       clearTimeout(watchdog); // 清理看门狗定时器
+      if (zombieTimer) clearTimeout(zombieTimer); // 清理僵尸回收定时器（否则 35 分钟长定时器拖住事件循环）
       this.controllers.delete(id); // 清理中断控制器
       record.updatedAt = new Date().toISOString();
       this.running--;

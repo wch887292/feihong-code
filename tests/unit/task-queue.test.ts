@@ -65,8 +65,9 @@ test('TaskQueue: 并发上限限制同时执行数', async () => {
   // 立即检查：任一时刻 running 不得超过并发上限 2
   const running = queue.list().filter((t) => t.status === 'running').length;
   assert.ok(running <= 2, `并发不应超过 2，实际 ${running}`);
-  // 等待全部完成
-  for (let i = 0; i < 200; i++) {
+  // 等待全部完成（复用 COMPLETE_BUDGET：6 个任务在全量并发下偶发超出 4s 旧预算，
+  // 曾导致 `npm test` 出现 646/647 的 flaky 失败，单跑始终 19/19 通过）
+  for (let i = 0; i < COMPLETE_BUDGET; i++) {
     if (queue.list().every((t) => t.status === 'done' || t.status === 'failed')) break;
     await wait(20);
   }

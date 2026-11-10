@@ -62,9 +62,10 @@ export function extractTextToolCalls(content: string): TextToolCallResult | null
     cleaned = cleaned.split(block).join('');
   }
 
-  // 1b) dots 格式截断容错：模型输出超 max_tokens 被截断时，闭合标签缺失。
-  // 只要 <invoke name="X"> 存在就尽力解析参数（最后一个参数值可能是半截），
-  // 让 write_file 至少落盘大部分内容——好过整块 XML 漏进对话正文、工具静默失效。
+  // 1b) dots 格式「未闭合块」：说明模型输出被 max_tokens 截断。
+  // 2026-11-09 修复：旧逻辑把文末半截参数当合法 content 落盘，制造出停在半行的
+  // 残缺文件（22KB HTML 停在 `for (var p =`）。现在只打 __truncated__ 标记，
+  // 由 write_file / edit_file 拒绝落盘并引导模型改用 append 分段写。
   const unclosedAt = cleaned.indexOf('<dots_function_call>');
   if (unclosedAt >= 0) {
     const tail = cleaned.slice(unclosedAt);
@@ -78,9 +79,11 @@ export function extractTextToolCalls(content: string): TextToolCallResult | null
         args[p[1].trim()] = p[2].trim();
       }
       if (Object.keys(args).length > 0) {
+        // 半截参数禁止伪装成完整写入：工具层见到该标记会拒绝落盘
+        args.__truncated__ = true;
         toolCalls.push({ id: nextId(), name: invokeOpen[1].trim(), arguments: args });
-        truncated = true;
       }
+      truncated = true;
       cleaned = cleaned.slice(0, unclosedAt);
     }
   }
@@ -110,6 +113,6 @@ export function extractTextToolCalls(content: string): TextToolCallResult | null
     cleaned = cleaned.split(m[0]).join('');
   }
 
-  if (toolCalls.length === 0) return null;
+  if (toolCalls.length === 0 && !truncated) return null;
   return { toolCalls, cleanedContent: cleaned.trim(), truncated };
 }

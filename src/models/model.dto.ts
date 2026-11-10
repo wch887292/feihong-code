@@ -33,7 +33,7 @@ export const openAIMessageSchema = z.object({
 export const openAIChatResponseSchema = z.object({
   model: z.string(),
   choices: z
-    .array(z.object({ message: openAIMessageSchema, finish_reason: z.string().optional() }))
+    .array(z.object({ message: openAIMessageSchema, finish_reason: z.string().nullable().optional() }))
     .min(1),
   usage: z
     .object({

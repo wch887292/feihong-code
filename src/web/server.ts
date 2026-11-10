@@ -1141,7 +1141,7 @@ export function startWebServer(opts: ServeOptions = {}): {
     { name: 'fhcode_list_models', description: '列出 fhcode 当前配置的可用大模型与默认模型。无需参数。', inputSchema: { type: 'object', properties: {}, required: [] } },
     { name: 'fhcode_run', description: '调用 fhcode 在真实沙箱中执行工程级编程任务（写/改/重构代码、跑测试、执行命令、修 bug、审查）。参数：goal(必填), agent_type(write-code/fix-code/exec-command/code-review/general), workspace_dir, model_id, timeout。', inputSchema: { type: 'object', properties: { goal: { type: 'string' }, agent_type: { type: 'string' }, workspace_dir: { type: 'string' }, model_id: { type: 'string' }, timeout: { type: 'number' } }, required: ['goal'] } },
     { name: 'fhcode_local_exec', description: '在本地 Windows 电脑直接执行一条 shell 命令并返回输出（不经审批，即时生效）。参数：command(必填), timeout。用绝对路径 C:\\Users\\Administrator\\...。', inputSchema: { type: 'object', properties: { command: { type: 'string' }, timeout: { type: 'number' } }, required: ['command'] } },
-    { name: 'fhcode_run_with_approval', description: '申请一次需手机审批的本地电脑操作，进入待审批队列，返回 approval_id；用户在飞虹智语音App审批通过后由 fhcode_approve 执行。参数：command(必填), timeout, reason。', inputSchema: { type: 'object', properties: { command: { type: 'string' }, timeout: { type: 'number' }, reason: { type: 'string' } }, required: ['command'] } },
+    { name: 'fhcode_run_with_approval', description: '申请一次需手机审批的本地电脑操作，进入待审批队列，返回 approval_id；用户在飞虹智语音App审批通过后由 fhcode_approve 执行。参数：command(本地命令, 必填, 也可用 goal 代替), timeout, reason(给用户在App上看到的说明)。desc 永远非空，避免手机端审批卡片空白卡死。', inputSchema: { type: 'object', properties: { command: { type: 'string' }, goal: { type: 'string' }, timeout: { type: 'number' }, reason: { type: 'string' } }, required: [] } },
     { name: 'fhcode_approve', description: '对 fhcode_run_with_approval 产生的待审批操作决定并落地：approve=true 执行，approve=false 取消。参数：approval_id(必填), approve(必填), timeout。', inputSchema: { type: 'object', properties: { approval_id: { type: 'string' }, approve: { type: 'boolean' }, timeout: { type: 'number' } }, required: ['approval_id', 'approve'] } },
     { name: 'fhcode_list_pending', description: '列出所有待手机审批的操作（pending 状态），返回 JSON 数组。无需参数。', inputSchema: { type: 'object', properties: {}, required: [] } },
   ];
@@ -1167,11 +1167,15 @@ export function startWebServer(opts: ServeOptions = {}): {
       if (name === 'fhcode_run') return await mcpSubmitTask(args.goal, args.agent_type || 'write-code', args.model_id || '', args.workspace_dir || '', args.timeout || 300);
       if (name === 'fhcode_local_exec') return await mcpLocalExec(args.command, args.timeout || 120);
       if (name === 'fhcode_run_with_approval') {
-        const cmd = String(args.command || '').trim().replace(/~\/|%USERPROFILE%/g, 'C:\\Users\\Administrator\\');
-        if (!cmd) return 'exec fail: 空命令';
+        // 兼容 agent 把任务文本放在 command / goal 任一字段
+        const cmd = String(args.command || args.goal || '').trim().replace(/~\/|%USERPROFILE%/g, 'C:\\Users\\Administrator\\');
+        if (!cmd) return 'exec fail: 空命令（command/goal 均缺失）';
         const aid = randomBytes(6).toString('hex');
-        mcpPending.set(aid, { desc: (args.reason || cmd).slice(0, 200), command: cmd, timeout: (Number(args.timeout) || 120), ts: Date.now(), status: 'pending' });
-        return JSON.stringify({ approval_id: aid, desc: (args.reason || cmd).slice(0, 200), status: 'pending', tip: '操作已暂停，请在飞虹智语音App审批通过后执行' }, null, 2);
+        // desc 永远非空：优先 reason，其次 command，兜底中文提示，避免手机端「审批请求：」空白卡死
+        const desc = (args.reason && String(args.reason).trim()) || cmd;
+        mcpPending.set(aid, { desc: desc.slice(0, 200), command: cmd, timeout: (Number(args.timeout) || 120), ts: Date.now(), status: 'pending' });
+        // 同时回传 command，供手机端在 desc 字段缺失时兜底渲染，杜绝空白审批
+        return JSON.stringify({ approval_id: aid, desc: desc.slice(0, 200), command: cmd, status: 'pending', tip: '操作已暂停，请在飞虹智语音App审批通过后执行' }, null, 2);
       }
       if (name === 'fhcode_approve') {
         const item = mcpPending.get(String(args.approval_id || ''));
@@ -1182,7 +1186,7 @@ export function startWebServer(opts: ServeOptions = {}): {
       }
       if (name === 'fhcode_list_pending') {
         const items: any[] = [];
-        for (const [aid, info] of mcpPending) if (info.status === 'pending') items.push({ approval_id: aid, desc: info.desc, status: 'pending', ts: info.ts });
+        for (const [aid, info] of mcpPending) if (info.status === 'pending') items.push({ approval_id: aid, desc: (info.desc || info.command || '待审批操作').slice(0, 200), command: info.command, status: 'pending', ts: info.ts });
         return JSON.stringify(items, null, 2);
       }
       return '未知工具：' + name;

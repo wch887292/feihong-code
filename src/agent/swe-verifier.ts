@@ -57,6 +57,13 @@ const FAIL_PATTERNS = [
 
 function classify(code: number, out: string): VerifyStatus {
   if (code !== 0) return 'fail';
+  // 2026-11-09 修复：node:test / jest 等运行器 exit=0 时，输出里常含测试用例名
+  // 「classifyError: 编译错误分类」「TypeError: ...」这类字样，旧泛化 /error\b/i
+  // 会把「# fail 0」的全绿日志误判为失败，收尾验证因此把 ok 置 false（verify:m6 实测）。
+  // 先看明确的失败计数汇总，再看泛化关键字。
+  const failCount = /#\s*fail\s+(\d+)/i.exec(out);
+  if (failCount && Number(failCount[1]) === 0) return 'pass';
+  if (/\b0\s+tests?\s+failed\b/i.test(out)) return 'pass';
   // 退出码为 0 但仍可能含错误日志（部分工具 exit 0 但打印 error）
   if (FAIL_PATTERNS.some((re) => re.test(out))) {
     // 测试命令打印 "0 tests failed" 不算失败，需更严格

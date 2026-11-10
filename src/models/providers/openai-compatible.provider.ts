@@ -39,6 +39,7 @@ export class OpenAICompatibleProvider implements ModelProvider {
   readonly keyIndex?: number;
   private readonly baseURL: string;
   private readonly apiKey?: string;
+  private readonly userAgent?: string;
 
   constructor(cfg: ProviderConfig) {
     this.id = cfg.id;
@@ -48,6 +49,7 @@ export class OpenAICompatibleProvider implements ModelProvider {
     this.keyIndex = cfg.keyIndex;
     this.baseURL = cfg.baseURL.replace(/\/$/, '');
     this.apiKey = cfg.apiKey;
+    this.userAgent = cfg.userAgent;
   }
 
   async chat(req: ChatRequest): Promise<ChatResponse> {
@@ -95,6 +97,7 @@ export class OpenAICompatibleProvider implements ModelProvider {
         headers: {
           'Content-Type': 'application/json',
           ...(this.apiKey ? { Authorization: `Bearer ${this.apiKey}` } : {}),
+          ...(this.userAgent ? { 'user-agent': this.userAgent } : {}),
         },
         body: JSON.stringify(body),
         signal: controller.signal,
@@ -123,6 +126,10 @@ export class OpenAICompatibleProvider implements ModelProvider {
     }
 
     const choice = parsed.data.choices[0];
+    // 2026-11-09 修复：上游 finish_reason 明确告知截断时必须把信号上抛，
+    // 否则「半截 tool call 被容错解析 → 静默落盘 → 报 done」的退化链路无从阻断。
+    const finishReason = choice.finish_reason ?? undefined;
+    let truncated = finishReason === 'length' || finishReason === 'max_tokens';
     const usage = parsed.data.usage
       ? {
           promptTokens: parsed.data.usage.prompt_tokens,
@@ -145,9 +152,13 @@ export class OpenAICompatibleProvider implements ModelProvider {
     if ((!toolCalls || toolCalls.length === 0) && content) {
       const extracted = extractTextToolCalls(content);
       if (extracted) {
-        toolCalls = extracted.toolCalls;
+        toolCalls = extracted.toolCalls.length > 0 ? extracted.toolCalls : undefined;
         content = extracted.cleanedContent;
+        truncated = truncated || !!extracted.truncated;
       }
+    }
+    if (truncated && (!toolCalls || toolCalls.length === 0)) {
+      content = '【输出被截断】上一轮回复超过模型单次输出上限，未闭合的 tool call 已丢弃，禁止直接收尾。请改用 write_file 的 append:true 分段写入，每段不超过 200 行，最后一段补齐闭合标签。';
     }
 
     return {
@@ -156,6 +167,8 @@ export class OpenAICompatibleProvider implements ModelProvider {
       providerId: this.id,
       model: this.model,
       costUsd: estimateCost(usage, this.costPer1k),
+      finishReason,
+      truncated,
     };
   }
 
@@ -180,6 +193,7 @@ export class OpenAICompatibleProvider implements ModelProvider {
         headers: {
           'Content-Type': 'application/json',
           ...(this.apiKey ? { Authorization: `Bearer ${this.apiKey}` } : {}),
+          ...(this.userAgent ? { 'user-agent': this.userAgent } : {}),
         },
         body: JSON.stringify(body),
         signal: controller.signal,
